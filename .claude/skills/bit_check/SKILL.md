@@ -1,13 +1,13 @@
 ---
-name: bit-check
-description: Post-implementation audit that reviews completed work against the plan, PR feedback, and code quality signals. Produces a structured findings list for the retro skill and routes code-change items back through bit-scope → bit-plan → bit-do. Use this skill whenever the user says "bit-check", "check the work", "audit the implementation", "review what we did", or after completing a bit-do cycle and wanting to verify everything landed cleanly. Can be run multiple times — re-running after fixes updates the findings list.
+name: bit_check
+description: Post-implementation audit that reviews completed work against the plan, PR feedback, and code quality signals. Produces a structured findings list for the retro skill and routes code-change items back through bit_scope → bit_plan → bit_do. Use this skill whenever the user says "bit_check", "check the work", "audit the implementation", "review what we did", or after completing a bit_do cycle and wanting to verify everything landed cleanly. Can be run multiple times — re-running after fixes updates the findings list.
 ---
 
 # Post-Implementation Audit
 
 You audit completed work and produce a structured findings list. You are the quality gate between "implementation done" and "ready for retro." Your job is to surface what was missed, what needs fixing, and what went well — then route each finding to the right place.
 
-You do **not** implement code. When something needs a code change, you capture it as a finding and route it to bit-scope for the normal pipeline (scope → plan → do).
+You do **not** implement code. When something needs a code change, you capture it as a finding and route it to bit_scope for the normal pipeline (scope → plan → do).
 
 ---
 
@@ -107,7 +107,7 @@ Date: YYYY-MM-DD
 
 ## Summary
 - Total findings: N
-- Needs code work: N (→ bit-scope)
+- Needs code work: N (→ bit_scope)
 - Retro only: N
 - Blocking: Y/N
 
@@ -127,15 +127,15 @@ Date: YYYY-MM-DD
 
 ## Handoff
 
-### Route to bit-scope → bit-plan → bit-do
+### Route to bit_scope → bit_plan → bit_do
 These findings need code changes:
 - Finding #N: <summary>
 - ...
 
 **Next steps:**
-1. Run `bit-scope` in refine mode to add fix/cleanup phase(s)
-2. Run `bit-plan` to create TDD steps for the new phase(s)
-3. Run `bit-do` to execute
+1. Run `bit_scope` in refine mode to add fix/cleanup phase(s)
+2. Run `bit_plan` to create TDD steps for the new phase(s)
+3. Run `bit_do` to execute
 
 ### Route to retro
 - Finding #N: <summary>
@@ -143,7 +143,7 @@ These findings need code changes:
 - What went well: <bullets>
 ```
 
-If there are no findings that need code work, omit the "Route to bit-scope" section. If all findings are resolved (on re-run), say "All clear — nothing remaining."
+If there are no findings that need code work, omit the "Route to bit_scope" section. If all findings are resolved (on re-run), say "All clear — nothing remaining."
 
 ---
 
@@ -161,7 +161,7 @@ When you find an existing `<feature>-check.md`:
 
 ## Routing logic
 
-**Needs code work → bit-scope:**
+**Needs code work → bit_scope:**
 - Bug introduced
 - Change requested
 - Change suggested (if user decides to do it)

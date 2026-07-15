@@ -1,6 +1,6 @@
 ---
-name: bit-plan
-description: Create or refine an implementation plan for a large task — bug fix, refactor, or new feature. Use when the user says "make a plan", "let's plan this out", "let's revise the plan", references a .md plan file to write or improve, or describes a change that is too large to implement in one session. Also triggers on casual phrasing like "let's think through this" or "how should we approach X" when the scope is clearly multi-step. This skill authors and refines the plan document only — when the user wants to frame the high-level WHY and delivery order first, use bit-scope; when they want to carry out an existing plan ("implement the plan", "continue our implementation", "do the next step"), use bit-do instead. Produces a structured markdown plan that links back to its scope (bit-scope) for the WHY, with contradiction-driven steps (each one red-green cycle and one commit) tagged to the scope's phases, TDD-first checklists, and an explicit split between what Claude verifies and what the user verifies.
+name: bit_plan
+description: Create or refine an implementation plan for a large task — bug fix, refactor, or new feature. Use when the user says "make a plan", "let's plan this out", "let's revise the plan", references a .md plan file to write or improve, or describes a change that is too large to implement in one session. Also triggers on casual phrasing like "let's think through this" or "how should we approach X" when the scope is clearly multi-step. This skill authors and refines the plan document only — when the user wants to frame the high-level WHY and delivery order first, use bit_scope; when they want to carry out an existing plan ("implement the plan", "continue our implementation", "do the next step"), use bit_do instead. Produces a structured markdown plan that links back to its scope (bit_scope) for the WHY, with contradiction-driven steps (each one red-green cycle and one commit) tagged to the scope's phases, TDD-first checklists, and an explicit split between what Claude verifies and what the user verifies.
 ---
 
 # Implementation Plan Creator
@@ -16,7 +16,7 @@ You create and refine implementation plans. Plans are markdown files that serve 
 
 ## Context — defer to the scope
 
-The WHY lives in the **scope** (bit-scope's `<feature>-scope.md`), not here. Duplicating motivation in two documents just lets them drift apart. So the plan's Context section is a **one-line pointer** to the scope, optionally with a single-sentence recap for a reader who opens the plan alone:
+The WHY lives in the **scope** (bit_scope's `<feature>-scope.md`), not here. Duplicating motivation in two documents just lets them drift apart. So the plan's Context section is a **one-line pointer** to the scope, optionally with a single-sentence recap for a reader who opens the plan alone:
 
 ```markdown
 ## Context
@@ -24,7 +24,7 @@ See scope: [feature-scope.md](./feature-scope.md)
 Recap: <one sentence, optional>
 ```
 
-If **no scope exists** — the user came straight to a plan — you still need the WHY before drafting. Either suggest writing a quick scope first (bit-scope), or capture 2–3 sentences of motivation inline. A reader who knows nothing about the codebase should understand *why* this work is needed:
+If **no scope exists** — the user came straight to a plan — you still need the WHY before drafting. Either suggest writing a quick scope first (bit_scope), or capture 2–3 sentences of motivation inline. A reader who knows nothing about the codebase should understand *why* this work is needed:
 
 **Wrong:** "This plan covers fixing the prime distribution queries and cleaning up the streaming code."
 **Right:** "Congressional and house district voter files show wrong prime totals because each county's ETL job overwrites the district-level aggregate — only the last county to finish is reflected. Voter targeting for non-county geographies is unreliable until this is fixed."
@@ -150,9 +150,9 @@ Bad: "Implement child workflow"
 
 ### Tag each step with its scope phase
 
-When a scope exists, every step names the scope phase it serves — e.g. `## Step 3 (Phase 1 — Ingest) — Contradiction forces real fan-out`. This is what lets progress roll up: bit-do checks off a scope phase once all the steps tagged to it are done. A step serves exactly one phase; if it seems to span two, it's probably two steps. Plan the phases in the scope's delivery order, so the walking skeleton lands first.
+When a scope exists, every step names the scope phase it serves — e.g. `## Step 3 (Phase 1 — Ingest) — Contradiction forces real fan-out`. This is what lets progress roll up: bit_do checks off a scope phase once all the steps tagged to it are done. A step serves exactly one phase; if it seems to span two, it's probably two steps. Plan the phases in the scope's delivery order, so the walking skeleton lands first.
 
-**Do not include scope-update instructions in the plan.** The plan's job ends at describing the steps — no "Scope phase rollup" sections, no reminders to check off scope phases, no guidance on updating other documents. Tracking progress and keeping the scope in sync is bit-do's responsibility; including it here just burns output tokens on information the executor already has from the skill that runs it.
+**Do not include scope-update instructions in the plan.** The plan's job ends at describing the steps — no "Scope phase rollup" sections, no reminders to check off scope phases, no guidance on updating other documents. Tracking progress and keeping the scope in sync is bit_do's responsibility; including it here just burns output tokens on information the executor already has from the skill that runs it.
 
 ### Refactor steps
 

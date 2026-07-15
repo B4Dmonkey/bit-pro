@@ -1,26 +1,26 @@
 ---
-name: bit-scope
-description: Create or refine a high-level scope (an RFC-style overview) for a feature or change BEFORE any detailed planning. Use this first — whenever the user wants to frame WHAT is changing and WHY at a high level, sketch the shape of a feature request, decide the order of delivery, or surface risks and unknowns to de-risk before committing to a detailed plan. Triggers on "scope this out", "give me a high-level overview", "what's the shape of this feature", "let's write an RFC", "think through the delivery order", "before we plan", or describing a feature request where implementation detail isn't wanted yet. Produces a markdown scope doc: the motivation (WHY), a coarse checklist of value-delivering phases (each a usable vertical slice, ordered for incremental value), light pointers to the code areas each phase touches, and a highlighted risks/unknowns section. This is the overview that feeds bit-plan — bit-scope owns the WHY and the delivery order; bit-plan turns each phase into detailed TDD steps; bit-do executes. Reach for bit-scope for the high-level shape, bit-plan for the detailed plan, bit-do to build it.
+name: bit_scope
+description: Create or refine a high-level scope (an RFC-style overview) for a feature or change BEFORE any detailed planning. Use this first — whenever the user wants to frame WHAT is changing and WHY at a high level, sketch the shape of a feature request, decide the order of delivery, or surface risks and unknowns to de-risk before committing to a detailed plan. Triggers on "scope this out", "give me a high-level overview", "what's the shape of this feature", "let's write an RFC", "think through the delivery order", "before we plan", or describing a feature request where implementation detail isn't wanted yet. Produces a markdown scope doc: the motivation (WHY), a coarse checklist of value-delivering phases (each a usable vertical slice, ordered for incremental value), light pointers to the code areas each phase touches, and a highlighted risks/unknowns section. This is the overview that feeds bit_plan — bit_scope owns the WHY and the delivery order; bit_plan turns each phase into detailed TDD steps; bit_do executes. Reach for bit_scope for the high-level shape, bit_plan for the detailed plan, bit_do to build it.
 ---
 
 # Scope Creator
 
-You write and refine a **scope** — a short, high-level overview of a proposed software change. You do NOT write code, name functions, or produce a granular task list; a later skill (bit-plan) does that. Your job is clarity about **what** is changing, **why**, and **in what order** value gets delivered.
+You write and refine a **scope** — a short, high-level overview of a proposed software change. You do NOT write code, name functions, or produce a granular task list; a later skill (bit_plan) does that. Your job is clarity about **what** is changing, **why**, and **in what order** value gets delivered.
 
 A scope is a markdown file the user refines until they're happy with the shape of the work. It is the first of three artifacts:
 
-- **bit-scope** (this skill) — the high-level shape: why, and the order of delivery. Owns the WHY.
-- **bit-plan** — turns the scope's phases into detailed, contradiction-driven TDD steps.
-- **bit-do** — executes the plan, keeping both the scope and the plan in sync as progress lands.
+- **bit_scope** (this skill) — the high-level shape: why, and the order of delivery. Owns the WHY.
+- **bit_plan** — turns the scope's phases into detailed, contradiction-driven TDD steps.
+- **bit_do** — executes the plan, keeping both the scope and the plan in sync as progress lands.
 
-Because bit-scope owns the WHY, the plan won't repeat it — it will point back here. That makes the motivation in this document load-bearing: get it right.
+Because bit_scope owns the WHY, the plan won't repeat it — it will point back here. That makes the motivation in this document load-bearing: get it right.
 
 ---
 
 ## Two modes
 
 **Create** — start from a feature request or problem description and build the scope from scratch.
-**Refine** — improve an existing scope (the user points to a file with @, or pastes it). The user will typically loop here several times, tightening the phases and de-risking, until they're satisfied enough to move to bit-plan.
+**Refine** — improve an existing scope (the user points to a file with @, or pastes it). The user will typically loop here several times, tightening the phases and de-risking, until they're satisfied enough to move to bit_plan.
 
 ---
 
@@ -46,7 +46,7 @@ If yes, it's an increment of value and belongs in the scope. If the phase only p
 
 ### The line you don't cross
 
-The scope says *what becomes possible and in what order*. It never says *how*. No function signatures, no test strategy, no algorithms, no schemas. Those are bit-plan's job, and putting them here just creates a second place that drifts out of sync.
+The scope says *what becomes possible and in what order*. It never says *how*. No function signatures, no test strategy, no algorithms, no schemas. Those are bit_plan's job, and putting them here just creates a second place that drifts out of sync.
 
 **One deliberate exception — a light "touches" pointer.** Each phase may name the *code area* it affects — a file, a module, a component — as a **locator so the reader can spot-check that work is on the right path**. This is a "where to look," not a "how to build it."
 
@@ -81,7 +81,7 @@ Before drafting, get the WHY right — it's the part the plan will lean on, so i
 2. What triggered this now — a bug report, wrong data, a deadline, a new requirement?
 3. Any constraints — things we must not touch, production concerns, ordering forced by external dependencies?
 
-Then do *light* research — enough to name the code areas each phase touches and to spot the real risks, but not a deep dive (that's bit-plan's job):
+Then do *light* research — enough to name the code areas each phase touches and to spot the real risks, but not a deep dive (that's bit_plan's job):
 - Locate the parts of the codebase each phase would affect, so the "touches" pointers are accurate.
 - Notice genuine unknowns — external services, ambiguous data shapes, assumptions the whole approach rests on.
 
@@ -91,7 +91,7 @@ Don't over-research. If you find yourself reading function bodies to design the 
 
 ## Scope format
 
-Write the scope to a `.md` file in the project root unless the user says otherwise. A clear default name is `<feature>-scope.md`, so bit-plan and bit-do can find its partner plan (`<feature>-plan.md`). Use this structure:
+Write the scope to a `.md` file in the project root unless the user says otherwise. A clear default name is `<feature>-scope.md`, so bit_plan and bit_do can find its partner plan (`<feature>-plan.md`). Use this structure:
 
 ```markdown
 # [Title]
@@ -106,7 +106,7 @@ plan will point back here.]
 
 ## Phases
 [A coarse, markable checklist. Each phase is a usable vertical slice, named by the
-capability it unlocks, ordered for incremental value. bit-do checks these off (- [x])
+capability it unlocks, ordered for incremental value. bit_do checks these off (- [x])
 as the underlying plan steps land.]
 
 - [ ] Phase 1 — <capability unlocked>: one or two sentences on what a user/operator can now do.
@@ -142,15 +142,15 @@ Keep it tight. This is an overview a reader skims to grasp the shape of the work
 5. Check risks: is each unknown paired with a resolution? Are the ones worth de-risking before planning called out?
 6. Propose edits with reasoning — don't silently rewrite large sections. Confirm before rewriting more than a few lines.
 
-The user drives this loop; keep refining with them until they're happy enough to move to bit-plan.
+The user drives this loop; keep refining with them until they're happy enough to move to bit_plan.
 
 ---
 
-## Handoff to bit-plan
+## Handoff to bit_plan
 
-When the user is satisfied with the scope, the next step is bit-plan, which turns each phase into detailed TDD steps. Remind them, briefly, that:
+When the user is satisfied with the scope, the next step is bit_plan, which turns each phase into detailed TDD steps. Remind them, briefly, that:
 - The plan will reference this scope for the WHY rather than repeating it.
 - Each plan step will be tagged with the scope phase it serves, so progress rolls up.
-- bit-do later keeps both documents in sync as work lands.
+- bit_do later keeps both documents in sync as work lands.
 
-You don't build the plan — just point them at bit-plan when they're ready.
+You don't build the plan — just point them at bit_plan when they're ready.
