@@ -1,0 +1,10 @@
+{
+  "enabledPlugins": {
+    "go@go-skills": true,
+    "cobra-viper@go-skills": true,
+    "go-spec-reviewer@go-skills": true,
+    "go-release@go-skills": true,
+    "wails@go-skills": true,
+    "fileflow-pathologize@go-skills": true
+  }
+}
