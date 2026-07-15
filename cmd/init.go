@@ -1,7 +1,10 @@
 package cmd
 
 import (
+	"bufio"
+	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -16,10 +19,15 @@ func newInitCmd() *cobra.Command {
 			if err := os.MkdirAll(".bit", 0o755); err != nil {
 				return err
 			}
-			if prefix != "" {
-				return saveConfig(&Config{Prefix: prefix})
+			if prefix == "" {
+				fmt.Fprint(cmd.OutOrStdout(), "Task ID prefix: ")
+				line, err := bufio.NewReader(cmd.InOrStdin()).ReadString('\n')
+				if err != nil && line == "" {
+					return fmt.Errorf("reading task ID prefix: %w", err)
+				}
+				prefix = strings.TrimSpace(line)
 			}
-			return nil
+			return saveConfig(&Config{Prefix: prefix})
 		},
 	}
 	cmd.Flags().StringVar(&prefix, "prefix", "", "task ID prefix for this project (e.g. BIT)")
