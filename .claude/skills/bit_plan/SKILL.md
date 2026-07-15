@@ -35,7 +35,9 @@ If the user gives you only a "what", push back once to get the "why". Ask: what 
 
 ## Gathering context (new plans)
 
-**If a scope doc exists, start there.** Read it end to end: the WHY, the phases, the "touches" pointers, and the risks. The scope hands you the delivery order and the code areas each phase affects — your job is to turn its phases into TDD steps. Confirm with the user which phase(s) this planning session covers; you don't have to plan the whole scope at once.
+**If a scope doc exists, start there.** Read it end to end: the WHY, the phases, the "touches" pointers, and the risks. The scope hands you the delivery order and the code areas each phase affects — your job is to turn its phases into TDD steps.
+
+Default to planning every phase in one pass. Splitting into multiple planning sessions exists to route around a genuine unknown — a risk the scope flagged "de-risk before planning? Yes", or a later phase whose shape depends on what an earlier phase turns out to build — not as a default posture just because a scope has more than one phase. If the scope is clear and none of its risks block a phase, plan it end to end now; don't ask the user to pick a phase to be cautious. If an unknown does block a later phase, plan up through whatever isn't blocked, then tell the user which phase(s) you're deferring and why.
 
 If there's no scope, ask before researching:
 
