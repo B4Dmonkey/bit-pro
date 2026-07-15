@@ -69,6 +69,23 @@ func TestInitCmd_WritesConfigWithPrefix(t *testing.T) {
 	}
 }
 
+func TestInitCmd_ErrorsOnEmptyPrefix(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	rootCmd := NewRootCmd()
+	rootCmd.SetIn(strings.NewReader("\n"))
+	rootCmd.SetArgs([]string{"init"})
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("Execute() returned nil error, want error for empty prefix")
+	}
+
+	if _, statErr := os.Stat(filepath.Join(dir, ".bit", "config.toml")); !os.IsNotExist(statErr) {
+		t.Errorf("os.Stat(.bit/config.toml) = %v, want IsNotExist", statErr)
+	}
+}
+
 func TestInitCmd_PromptsForPrefixWhenFlagOmitted(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
