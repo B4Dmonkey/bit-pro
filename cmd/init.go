@@ -7,11 +7,21 @@ import (
 )
 
 func newInitCmd() *cobra.Command {
-	return &cobra.Command{
+	var prefix string
+
+	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Create the .bit/ directory bit uses to track this project",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return os.MkdirAll(".bit", 0o755)
+			if err := os.MkdirAll(".bit", 0o755); err != nil {
+				return err
+			}
+			if prefix != "" {
+				return saveConfig(&Config{Prefix: prefix})
+			}
+			return nil
 		},
 	}
+	cmd.Flags().StringVar(&prefix, "prefix", "", "task ID prefix for this project (e.g. BIT)")
+	return cmd
 }

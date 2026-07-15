@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/BurntSushi/toml"
 )
 
 func TestInitCmd(t *testing.T) {
@@ -38,5 +40,30 @@ func TestInitCmd(t *testing.T) {
 				t.Errorf(".bit exists but is not a directory")
 			}
 		})
+	}
+}
+
+func TestInitCmd_WritesConfigWithPrefix(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	rootCmd := NewRootCmd()
+	rootCmd.SetArgs([]string{"init", "--prefix", "BIT"})
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("Execute() returned error: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, ".bit", "config.toml"))
+	if err != nil {
+		t.Fatalf("os.ReadFile(.bit/config.toml) returned error: %v", err)
+	}
+
+	var cfg Config
+	if _, err := toml.Decode(string(data), &cfg); err != nil {
+		t.Fatalf("toml.Decode returned error: %v", err)
+	}
+	if cfg.Prefix != "BIT" {
+		t.Errorf("cfg.Prefix = %q, want %q", cfg.Prefix, "BIT")
 	}
 }
