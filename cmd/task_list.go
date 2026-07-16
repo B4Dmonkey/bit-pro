@@ -5,10 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 )
 
 func newTaskListCmd() *cobra.Command {
@@ -29,17 +27,12 @@ func newTaskListCmd() *cobra.Command {
 					return fmt.Errorf("reading %s: %w", path, err)
 				}
 
-				parts := strings.SplitN(string(data), "---", 3)
-				if len(parts) != 3 {
-					return fmt.Errorf("parsing %s: expected frontmatter delimited by \"---\"", path)
+				t, err := parseTask(data)
+				if err != nil {
+					return fmt.Errorf("parsing %s: %w", path, err)
 				}
 
-				var fm taskFrontmatter
-				if err := yaml.Unmarshal([]byte(parts[1]), &fm); err != nil {
-					return fmt.Errorf("parsing frontmatter in %s: %w", path, err)
-				}
-
-				fmt.Fprintf(cmd.OutOrStdout(), "%s\t%s\t%s\n", fm.ID, fm.Status, fm.Title)
+				fmt.Fprintf(cmd.OutOrStdout(), "%s\t%s\t%s\n", t.ID, t.Status, t.Title)
 			}
 			return nil
 		},

@@ -8,14 +8,7 @@ import (
 	"strconv"
 
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 )
-
-type taskFrontmatter struct {
-	ID     string `yaml:"id"`
-	Title  string `yaml:"title"`
-	Status string `yaml:"status"`
-}
 
 func newTaskCreateCmd() *cobra.Command {
 	var description string
@@ -38,21 +31,13 @@ func newTaskCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			frontmatter, err := yaml.Marshal(taskFrontmatter{
+			t := &Task{
 				ID:     id,
 				Title:  args[0],
 				Status: "todo",
-			})
-			if err != nil {
-				return fmt.Errorf("encoding task frontmatter: %w", err)
+				Body:   description,
 			}
-
-			content := "---\n" + string(frontmatter) + "---\n" + description
-			path := filepath.Join(tasksDir, id+".md")
-			if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-				return fmt.Errorf("writing %s: %w", path, err)
-			}
-			return nil
+			return t.save()
 		},
 	}
 	cmd.Flags().StringVarP(&description, "description", "d", "", "task description (body content)")
