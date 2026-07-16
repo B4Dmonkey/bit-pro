@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -49,6 +50,49 @@ func TestTaskDeleteCmd_ErrorsOnUnknownID(t *testing.T) {
 	deleteCmd.SetArgs([]string{"task", "delete", "BIT-99", "--yes"})
 	if err := deleteCmd.Execute(); err == nil {
 		t.Fatal("Execute() returned nil error, want non-nil for unknown ID")
+	}
+}
+
+func TestTaskDeleteCmd_PromptsForConfirmation(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		wantExists bool
+	}{
+		{name: "confirms", input: "y\n", wantExists: false},
+		{name: "declines", input: "n\n", wantExists: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			t.Chdir(dir)
+
+			initCmd := NewRootCmd()
+			initCmd.SetArgs([]string{"init", "--prefix", "BIT"})
+			if err := initCmd.Execute(); err != nil {
+				t.Fatalf("init Execute() returned error: %v", err)
+			}
+
+			createCmd := NewRootCmd()
+			createCmd.SetArgs([]string{"task", "create", "X", "--description", "..."})
+			if err := createCmd.Execute(); err != nil {
+				t.Fatalf("task create Execute() returned error: %v", err)
+			}
+
+			deleteCmd := NewRootCmd()
+			deleteCmd.SetIn(strings.NewReader(tt.input))
+			deleteCmd.SetArgs([]string{"task", "delete", "BIT-1"})
+			if err := deleteCmd.Execute(); err != nil {
+				t.Fatalf("Execute() returned error: %v", err)
+			}
+
+			_, statErr := os.Stat(".bit/tasks/BIT-1.md")
+			exists := statErr == nil
+			if exists != tt.wantExists {
+				t.Errorf("file exists = %v, want %v (stat err: %v)", exists, tt.wantExists, statErr)
+			}
+		})
 	}
 }
 
