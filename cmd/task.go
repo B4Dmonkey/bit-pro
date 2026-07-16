@@ -11,5 +11,6 @@ func newTaskCmd() *cobra.Command {
 	}
 	taskCmd.AddCommand(newTaskCreateCmd())
 	taskCmd.AddCommand(newTaskListCmd())
+	taskCmd.AddCommand(newTaskReadCmd())
 	return taskCmd
 }
