@@ -65,6 +65,51 @@ func TestTaskCreateCmd_ErrorsWithoutTitle(t *testing.T) {
 	}
 }
 
+func TestTaskCreateCmd_AssignsNextIDWhenTasksExist(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	initCmd := NewRootCmd()
+	initCmd.SetArgs([]string{"init", "--prefix", "BIT"})
+	if err := initCmd.Execute(); err != nil {
+		t.Fatalf("init Execute() returned error: %v", err)
+	}
+
+	tasksPath := filepath.Join(dir, ".bit", "tasks")
+	if err := os.MkdirAll(tasksPath, 0o755); err != nil {
+		t.Fatalf("os.MkdirAll(%s) returned error: %v", tasksPath, err)
+	}
+	existing := map[string]string{
+		"BIT-1.md": "---\nid: BIT-1\ntitle: First\nstatus: todo\n---\n",
+		"BIT-3.md": "---\nid: BIT-3\ntitle: Third\nstatus: todo\n---\n",
+	}
+	for name, content := range existing {
+		if err := os.WriteFile(filepath.Join(tasksPath, name), []byte(content), 0o644); err != nil {
+			t.Fatalf("os.WriteFile(%s) returned error: %v", name, err)
+		}
+	}
+
+	createCmd := NewRootCmd()
+	createCmd.SetArgs([]string{"task", "create", "Third real task", "--description", "..."})
+	if err := createCmd.Execute(); err != nil {
+		t.Fatalf("task create Execute() returned error: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(tasksPath, "BIT-4.md")); err != nil {
+		t.Errorf("os.Stat(BIT-4.md) returned error: %v, want file to exist", err)
+	}
+
+	for name, want := range existing {
+		got, err := os.ReadFile(filepath.Join(tasksPath, name))
+		if err != nil {
+			t.Fatalf("os.ReadFile(%s) returned error: %v", name, err)
+		}
+		if string(got) != want {
+			t.Errorf("%s content = %q, want unchanged %q", name, got, want)
+		}
+	}
+}
+
 func TestTaskCreateCmd_ErrorsWithoutConfig(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
