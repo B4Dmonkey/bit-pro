@@ -3,9 +3,9 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
+	"github.com/spf13/pathologize"
 	"gopkg.in/yaml.v3"
 )
 
@@ -17,7 +17,7 @@ type Task struct {
 }
 
 func taskPath(id string) string {
-	return filepath.Join(tasksDir, id+".md")
+	return pathologize.Join(tasksDir, id+".md")
 }
 
 func loadTask(id string) (*Task, error) {
