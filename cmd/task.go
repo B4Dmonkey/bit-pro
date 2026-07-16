@@ -10,5 +10,6 @@ func newTaskCmd() *cobra.Command {
 		Short: "Manage tasks",
 	}
 	taskCmd.AddCommand(newTaskCreateCmd())
+	taskCmd.AddCommand(newTaskListCmd())
 	return taskCmd
 }
