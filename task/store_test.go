@@ -148,6 +148,38 @@ func TestStoreConfig_RoundTrips(t *testing.T) {
 	}
 }
 
+func TestCompareIDs(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		a, b string
+		want int
+	}{
+		{name: "newer sorts before older", a: "BIT-2", b: "BIT-1", want: -1},
+		{name: "older sorts after newer", a: "BIT-1", b: "BIT-2", want: 1},
+		{name: "equal ids", a: "BIT-1", b: "BIT-1", want: 0},
+		{name: "two-digit id sorts before one-digit", a: "BIT-10", b: "BIT-9", want: -1},
+		{name: "unparseable suffix sorts last", a: "BIT-abc", b: "BIT-1", want: 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := compareIDs(tt.a, tt.b)
+			switch {
+			case tt.want < 0 && got >= 0:
+				t.Errorf("compareIDs(%q, %q) = %d, want negative", tt.a, tt.b, got)
+			case tt.want > 0 && got <= 0:
+				t.Errorf("compareIDs(%q, %q) = %d, want positive", tt.a, tt.b, got)
+			case tt.want == 0 && got != 0:
+				t.Errorf("compareIDs(%q, %q) = %d, want 0", tt.a, tt.b, got)
+			}
+		})
+	}
+}
+
 func TestStoreConfig_ErrorsWhenAbsent(t *testing.T) {
 	t.Parallel()
 

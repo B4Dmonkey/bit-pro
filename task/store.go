@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/pathologize"
 )
@@ -68,8 +69,6 @@ func (s *Store) List() ([]*Task, error) {
 	if err != nil {
 		return nil, fmt.Errorf("scanning %s for tasks: %w", s.tasksDir(), err)
 	}
-	slices.Sort(matches)
-	slices.Reverse(matches)
 
 	tasks := make([]*Task, 0, len(matches))
 	for _, path := range matches {
@@ -83,7 +82,34 @@ func (s *Store) List() ([]*Task, error) {
 		}
 		tasks = append(tasks, t)
 	}
+	slices.SortFunc(tasks, func(a, b *Task) int { return compareIDs(a.ID, b.ID) })
 	return tasks, nil
+}
+
+// compareIDs orders IDs by their numeric suffix, descending, so the newest
+// task sorts first regardless of digit count (BIT-10 before BIT-9). An
+// unparseable suffix can only come from a hand-edited file and sorts last.
+func compareIDs(a, b string) int {
+	an, aOK := idNumber(a)
+	bn, bOK := idNumber(b)
+	switch {
+	case aOK && bOK:
+		return bn - an
+	case aOK:
+		return -1
+	case bOK:
+		return 1
+	default:
+		return 0
+	}
+}
+
+func idNumber(id string) (int, bool) {
+	n, err := strconv.Atoi(id[strings.LastIndex(id, "-")+1:])
+	if err != nil {
+		return 0, false
+	}
+	return n, true
 }
 
 func (s *Store) NextID(prefix string) (string, error) {
