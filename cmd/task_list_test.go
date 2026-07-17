@@ -39,6 +39,27 @@ func TestTaskListCmd_OrdersNumericallyNotLexically(t *testing.T) {
 	}
 }
 
+func TestTaskListCmd_GroupsBarsUnderTheirTrack(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "One", "...")
+	createTask(t, "Two", "...")
+	mustRun(t, "task", "create", "One.1", "-d", "...", "--parent", "BIT-1")
+	mustRun(t, "task", "create", "One.2", "-d", "...", "--parent", "BIT-1")
+	mustRun(t, "task", "create", "Two.1", "-d", "...", "--parent", "BIT-2")
+
+	out := mustRun(t, "task", "list")
+
+	ids := make([]string, 0, 5)
+	for line := range strings.SplitSeq(strings.TrimRight(out, "\n"), "\n") {
+		ids = append(ids, strings.Split(line, "\t")[0])
+	}
+
+	want := []string{"BIT-2", "BIT-2.1", "BIT-1", "BIT-1.1", "BIT-1.2"}
+	if !slices.Equal(ids, want) {
+		t.Errorf("ID order = %v, want %v", ids, want)
+	}
+}
+
 func TestTaskListCmd_EmptyWhenNoTasks(t *testing.T) {
 	initProject(t, "BIT")
 

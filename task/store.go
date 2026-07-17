@@ -86,15 +86,20 @@ func (s *Store) List() ([]*Task, error) {
 	return tasks, nil
 }
 
-// compareIDs orders IDs by their numeric suffix, descending, so the newest
-// task sorts first regardless of digit count (BIT-10 before BIT-9). An
-// unparseable suffix can only come from a hand-edited file and sorts last.
+// compareIDs orders IDs by (track, bar): tracks descending, newest first
+// (BIT-10 before BIT-9), and a track's own bars ascending directly beneath
+// it (BIT-2.1 before BIT-2.13). A track's own bar number is 0, so it always
+// heads its group. An unparseable suffix can only come from a hand-edited
+// file and sorts last.
 func compareIDs(a, b string) int {
-	an, aOK := idNumber(a)
-	bn, bOK := idNumber(b)
+	at, ab, aOK := idParts(a)
+	bt, bb, bOK := idParts(b)
 	switch {
 	case aOK && bOK:
-		return bn - an
+		if at != bt {
+			return bt - at
+		}
+		return ab - bb
 	case aOK:
 		return -1
 	case bOK:
@@ -104,12 +109,21 @@ func compareIDs(a, b string) int {
 	}
 }
 
-func idNumber(id string) (int, bool) {
-	n, err := strconv.Atoi(id[strings.LastIndex(id, "-")+1:])
+func idParts(id string) (track, bar int, ok bool) {
+	suffix := id[strings.LastIndex(id, "-")+1:]
+	trackStr, barStr, hasBar := strings.Cut(suffix, ".")
+	track, err := strconv.Atoi(trackStr)
 	if err != nil {
-		return 0, false
+		return 0, 0, false
 	}
-	return n, true
+	if !hasBar {
+		return track, 0, true
+	}
+	bar, err = strconv.Atoi(barStr)
+	if err != nil {
+		return 0, 0, false
+	}
+	return track, bar, true
 }
 
 func (s *Store) NextChildID(parent string) (string, error) {

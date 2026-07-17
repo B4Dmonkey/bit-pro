@@ -162,6 +162,9 @@ func TestCompareIDs(t *testing.T) {
 		{name: "equal ids", a: "BIT-1", b: "BIT-1", want: 0},
 		{name: "two-digit id sorts before one-digit", a: "BIT-10", b: "BIT-9", want: -1},
 		{name: "unparseable suffix sorts last", a: "BIT-abc", b: "BIT-1", want: 1},
+		{name: "track heads its own bars", a: "BIT-2", b: "BIT-2.1", want: -1},
+		{name: "bars ascend, not lexically", a: "BIT-2.1", b: "BIT-2.13", want: -1},
+		{name: "track dominates bar", a: "BIT-2.1", b: "BIT-1.9", want: -1},
 	}
 
 	for _, tt := range tests {
