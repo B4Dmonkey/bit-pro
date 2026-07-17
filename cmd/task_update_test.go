@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/task"
@@ -49,6 +50,23 @@ func TestTaskUpdateCmd(t *testing.T) {
 				t.Errorf("task = %+v, want %+v", *got, tt.want)
 			}
 		})
+	}
+}
+
+func TestTaskUpdateCmd_ChangesPhase(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Track", "...")
+	mustRun(t, "task", "create", "Bar", "-d", "...", "--parent", "BIT-1",
+		"--phase", "2", "--phase-label", "List & read")
+
+	mustRun(t, "task", "update", "BIT-1.1", "--phase", "3", "--phase-label", "Update")
+
+	out := mustRun(t, "task", "read", "BIT-1.1")
+
+	firstLine := strings.SplitN(out, "\n", 2)[0]
+	want := "BIT-1.1\ttodo\tBar\tphase 3 — Update"
+	if firstLine != want {
+		t.Errorf("first line = %q, want %q", firstLine, want)
 	}
 }
 
