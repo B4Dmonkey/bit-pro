@@ -21,6 +21,41 @@ func TestTaskReadCmd_ShowsFullTask(t *testing.T) {
 	}
 }
 
+func TestTaskReadCmd_ShowsPhase(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Track", "...")
+	mustRun(t, "task", "create", "List cmd", "-d", "...", "--parent", "BIT-1",
+		"--phase", "2", "--phase-label", "List & read")
+
+	out := mustRun(t, "task", "read", "BIT-1.1")
+
+	firstLine := strings.SplitN(out, "\n", 2)[0]
+	want := "BIT-1.1\ttodo\tList cmd\tphase 2 — List & read"
+	if firstLine != want {
+		t.Errorf("first line = %q, want %q", firstLine, want)
+	}
+}
+
+func TestTaskReadCmd_OmitsPhaseWhenAbsent(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Title", "Body")
+
+	out := mustRun(t, "task", "read", "BIT-1")
+
+	want := "BIT-1\ttodo\tTitle\n\nBody"
+	if out != want {
+		t.Errorf("output = %q, want %q", out, want)
+	}
+
+	data, err := os.ReadFile(".bit/tasks/BIT-1.md")
+	if err != nil {
+		t.Fatalf("reading task file: %v", err)
+	}
+	if strings.Contains(string(data), "phase") {
+		t.Errorf("task file = %q, want no phase key", data)
+	}
+}
+
 func TestTaskReadCmd_ErrorsOnUnknownID(t *testing.T) {
 	initProject(t, "BIT")
 

@@ -11,10 +11,12 @@ import (
 const delim = "---"
 
 type Task struct {
-	ID     string `yaml:"id"`
-	Title  string `yaml:"title"`
-	Status string `yaml:"status"`
-	Body   string `yaml:"-"`
+	ID         string `yaml:"id"`
+	Title      string `yaml:"title"`
+	Status     string `yaml:"status"`
+	Phase      int    `yaml:"phase,omitempty"`
+	PhaseLabel string `yaml:"phase_label,omitempty"`
+	Body       string `yaml:"-"`
 }
 
 func Parse(data []byte) (*Task, error) {

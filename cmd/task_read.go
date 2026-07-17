@@ -19,7 +19,11 @@ func newTaskReadCmd() *cobra.Command {
 			}
 
 			out := cmd.OutOrStdout()
-			fmt.Fprintf(out, "%s\t%s\t%s\n\n", t.ID, t.Status, t.Title)
+			fmt.Fprintf(out, "%s\t%s\t%s", t.ID, t.Status, t.Title)
+			if t.Phase != 0 {
+				fmt.Fprintf(out, "\tphase %d — %s", t.Phase, t.PhaseLabel)
+			}
+			fmt.Fprint(out, "\n\n")
 			fmt.Fprint(out, t.Body)
 			return nil
 		},
