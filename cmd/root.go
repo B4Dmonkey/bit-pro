@@ -2,13 +2,17 @@ package cmd
 
 import "github.com/spf13/cobra"
 
-const version = "0.1.0-dev"
+var version = "dev"
+
+const bitDir = ".bit"
 
 func NewRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:     "bit",
-		Short:   "bit is a project-management CLI for LLM-driven development workflows",
-		Version: version,
+		Use:           "bit",
+		Short:         "bit is a project-management CLI for LLM-driven development workflows",
+		Version:       version,
+		SilenceUsage:  true,
+		SilenceErrors: true,
 	}
 	rootCmd.AddCommand(newInitCmd())
 	rootCmd.AddCommand(newTaskCmd())

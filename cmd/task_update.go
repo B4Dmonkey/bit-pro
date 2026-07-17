@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/spf13/cobra"
 )
 
@@ -12,7 +13,9 @@ func newTaskUpdateCmd() *cobra.Command {
 		Short: "Update an existing task",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			t, err := loadTask(args[0])
+			s := task.New(bitDir)
+
+			t, err := s.Load(args[0])
 			if err != nil {
 				return err
 			}
@@ -27,7 +30,7 @@ func newTaskUpdateCmd() *cobra.Command {
 				t.Status = status
 			}
 
-			return t.save()
+			return s.Save(t)
 		},
 	}
 	cmd.Flags().StringVarP(&title, "title", "t", "", "new task title")

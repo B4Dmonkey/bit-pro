@@ -4,9 +4,9 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 
+	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/spf13/cobra"
 )
 
@@ -16,10 +16,8 @@ func newInitCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Create the .bit/ directory bit uses to track this project",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := os.MkdirAll(".bit", 0o755); err != nil {
-				return err
-			}
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			if prefix == "" {
 				fmt.Fprint(cmd.OutOrStdout(), "Task ID prefix: ")
 				line, err := bufio.NewReader(cmd.InOrStdin()).ReadString('\n')
@@ -31,7 +29,7 @@ func newInitCmd() *cobra.Command {
 			if prefix == "" {
 				return errors.New("task ID prefix cannot be empty")
 			}
-			return saveConfig(&Config{Prefix: prefix})
+			return task.New(bitDir).SaveConfig(&task.Config{Prefix: prefix})
 		},
 	}
 	cmd.Flags().StringVar(&prefix, "prefix", "", "task ID prefix for this project (e.g. BIT)")

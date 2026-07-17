@@ -1,15 +1,70 @@
 package cmd
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
-	"github.com/BurntSushi/toml"
+	"github.com/B4Dmonkey/bit-pro/task"
 )
 
-func TestInitCmd(t *testing.T) {
+func TestInitCmd_CapturesPrefix(t *testing.T) {
+	tests := []struct {
+		name  string
+		args  []string
+		stdin string
+	}{
+		{name: "from --prefix flag", args: []string{"init", "--prefix", "BIT"}},
+		{name: "from interactive prompt", args: []string{"init"}, stdin: "BIT\n"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Chdir(t.TempDir())
+
+			if _, err := runWithStdin(t, tt.stdin, tt.args...); err != nil {
+				t.Fatalf("Execute() returned error: %v", err)
+			}
+
+			cfg, err := task.New(".bit").Config()
+			if err != nil {
+				t.Fatalf("reading config: %v", err)
+			}
+			if cfg.Prefix != "BIT" {
+				t.Errorf("cfg.Prefix = %q, want %q", cfg.Prefix, "BIT")
+			}
+		})
+	}
+}
+
+func TestInitCmd_RejectsBadInvocations(t *testing.T) {
+	tests := []struct {
+		name  string
+		args  []string
+		stdin string
+	}{
+		{name: "empty prefix at the prompt", args: []string{"init"}, stdin: "\n"},
+		{name: "extra positional args", args: []string{"init", "garbage", "--prefix", "BIT"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Chdir(t.TempDir())
+
+			if _, err := runWithStdin(t, tt.stdin, tt.args...); err == nil {
+				t.Fatal("Execute() returned nil error, want non-nil")
+			}
+
+			if _, err := os.Stat(".bit/config.toml"); !errors.Is(err, fs.ErrNotExist) {
+				t.Errorf("os.Stat(.bit/config.toml) error = %v, want fs.ErrNotExist", err)
+			}
+		})
+	}
+}
+
+func TestInitCmd_IsIdempotent(t *testing.T) {
 	tests := []struct {
 		name string
 		runs int
@@ -23,91 +78,17 @@ func TestInitCmd(t *testing.T) {
 			dir := t.TempDir()
 			t.Chdir(dir)
 
-			var err error
 			for range tt.runs {
-				rootCmd := NewRootCmd()
-				rootCmd.SetArgs([]string{"init", "--prefix", "BIT"})
-				err = rootCmd.Execute()
+				mustRun(t, "init", "--prefix", "BIT")
 			}
 
+			info, err := os.Stat(filepath.Join(dir, ".bit"))
 			if err != nil {
-				t.Fatalf("Execute() returned error: %v", err)
-			}
-			info, statErr := os.Stat(filepath.Join(dir, ".bit"))
-			if statErr != nil {
-				t.Fatalf("os.Stat(.bit) returned error: %v", statErr)
+				t.Fatalf("os.Stat(.bit) returned error: %v", err)
 			}
 			if !info.IsDir() {
-				t.Errorf(".bit exists but is not a directory")
+				t.Error(".bit exists but is not a directory")
 			}
 		})
-	}
-}
-
-func TestInitCmd_WritesConfigWithPrefix(t *testing.T) {
-	dir := t.TempDir()
-	t.Chdir(dir)
-
-	rootCmd := NewRootCmd()
-	rootCmd.SetArgs([]string{"init", "--prefix", "BIT"})
-	err := rootCmd.Execute()
-	if err != nil {
-		t.Fatalf("Execute() returned error: %v", err)
-	}
-
-	data, err := os.ReadFile(filepath.Join(dir, ".bit", "config.toml"))
-	if err != nil {
-		t.Fatalf("os.ReadFile(.bit/config.toml) returned error: %v", err)
-	}
-
-	var cfg Config
-	if _, err := toml.Decode(string(data), &cfg); err != nil {
-		t.Fatalf("toml.Decode returned error: %v", err)
-	}
-	if cfg.Prefix != "BIT" {
-		t.Errorf("cfg.Prefix = %q, want %q", cfg.Prefix, "BIT")
-	}
-}
-
-func TestInitCmd_ErrorsOnEmptyPrefix(t *testing.T) {
-	dir := t.TempDir()
-	t.Chdir(dir)
-
-	rootCmd := NewRootCmd()
-	rootCmd.SetIn(strings.NewReader("\n"))
-	rootCmd.SetArgs([]string{"init"})
-	err := rootCmd.Execute()
-	if err == nil {
-		t.Fatal("Execute() returned nil error, want error for empty prefix")
-	}
-
-	if _, statErr := os.Stat(filepath.Join(dir, ".bit", "config.toml")); !os.IsNotExist(statErr) {
-		t.Errorf("os.Stat(.bit/config.toml) = %v, want IsNotExist", statErr)
-	}
-}
-
-func TestInitCmd_PromptsForPrefixWhenFlagOmitted(t *testing.T) {
-	dir := t.TempDir()
-	t.Chdir(dir)
-
-	rootCmd := NewRootCmd()
-	rootCmd.SetIn(strings.NewReader("BIT\n"))
-	rootCmd.SetArgs([]string{"init"})
-	err := rootCmd.Execute()
-	if err != nil {
-		t.Fatalf("Execute() returned error: %v", err)
-	}
-
-	data, err := os.ReadFile(filepath.Join(dir, ".bit", "config.toml"))
-	if err != nil {
-		t.Fatalf("os.ReadFile(.bit/config.toml) returned error: %v", err)
-	}
-
-	var cfg Config
-	if _, err := toml.Decode(string(data), &cfg); err != nil {
-		t.Fatalf("toml.Decode returned error: %v", err)
-	}
-	if cfg.Prefix != "BIT" {
-		t.Errorf("cfg.Prefix = %q, want %q", cfg.Prefix, "BIT")
 	}
 }

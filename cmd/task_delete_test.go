@@ -10,46 +10,13 @@ import (
 )
 
 func TestTaskDeleteCmd_RemovesFileWithYesFlag(t *testing.T) {
-	dir := t.TempDir()
-	t.Chdir(dir)
+	initProject(t, "BIT")
+	createTask(t, "Throwaway", "Delete me.")
 
-	initCmd := NewRootCmd()
-	initCmd.SetArgs([]string{"init", "--prefix", "BIT"})
-	if err := initCmd.Execute(); err != nil {
-		t.Fatalf("init Execute() returned error: %v", err)
-	}
+	mustRun(t, "task", "delete", "BIT-1", "--yes")
 
-	createCmd := NewRootCmd()
-	createCmd.SetArgs([]string{"task", "create", "Throwaway", "--description", "Delete me."})
-	if err := createCmd.Execute(); err != nil {
-		t.Fatalf("task create Execute() returned error: %v", err)
-	}
-
-	deleteCmd := NewRootCmd()
-	deleteCmd.SetArgs([]string{"task", "delete", "BIT-1", "--yes"})
-	if err := deleteCmd.Execute(); err != nil {
-		t.Fatalf("task delete Execute() returned error: %v", err)
-	}
-
-	if _, err := os.Stat(".bit/tasks/BIT-1.md"); !os.IsNotExist(err) {
-		t.Errorf("os.Stat(%q) error = %v, want IsNotExist", ".bit/tasks/BIT-1.md", err)
-	}
-}
-
-func TestTaskDeleteCmd_ErrorsOnUnknownID(t *testing.T) {
-	dir := t.TempDir()
-	t.Chdir(dir)
-
-	initCmd := NewRootCmd()
-	initCmd.SetArgs([]string{"init", "--prefix", "BIT"})
-	if err := initCmd.Execute(); err != nil {
-		t.Fatalf("init Execute() returned error: %v", err)
-	}
-
-	deleteCmd := NewRootCmd()
-	deleteCmd.SetArgs([]string{"task", "delete", "BIT-99", "--yes"})
-	if err := deleteCmd.Execute(); err == nil {
-		t.Fatal("Execute() returned nil error, want non-nil for unknown ID")
+	if _, err := os.Stat(".bit/tasks/BIT-1.md"); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("os.Stat(.bit/tasks/BIT-1.md) error = %v, want fs.ErrNotExist", err)
 	}
 }
 
@@ -59,31 +26,19 @@ func TestTaskDeleteCmd_PromptsForConfirmation(t *testing.T) {
 		input      string
 		wantExists bool
 	}{
-		{name: "confirms", input: "y\n", wantExists: false},
-		{name: "declines", input: "n\n", wantExists: true},
+		{name: "y confirms", input: "y\n", wantExists: false},
+		{name: "yes confirms", input: "yes\n", wantExists: false},
+		{name: "uppercase Y confirms", input: "Y\n", wantExists: false},
+		{name: "n declines", input: "n\n", wantExists: true},
+		{name: "bare newline declines", input: "\n", wantExists: true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dir := t.TempDir()
-			t.Chdir(dir)
+			initProject(t, "BIT")
+			createTask(t, "X", "...")
 
-			initCmd := NewRootCmd()
-			initCmd.SetArgs([]string{"init", "--prefix", "BIT"})
-			if err := initCmd.Execute(); err != nil {
-				t.Fatalf("init Execute() returned error: %v", err)
-			}
-
-			createCmd := NewRootCmd()
-			createCmd.SetArgs([]string{"task", "create", "X", "--description", "..."})
-			if err := createCmd.Execute(); err != nil {
-				t.Fatalf("task create Execute() returned error: %v", err)
-			}
-
-			deleteCmd := NewRootCmd()
-			deleteCmd.SetIn(strings.NewReader(tt.input))
-			deleteCmd.SetArgs([]string{"task", "delete", "BIT-1"})
-			if err := deleteCmd.Execute(); err != nil {
+			if _, err := runWithStdin(t, tt.input, "task", "delete", "BIT-1"); err != nil {
 				t.Fatalf("Execute() returned error: %v", err)
 			}
 
@@ -96,29 +51,46 @@ func TestTaskDeleteCmd_PromptsForConfirmation(t *testing.T) {
 	}
 }
 
-func TestTaskDeleteCmd_RejectsPathTraversalID(t *testing.T) {
-	dir := t.TempDir()
-	t.Chdir(dir)
+func TestTaskDeleteCmd_KeepsTaskWhenConfirmationUnreadable(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "X", "...")
 
-	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte("# real project readme\n"), 0o644); err != nil {
+	if _, err := runWithStdin(t, "", "task", "delete", "BIT-1"); err == nil {
+		t.Fatal("Execute() returned nil error, want non-nil when stdin is at EOF")
+	}
+
+	if _, err := os.Stat(".bit/tasks/BIT-1.md"); err != nil {
+		t.Errorf("os.Stat(.bit/tasks/BIT-1.md) error = %v, want the task to survive", err)
+	}
+}
+
+func TestTaskDeleteCmd_ErrorsOnUnknownID(t *testing.T) {
+	initProject(t, "BIT")
+
+	_, err := run(t, "task", "delete", "BIT-99", "--yes")
+
+	if !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("Execute() error = %v, want an error wrapping fs.ErrNotExist", err)
+	}
+	if !strings.Contains(err.Error(), "BIT-99") {
+		t.Errorf("Execute() error = %q, want it to name the task ID", err)
+	}
+}
+
+func TestTaskDeleteCmd_ContainsPathTraversalID(t *testing.T) {
+	dir := initProject(t, "BIT")
+	readme := filepath.Join(dir, "README.md")
+	if err := os.WriteFile(readme, []byte("# real project readme\n"), 0o644); err != nil {
 		t.Fatalf("writing README fixture: %v", err)
 	}
 
-	initCmd := NewRootCmd()
-	initCmd.SetArgs([]string{"init", "--prefix", "BIT"})
-	if err := initCmd.Execute(); err != nil {
-		t.Fatalf("init Execute() returned error: %v", err)
-	}
-
-	deleteCmd := NewRootCmd()
-	deleteCmd.SetArgs([]string{"task", "delete", "../../README", "--yes"})
-	err := deleteCmd.Execute()
+	_, err := run(t, "task", "delete", "../../README", "--yes")
 
 	if !errors.Is(err, fs.ErrNotExist) {
 		t.Fatalf("Execute() error = %v, want an error wrapping fs.ErrNotExist", err)
 	}
 
-	got, err := os.ReadFile(filepath.Join(dir, "README.md"))
+	got, err := os.ReadFile(readme)
 	if err != nil {
 		t.Fatalf("reading README fixture after delete attempt: %v", err)
 	}
