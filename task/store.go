@@ -69,6 +69,7 @@ func (s *Store) List() ([]*Task, error) {
 		return nil, fmt.Errorf("scanning %s for tasks: %w", s.tasksDir(), err)
 	}
 	slices.Sort(matches)
+	slices.Reverse(matches)
 
 	tasks := make([]*Task, 0, len(matches))
 	for _, path := range matches {

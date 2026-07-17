@@ -2,14 +2,14 @@ package cmd
 
 import "testing"
 
-func TestTaskListCmd_ShowsAllTasksInIDOrder(t *testing.T) {
+func TestTaskListCmd_ShowsNewestFirst(t *testing.T) {
 	initProject(t, "BIT")
 	createTask(t, "First", "...")
 	createTask(t, "Second", "...")
 
 	out := mustRun(t, "task", "list")
 
-	want := "BIT-1\ttodo\tFirst\nBIT-2\ttodo\tSecond\n"
+	want := "BIT-2\ttodo\tSecond\nBIT-1\ttodo\tFirst\n"
 	if out != want {
 		t.Errorf("output = %q, want %q", out, want)
 	}
