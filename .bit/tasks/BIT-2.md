@@ -110,3 +110,44 @@ flowchart LR
   a real task record looks like.
   **De-risk before planning?** No — deliberately deferred; deciding now would mean
   planning against a data model that doesn't exist yet.
+
+## Context
+See scope: [task-crud-scope.md](./task-crud-scope.md)
+Recap: `.bit/` exists but nothing can live inside it yet; this plan covers Phases 1–4 —
+init wizard + `task create`, `task list`/`read`, `task update`, `task delete` — giving
+`.bit/tasks/` real, working CRUD.
+
+**Phase 5 is deliberately not planned here.** The scope's own Risks & unknowns section
+says its frontmatter shape "should be decided when Phase 5 is planned, once Phases 1–4
+have proven out what a real task record looks like" — planning it now would mean
+designing against a data model this plan hasn't built yet. Once Phases 1–4 are
+implemented, run bit_plan again for Phase 5 alone.
+
+## How this plan works
+The entry point is the Cobra root command, exercised in-process (`NewRootCmd()` +
+`SetArgs`/`SetOut`/`SetIn` + `Execute()`), matching the pattern already established in
+`cmd/root_test.go` and `cmd/init_test.go`. Phase 1 is the walking skeleton: Step 1 makes
+`bit init --prefix BIT` write `config.toml`; Step 2 is forced by a second test that omits
+`--prefix` and can't pass without real interactive prompting; Step 3 closes the empty-input
+edge. Step 4 adds `bit task create`, hardcoding task ID `1`; Step 5 is forced by a test
+seeding non-contiguous existing task files, which a hardcoded ID can't satisfy. Phase 2
+adds `list` (Step 6) and `read` (Step 7), each parsing the frontmatter format Step 4/5
+wrote; by then three commands duplicate "split on `---`, unmarshal YAML" logic, so Step 8
+is a refactor step consolidating that into a shared `Task` type before Phase 3 adds a
+fourth touchpoint. Step 9 hardens that shared `taskPath` helper: a test supplying a
+traversal-shaped ID via `task read` can't pass until path resolution is contained under
+`.bit/tasks/`, which matters before Phase 4's `delete` can trust an arbitrary ID is safe
+to act on. Phase 3's `update` (Steps 10–11) and Phase 4's `delete` (Steps 12–13) build on
+that hardened foundation directly.
+
+New dependencies this plan introduces (pin exact versions, matching how
+`cli-bootstrap-plan.md` pinned `cobra@v1.10.2`):
+- `github.com/BurntSushi/toml@v1.6.0` — `config.toml` read/write (no existing TOML
+  dependency in `go.mod`).
+- `gopkg.in/yaml.v3@v3.0.1` — task frontmatter, matching the storage format the README
+  already commits to ("markdown files with YAML frontmatter").
+- `github.com/spf13/pathologize@v1.1.0` — added in Step 9 to contain task-ID-derived
+  file paths under `.bit/tasks/`; task IDs are user-typed input (`task read/update/delete
+  <id>`) used directly to build a filesystem path, and `filepath.Join` alone doesn't stop
+  a crafted ID like `../../README` from resolving to the project's real `README.md`,
+  well outside `.bit/tasks/`.

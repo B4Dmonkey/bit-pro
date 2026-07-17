@@ -44,3 +44,22 @@ separate follow-up scopes (see README's roadmap).
   exists as a real target to build against.
   **De-risk before planning?** No — Phase 2 only needs to create the directory, not
   decide what goes inside it.
+
+## Context
+See scope: [cli-bootstrap-scope.md](./cli-bootstrap-scope.md)
+Recap: `bit` doesn't exist as a runnable program yet; this plan covers both phases of the
+bootstrap scope — the walking skeleton that makes `bit` installable and runnable (Phase 1),
+and `bit init` creating the `.bit/` directory (Phase 2). Both are planned together because
+the scope's only open risk (storage structure inside `.bit/`) explicitly doesn't block
+Phase 2 — it only needs to create an empty directory, not decide what goes inside it.
+
+## How this plan works
+The entry point is the Cobra root command (`cmd.NewRootCmd()`), exercised directly in Go
+tests rather than by shelling out to a built binary — that's the fastest, most direct way
+to prove the command is wired correctly. Step 1 proves the root command exists and answers
+`--help`. Step 2 is forced by a second test that Step 1's command can't satisfy: `--version`
+requires a `Version` field Step 1 never set. Step 3 has no new Go-level behavior to test —
+it wraps the already-proven behavior in the `just` task runner the scope calls for, and is
+verified by actually running the built binary rather than a unit test. Step 4 (Phase 2)
+adds `init` as a new subcommand on the same root command, forced by a test that a fresh
+`bit` binary can't satisfy — there's no `init` subcommand registered yet.
