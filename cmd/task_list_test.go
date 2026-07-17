@@ -14,7 +14,7 @@ func TestTaskListCmd_ShowsNewestFirst(t *testing.T) {
 
 	out := mustRun(t, "task", "list")
 
-	want := "BIT-2\ttodo\tSecond\nBIT-1\ttodo\tFirst\n"
+	want := "BIT-2\ttodo\tSecond\t\nBIT-1\ttodo\tFirst\t\n"
 	if out != want {
 		t.Errorf("output = %q, want %q", out, want)
 	}
@@ -57,6 +57,24 @@ func TestTaskListCmd_GroupsBarsUnderTheirTrack(t *testing.T) {
 	want := []string{"BIT-2", "BIT-2.1", "BIT-1", "BIT-1.1", "BIT-1.2"}
 	if !slices.Equal(ids, want) {
 		t.Errorf("ID order = %v, want %v", ids, want)
+	}
+}
+
+func TestTaskListCmd_ShowsPhaseOnBars(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Track", "...")
+	mustRun(t, "task", "create", "Bar one", "-d", "...", "--parent", "BIT-1",
+		"--phase", "1", "--phase-label", "First")
+	mustRun(t, "task", "create", "Bar two", "-d", "...", "--parent", "BIT-1",
+		"--phase", "2", "--phase-label", "Second")
+
+	out := mustRun(t, "task", "list")
+
+	want := "BIT-1\ttodo\tTrack\t\n" +
+		"BIT-1.1\ttodo\tBar one\tphase 1 — First\n" +
+		"BIT-1.2\ttodo\tBar two\tphase 2 — Second\n"
+	if out != want {
+		t.Errorf("output = %q, want %q", out, want)
 	}
 }
 

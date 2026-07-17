@@ -20,7 +20,11 @@ func newTaskListCmd() *cobra.Command {
 
 			out := cmd.OutOrStdout()
 			for _, t := range tasks {
-				fmt.Fprintf(out, "%s\t%s\t%s\n", t.ID, t.Status, t.Title)
+				phase := ""
+				if t.Phase != 0 {
+					phase = fmt.Sprintf("phase %d — %s", t.Phase, t.PhaseLabel)
+				}
+				fmt.Fprintf(out, "%s\t%s\t%s\t%s\n", t.ID, t.Status, t.Title, phase)
 			}
 			return nil
 		},
