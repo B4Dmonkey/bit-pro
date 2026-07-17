@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -28,7 +29,7 @@ func newInitCmd() *cobra.Command {
 				prefix = strings.TrimSpace(line)
 			}
 			if prefix == "" {
-				return fmt.Errorf("task ID prefix cannot be empty")
+				return errors.New("task ID prefix cannot be empty")
 			}
 			return saveConfig(&Config{Prefix: prefix})
 		},

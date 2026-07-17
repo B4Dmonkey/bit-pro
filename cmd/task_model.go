@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -31,12 +32,12 @@ func loadTask(id string) (*Task, error) {
 func parseTask(data []byte) (*Task, error) {
 	s := string(data)
 	if !strings.HasPrefix(s, "---\n") {
-		return nil, fmt.Errorf("task file missing frontmatter delimiter")
+		return nil, errors.New("task file missing frontmatter delimiter")
 	}
 	rest := s[len("---\n"):]
 	idx := strings.Index(rest, "\n---\n")
 	if idx == -1 {
-		return nil, fmt.Errorf("task file missing closing frontmatter delimiter")
+		return nil, errors.New("task file missing closing frontmatter delimiter")
 	}
 	var t Task
 	if err := yaml.Unmarshal([]byte(rest[:idx+1]), &t); err != nil {

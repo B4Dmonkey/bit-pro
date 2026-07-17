@@ -24,7 +24,7 @@ func TestInitCmd(t *testing.T) {
 			t.Chdir(dir)
 
 			var err error
-			for i := 0; i < tt.runs; i++ {
+			for range tt.runs {
 				rootCmd := NewRootCmd()
 				rootCmd.SetArgs([]string{"init", "--prefix", "BIT"})
 				err = rootCmd.Execute()

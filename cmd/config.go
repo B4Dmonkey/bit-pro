@@ -22,12 +22,11 @@ func loadConfig() (*Config, error) {
 }
 
 func saveConfig(cfg *Config) error {
-	f, err := os.Create(configFileName)
+	data, err := toml.Marshal(cfg)
 	if err != nil {
-		return fmt.Errorf("creating %s: %w", configFileName, err)
+		return fmt.Errorf("encoding %s: %w", configFileName, err)
 	}
-	defer f.Close()
-	if err := toml.NewEncoder(f).Encode(cfg); err != nil {
+	if err := os.WriteFile(configFileName, data, 0o644); err != nil {
 		return fmt.Errorf("writing %s: %w", configFileName, err)
 	}
 	return nil
