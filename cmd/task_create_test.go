@@ -57,6 +57,22 @@ func TestTaskCreateCmd_ParentMintsDottedID(t *testing.T) {
 	}
 }
 
+func TestTaskCreateCmd_SecondChildIncrements(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Track", "...")
+
+	mustRun(t, "task", "create", "First step", "-d", "...", "--parent", "BIT-1")
+	mustRun(t, "task", "create", "Second step", "-d", "...", "--parent", "BIT-1")
+	mustRun(t, "task", "create", "Third step", "-d", "...", "--parent", "BIT-1")
+
+	out := mustRun(t, "task", "list")
+	for _, id := range []string{"BIT-1.1", "BIT-1.2", "BIT-1.3"} {
+		if !strings.Contains(out, id) {
+			t.Errorf("task list = %q, want it to contain %q", out, id)
+		}
+	}
+}
+
 func TestTaskCreateCmd_ErrorsWithoutTitle(t *testing.T) {
 	initProject(t, "BIT")
 

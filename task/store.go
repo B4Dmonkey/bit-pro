@@ -113,7 +113,25 @@ func idNumber(id string) (int, bool) {
 }
 
 func (s *Store) NextChildID(parent string) (string, error) {
-	return parent + ".1", nil
+	matches, err := filepath.Glob(filepath.Join(s.tasksDir(), parent+".*.md"))
+	if err != nil {
+		return "", fmt.Errorf("scanning %s for existing child IDs: %w", s.tasksDir(), err)
+	}
+
+	re := regexp.MustCompile(`^` + regexp.QuoteMeta(parent) + `\.(\d+)\.md$`)
+	highest := 0
+	for _, m := range matches {
+		sub := re.FindStringSubmatch(filepath.Base(m))
+		if sub == nil {
+			continue
+		}
+		n, err := strconv.Atoi(sub[1])
+		if err != nil {
+			continue
+		}
+		highest = max(highest, n)
+	}
+	return fmt.Sprintf("%s.%d", parent, highest+1), nil
 }
 
 func (s *Store) NextID(prefix string) (string, error) {

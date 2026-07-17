@@ -50,6 +50,7 @@ func TestStoreNextID(t *testing.T) {
 		{name: "ignores other prefixes", existing: []string{"BIT-1", "OTHER-9"}, want: "BIT-2"},
 		{name: "ignores non-numeric suffixes", existing: []string{"BIT-1", "BIT-abc"}, want: "BIT-2"},
 		{name: "handles multi-digit ids", existing: []string{"BIT-9", "BIT-10"}, want: "BIT-11"},
+		{name: "ignores dotted children", existing: []string{"BIT-1", "BIT-1.1", "BIT-1.13"}, want: "BIT-2"},
 	}
 
 	for _, tt := range tests {
