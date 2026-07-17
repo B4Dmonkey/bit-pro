@@ -112,6 +112,10 @@ func idNumber(id string) (int, bool) {
 	return n, true
 }
 
+func (s *Store) NextChildID(parent string) (string, error) {
+	return parent + ".1", nil
+}
+
 func (s *Store) NextID(prefix string) (string, error) {
 	matches, err := filepath.Glob(filepath.Join(s.tasksDir(), prefix+"-*.md"))
 	if err != nil {

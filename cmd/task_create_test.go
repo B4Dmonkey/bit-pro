@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/task"
@@ -40,6 +41,19 @@ func TestTaskCreateCmd_AssignsNextIDWhenTasksExist(t *testing.T) {
 	}
 	if got.Title != "Second" {
 		t.Errorf("BIT-2 title = %q, want %q", got.Title, "Second")
+	}
+}
+
+func TestTaskCreateCmd_ParentMintsDottedID(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Track", "...")
+
+	mustRun(t, "task", "create", "A step", "-d", "...", "--parent", "BIT-1")
+
+	out := mustRun(t, "task", "read", "BIT-1.1")
+	want := "BIT-1.1\ttodo\tA step\n"
+	if !strings.HasPrefix(out, want) {
+		t.Errorf("task read BIT-1.1 first line = %q, want prefix %q", out, want)
 	}
 }
 

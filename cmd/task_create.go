@@ -7,6 +7,7 @@ import (
 
 func newTaskCreateCmd() *cobra.Command {
 	var description string
+	var parent string
 
 	cmd := &cobra.Command{
 		Use:   "create <title>",
@@ -15,12 +16,18 @@ func newTaskCreateCmd() *cobra.Command {
 		RunE: func(_ *cobra.Command, args []string) error {
 			s := task.New(bitDir)
 
-			cfg, err := s.Config()
-			if err != nil {
-				return err
+			var id string
+			var err error
+			if parent != "" {
+				id, err = s.NextChildID(parent)
+			} else {
+				var cfg *task.Config
+				cfg, err = s.Config()
+				if err != nil {
+					return err
+				}
+				id, err = s.NextID(cfg.Prefix)
 			}
-
-			id, err := s.NextID(cfg.Prefix)
 			if err != nil {
 				return err
 			}
@@ -34,5 +41,6 @@ func newTaskCreateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVarP(&description, "description", "d", "", "task description (body content)")
+	cmd.Flags().StringVarP(&parent, "parent", "p", "", "parent task ID (mints a dotted child ID)")
 	return cmd
 }
