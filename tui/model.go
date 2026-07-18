@@ -16,6 +16,7 @@ func (i item) Description() string { return i.t.ID + " · " + i.t.Status }
 
 type model struct {
 	list.Model
+	detail bool
 }
 
 func New(tasks []*task.Task) model {
@@ -31,9 +32,21 @@ func New(tasks []*task.Task) model {
 func (m model) Init() tea.Cmd { return nil }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if sz, ok := msg.(tea.WindowSizeMsg); ok {
-		m.SetSize(sz.Width, sz.Height)
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.SetSize(msg.Width, msg.Height)
 		return m, nil
+	case tea.KeyMsg:
+		switch msg.Type {
+		case tea.KeyEnter:
+			m.detail = true
+			return m, nil
+		case tea.KeyEsc:
+			if m.detail {
+				m.detail = false
+				return m, nil
+			}
+		}
 	}
 	var cmd tea.Cmd
 	m.Model, cmd = m.Model.Update(msg)

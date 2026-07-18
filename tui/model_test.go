@@ -89,3 +89,46 @@ func TestSelected_EmptyListNil(t *testing.T) {
 		t.Errorf("selected() on empty list = %v, want nil", got)
 	}
 }
+
+func TestUpdate_EnterOpensDetail(t *testing.T) {
+	t.Parallel()
+
+	m := New([]*task.Task{{ID: "BIT-1"}})
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+
+	if !updated.(model).detail {
+		t.Error("after KeyEnter, detail = false, want true")
+	}
+}
+
+func TestUpdate_EscClosesDetail(t *testing.T) {
+	t.Parallel()
+
+	m := New([]*task.Task{{ID: "BIT-1"}})
+	opened, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+
+	updated, cmd := opened.Update(tea.KeyMsg{Type: tea.KeyEsc})
+
+	if updated.(model).detail {
+		t.Error("after KeyEsc in detail, detail = true, want false")
+	}
+	if cmd != nil {
+		t.Errorf("after KeyEsc in detail, cmd = %v, want nil (no quit)", cmd())
+	}
+}
+
+func TestUpdate_EscQuitsFromList(t *testing.T) {
+	t.Parallel()
+
+	m := New([]*task.Task{{ID: "BIT-1"}})
+
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+
+	if cmd == nil {
+		t.Fatal("after KeyEsc in list, cmd = nil, want a quit cmd")
+	}
+	if _, ok := cmd().(tea.QuitMsg); !ok {
+		t.Errorf("after KeyEsc in list, cmd() = %T, want tea.QuitMsg", cmd())
+	}
+}
