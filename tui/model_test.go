@@ -1,10 +1,12 @@
 package tui
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/task"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 func TestNew_PreservesStoreOrder(t *testing.T) {
@@ -132,6 +134,79 @@ func TestSplitWidth(t *testing.T) {
 			t.Errorf("splitWidth(120) detailW = %d, listW = %d, want detailW > listW", detailW, listW)
 		}
 	})
+}
+
+func TestUpdate_WindowSizeBuildsRenderer(t *testing.T) {
+	t.Parallel()
+
+	m := New([]*task.Task{{ID: "BIT-1", Body: "# Hi"}})
+
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	if updated.(model).renderer == nil {
+		t.Fatal("after WindowSizeMsg, renderer = nil, want it constructed in Update, not View")
+	}
+}
+
+func TestView_FitsWindowHeight(t *testing.T) {
+	t.Parallel()
+
+	body := strings.Repeat("line\n", 500)
+	m := New([]*task.Task{{ID: "BIT-1", Body: body}})
+
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+
+	if h := lipgloss.Height(updated.(model).View()); h > 24 {
+		t.Fatalf("View height = %d, want <= 24 (detail must not overflow the screen)", h)
+	}
+}
+
+func TestUpdate_WindowSizeSizesViewport(t *testing.T) {
+	t.Parallel()
+
+	m := New([]*task.Task{{ID: "BIT-1", Body: "# Hi"}})
+
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+
+	if h := updated.(model).viewport.Height; h != 24 {
+		t.Fatalf("viewport.Height = %d, want 24", h)
+	}
+}
+
+func TestUpdate_CtrlDScrollsDetail(t *testing.T) {
+	t.Parallel()
+
+	body := strings.Repeat("line\n", 500)
+	m := New([]*task.Task{{ID: "BIT-1", Body: body}})
+
+	sized, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	scrolled, _ := sized.(model).Update(tea.KeyMsg{Type: tea.KeyCtrlD})
+
+	if off := scrolled.(model).viewport.YOffset; off == 0 {
+		t.Fatal("after ctrl+d, viewport.YOffset = 0, want > 0")
+	}
+}
+
+func TestUpdate_NavigationResetsDetailScroll(t *testing.T) {
+	t.Parallel()
+
+	body := strings.Repeat("line\n", 500)
+	m := New([]*task.Task{
+		{ID: "BIT-2", Body: body},
+		{ID: "BIT-1", Body: body},
+	})
+
+	sized, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	scrolled, _ := sized.(model).Update(tea.KeyMsg{Type: tea.KeyCtrlD})
+	if scrolled.(model).viewport.YOffset == 0 {
+		t.Fatal("setup: ctrl+d did not scroll the detail")
+	}
+
+	moved, _ := scrolled.(model).Update(tea.KeyMsg{Type: tea.KeyDown})
+
+	if off := moved.(model).viewport.YOffset; off != 0 {
+		t.Fatalf("after changing selection, viewport.YOffset = %d, want 0", off)
+	}
 }
 
 func TestUpdate_EscQuitsFromList(t *testing.T) {
