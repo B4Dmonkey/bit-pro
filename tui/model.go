@@ -3,6 +3,7 @@ package tui
 import (
 	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/charmbracelet/bubbles/list"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 type item struct {
@@ -23,4 +24,12 @@ func New(tasks []*task.Task) model {
 		items[i] = item{t: t}
 	}
 	return model{Model: list.New(items, list.NewDefaultDelegate(), 0, 0)}
+}
+
+func (m model) Init() tea.Cmd { return nil }
+
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	m.Model, cmd = m.Model.Update(msg)
+	return m, cmd
 }

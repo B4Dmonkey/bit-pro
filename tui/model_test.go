@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/task"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func TestNew_PreservesStoreOrder(t *testing.T) {
@@ -26,6 +27,24 @@ func TestNew_PreservesStoreOrder(t *testing.T) {
 		if got != tasks[i].ID {
 			t.Errorf("item[%d].ID = %q, want %q", i, got, tasks[i].ID)
 		}
+	}
+}
+
+func TestUpdate_ForwardsNavigationToList(t *testing.T) {
+	t.Parallel()
+
+	tasks := []*task.Task{
+		{ID: "BIT-2"},
+		{ID: "BIT-2.1"},
+		{ID: "BIT-1"},
+	}
+
+	m := New(tasks)
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
+
+	if got := updated.(model).Index(); got != 1 {
+		t.Errorf("after KeyDown, Index() = %d, want 1", got)
 	}
 }
 
