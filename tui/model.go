@@ -22,12 +22,13 @@ func (i item) Description() string { return i.t.ID + " · " + i.t.Status }
 
 type model struct {
 	list.Model
-	viewport    viewport.Model
-	detailWidth int
-	listWidth   int
-	height      int
-	style       string
-	renderer    *glamour.TermRenderer
+	viewport      viewport.Model
+	detailWidth   int
+	listWidth     int
+	height        int
+	style         string
+	renderer      *glamour.TermRenderer
+	detailFocused bool
 }
 
 func New(tasks []*task.Task) model {
@@ -63,6 +64,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.renderer = newRenderer(m.style, max(detailW-2, 1))
 		m.refreshDetail()
 		return m, nil
+	case tea.KeyMsg:
+		switch msg.Type {
+		case tea.KeyRight:
+			m.detailFocused = true
+			return m, nil
+		case tea.KeyLeft:
+			m.detailFocused = false
+			return m, nil
+		}
 	}
 	prev := m.Index()
 	var cmd, vpCmd tea.Cmd

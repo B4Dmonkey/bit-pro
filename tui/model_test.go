@@ -209,6 +209,55 @@ func TestUpdate_NavigationResetsDetailScroll(t *testing.T) {
 	}
 }
 
+func TestUpdate_Focus(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		keys        []tea.KeyType
+		wantFocused bool
+	}{
+		{"default is list", nil, false},
+		{"right focuses detail", []tea.KeyType{tea.KeyRight}, true},
+		{"right then left returns to list", []tea.KeyType{tea.KeyRight, tea.KeyLeft}, false},
+		{"left on list clamps to list", []tea.KeyType{tea.KeyLeft}, false},
+		{"right twice clamps to detail", []tea.KeyType{tea.KeyRight, tea.KeyRight}, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Body: "# Hi"}})
+			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+			for _, k := range tt.keys {
+				mdl, _ = mdl.Update(tea.KeyMsg{Type: k})
+			}
+
+			if got := mdl.(model).detailFocused; got != tt.wantFocused {
+				t.Errorf("detailFocused = %v, want %v", got, tt.wantFocused)
+			}
+		})
+	}
+}
+
+func TestUpdate_RightDoesNotPageList(t *testing.T) {
+	t.Parallel()
+
+	m := New([]*task.Task{{ID: "BIT-1"}, {ID: "BIT-2"}, {ID: "BIT-3"}})
+	sized, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+
+	moved, _ := sized.(model).Update(tea.KeyMsg{Type: tea.KeyRight})
+
+	got := moved.(model)
+	if idx := got.Index(); idx != 0 {
+		t.Errorf("after KeyRight, Index() = %d, want 0", idx)
+	}
+	if page := got.Paginator.Page; page != 0 {
+		t.Errorf("after KeyRight, Paginator.Page = %d, want 0", page)
+	}
+}
+
 func TestUpdate_EscQuitsFromList(t *testing.T) {
 	t.Parallel()
 
