@@ -41,3 +41,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string { return m.Model.View() }
+
+func (m model) selected() *task.Task {
+	it, ok := m.SelectedItem().(item)
+	if !ok {
+		return nil
+	}
+	return it.t
+}
