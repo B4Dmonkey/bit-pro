@@ -161,6 +161,40 @@ func TestView_FitsWindowHeight(t *testing.T) {
 	}
 }
 
+func TestView_PaneTitles(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		count int
+		want  string
+	}{
+		{"many tasks", 29, "Tasks (29)"},
+		{"one task", 1, "Tasks (1)"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			tasks := make([]*task.Task, tt.count)
+			for i := range tasks {
+				tasks[i] = &task.Task{ID: "BIT-1"}
+			}
+			var mdl tea.Model = New(tasks)
+			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+
+			view := mdl.(model).View()
+			if !strings.Contains(view, tt.want) {
+				t.Errorf("View() missing %q", tt.want)
+			}
+			if !strings.Contains(view, "Details") {
+				t.Errorf("View() missing \"Details\"")
+			}
+		})
+	}
+}
+
 func TestUpdate_WindowSizeSizesViewport(t *testing.T) {
 	t.Parallel()
 
@@ -168,8 +202,8 @@ func TestUpdate_WindowSizeSizesViewport(t *testing.T) {
 
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 
-	if h := updated.(model).viewport.Height; h != 24 {
-		t.Fatalf("viewport.Height = %d, want 24", h)
+	if h := updated.(model).viewport.Height; h != 22 {
+		t.Fatalf("viewport.Height = %d, want 22", h)
 	}
 }
 

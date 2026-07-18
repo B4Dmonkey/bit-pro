@@ -1,6 +1,9 @@
 package tui
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -42,7 +45,6 @@ func New(tasks []*task.Task) model {
 		style = styles.DarkStyle
 	}
 	vp := viewport.New(0, 0)
-	vp.Style = lipgloss.NewStyle().Border(lipgloss.RoundedBorder())
 	return model{Model: l, viewport: vp, style: style}
 }
 
@@ -55,7 +57,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.listWidth, m.height = listW, msg.Height
 		m.SetSize(max(listW-2, 0), max(msg.Height-2, 0))
 		m.detailWidth = detailW
-		m.viewport.Width, m.viewport.Height = detailW, msg.Height
+		m.viewport.Width, m.viewport.Height = max(detailW-2, 0), max(msg.Height-2, 0)
 		m.renderer = newRenderer(m.style, max(detailW-2, 1))
 		m.refreshDetail()
 		return m, nil
@@ -110,12 +112,30 @@ func (m *model) refreshDetail() {
 }
 
 func (m model) View() string {
-	listBox := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		Width(max(m.listWidth-2, 0)).
-		Height(max(m.height-2, 0)).
-		Render(m.Model.View())
-	return lipgloss.JoinHorizontal(lipgloss.Top, listBox, m.viewport.View())
+	listTitle := fmt.Sprintf("Tasks (%d)", len(m.Items()))
+	listPane := titledBorder(m.Model.View(), listTitle, max(m.listWidth-2, 0), max(m.height-2, 0), !m.detailFocused)
+	detailPane := titledBorder(m.viewport.View(), "Details", max(m.detailWidth-2, 0), max(m.height-2, 0), m.detailFocused)
+	return lipgloss.JoinHorizontal(lipgloss.Top, listPane, detailPane)
+}
+
+func titledBorder(content, title string, width, height int, active bool) string {
+	border := lipgloss.RoundedBorder()
+
+	boxStyle := lipgloss.NewStyle().
+		Border(border).
+		BorderTop(false).
+		Width(width).
+		Height(height)
+	topStyle := lipgloss.NewStyle()
+	if active {
+		accent := lipgloss.Color("99")
+		boxStyle = boxStyle.BorderForeground(accent)
+		topStyle = topStyle.Foreground(accent)
+	}
+
+	fill := max(width-lipgloss.Width(title)-3, 0)
+	top := border.TopLeft + border.Top + " " + title + " " + strings.Repeat(border.Top, fill) + border.TopRight
+	return lipgloss.JoinVertical(lipgloss.Left, topStyle.Render(top), boxStyle.Render(content))
 }
 
 func splitWidth(total int) (listW, detailW int) {
