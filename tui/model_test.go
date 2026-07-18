@@ -180,7 +180,8 @@ func TestUpdate_CtrlDScrollsDetail(t *testing.T) {
 	m := New([]*task.Task{{ID: "BIT-1", Body: body}})
 
 	sized, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-	scrolled, _ := sized.(model).Update(tea.KeyMsg{Type: tea.KeyCtrlD})
+	focused, _ := sized.(model).Update(tea.KeyMsg{Type: tea.KeyRight})
+	scrolled, _ := focused.(model).Update(tea.KeyMsg{Type: tea.KeyCtrlD})
 
 	if off := scrolled.(model).viewport.YOffset; off == 0 {
 		t.Fatal("after ctrl+d, viewport.YOffset = 0, want > 0")
@@ -197,12 +198,14 @@ func TestUpdate_NavigationResetsDetailScroll(t *testing.T) {
 	})
 
 	sized, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-	scrolled, _ := sized.(model).Update(tea.KeyMsg{Type: tea.KeyCtrlD})
+	focused, _ := sized.(model).Update(tea.KeyMsg{Type: tea.KeyRight})
+	scrolled, _ := focused.(model).Update(tea.KeyMsg{Type: tea.KeyCtrlD})
 	if scrolled.(model).viewport.YOffset == 0 {
 		t.Fatal("setup: ctrl+d did not scroll the detail")
 	}
 
-	moved, _ := scrolled.(model).Update(tea.KeyMsg{Type: tea.KeyDown})
+	listFocused, _ := scrolled.(model).Update(tea.KeyMsg{Type: tea.KeyLeft})
+	moved, _ := listFocused.(model).Update(tea.KeyMsg{Type: tea.KeyDown})
 
 	if off := moved.(model).viewport.YOffset; off != 0 {
 		t.Fatalf("after changing selection, viewport.YOffset = %d, want 0", off)
@@ -255,6 +258,44 @@ func TestUpdate_RightDoesNotPageList(t *testing.T) {
 	}
 	if page := got.Paginator.Page; page != 0 {
 		t.Errorf("after KeyRight, Paginator.Page = %d, want 0", page)
+	}
+}
+
+func TestUpdate_FocusRoutesArrows(t *testing.T) {
+	t.Parallel()
+
+	body := strings.Repeat("line\n", 500)
+	tests := []struct {
+		name         string
+		keys         []tea.KeyType
+		wantIndex    int
+		wantScrolled bool
+	}{
+		{"list focused: down moves selection, detail still", []tea.KeyType{tea.KeyDown}, 1, false},
+		{"detail focused: down scrolls body, list still", []tea.KeyType{tea.KeyRight, tea.KeyDown}, 0, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var mdl tea.Model = New([]*task.Task{
+				{ID: "BIT-2", Body: body},
+				{ID: "BIT-1", Body: body},
+			})
+			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+			for _, k := range tt.keys {
+				mdl, _ = mdl.Update(tea.KeyMsg{Type: k})
+			}
+
+			got := mdl.(model)
+			if got.Index() != tt.wantIndex {
+				t.Errorf("Index() = %d, want %d", got.Index(), tt.wantIndex)
+			}
+			if scrolled := got.viewport.YOffset > 0; scrolled != tt.wantScrolled {
+				t.Errorf("viewport scrolled = %v (YOffset=%d), want %v", scrolled, got.viewport.YOffset, tt.wantScrolled)
+			}
+		})
 	}
 }
 

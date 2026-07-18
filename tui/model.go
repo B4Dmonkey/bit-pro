@@ -2,7 +2,6 @@ package tui
 
 import (
 	"github.com/B4Dmonkey/bit-pro/task"
-	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -44,10 +43,6 @@ func New(tasks []*task.Task) model {
 	}
 	vp := viewport.New(0, 0)
 	vp.Style = lipgloss.NewStyle().Border(lipgloss.RoundedBorder())
-	vp.KeyMap = viewport.KeyMap{
-		HalfPageUp:   key.NewBinding(key.WithKeys("ctrl+u")),
-		HalfPageDown: key.NewBinding(key.WithKeys("ctrl+d")),
-	}
 	return model{Model: l, viewport: vp, style: style}
 }
 
@@ -74,14 +69,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 	}
+	var cmd tea.Cmd
+	if m.detailFocused {
+		m.viewport, cmd = m.viewport.Update(msg)
+		return m, cmd
+	}
 	prev := m.Index()
-	var cmd, vpCmd tea.Cmd
 	m.Model, cmd = m.Model.Update(msg)
-	m.viewport, vpCmd = m.viewport.Update(msg)
 	if m.Index() != prev {
 		m.refreshDetail()
 	}
-	return m, tea.Batch(cmd, vpCmd)
+	return m, cmd
 }
 
 func newRenderer(style string, width int) *glamour.TermRenderer {
