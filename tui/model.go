@@ -23,13 +23,21 @@ func New(tasks []*task.Task) model {
 	for i, t := range tasks {
 		items[i] = item{t: t}
 	}
-	return model{Model: list.New(items, list.NewDefaultDelegate(), 0, 0)}
+	l := list.New(items, list.NewDefaultDelegate(), 0, 0)
+	l.SetFilteringEnabled(false)
+	return model{Model: l}
 }
 
 func (m model) Init() tea.Cmd { return nil }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if sz, ok := msg.(tea.WindowSizeMsg); ok {
+		m.SetSize(sz.Width, sz.Height)
+		return m, nil
+	}
 	var cmd tea.Cmd
 	m.Model, cmd = m.Model.Update(msg)
 	return m, cmd
 }
+
+func (m model) View() string { return m.Model.View() }
