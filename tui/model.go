@@ -16,7 +16,7 @@ func (i item) Description() string { return i.t.ID + " · " + i.t.Status }
 
 type model struct {
 	list.Model
-	detail bool
+	detailWidth int
 }
 
 func New(tasks []*task.Task) model {
@@ -34,26 +34,25 @@ func (m model) Init() tea.Cmd { return nil }
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.SetSize(msg.Width, msg.Height)
+		listW, detailW := splitWidth(msg.Width)
+		m.SetSize(listW, msg.Height)
+		m.detailWidth = detailW
 		return m, nil
-	case tea.KeyMsg:
-		switch msg.Type {
-		case tea.KeyEnter:
-			m.detail = true
-			return m, nil
-		case tea.KeyEsc:
-			if m.detail {
-				m.detail = false
-				return m, nil
-			}
-		}
 	}
 	var cmd tea.Cmd
 	m.Model, cmd = m.Model.Update(msg)
 	return m, cmd
 }
 
-func (m model) View() string { return m.Model.View() }
+func (m model) View() string {
+	return m.Model.View()
+}
+
+func splitWidth(total int) (listW, detailW int) {
+	listW = total * 40 / 100
+	detailW = max(total-listW-1, 0)
+	return listW, detailW
+}
 
 func (m model) selected() *task.Task {
 	it, ok := m.SelectedItem().(item)

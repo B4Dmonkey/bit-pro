@@ -90,32 +90,48 @@ func TestSelected_EmptyListNil(t *testing.T) {
 	}
 }
 
-func TestUpdate_EnterOpensDetail(t *testing.T) {
+func TestSplitWidth(t *testing.T) {
 	t.Parallel()
 
-	m := New([]*task.Task{{ID: "BIT-1"}})
-
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
-
-	if !updated.(model).detail {
-		t.Error("after KeyEnter, detail = false, want true")
+	tests := []struct {
+		name  string
+		total int
+	}{
+		{"zero width", 0},
+		{"one column", 1},
+		{"typical terminal", 120},
 	}
-}
 
-func TestUpdate_EscClosesDetail(t *testing.T) {
-	t.Parallel()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-	m := New([]*task.Task{{ID: "BIT-1"}})
-	opened, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+			listW, detailW := splitWidth(tt.total)
 
-	updated, cmd := opened.Update(tea.KeyMsg{Type: tea.KeyEsc})
-
-	if updated.(model).detail {
-		t.Error("after KeyEsc in detail, detail = true, want false")
+			if listW < 0 {
+				t.Errorf("splitWidth(%d) listW = %d, want >= 0", tt.total, listW)
+			}
+			if detailW < 0 {
+				t.Errorf("splitWidth(%d) detailW = %d, want >= 0", tt.total, detailW)
+			}
+			if listW+detailW > tt.total {
+				t.Errorf("splitWidth(%d) listW+detailW = %d, want <= %d", tt.total, listW+detailW, tt.total)
+			}
+		})
 	}
-	if cmd != nil {
-		t.Errorf("after KeyEsc in detail, cmd = %v, want nil (no quit)", cmd())
-	}
+
+	t.Run("typical terminal splits 40/60 with detail wider", func(t *testing.T) {
+		t.Parallel()
+
+		listW, detailW := splitWidth(120)
+
+		if listW <= 0 || detailW <= 0 {
+			t.Fatalf("splitWidth(120) = (%d, %d), want both > 0", listW, detailW)
+		}
+		if detailW <= listW {
+			t.Errorf("splitWidth(120) detailW = %d, listW = %d, want detailW > listW", detailW, listW)
+		}
+	})
 }
 
 func TestUpdate_EscQuitsFromList(t *testing.T) {
