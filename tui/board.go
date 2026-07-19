@@ -4,10 +4,37 @@ import (
 	"fmt"
 
 	"github.com/B4Dmonkey/bit-pro/task"
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
+
+type boardKeyMap struct {
+	column key.Binding
+	card   key.Binding
+	list   key.Binding
+	help   key.Binding
+	quit   key.Binding
+}
+
+func newBoardKeyMap() boardKeyMap {
+	return boardKeyMap{
+		column: key.NewBinding(key.WithKeys("left", "right"), key.WithHelp("←/→", "column")),
+		card:   key.NewBinding(key.WithKeys("up", "down"), key.WithHelp("↑/↓", "card")),
+		list:   key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "list")),
+		help:   key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help")),
+		quit:   key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
+	}
+}
+
+func (k boardKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.column, k.card, k.list, k.help, k.quit}
+}
+
+func (k boardKeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{{k.column, k.card}, {k.list, k.help, k.quit}}
+}
 
 type boardColumn struct {
 	title  string

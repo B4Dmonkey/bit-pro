@@ -60,6 +60,7 @@ type model struct {
 	viewport      viewport.Model
 	help          help.Model
 	keys          keyMap
+	boardKeys     boardKeyMap
 	mode          viewMode
 	boardCols     [3]list.Model
 	activeCol     int
@@ -90,7 +91,7 @@ func New(tasks []*task.Task) model {
 	for i, cards := range groupByStatus(tasks) {
 		boardCols[i] = newColumnList(cards)
 	}
-	return model{Model: l, viewport: vp, help: help.New(), keys: newKeyMap(), style: style, boardCols: boardCols}
+	return model{Model: l, viewport: vp, help: help.New(), keys: newKeyMap(), boardKeys: newBoardKeyMap(), style: style, boardCols: boardCols}
 }
 
 func (m model) Init() tea.Cmd { return nil }
@@ -169,10 +170,17 @@ func (m *model) refreshDetail() {
 	m.viewport.GotoTop()
 }
 
+func (m model) helpKeys() help.KeyMap {
+	if m.mode == modeBoard {
+		return m.boardKeys
+	}
+	return m.keys
+}
+
 func (m *model) layout() {
 	listW, detailW := splitWidth(m.winWidth)
 	m.help.Width = m.winWidth
-	helpHeight := lipgloss.Height(m.help.View(m.keys))
+	helpHeight := lipgloss.Height(m.help.View(m.helpKeys()))
 	paneHeight := max(m.winHeight-helpHeight, 0)
 	m.listWidth, m.detailWidth, m.height = listW, detailW, paneHeight
 	m.SetSize(max(listW-2, 0), max(paneHeight-2, 0))
@@ -185,13 +193,13 @@ func (m *model) layout() {
 
 func (m model) View() string {
 	if m.mode == modeBoard {
-		return lipgloss.JoinVertical(lipgloss.Left, boardView(m), m.help.View(m.keys))
+		return lipgloss.JoinVertical(lipgloss.Left, boardView(m), m.help.View(m.helpKeys()))
 	}
 	listTitle := fmt.Sprintf("Tasks (%d)", len(m.Items()))
 	listPane := titledBorder(m.Model.View(), listTitle, max(m.listWidth-2, 0), max(m.height-2, 0), !m.detailFocused)
 	detailPane := titledBorder(m.viewport.View(), "Details", max(m.detailWidth-2, 0), max(m.height-2, 0), m.detailFocused)
 	panes := lipgloss.JoinHorizontal(lipgloss.Top, listPane, detailPane)
-	return lipgloss.JoinVertical(lipgloss.Left, panes, m.help.View(m.keys))
+	return lipgloss.JoinVertical(lipgloss.Left, panes, m.help.View(m.helpKeys()))
 }
 
 func titledBorder(content, title string, width, height int, active bool) string {

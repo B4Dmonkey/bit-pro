@@ -186,6 +186,48 @@ func TestUpdate_BoardCardSelection(t *testing.T) {
 	}
 }
 
+func TestView_BoardHelp(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		toBoard  bool
+		contains []string
+		absent   []string
+	}{
+		{"list mode shows focus", false, []string{"focus"}, []string{"column"}},
+		{"board mode shows column and card", true, []string{"column", "card"}, []string{"focus"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var mdl tea.Model = New([]*task.Task{
+				{ID: "BIT-1", Status: "todo"},
+				{ID: "BIT-2", Status: "doing"},
+				{ID: "BIT-3", Status: "done"},
+			})
+			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+			if tt.toBoard {
+				mdl, _ = mdl.Update(tea.KeyMsg{Type: tea.KeyTab})
+			}
+
+			view := mdl.(model).View()
+			for _, want := range tt.contains {
+				if !strings.Contains(view, want) {
+					t.Errorf("View() missing %q", want)
+				}
+			}
+			for _, notWant := range tt.absent {
+				if strings.Contains(view, notWant) {
+					t.Errorf("View() contains %q, want absent", notWant)
+				}
+			}
+		})
+	}
+}
+
 func TestUpdate_BoardQuits(t *testing.T) {
 	t.Parallel()
 
