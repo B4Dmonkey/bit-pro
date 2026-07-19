@@ -1,9 +1,8 @@
 package tui
 
 import (
-	"strings"
-
 	"github.com/B4Dmonkey/bit-pro/task"
+	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -31,16 +30,25 @@ func groupByStatus(tasks []*task.Task) [3][]*task.Task {
 	return cols
 }
 
+func newColumnList(tasks []*task.Task) list.Model {
+	items := make([]list.Item, len(tasks))
+	for i, t := range tasks {
+		items[i] = item{t: t}
+	}
+	l := list.New(items, delegate{}, 0, 0)
+	l.SetFilteringEnabled(false)
+	l.SetShowHelp(false)
+	l.SetShowTitle(false)
+	l.SetShowStatusBar(false)
+	return l
+}
+
 func boardView(m model) string {
 	colW := m.winWidth / len(boardColumns)
-	cols := make([]string, len(m.columns))
-	for i, cards := range m.columns {
-		lines := make([]string, len(cards))
-		for j, t := range cards {
-			lines[j] = t.ID + "  " + t.Title
-		}
+	cols := make([]string, len(m.boardCols))
+	for i := range m.boardCols {
 		box := lipgloss.NewStyle().Width(colW).Height(m.height)
-		cols[i] = box.Render(strings.Join(lines, "\n"))
+		cols[i] = box.Render(m.boardCols[i].View())
 	}
 	return lipgloss.JoinHorizontal(lipgloss.Top, cols...)
 }

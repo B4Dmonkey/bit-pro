@@ -61,7 +61,7 @@ type model struct {
 	help          help.Model
 	keys          keyMap
 	mode          viewMode
-	columns       [3][]*task.Task
+	boardCols     [3]list.Model
 	detailWidth   int
 	listWidth     int
 	winWidth      int
@@ -85,7 +85,11 @@ func New(tasks []*task.Task) model {
 		style = styles.DarkStyle
 	}
 	vp := viewport.New(0, 0)
-	return model{Model: l, viewport: vp, help: help.New(), keys: newKeyMap(), style: style, columns: groupByStatus(tasks)}
+	var boardCols [3]list.Model
+	for i, cards := range groupByStatus(tasks) {
+		boardCols[i] = newColumnList(cards)
+	}
+	return model{Model: l, viewport: vp, help: help.New(), keys: newKeyMap(), style: style, boardCols: boardCols}
 }
 
 func (m model) Init() tea.Cmd { return nil }
@@ -169,6 +173,10 @@ func (m *model) layout() {
 	m.listWidth, m.detailWidth, m.height = listW, detailW, paneHeight
 	m.SetSize(max(listW-2, 0), max(paneHeight-2, 0))
 	m.viewport.Width, m.viewport.Height = max(detailW-2, 0), max(paneHeight-2, 0)
+	colW := m.winWidth / len(boardColumns)
+	for i := range m.boardCols {
+		m.boardCols[i].SetSize(max(colW-2, 0), max(paneHeight-2, 0))
+	}
 }
 
 func (m model) View() string {
