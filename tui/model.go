@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/B4Dmonkey/bit-pro/task"
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -22,11 +24,39 @@ func (i item) FilterValue() string { return i.t.Title }
 func (i item) Title() string       { return i.t.Title }
 func (i item) Description() string { return i.t.ID + " · " + i.t.Status }
 
+type keyMap struct {
+	focus key.Binding
+	move  key.Binding
+	help  key.Binding
+	quit  key.Binding
+}
+
+func newKeyMap() keyMap {
+	return keyMap{
+		focus: key.NewBinding(key.WithKeys("left", "right"), key.WithHelp("←/→", "focus")),
+		move:  key.NewBinding(key.WithKeys("up", "down"), key.WithHelp("↑/↓", "move·scroll")),
+		help:  key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help")),
+		quit:  key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
+	}
+}
+
+func (k keyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.focus, k.move, k.help, k.quit}
+}
+
+func (k keyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{{k.focus, k.move}, {k.help, k.quit}}
+}
+
 type model struct {
 	list.Model
 	viewport      viewport.Model
+	help          help.Model
+	keys          keyMap
 	detailWidth   int
 	listWidth     int
+	winWidth      int
+	winHeight     int
 	height        int
 	style         string
 	renderer      *glamour.TermRenderer
@@ -40,12 +70,13 @@ func New(tasks []*task.Task) model {
 	}
 	l := list.New(items, list.NewDefaultDelegate(), 0, 0)
 	l.SetFilteringEnabled(false)
+	l.SetShowHelp(false)
 	style := styles.LightStyle
 	if termenv.HasDarkBackground() {
 		style = styles.DarkStyle
 	}
 	vp := viewport.New(0, 0)
-	return model{Model: l, viewport: vp, style: style}
+	return model{Model: l, viewport: vp, help: help.New(), keys: newKeyMap(), style: style}
 }
 
 func (m model) Init() tea.Cmd { return nil }
@@ -53,15 +84,17 @@ func (m model) Init() tea.Cmd { return nil }
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		listW, detailW := splitWidth(msg.Width)
-		m.listWidth, m.height = listW, msg.Height
-		m.SetSize(max(listW-2, 0), max(msg.Height-2, 0))
-		m.detailWidth = detailW
-		m.viewport.Width, m.viewport.Height = max(detailW-2, 0), max(msg.Height-2, 0)
-		m.renderer = newRenderer(m.style, max(detailW-2, 1))
+		m.winWidth, m.winHeight = msg.Width, msg.Height
+		m.layout()
+		m.renderer = newRenderer(m.style, max(m.detailWidth-2, 1))
 		m.refreshDetail()
 		return m, nil
 	case tea.KeyMsg:
+		if key.Matches(msg, m.keys.help) {
+			m.help.ShowAll = !m.help.ShowAll
+			m.layout()
+			return m, nil
+		}
 		switch msg.Type {
 		case tea.KeyRight:
 			m.detailFocused = true
@@ -111,11 +144,22 @@ func (m *model) refreshDetail() {
 	m.viewport.GotoTop()
 }
 
+func (m *model) layout() {
+	listW, detailW := splitWidth(m.winWidth)
+	m.help.Width = m.winWidth
+	helpHeight := lipgloss.Height(m.help.View(m.keys))
+	paneHeight := max(m.winHeight-helpHeight, 0)
+	m.listWidth, m.detailWidth, m.height = listW, detailW, paneHeight
+	m.SetSize(max(listW-2, 0), max(paneHeight-2, 0))
+	m.viewport.Width, m.viewport.Height = max(detailW-2, 0), max(paneHeight-2, 0)
+}
+
 func (m model) View() string {
 	listTitle := fmt.Sprintf("Tasks (%d)", len(m.Items()))
 	listPane := titledBorder(m.Model.View(), listTitle, max(m.listWidth-2, 0), max(m.height-2, 0), !m.detailFocused)
 	detailPane := titledBorder(m.viewport.View(), "Details", max(m.detailWidth-2, 0), max(m.height-2, 0), m.detailFocused)
-	return lipgloss.JoinHorizontal(lipgloss.Top, listPane, detailPane)
+	panes := lipgloss.JoinHorizontal(lipgloss.Top, listPane, detailPane)
+	return lipgloss.JoinVertical(lipgloss.Left, panes, m.help.View(m.keys))
 }
 
 func titledBorder(content, title string, width, height int, active bool) string {

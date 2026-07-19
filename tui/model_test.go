@@ -60,6 +60,16 @@ func TestNew_EmptyList(t *testing.T) {
 	}
 }
 
+func TestNew_ListHelpDisabled(t *testing.T) {
+	t.Parallel()
+
+	m := New([]*task.Task{{ID: "BIT-1"}})
+
+	if m.ShowHelp() {
+		t.Error("New() left the list's built-in help on, want it disabled")
+	}
+}
+
 func TestSelected_TracksCursor(t *testing.T) {
 	t.Parallel()
 
@@ -195,6 +205,50 @@ func TestView_PaneTitles(t *testing.T) {
 	}
 }
 
+func TestView_HelpBarPresentAndBounded(t *testing.T) {
+	t.Parallel()
+
+	body := strings.Repeat("line\n", 500)
+	m := New([]*task.Task{{ID: "BIT-1", Body: body}})
+
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+
+	view := updated.(model).View()
+	if !strings.Contains(view, "focus") {
+		t.Errorf("View() missing help text %q", "focus")
+	}
+	if h := lipgloss.Height(view); h > 24 {
+		t.Fatalf("View height = %d, want <= 24 (help bar must fit the budget)", h)
+	}
+}
+
+func TestUpdate_QuestionTogglesFullHelp(t *testing.T) {
+	t.Parallel()
+
+	body := strings.Repeat("line\n", 500)
+	var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Body: body}})
+	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+
+	if mdl.(model).help.ShowAll {
+		t.Fatal("help starts expanded, want collapsed")
+	}
+
+	q := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}}
+	mdl, _ = mdl.Update(q)
+
+	if !mdl.(model).help.ShowAll {
+		t.Error("after ?, help.ShowAll = false, want true (full menu)")
+	}
+	if h := lipgloss.Height(mdl.(model).View()); h > 24 {
+		t.Fatalf("expanded help View height = %d, want <= 24", h)
+	}
+
+	mdl, _ = mdl.Update(q)
+	if mdl.(model).help.ShowAll {
+		t.Error("after second ?, help.ShowAll = true, want false (collapsed)")
+	}
+}
+
 func TestUpdate_WindowSizeSizesViewport(t *testing.T) {
 	t.Parallel()
 
@@ -202,8 +256,8 @@ func TestUpdate_WindowSizeSizesViewport(t *testing.T) {
 
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 
-	if h := updated.(model).viewport.Height; h != 22 {
-		t.Fatalf("viewport.Height = %d, want 22", h)
+	if h := updated.(model).viewport.Height; h != 21 {
+		t.Fatalf("viewport.Height = %d, want 21", h)
 	}
 }
 
