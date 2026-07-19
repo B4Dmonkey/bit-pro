@@ -61,6 +61,7 @@ type model struct {
 	help          help.Model
 	keys          keyMap
 	mode          viewMode
+	columns       [3][]*task.Task
 	detailWidth   int
 	listWidth     int
 	winWidth      int
@@ -84,7 +85,7 @@ func New(tasks []*task.Task) model {
 		style = styles.DarkStyle
 	}
 	vp := viewport.New(0, 0)
-	return model{Model: l, viewport: vp, help: help.New(), keys: newKeyMap(), style: style}
+	return model{Model: l, viewport: vp, help: help.New(), keys: newKeyMap(), style: style, columns: groupByStatus(tasks)}
 }
 
 func (m model) Init() tea.Cmd { return nil }
