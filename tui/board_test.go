@@ -110,3 +110,71 @@ func TestGroupByStatus_Empty(t *testing.T) {
 		}
 	}
 }
+
+func TestUpdate_BoardActiveColumn(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		keys []tea.KeyType
+		want int
+	}{
+		{"default first column", nil, 0},
+		{"right advances", []tea.KeyType{tea.KeyRight}, 1},
+		{"right twice", []tea.KeyType{tea.KeyRight, tea.KeyRight}, 2},
+		{"right clamps at last", []tea.KeyType{tea.KeyRight, tea.KeyRight, tea.KeyRight}, 2},
+		{"left retreats from last", []tea.KeyType{tea.KeyRight, tea.KeyRight, tea.KeyLeft}, 1},
+		{"left clamps at first", []tea.KeyType{tea.KeyLeft, tea.KeyLeft, tea.KeyLeft}, 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var mdl tea.Model = New([]*task.Task{
+				{ID: "BIT-1", Status: "todo"},
+				{ID: "BIT-2", Status: "doing"},
+				{ID: "BIT-3", Status: "done"},
+			})
+			mdl, _ = mdl.Update(tea.KeyMsg{Type: tea.KeyTab})
+			for _, k := range tt.keys {
+				mdl, _ = mdl.Update(tea.KeyMsg{Type: k})
+			}
+
+			if got := mdl.(model).activeCol; got != tt.want {
+				t.Errorf("activeCol = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestUpdate_BoardQuits(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		key  tea.KeyMsg
+	}{
+		{"q", tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}},
+		{"esc", tea.KeyMsg{Type: tea.KeyEsc}},
+		{"ctrl+c", tea.KeyMsg{Type: tea.KeyCtrlC}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo"}})
+			mdl, _ = mdl.Update(tea.KeyMsg{Type: tea.KeyTab})
+
+			_, cmd := mdl.Update(tt.key)
+
+			if cmd == nil {
+				t.Fatalf("%s in board mode: cmd = nil, want a quit cmd", tt.name)
+			}
+			if _, ok := cmd().(tea.QuitMsg); !ok {
+				t.Errorf("%s in board mode: cmd() = %T, want tea.QuitMsg", tt.name, cmd())
+			}
+		})
+	}
+}

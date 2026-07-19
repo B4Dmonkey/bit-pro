@@ -62,6 +62,7 @@ type model struct {
 	keys          keyMap
 	mode          viewMode
 	boardCols     [3]list.Model
+	activeCol     int
 	detailWidth   int
 	listWidth     int
 	winWidth      int
@@ -115,6 +116,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.mode = modeList
 			}
 			return m, nil
+		}
+		if m.mode == modeBoard {
+			return m.updateBoard(msg)
 		}
 		switch msg.Type {
 		case tea.KeyRight:

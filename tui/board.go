@@ -5,6 +5,7 @@ import (
 
 	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/charmbracelet/bubbles/list"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -45,12 +46,28 @@ func newColumnList(tasks []*task.Task) list.Model {
 	return l
 }
 
+func (m model) updateBoard(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "q", "esc", "ctrl+c":
+		return m, tea.Quit
+	case "right":
+		if m.activeCol < len(boardColumns)-1 {
+			m.activeCol++
+		}
+	case "left":
+		if m.activeCol > 0 {
+			m.activeCol--
+		}
+	}
+	return m, nil
+}
+
 func boardView(m model) string {
 	colW := m.winWidth / len(boardColumns)
 	cols := make([]string, len(m.boardCols))
 	for i := range m.boardCols {
 		title := fmt.Sprintf("%s (%d)", boardColumns[i].title, len(m.boardCols[i].Items()))
-		cols[i] = titledBorder(m.boardCols[i].View(), title, max(colW-2, 0), max(m.height-2, 0), i == 0)
+		cols[i] = titledBorder(m.boardCols[i].View(), title, max(colW-2, 0), max(m.height-2, 0), i == m.activeCol)
 	}
 	return lipgloss.JoinHorizontal(lipgloss.Top, cols...)
 }
