@@ -68,7 +68,7 @@ func New(tasks []*task.Task) model {
 	for i, t := range tasks {
 		items[i] = item{t: t}
 	}
-	l := list.New(items, list.NewDefaultDelegate(), 0, 0)
+	l := list.New(items, delegate{}, 0, 0)
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
 	style := styles.LightStyle
