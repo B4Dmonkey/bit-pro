@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"fmt"
+
 	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/lipgloss"
@@ -47,8 +49,8 @@ func boardView(m model) string {
 	colW := m.winWidth / len(boardColumns)
 	cols := make([]string, len(m.boardCols))
 	for i := range m.boardCols {
-		box := lipgloss.NewStyle().Width(colW).Height(m.height)
-		cols[i] = box.Render(m.boardCols[i].View())
+		title := fmt.Sprintf("%s (%d)", boardColumns[i].title, len(m.boardCols[i].Items()))
+		cols[i] = titledBorder(m.boardCols[i].View(), title, max(colW-2, 0), max(m.height-2, 0), i == 0)
 	}
 	return lipgloss.JoinHorizontal(lipgloss.Top, cols...)
 }

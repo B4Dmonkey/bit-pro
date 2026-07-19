@@ -1,9 +1,11 @@
 package tui
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/task"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func TestGroupByStatus(t *testing.T) {
@@ -69,6 +71,31 @@ func TestBoardColumns_FromGrouping(t *testing.T) {
 	}
 	if first.t.ID != "BIT-4.1" {
 		t.Errorf("column 2 item 0 = %q, want %q", first.t.ID, "BIT-4.1")
+	}
+}
+
+func TestView_BoardColumnCounts(t *testing.T) {
+	t.Parallel()
+
+	tasks := []*task.Task{
+		{ID: "BIT-1", Status: "todo"},
+		{ID: "BIT-2", Status: "todo"},
+		{ID: "BIT-3", Status: "todo"},
+		{ID: "BIT-4", Status: "todo"},
+		{ID: "BIT-5", Status: "doing"},
+		{ID: "BIT-6", Status: "done"},
+		{ID: "BIT-7", Status: "done"},
+	}
+
+	var mdl tea.Model = New(tasks)
+	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	mdl, _ = mdl.Update(tea.KeyMsg{Type: tea.KeyTab})
+
+	view := mdl.(model).View()
+	for _, want := range []string{"To Do (4)", "Doing (1)", "Done (2)"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("board View() missing %q", want)
+		}
 	}
 }
 
