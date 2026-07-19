@@ -434,6 +434,35 @@ func TestVerse(t *testing.T) {
 	}
 }
 
+func TestUpdate_TabTogglesMode(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		presses int
+		want    viewMode
+	}{
+		{"default is list", 0, modeList},
+		{"one tab to board", 1, modeBoard},
+		{"two tabs back to list", 2, modeList},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1"}})
+			for range tt.presses {
+				mdl, _ = mdl.Update(tea.KeyMsg{Type: tea.KeyTab})
+			}
+
+			if got := mdl.(model).mode; got != tt.want {
+				t.Errorf("after %d tab(s), mode = %v, want %v", tt.presses, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestUpdate_EscQuitsFromList(t *testing.T) {
 	t.Parallel()
 

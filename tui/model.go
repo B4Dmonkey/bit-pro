@@ -16,6 +16,13 @@ import (
 	"github.com/muesli/termenv"
 )
 
+type viewMode int
+
+const (
+	modeList viewMode = iota
+	modeBoard
+)
+
 type item struct {
 	t *task.Task
 }
@@ -53,6 +60,7 @@ type model struct {
 	viewport      viewport.Model
 	help          help.Model
 	keys          keyMap
+	mode          viewMode
 	detailWidth   int
 	listWidth     int
 	winWidth      int
@@ -93,6 +101,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if key.Matches(msg, m.keys.help) {
 			m.help.ShowAll = !m.help.ShowAll
 			m.layout()
+			return m, nil
+		}
+		if msg.Type == tea.KeyTab {
+			if m.mode == modeList {
+				m.mode = modeBoard
+			} else {
+				m.mode = modeList
+			}
 			return m, nil
 		}
 		switch msg.Type {
