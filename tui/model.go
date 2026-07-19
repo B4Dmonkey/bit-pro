@@ -188,6 +188,17 @@ func splitWidth(total int) (listW, detailW int) {
 	return listW, detailW
 }
 
+func isBar(id string) bool {
+	return strings.Contains(id, ".")
+}
+
+func verse(t *task.Task) string {
+	if !isBar(t.ID) || t.Phase == 0 {
+		return ""
+	}
+	return fmt.Sprintf("phase %d — %s", t.Phase, t.PhaseLabel)
+}
+
 func (m model) selected() *task.Task {
 	it, ok := m.SelectedItem().(item)
 	if !ok {

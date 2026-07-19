@@ -387,6 +387,53 @@ func TestUpdate_FocusRoutesArrows(t *testing.T) {
 	}
 }
 
+func TestIsBar(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		id   string
+		want bool
+	}{
+		{"track", "BIT-2", false},
+		{"bar", "BIT-2.5", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := isBar(tt.id); got != tt.want {
+				t.Errorf("isBar(%q) = %v, want %v", tt.id, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestVerse(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		task *task.Task
+		want string
+	}{
+		{"phased bar", &task.Task{ID: "BIT-2.1", Phase: 2, PhaseLabel: "List & read"}, "phase 2 — List & read"},
+		{"unphased bar", &task.Task{ID: "BIT-2.1", Phase: 0}, ""},
+		{"track", &task.Task{ID: "BIT-2", Phase: 2, PhaseLabel: "List & read"}, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := verse(tt.task); got != tt.want {
+				t.Errorf("verse(%+v) = %q, want %q", tt.task, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestUpdate_EscQuitsFromList(t *testing.T) {
 	t.Parallel()
 
