@@ -1,6 +1,11 @@
 package tui
 
-import "github.com/B4Dmonkey/bit-pro/task"
+import (
+	"strings"
+
+	"github.com/B4Dmonkey/bit-pro/task"
+	"github.com/charmbracelet/lipgloss"
+)
 
 type boardColumn struct {
 	title  string
@@ -24,4 +29,18 @@ func groupByStatus(tasks []*task.Task) [3][]*task.Task {
 		}
 	}
 	return cols
+}
+
+func boardView(m model) string {
+	colW := m.winWidth / len(boardColumns)
+	cols := make([]string, len(m.columns))
+	for i, cards := range m.columns {
+		lines := make([]string, len(cards))
+		for j, t := range cards {
+			lines[j] = t.ID + "  " + t.Title
+		}
+		box := lipgloss.NewStyle().Width(colW).Height(m.height)
+		cols[i] = box.Render(strings.Join(lines, "\n"))
+	}
+	return lipgloss.JoinHorizontal(lipgloss.Top, cols...)
 }

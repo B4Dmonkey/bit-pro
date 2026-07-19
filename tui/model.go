@@ -172,6 +172,9 @@ func (m *model) layout() {
 }
 
 func (m model) View() string {
+	if m.mode == modeBoard {
+		return lipgloss.JoinVertical(lipgloss.Left, boardView(m), m.help.View(m.keys))
+	}
 	listTitle := fmt.Sprintf("Tasks (%d)", len(m.Items()))
 	listPane := titledBorder(m.Model.View(), listTitle, max(m.listWidth-2, 0), max(m.height-2, 0), !m.detailFocused)
 	detailPane := titledBorder(m.viewport.View(), "Details", max(m.detailWidth-2, 0), max(m.height-2, 0), m.detailFocused)
