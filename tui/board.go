@@ -58,6 +58,10 @@ func (m model) updateBoard(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.activeCol > 0 {
 			m.activeCol--
 		}
+	case "up", "down":
+		var cmd tea.Cmd
+		m.boardCols[m.activeCol], cmd = m.boardCols[m.activeCol].Update(msg)
+		return m, cmd
 	}
 	return m, nil
 }

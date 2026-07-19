@@ -148,6 +148,44 @@ func TestUpdate_BoardActiveColumn(t *testing.T) {
 	}
 }
 
+func TestUpdate_BoardCardSelection(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		keys    []tea.KeyType
+		wantCol int
+		wantIdx int
+	}{
+		{"empty column stays at zero", []tea.KeyType{tea.KeyDown}, 0, 0},
+		{"down advances in active column", []tea.KeyType{tea.KeyRight, tea.KeyRight, tea.KeyDown}, 2, 1},
+		{"down clamps at last card", []tea.KeyType{tea.KeyRight, tea.KeyRight, tea.KeyDown, tea.KeyDown, tea.KeyDown}, 2, 2},
+		{"selection survives column round trip", []tea.KeyType{tea.KeyRight, tea.KeyRight, tea.KeyDown, tea.KeyLeft, tea.KeyLeft, tea.KeyRight, tea.KeyRight}, 2, 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var mdl tea.Model = New([]*task.Task{
+				{ID: "BIT-1", Status: "doing"},
+				{ID: "BIT-2", Status: "done"},
+				{ID: "BIT-3", Status: "done"},
+				{ID: "BIT-4", Status: "done"},
+			})
+			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+			mdl, _ = mdl.Update(tea.KeyMsg{Type: tea.KeyTab})
+			for _, k := range tt.keys {
+				mdl, _ = mdl.Update(tea.KeyMsg{Type: k})
+			}
+
+			if got := mdl.(model).boardCols[tt.wantCol].Index(); got != tt.wantIdx {
+				t.Errorf("boardCols[%d].Index() = %d, want %d", tt.wantCol, got, tt.wantIdx)
+			}
+		})
+	}
+}
+
 func TestUpdate_BoardQuits(t *testing.T) {
 	t.Parallel()
 
