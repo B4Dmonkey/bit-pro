@@ -47,7 +47,7 @@ func newTaskCreateCmd() *cobra.Command {
 				return err
 			}
 
-			_, err = fmt.Fprintln(cmd.OutOrStdout(), "BIT-1")
+			_, err = fmt.Fprintln(cmd.OutOrStdout(), id)
 			return err
 		},
 	}

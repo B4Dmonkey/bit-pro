@@ -40,6 +40,28 @@ func TestTaskCreateCmd_EchoesMintedID(t *testing.T) {
 	}
 }
 
+func TestTaskCreateCmd_EchoesSecondTrackID(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "First", "...")
+
+	out := mustRun(t, "task", "create", "Second", "-d", "...")
+
+	if out != "BIT-2\n" {
+		t.Errorf("task create stdout = %q, want %q", out, "BIT-2\n")
+	}
+}
+
+func TestTaskCreateCmd_EchoesChildID(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Track", "...")
+
+	out := mustRun(t, "task", "create", "A bar", "-d", "...", "--parent", "BIT-1")
+
+	if out != "BIT-1.1\n" {
+		t.Errorf("task create stdout = %q, want %q", out, "BIT-1.1\n")
+	}
+}
+
 func TestTaskCreateCmd_AssignsNextIDWhenTasksExist(t *testing.T) {
 	initProject(t, "BIT")
 	createTask(t, "First", "...")
