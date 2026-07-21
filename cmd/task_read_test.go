@@ -21,6 +21,28 @@ func TestTaskReadCmd_ShowsFullTask(t *testing.T) {
 	}
 }
 
+func TestTaskReadCmd_BodyOnly(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Full details", "Line one.\nLine two.")
+
+	out := mustRun(t, "task", "read", "BIT-1", "--body")
+
+	if out != "Line one.\nLine two." {
+		t.Errorf("output = %q, want %q", out, "Line one.\nLine two.")
+	}
+}
+
+func TestTaskReadCmd_BodyOnlyEmpty(t *testing.T) {
+	initProject(t, "BIT")
+	mustRun(t, "task", "create", "No body", "-d", "")
+
+	out := mustRun(t, "task", "read", "BIT-1", "--body")
+
+	if out != "" {
+		t.Errorf("output = %q, want %q", out, "")
+	}
+}
+
 func TestTaskReadCmd_ShowsPhase(t *testing.T) {
 	initProject(t, "BIT")
 	createTask(t, "Track", "...")
