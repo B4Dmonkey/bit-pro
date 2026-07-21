@@ -75,6 +75,36 @@ func TestStoreNextID(t *testing.T) {
 	}
 }
 
+func TestStoreNextChildID_ErrorsWhenParentMissing(t *testing.T) {
+	t.Parallel()
+
+	_, err := New(t.TempDir()).NextChildID("BIT-99")
+
+	if !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("NextChildID() error = %v, want an error wrapping fs.ErrNotExist", err)
+	}
+	if !strings.Contains(err.Error(), "BIT-99") {
+		t.Errorf("NextChildID() error = %q, want it to name the parent ID", err)
+	}
+}
+
+func TestStoreNextChildID_MintsWhenParentExists(t *testing.T) {
+	t.Parallel()
+
+	s := New(t.TempDir())
+	if err := s.Save(&Task{ID: "BIT-1", Title: "seed", Status: "todo"}); err != nil {
+		t.Fatalf("seeding BIT-1: %v", err)
+	}
+
+	got, err := s.NextChildID("BIT-1")
+	if err != nil {
+		t.Fatalf("NextChildID() returned error: %v", err)
+	}
+	if got != "BIT-1.1" {
+		t.Errorf("NextChildID() = %q, want %q", got, "BIT-1.1")
+	}
+}
+
 func TestStoreSaveLoad_RoundTrips(t *testing.T) {
 	t.Parallel()
 

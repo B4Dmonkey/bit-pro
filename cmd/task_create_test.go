@@ -89,6 +89,18 @@ func TestTaskCreateCmd_ParentMintsDottedID(t *testing.T) {
 	}
 }
 
+func TestTaskCreateCmd_ErrorsOnMissingParent(t *testing.T) {
+	initProject(t, "BIT")
+
+	if _, err := run(t, "task", "create", "Orphan", "-d", "...", "--parent", "BIT-99"); err == nil {
+		t.Fatal("Execute() returned nil error, want non-nil for a missing parent")
+	}
+
+	if _, err := os.Stat(".bit/tasks/BIT-99.1.md"); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("os.Stat(.bit/tasks/BIT-99.1.md) error = %v, want fs.ErrNotExist", err)
+	}
+}
+
 func TestTaskCreateCmd_SecondChildIncrements(t *testing.T) {
 	initProject(t, "BIT")
 	createTask(t, "Track", "...")

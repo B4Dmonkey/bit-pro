@@ -127,6 +127,10 @@ func idParts(id string) (track, bar int, ok bool) {
 }
 
 func (s *Store) NextChildID(parent string) (string, error) {
+	if _, err := os.Stat(s.Path(parent)); err != nil {
+		return "", fmt.Errorf("parent %s does not exist: %w", parent, err)
+	}
+
 	matches, err := filepath.Glob(filepath.Join(s.tasksDir(), parent+".*.md"))
 	if err != nil {
 		return "", fmt.Errorf("scanning %s for existing child IDs: %w", s.tasksDir(), err)
