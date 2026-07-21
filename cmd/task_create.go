@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/spf13/cobra"
 )
@@ -15,7 +17,7 @@ func newTaskCreateCmd() *cobra.Command {
 		Use:   "create <title>",
 		Short: "Create a new task",
 		Args:  cobra.ExactArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			s := task.New(bitDir)
 
 			var id string
@@ -34,14 +36,19 @@ func newTaskCreateCmd() *cobra.Command {
 				return err
 			}
 
-			return s.Save(&task.Task{
+			if err := s.Save(&task.Task{
 				ID:         id,
 				Title:      args[0],
 				Status:     "todo",
 				Phase:      phase,
 				PhaseLabel: phaseLabel,
 				Body:       description,
-			})
+			}); err != nil {
+				return err
+			}
+
+			_, err = fmt.Fprintln(cmd.OutOrStdout(), "BIT-1")
+			return err
 		},
 	}
 	cmd.Flags().StringVarP(&description, "description", "d", "", "task description (body content)")
