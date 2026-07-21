@@ -9,16 +9,17 @@ You audit completed work and produce a structured findings list. You are the qua
 
 You do **not** implement code. When something needs a code change, you capture it as a finding and route it to bit_scope for the normal pipeline (scope → plan → do).
 
+**Before you drive the CLI, read `.claude/bit-cli.md`** — the shared command contract. The scope and plan now live as a **track** and its **bars** in `.bit/`, not as paired root files; you find and read them through `./bin/bit`.
+
 ---
 
 ## Inputs
 
 You need:
-1. **The plan file** (`<feature>-plan.md`) — find it in the repo root, or the user names it
-2. **The scope file** (`<feature>-scope.md`) — paired by name with the plan
-3. **The PR** (optional) — if one exists on the current branch, use it for checks 4-5
+1. **The track** — the scope-and-plan, found by ID or title. The user usually names the work; resolve it with `./bin/bit task list` (tracks are the rows whose ID has no dot). Its body holds the scope + phases; its bars (`./bin/bit task list --parent <track>`) are the plan steps.
+2. **The PR** (optional) — if one exists on the current branch, use it for checks 4-5
 
-If no plan/scope pair is obvious, list what you found and ask.
+There's no `<feature>-scope.md` / `<feature>-plan.md` filename pairing to hunt for anymore — the track *is* the pairing. If more than one track has recent work and it's unclear which to audit, list what you found and ask.
 
 ---
 
@@ -28,19 +29,20 @@ Run these in order. Check 1 is a gate — if the work is genuinely incomplete, s
 
 ### 1. Plan completion (gate)
 
-Read the plan. For every step:
-- Verify it has `**Status:** ✅ Done` and all implementation checklist boxes are checked
-- Cross-reference `git log --oneline` to confirm a commit exists that corresponds to each step's suggested message (fuzzy match on the ticket ID and key words — don't require exact wording)
+List the track's bars (`./bin/bit task list --parent <track>`). For every bar:
+- Verify its status is `done`
+- Cross-reference `git log --oneline` to confirm a commit exists that corresponds to each bar's suggested message (read the bar body with `./bin/bit task read <bar> --body` for it; fuzzy match on the track ID and key words — don't require exact wording)
 
-**If genuinely incomplete** (steps exist with no corresponding work in git): stop, report which steps are missing, and inform the user. They likely triggered the skill early.
+**If genuinely incomplete** (bars are not `done` with no corresponding work in git): stop, report which bars are unfinished, and inform the user. They likely triggered the skill early.
 
-**If the work landed but the doc is messy** (commits exist but steps aren't marked done): fix the doc — check the boxes, add the status line — and record this as a finding ("doc cleanup — marked step N as done").
+**If the work landed but the status is stale** (commits exist but a bar isn't `done`): set it with `./bin/bit task update <bar> -s done` and record this as a finding ("status cleanup — marked bar N done").
 
 ### 2. Scope/plan sync
 
-- Every scope phase that has all its tagged plan steps marked done should be checked off (`- [x]`) in the scope
-- Every scope phase that still has pending steps should be unchecked
-- If they're out of sync, fix the scope and record a finding
+The scope phases live as a checklist in the **track body**; the bars carry the phase they serve (`--phase`). Reconcile them:
+- Every phase whose bars are all `done` should be checked off (`- [x] Phase N`) in the track body
+- Every phase with an unfinished bar should be unchecked
+- If they're out of sync, fix the track body (`./bin/bit task update <track> -d "…"`) and record a finding
 
 ### 3. Commit message hygiene
 
@@ -96,12 +98,12 @@ Keep it brief — a few bullet points. This feeds the retro skill with positive 
 
 ## Output format
 
-Write `<feature>-check.md` in the repo root:
+Write `<track-id>-check.md` in the repo root (e.g. `BIT-7-check.md`). The check report is a transient audit artifact the retro skill consumes — it is *not* tracked work, so it stays a plain file rather than a bit task:
 
 ```markdown
-# Check: <feature name>
+# Check: <track title>
 
-Ticket: [PTC-XXXX](link)
+Track: <track-id>
 PR: [#N](link) (or "no PR")
 Date: YYYY-MM-DD
 
@@ -149,7 +151,7 @@ If there are no findings that need code work, omit the "Route to bit_scope" sect
 
 ## Re-run behavior
 
-When you find an existing `<feature>-check.md`:
+When you find an existing `<track-id>-check.md`:
 1. Read it
 2. Re-run all checks
 3. Mark previously-open findings as `resolved` if the issue no longer exists
@@ -185,7 +187,7 @@ For items the user needs to decide on, present them at the end and wait for thei
 
 ## How to gather context
 
-1. Find the plan and scope files (by name pattern or user direction)
+1. Find the track (by user direction, or `./bin/bit task list`) and its bars (`./bin/bit task list --parent <track>`); read the track body and each bar body via `./bin/bit task read <id> --body`
 2. `git log --oneline main..HEAD` for commits on this branch
 3. `gh pr view --json number,url,state` to find the PR (if any)
 4. `gh pr checks` for CI status (if PR exists)

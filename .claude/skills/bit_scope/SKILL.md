@@ -1,26 +1,28 @@
 ---
 name: bit_scope
-description: Create or refine a high-level scope (an RFC-style overview) for a feature or change BEFORE any detailed planning. Use this first — whenever the user wants to frame WHAT is changing and WHY at a high level, sketch the shape of a feature request, decide the order of delivery, or surface risks and unknowns to de-risk before committing to a detailed plan. Triggers on "scope this out", "give me a high-level overview", "what's the shape of this feature", "let's write an RFC", "think through the delivery order", "before we plan", or describing a feature request where implementation detail isn't wanted yet. Produces a markdown scope doc: the motivation (WHY), a coarse checklist of value-delivering phases (each a usable vertical slice, ordered for incremental value), light pointers to the code areas each phase touches, and a highlighted risks/unknowns section. This is the overview that feeds bit_plan — bit_scope owns the WHY and the delivery order; bit_plan turns each phase into detailed TDD steps; bit_do executes. Reach for bit_scope for the high-level shape, bit_plan for the detailed plan, bit_do to build it.
+description: Create or refine a high-level scope (an RFC-style overview) for a feature or change BEFORE any detailed planning. Use this first — whenever the user wants to frame WHAT is changing and WHY at a high level, sketch the shape of a feature request, decide the order of delivery, or surface risks and unknowns to de-risk before committing to a detailed plan. Triggers on "scope this out", "give me a high-level overview", "what's the shape of this feature", "let's write an RFC", "think through the delivery order", "before we plan", or describing a feature request where implementation detail isn't wanted yet. Authors the scope as a track in `.bit/` through the `./bin/bit` CLI: the motivation (WHY), a coarse checklist of value-delivering phases (each a usable vertical slice, ordered for incremental value), light pointers to the code areas each phase touches, and a highlighted risks/unknowns section. This is the overview that feeds bit_plan — bit_scope owns the WHY and the delivery order; bit_plan turns each phase into detailed TDD steps; bit_do executes. Reach for bit_scope for the high-level shape, bit_plan for the detailed plan, bit_do to build it.
 ---
 
 # Scope Creator
 
 You write and refine a **scope** — a short, high-level overview of a proposed software change. You do NOT write code, name functions, or produce a granular task list; a later skill (bit_plan) does that. Your job is clarity about **what** is changing, **why**, and **in what order** value gets delivered.
 
-A scope is a markdown file the user refines until they're happy with the shape of the work. It is the first of three artifacts:
+A scope lives as a **track** in `.bit/` — a top-level task whose body holds the scope prose — authored and refined through the local `./bin/bit` CLI. The user refines it until they're happy with the shape of the work. It is the first of three artifacts:
 
 - **bit_scope** (this skill) — the high-level shape: why, and the order of delivery. Owns the WHY.
-- **bit_plan** — turns the scope's phases into detailed, contradiction-driven TDD steps.
-- **bit_do** — executes the plan, keeping both the scope and the plan in sync as progress lands.
+- **bit_plan** — turns the scope's phases into detailed, contradiction-driven TDD steps, one **bar** (child task) per step under this track.
+- **bit_do** — executes the plan, moving each bar's status and rolling the track up as progress lands.
 
-Because bit_scope owns the WHY, the plan won't repeat it — it will point back here. That makes the motivation in this document load-bearing: get it right.
+Because bit_scope owns the WHY, the plan won't repeat it — the bars live under this track, so a reader gets the WHY by reading the track body. That makes the motivation in this document load-bearing: get it right.
+
+**Before you drive the CLI, read `.claude/bit-cli.md`** — the shared command contract (create a track, read/write a body, list bars). Every write goes through `./bin/bit`; never hand-edit `.bit/tasks/*.md`.
 
 ---
 
 ## Two modes
 
-**Create** — start from a feature request or problem description and build the scope from scratch.
-**Refine** — improve an existing scope (the user points to a file with @, or pastes it). The user will typically loop here several times, tightening the phases and de-risking, until they're satisfied enough to move to bit_plan.
+**Create** — start from a feature request or problem description and build the scope from scratch as a new track.
+**Refine** — improve an existing scope. The user names the track (by ID like `BIT-7`, or by title); read its body with `./bin/bit task read <id> --body`, then write the refined body back. The user will typically loop here several times, tightening the phases and de-risking, until they're satisfied enough to move to bit_plan.
 
 ---
 
@@ -91,11 +93,17 @@ Don't over-research. If you find yourself reading function bodies to design the 
 
 ## Scope format
 
-Write the scope to a `.md` file in the project root unless the user says otherwise. A clear default name is `<feature>-scope.md`, so bit_plan and bit_do can find its partner plan (`<feature>-plan.md`). Use this structure:
+The scope is authored as a **track body**. Draft the body (the markdown below), then create the track with it in one call — `task create` prints the new track ID, which is how bit_plan and bit_do later find this work:
+
+```bash
+TRACK=$(./bin/bit task create "<scope title>" -d "$(cat scope-body.md)")
+```
+
+Refining an existing track means reading its body, editing, and writing it back with `./bin/bit task update <id> -d "…"`. Report the track ID to the user — it's the handle they'll name when they move to bit_plan.
+
+The track's **title** is the scope title; the **body** is this structure (no leading `# Title` needed — the title lives in the track, not the body):
 
 ```markdown
-# [Title]
-
 ## Why
 [The motivation. What breaks, is missing, or is painful today — business or user impact,
 not a restatement of the change. 2–4 sentences. This is the one home for the WHY; the
@@ -148,9 +156,9 @@ The user drives this loop; keep refining with them until they're happy enough to
 
 ## Handoff to bit_plan
 
-When the user is satisfied with the scope, the next step is bit_plan, which turns each phase into detailed TDD steps. Remind them, briefly, that:
-- The plan will reference this scope for the WHY rather than repeating it.
-- Each plan step will be tagged with the scope phase it serves, so progress rolls up.
-- bit_do later keeps both documents in sync as work lands.
+When the user is satisfied with the scope, the next step is bit_plan, which turns each phase into detailed TDD steps — one bar per step under this track. Give them the track ID and remind them, briefly, that:
+- The plan's bars live under this track, so they inherit the WHY rather than repeating it.
+- Each bar will be tagged (`--phase`/`--phase-label`) with the scope phase it serves, so progress rolls up.
+- bit_do later moves each bar's status and rolls the track up as work lands.
 
-You don't build the plan — just point them at bit_plan when they're ready.
+You don't build the plan — just point them at bit_plan, naming the track, when they're ready.

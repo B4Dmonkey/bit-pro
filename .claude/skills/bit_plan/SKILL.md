@@ -1,30 +1,26 @@
 ---
 name: bit_plan
-description: Create or refine an implementation plan for a large task — bug fix, refactor, or new feature. Use when the user says "make a plan", "let's plan this out", "let's revise the plan", references a .md plan file to write or improve, or describes a change that is too large to implement in one session. Also triggers on casual phrasing like "let's think through this" or "how should we approach X" when the scope is clearly multi-step. This skill authors and refines the plan document only — when the user wants to frame the high-level WHY and delivery order first, use bit_scope; when they want to carry out an existing plan ("implement the plan", "continue our implementation", "do the next step"), use bit_do instead. Produces a structured markdown plan that links back to its scope (bit_scope) for the WHY, with contradiction-driven steps (each one red-green cycle and one commit) tagged to the scope's phases, TDD-first checklists, and an explicit split between what Claude verifies and what the user verifies.
+description: Create or refine an implementation plan for a large task — bug fix, refactor, or new feature. Use when the user says "make a plan", "let's plan this out", "let's revise the plan", names a scope track to plan, or describes a change that is too large to implement in one session. Also triggers on casual phrasing like "let's think through this" or "how should we approach X" when the scope is clearly multi-step. This skill authors and refines the plan only — one bar (child task) per step under the scope's track in `.bit/`, through the `./bin/bit` CLI. When the user wants to frame the high-level WHY and delivery order first, use bit_scope; when they want to carry out an existing plan ("implement the plan", "continue our implementation", "do the next step"), use bit_do instead. Produces contradiction-driven step bars (each one red-green cycle and one commit) tagged with the scope phase they serve, TDD-first checklists, and an explicit split between what Claude verifies and what the user verifies.
 ---
 
 # Implementation Plan Creator
 
-You create and refine implementation plans. Plans are markdown files that serve as the execution guide across multiple Claude Code sessions — detailed enough to work from autonomously, minimal enough not to waste tokens.
+You create and refine implementation plans. A plan is a set of **bars** (child tasks) under a scope's **track** in `.bit/`, authored through the `./bin/bit` CLI — one bar per step, detailed enough to work from autonomously across sessions, minimal enough not to waste tokens.
+
+**Before you drive the CLI, read `.claude/bit-cli.md`** — the shared command contract (read the scope from its track body, create bars under the track, tag phases). Every write goes through `./bin/bit`; never hand-edit `.bit/tasks/*.md`.
 
 ## Two modes
 
-**Create** — start from a problem description, build the plan from scratch
-**Refine** — improve an existing plan (user pastes it or points to a file with @)
+**Create** — start from a scope (an existing track) and build its steps as bars from scratch
+**Refine** — improve the existing bars under a track (add, split, reword, or re-order steps)
 
 ---
 
 ## Context — defer to the scope
 
-The WHY lives in the **scope** (bit_scope's `<feature>-scope.md`), not here. Duplicating motivation in two documents just lets them drift apart. So the plan's Context section is a **one-line pointer** to the scope, optionally with a single-sentence recap for a reader who opens the plan alone:
+The WHY lives in the **scope** — the track body (bit_scope's work), not here. Because the bars you create live *under* that track, the linkage is structural: a reader opening a bar reads the parent track (`./bin/bit task read <track> --body`) for the WHY. You don't repeat the motivation in each bar, and there's no separate Context pointer to maintain — the parent relationship is the pointer.
 
-```markdown
-## Context
-See scope: [feature-scope.md](./feature-scope.md)
-Recap: <one sentence, optional>
-```
-
-If **no scope exists** — the user came straight to a plan — you still need the WHY before drafting. Either suggest writing a quick scope first (bit_scope), or capture 2–3 sentences of motivation inline. A reader who knows nothing about the codebase should understand *why* this work is needed:
+If **no scope track exists** — the user came straight to a plan — you still need the WHY before drafting. Either suggest writing a quick scope first (bit_scope creates the track), or capture 2–3 sentences of motivation and put them at the top of the track body yourself. A reader who knows nothing about the codebase should understand *why* this work is needed:
 
 **Wrong:** "This plan covers fixing the prime distribution queries and cleaning up the streaming code."
 **Right:** "Congressional and house district voter files show wrong prime totals because each county's ETL job overwrites the district-level aggregate — only the last county to finish is reflected. Voter targeting for non-county geographies is unreliable until this is fixed."
@@ -35,7 +31,7 @@ If the user gives you only a "what", push back once to get the "why". Ask: what 
 
 ## Gathering context (new plans)
 
-**If a scope doc exists, start there.** Read it end to end: the WHY, the phases, the "touches" pointers, and the risks. The scope hands you the delivery order and the code areas each phase affects — your job is to turn its phases into TDD steps.
+**Start from the scope track.** The user names it (by ID or title); read its body end to end with `./bin/bit task read <track> --body` — the WHY, the phases, the "touches" pointers, and the risks. The scope hands you the delivery order and the code areas each phase affects — your job is to turn its phases into TDD steps, one bar each under that track.
 
 Default to planning every phase in one pass. Splitting into multiple planning sessions exists to route around a genuine unknown — a risk the scope flagged "de-risk before planning? Yes", or a later phase whose shape depends on what an earlier phase turns out to build — not as a default posture just because a scope has more than one phase. If the scope is clear and none of its risks block a phase, plan it end to end now; don't ask the user to pick a phase to be cautious. If an unknown does block a later phase, plan up through whatever isn't blocked, then tell the user which phase(s) you're deferring and why.
 
@@ -150,11 +146,11 @@ Name steps after what they prove, not what they touch.
 Good: "Contradiction forces real fan-out"
 Bad: "Implement child workflow"
 
-### Tag each step with its scope phase
+### Tag each bar with its scope phase
 
-When a scope exists, every step names the scope phase it serves — e.g. `## Step 3 (Phase 1 — Ingest) — Contradiction forces real fan-out`. This is what lets progress roll up: bit_do checks off a scope phase once all the steps tagged to it are done. A step serves exactly one phase; if it seems to span two, it's probably two steps. Plan the phases in the scope's delivery order, so the walking skeleton lands first.
+Every bar carries the scope phase it serves as CLI metadata, not as text in the body: `--phase <N>` (the phase number from the scope's checklist) and `--phase-label "<label>"` (the phase's short name). This is what lets progress roll up: bit_do checks off a scope phase in the track body once all the bars tagged to it are done. A bar serves exactly one phase; if a step seems to span two, it's probably two bars. Create the bars in the scope's delivery order, so the walking skeleton lands first.
 
-**Do not include scope-update instructions in the plan.** The plan's job ends at describing the steps — no "Scope phase rollup" sections, no reminders to check off scope phases, no guidance on updating other documents. Tracking progress and keeping the scope in sync is bit_do's responsibility; including it here just burns output tokens on information the executor already has from the skill that runs it.
+**Do not put rollup or status instructions in the bar bodies.** A bar body describes only its own step (the TDD cycle and checks). No "Scope phase rollup" notes, no `**Status:**` lines — the bar's status *field* is the progress marker, and keeping the scope in sync is bit_do's job. Writing that into the body just burns tokens on what the executor already knows.
 
 ### Refactor steps
 
@@ -186,21 +182,19 @@ Never put a judgment call in "Claude verifies." Never put an automatable check i
 
 ## Plan format
 
-Write plans to a `.md` file in the project root unless the user specifies otherwise. Use this structure:
+Each step is **one bar** under the scope's track. The bar's **title** is the step name (what it proves); its `--phase`/`--phase-label` tag the scope phase; its **body** is the step detail below. Create each bar in delivery order — `task create --parent` prints the dotted bar ID (`BIT-7.1`, `BIT-7.2`, …), and the order you create them in is the order bit_do will execute them:
+
+```bash
+BAR=$(./bin/bit task create "Contradiction forces real fan-out" \
+        --parent "$TRACK" --phase 1 --phase-label "Ingest" \
+        -d "$(cat step-body.md)")
+```
+
+Report the bar IDs (or just the count and the track) back to the user when you're done.
+
+The **bar body** uses this structure — no `## Step N` heading (the title is the step name), no phase text (the `--phase` metadata carries it), no `**Status:**` line (the status field is the marker):
 
 ```markdown
-# [Plan title]
-
-## Context
-See scope: [feature-scope.md](./feature-scope.md) — the WHY and phase order live there.
-[Optional one-sentence recap. If there's no scope, put 2–4 sentences of motivation here instead.]
-
-## How this plan works
-[Brief explanation of the throughline — what's the entry point, and how tests drive us deeper.]
-
----
-
-## Step 1 (Phase N — [scope phase]) — [Name: what this proves]
 [One sentence: what this step accomplishes and what forces it (e.g., "hardcoded return can't satisfy both tests")]
 
 **Scope:**
@@ -218,7 +212,7 @@ See scope: [feature-scope.md](./feature-scope.md) — the WHY and phase order li
    - [ ] Confirm fails: [expected failure reason]
 
 2. **Implement (GREEN):**
-   - [ ] specific implementation task (may be a hardcoded return — that's fine for Step 1)
+   - [ ] specific implementation task (may be a hardcoded return — that's fine for the first bar)
 
 **Claude verifies:**
 - [ ] tests pass (use the project's task runner — check CLAUDE.md or Makefile/justfile/etc.)
@@ -228,38 +222,24 @@ See scope: [feature-scope.md](./feature-scope.md) — the WHY and phase order li
 - [ ] [judgment call, if any — not every step needs one]
 
 **Commit (user):** `feat(scope): short description`
-
----
-
-## Step 2 (Phase N — [scope phase]) — [Name: contradiction forces real behavior]
-[What contradicts Step 1's hardcoded return, and what real behavior this forces.]
-
-**TDD cycle:**
-
-1. **Write test (RED):**
-   - [ ] Add subtest with contradicting inputs…
-   - [ ] Confirm fails: [hardcoded return gives X, test expects Y]
-
-2. **Implement (GREEN):**
-   - [ ] Replace hardcoded return with real logic…
-
-...
 ```
+
+The throughline that used to live in a plan's "How this plan works" section — what the entry point is and how tests drive deeper — belongs in the **track body** (a sentence or two), not repeated per bar. If it's missing and would help, offer to add it to the track via bit_scope.
 
 ---
 
 ## Refining an existing plan
 
-1. Read the full plan before commenting
-2. Check the context: does it point to a scope for the WHY (or, absent a scope, say why not what)? If it duplicates a long WHY the scope already owns, flag it — that's drift waiting to happen.
-3. Check the phase tags: is each step tagged to a scope phase, and do the tags follow the scope's delivery order? An untagged step, or one that jumps ahead of the walking skeleton, is a flag.
-4. Check the throughline: can you trace *why* each step exists? Every step after Step 1 should be forced by a contradiction or dependency. If a step says "now implement X" without a test that demands it, flag it — something is missing.
-5. Review each step: does it start with a test? Is it one red-green cycle?
-6. Flag any step that bundles multiple scenarios (split them — each earns its own commit)
-7. Flag YAGNI violations, over-bundled steps, or missing verification
-8. Propose edits with reasoning — don't silently rewrite large sections
+1. Read the whole plan first: the track body (`task read <track> --body`) and every bar in order (`task list --parent <track>`, then `task read <bar> --body` for each).
+2. Check the phase tags: is each bar tagged to a scope phase (`--phase`/`--phase-label`), and do the tags follow the scope's delivery order? An untagged bar, or one that jumps ahead of the walking skeleton, is a flag.
+3. Check that the bar bodies don't duplicate the WHY the track owns, or carry stray `**Status:**` lines — that's drift waiting to happen.
+4. Check the throughline: can you trace *why* each bar exists? Every bar after the first should be forced by a contradiction or dependency. If a bar says "now implement X" without a test that demands it, flag it — something is missing.
+5. Review each bar: does it start with a test? Is it one red-green cycle?
+6. Flag any bar that bundles multiple scenarios (split it into two bars — each earns its own commit)
+7. Flag YAGNI violations, over-bundled bars, or missing verification
+8. Apply edits through the CLI: reword a bar with `task update <bar> -d "…"`, add a missing step with `task create --parent …`. Propose changes with reasoning — don't silently rewrite large sections.
 
-Confirm with the user before rewriting more than a few lines.
+Confirm with the user before rewriting more than a few bars.
 
 ---
 
