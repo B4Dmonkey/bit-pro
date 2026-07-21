@@ -2,13 +2,16 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/spf13/cobra"
 )
 
 func newTaskListCmd() *cobra.Command {
-	return &cobra.Command{
+	var parent string
+
+	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List all tasks",
 		Args:  cobra.NoArgs,
@@ -20,6 +23,9 @@ func newTaskListCmd() *cobra.Command {
 
 			out := cmd.OutOrStdout()
 			for _, t := range tasks {
+				if parent != "" && !strings.HasPrefix(t.ID, parent+".") {
+					continue
+				}
 				phase := ""
 				if t.Phase != 0 {
 					phase = fmt.Sprintf("phase %d — %s", t.Phase, t.PhaseLabel)
@@ -29,4 +35,6 @@ func newTaskListCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().StringVarP(&parent, "parent", "p", "", "list only this task's direct bars")
+	return cmd
 }

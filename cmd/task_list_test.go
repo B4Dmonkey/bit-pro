@@ -60,6 +60,33 @@ func TestTaskListCmd_GroupsBarsUnderTheirTrack(t *testing.T) {
 	}
 }
 
+func TestTaskListCmd_FiltersToParentBars(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "One", "...")
+	createTask(t, "Two", "...")
+	mustRun(t, "task", "create", "One.1", "-d", "...", "--parent", "BIT-1")
+	mustRun(t, "task", "create", "One.2", "-d", "...", "--parent", "BIT-1")
+	mustRun(t, "task", "create", "Two.1", "-d", "...", "--parent", "BIT-2")
+
+	out := mustRun(t, "task", "list", "--parent", "BIT-1")
+
+	want := "BIT-1.1\ttodo\tOne.1\t\nBIT-1.2\ttodo\tOne.2\t\n"
+	if out != want {
+		t.Errorf("output = %q, want %q", out, want)
+	}
+}
+
+func TestTaskListCmd_ParentWithNoBars(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Lonely", "...")
+
+	out := mustRun(t, "task", "list", "--parent", "BIT-9")
+
+	if out != "" {
+		t.Errorf("output = %q, want empty output for a parent with no bars", out)
+	}
+}
+
 func TestTaskListCmd_ShowsPhaseOnBars(t *testing.T) {
 	initProject(t, "BIT")
 	createTask(t, "Track", "...")
