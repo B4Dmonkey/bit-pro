@@ -1,7 +1,7 @@
 ---
 id: BIT-10.8
 title: Force overrides the guard
-status: todo
+status: doing
 phase: 1
 phase_label: Archive
 ---

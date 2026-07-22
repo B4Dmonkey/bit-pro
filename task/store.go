@@ -81,14 +81,16 @@ func (s *Store) Relocate(id string, force bool) error {
 	if err != nil {
 		return err
 	}
-	var unfinished []string
-	for _, kid := range kids {
-		if kid.Status != "done" {
-			unfinished = append(unfinished, kid.ID)
+	if !force {
+		var unfinished []string
+		for _, kid := range kids {
+			if kid.Status != "done" {
+				unfinished = append(unfinished, kid.ID)
+			}
 		}
-	}
-	if len(unfinished) > 0 {
-		return &UnfinishedBarsError{Bars: unfinished}
+		if len(unfinished) > 0 {
+			return &UnfinishedBarsError{Bars: unfinished}
+		}
 	}
 	for _, kid := range kids {
 		if err := s.relocate(kid.ID); err != nil {

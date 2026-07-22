@@ -131,6 +131,34 @@ func TestStoreRelocate_RefusesWithUnfinishedBars(t *testing.T) {
 	}
 }
 
+func TestStoreRelocate_ForceOverridesGuard(t *testing.T) {
+	t.Parallel()
+
+	s := New(t.TempDir())
+	for _, seed := range []struct{ id, status string }{
+		{"BIT-1", "done"},
+		{"BIT-1.1", "done"},
+		{"BIT-1.2", "todo"},
+	} {
+		if err := s.Save(&Task{ID: seed.id, Status: seed.status}); err != nil {
+			t.Fatalf("seeding %s: %v", seed.id, err)
+		}
+	}
+
+	if err := s.Relocate("BIT-1", true); err != nil {
+		t.Fatalf("Relocate() returned error: %v", err)
+	}
+
+	for _, id := range []string{"BIT-1", "BIT-1.1", "BIT-1.2"} {
+		if _, err := os.Stat(s.archivePath(id)); err != nil {
+			t.Errorf("archived %s: os.Stat error = %v, want the file to exist", id, err)
+		}
+		if _, err := os.Stat(s.Path(id)); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("tasks %s: os.Stat error = %v, want fs.ErrNotExist", id, err)
+		}
+	}
+}
+
 func TestStoreRelocate_ContainsUntrustedID(t *testing.T) {
 	t.Parallel()
 

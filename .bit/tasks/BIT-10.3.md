@@ -1,7 +1,7 @@
 ---
 id: BIT-10.3
 title: Unfinished bars refuse the move
-status: doing
+status: done
 phase: 1
 phase_label: Archive
 ---
