@@ -1,6 +1,6 @@
 ---
 name: bit_do
-description: Execute an existing implementation plan one step at a time, stopping after each step for the user to verify before continuing. Use whenever the user says "implement the plan", "continue our implementation", "let's build the next step", "do the next step", "pick up where we left off", or otherwise wants to carry out — not write or revise — a markdown bit_plan. This is the execution counterpart to bit_plan and bit_scope: bit_scope frames the WHY and delivery order in a track, bit_plan authors the detailed steps as bars under it, bit_do carries them out. It finds the track in `.bit/`, reads the track body and its bars through the `bit` CLI, tracks each bar's checklist as tasks, runs the automated checks, moves each bar's status (`doing` → `done`) and rolls the track up (checking off completed phases and setting the track's status), and hands off to the user for verification and commit between bars. This project is a Go codebase — bit_do applies the project's Go skills (go, cobra-viper, wails, fileflow-pathologize, go-spec-reviewer, go-release) while implementing so code stays idiomatic. Trigger this — not bit_plan — when a plan already exists and the user wants to start or resume building it.
+description: Execute an existing implementation plan one step at a time, stopping after each step for the user to verify before continuing. Use whenever the user says "implement the plan", "continue our implementation", "let's build the next step", "do the next step", "pick up where we left off", or otherwise wants to carry out — not write or revise — a markdown bit_plan. This is the execution counterpart to bit_plan and bit_scope: bit_scope frames the WHY and delivery order in a track, bit_plan authors the detailed steps as bars under it, bit_do carries them out. It finds the track in `.bit/`, reads the track body and its bars through the `bit` CLI, tracks each bar's checklist as tasks, runs the automated checks, moves each bar's status (`doing` → `done`) and rolls the track up (checking off completed verses and setting the track's status), and hands off to the user for verification and commit between bars. This project is a Go codebase — bit_do applies the project's Go skills (go, cobra-viper, wails, fileflow-pathologize, go-spec-reviewer, go-release) while implementing so code stays idiomatic. Trigger this — not bit_plan — when a plan already exists and the user wants to start or resume building it.
 ---
 
 # Plan Implementer
@@ -8,9 +8,9 @@ description: Execute an existing implementation plan one step at a time, stoppin
 You execute implementation work that bit_scope and bit_plan produced. It lives in one **track** in `.bit/`, driven through the `bit` CLI:
 
 - **the bars** (child tasks under the track, from bit_plan) — the executable detail: each bar is one step — one red-green cycle with a scope, an implementation checklist, "Claude verifies" checks, "User verifies" checks, and a suggested commit. This is what you carry out, one bar at a time.
-- **the track body** (from bit_scope) — the high-level overview and the WHY, with the coarse **phases** the bars roll up into. You read it for context and keep its phase checklist in sync; you execute against the bars.
+- **the track body** (from bit_scope) — the high-level overview and the WHY, with the coarse **verses** the bars roll up into. You read it for context and keep its verse checklist in sync; you execute against the bars.
 
-A note on vocabulary, because it's easy to trip on: the **track** carries coarse **phases** (usable value slices) in its body; its **bars** are the fine-grained steps (one commit each, tagged to their phase via `--phase`). You execute one *bar* at a time; a *phase* is done when all its bars are.
+A note on vocabulary, because it's easy to trip on: the **track** carries coarse **verses** (usable value slices) in its body; its **bars** are the fine-grained steps (one commit each, tagged to the verse they serve via the `--phase` flag — the flag keeps the name `phase`, the scope's slice is a verse). You execute one *bar* at a time; a *verse* is done when all its bars are.
 
 **Before you drive the CLI, read `.claude/bit-cli.md`** — the shared command contract (find the track, list its bars, read a bar body, set status, roll the track up). Every write goes through `bit`; never hand-edit `.bit/tasks/*.md`.
 
@@ -24,9 +24,9 @@ Your job is to carry out **one bar, then stop**. The plan was deliberately broke
 
 Find the **track**. The user usually names the work when they trigger this ("implement the geographies track"); resolve it to a track ID with `bit task list` (tracks are the rows whose ID has no dot — match on title). If they didn't name it and more than one track has unfinished bars, list what you found and ask which one — don't pick for them.
 
-Read the track body for context (`bit task read <track> --body`), then list its bars in order (`bit task list --parent <track>`). The next bar is the **first one whose status is not `done`** — the status field is the resume marker, so a fresh session lands on the right bar with no doc to parse. Read that bar's body (`bit task read <bar> --body`) for its detail, and note the phase it's tagged to (the phase column) so you know what larger capability it's building toward.
+Read the track body for context (`bit task read <track> --body`), then list its bars in order (`bit task list --parent <track>`). The next bar is the **first one whose status is not `done`** — the status field is the resume marker, so a fresh session lands on the right bar with no doc to parse. Read that bar's body (`bit task read <bar> --body`) for its detail, and note the verse it's tagged to (shown as `phase N — label` in the list output) so you know what larger capability it's building toward.
 
-Briefly restate: the bar's ID and name, the scope phase it serves, its scope files, and its checklist. This confirms you and the user are aligned on what's about to happen — and at what altitude — before any code changes.
+Briefly restate: the bar's ID and name, the verse it serves, its scope files, and its checklist. This confirms you and the user are aligned on what's about to happen — and at what altitude — before any code changes.
 
 ### 2. Mark the bar in progress, load its checklist
 
@@ -77,11 +77,11 @@ The user often follows up with small cleanup on the step you just implemented �
 1. **Mark the bar done.** `bit task update <bar> -s done`. The status field is the resume marker: a fresh session continues at the first bar that isn't `done`, with no doc to parse. (You don't need to tick the checklist boxes inside the bar body — the status field supersedes them.)
 2. **Roll the track up.** This is skill logic run through the CLI (the tool doesn't cascade for you):
    - Re-list the bars: `bit task list --parent <track>`.
-   - **Phase checkoff:** if this bar was the *last* one tagged to its phase — every bar with that `--phase` is now `done` — check off that phase in the track body: find its `- [ ] Phase N` line and change `[ ]` to `[x]` (bit_scope keeps the checkbox and `Phase N` on the same line, so it's a one-line toggle). Read the body, edit that line, write it back.
+   - **Verse checkoff:** if this bar was the *last* one tagged to its verse — every bar with that `--phase` is now `done` — check off that verse in the track body: find its `- [ ] Verse N` line and change `[ ]` to `[x]` (bit_scope keeps the checkbox and `Verse N` on the same line, so it's a one-line toggle). Read the body, edit that line, write it back.
    - **Track status:** all bars `done` → track `done`; none started (all `todo`) → `todo`; anything in between → `doing`.
-   - Apply both in one call so the track moves once: `bit task update <track> -d "<edited body>" -s <status>` — pass `-d` only if the phase checkoff changed the body, `-s` only if the status changed. **If neither changed, there's nothing to roll up — skip the call.** (This is the common mid-phase case: finishing a bar when its phase isn't complete yet and the track is already `doing`.)
+   - Apply both in one call so the track moves once: `bit task update <track> -d "<edited body>" -s <status>` — pass `-d` only if the verse checkoff changed the body, `-s` only if the status changed. **If neither changed, there's nothing to roll up — skip the call.** (This is the common mid-verse case: finishing a bar when its verse isn't complete yet and the track is already `doing`.)
 
-   Keeping the track's phase checklist and status current lets a reader see delivered value at a glance from `task read <track>` — and the track and its bars never disagree about what's done.
+   Keeping the track's verse checklist and status current lets a reader see delivered value at a glance from `task read <track>` — and the track and its bars never disagree about what's done.
 3. **Suggest the commit.** Offer the bar's commit message (refined if the work diverged from it). The user commits — you never run the commit yourself. The `.bit/tasks/*.md` changes from steps 1–2 are part of the working tree, so they go into the same commit as the code — mention that.
 4. **Compaction point.** Tell the user this is a clean place to `/compact` before the next bar, since it's done, verified, and committed. You can't run `/compact` yourself — it's a user command — so prompt them, then continue to the next bar when they say so.
 
@@ -89,7 +89,7 @@ The user often follows up with small cleanup on the step you just implemented �
 
 Don't thrash or silently retry the same approach. Figure out which of three problems it is — ask the user if it isn't obvious:
 
-1. **The scope is wrong.** The bar did what it said, but the *direction* is off — the phase isn't delivering the value we expected, or the delivery order is wrong. This is bigger than one bar. Stop and hand back to **bit_scope** to rethink the track's shape; that will usually mean re-planning the affected phases (their bars) with bit_plan afterward.
+1. **The scope is wrong.** The bar did what it said, but the *direction* is off — the verse isn't delivering the value we expected, or the delivery order is wrong. This is bigger than one bar. Stop and hand back to **bit_scope** to rethink the track's shape; that will usually mean re-planning the affected verses (their bars) with bit_plan afterward.
 2. **The plan is wrong.** The scope is sound, but this bar's detail was off. Stop implementing and hand back to **bit_plan** to revise the bar. Patching code over a wrong plan just buries the misunderstanding for the next session to rediscover.
 3. **The plan is right, the implementation is wrong.** The intent was correct but the code doesn't deliver it. The user will often fix this directly. Offer to revise your approach if they want it — but don't loop on the same idea, and don't expand scope trying to force it.
 

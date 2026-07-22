@@ -1,6 +1,6 @@
 ---
 name: bit_scope
-description: Create or refine a high-level scope (an RFC-style overview) for a feature or change BEFORE any detailed planning. Use this first — whenever the user wants to frame WHAT is changing and WHY at a high level, sketch the shape of a feature request, decide the order of delivery, or surface risks and unknowns to de-risk before committing to a detailed plan. Triggers on "scope this out", "give me a high-level overview", "what's the shape of this feature", "let's write an RFC", "think through the delivery order", "before we plan", or describing a feature request where implementation detail isn't wanted yet. Authors the scope as a track in `.bit/` through the `bit` CLI: the motivation (WHY), a coarse checklist of value-delivering phases (each a usable vertical slice, ordered for incremental value), light pointers to the code areas each phase touches, and a highlighted risks/unknowns section. This is the overview that feeds bit_plan — bit_scope owns the WHY and the delivery order; bit_plan turns each phase into detailed TDD steps; bit_do executes. Reach for bit_scope for the high-level shape, bit_plan for the detailed plan, bit_do to build it.
+description: Create or refine a high-level scope (an RFC-style overview) for a feature or change BEFORE any detailed planning. Use this first — whenever the user wants to frame WHAT is changing and WHY at a high level, sketch the shape of a feature request, decide the order of delivery, or surface risks and unknowns to de-risk before committing to a detailed plan. Triggers on "scope this out", "give me a high-level overview", "what's the shape of this feature", "let's write an RFC", "think through the delivery order", "before we plan", or describing a feature request where implementation detail isn't wanted yet. Authors the scope as a track in `.bit/` through the `bit` CLI: the motivation (WHY), a coarse checklist of value-delivering verses (each a usable vertical slice, ordered for incremental value), light pointers to the code areas each verse touches, the open risks/unknowns, and the decisions that iteration has settled. This is the overview that feeds bit_plan — bit_scope owns the WHY and the delivery order; bit_plan turns each verse into detailed TDD steps; bit_do executes. Reach for bit_scope for the high-level shape, bit_plan for the detailed plan, bit_do to build it.
 ---
 
 # Scope Creator
@@ -10,8 +10,10 @@ You write and refine a **scope** — a short, high-level overview of a proposed 
 A scope lives as a **track** in `.bit/` — a top-level task whose body holds the scope prose — authored and refined through the local `bit` CLI. The user refines it until they're happy with the shape of the work. It is the first of three artifacts:
 
 - **bit_scope** (this skill) — the high-level shape: why, and the order of delivery. Owns the WHY.
-- **bit_plan** — turns the scope's phases into detailed, contradiction-driven TDD steps, one **bar** (child task) per step under this track.
+- **bit_plan** — turns the scope's verses into detailed, contradiction-driven TDD steps, one **bar** (child task) per step under this track.
 - **bit_do** — executes the plan, moving each bar's status and rolling the track up as progress lands.
+
+A **verse** is one value slice in the delivery order (the checklist you write here); bit_plan tags each bar to the verse it serves with the `--phase`/`--phase-label` flags (the CLI flag keeps the name `phase`; the scope calls the slice a verse), and bit_do checks a verse off once all its bars are done.
 
 Because bit_scope owns the WHY, the plan won't repeat it — the bars live under this track, so a reader gets the WHY by reading the track body. That makes the motivation in this document load-bearing: get it right.
 
@@ -22,7 +24,7 @@ Because bit_scope owns the WHY, the plan won't repeat it — the bars live under
 ## Two modes
 
 **Create** — start from a feature request or problem description and build the scope from scratch as a new track.
-**Refine** — improve an existing scope. The user names the track (by ID like `BIT-7`, or by title); read its body with `bit task read <id> --body`, then write the refined body back. The user will typically loop here several times, tightening the phases and de-risking, until they're satisfied enough to move to bit_plan.
+**Refine** — improve an existing scope. The user names the track (by ID like `BIT-7`, or by title); read its body with `bit task read <id> --body`, then write the refined body back. The user will typically loop here several times, tightening the verses and resolving unknowns into decisions, until they're satisfied enough to move to bit_plan.
 
 ---
 
@@ -32,25 +34,25 @@ The whole point of a scope is to reason about **delivery**, not construction. Ho
 
 ### What "value" means
 
-A phase delivers value when, after it lands, **someone can do something they couldn't before** — end to end, however narrow. It's a *vertical slice* (thin but complete: input → behavior → observable result), not a *horizontal layer* (all of the database work, usable by no one yet).
+A verse delivers value when, after it lands, **someone can do something they couldn't before** — end to end, however narrow. It's a *vertical slice* (thin but complete: input → behavior → observable result), not a *horizontal layer* (all of the database work, usable by no one yet).
 
-The litmus test for every phase:
+The litmus test for every verse:
 
-> **Could a real user or operator exercise this phase and get a benefit — even a tiny one?**
+> **Could a real user or operator exercise this verse and get a benefit — even a tiny one?**
 
-If yes, it's an increment of value and belongs in the scope. If the phase only produces internal plumbing nobody can touch yet, it's a *task* — and tasks belong in the plan, not here.
+If yes, it's an increment of value and belongs in the scope. If the verse only produces internal plumbing nobody can touch yet, it's a *task* — and tasks belong in the plan, not here.
 
-### How this shapes the phases
+### How this shapes the verses
 
-- **Order by value and risk, not by architecture.** Sequence phases so each one is usable and each builds on the last. Start with a *walking skeleton* — the thinnest thing that works end to end — then widen. Avoid "layer 1, layer 2, layer 3" orderings where nothing is usable until the last layer. If a risky assumption sits underneath everything, an early phase should be the one that validates it, so failure is cheap.
-- **Name phases by the capability unlocked, not the component built.** "User can search voters by district" — not "Add a search index." The reader should see the shape of *what becomes possible*, in what order.
-- **Deliberately coarse.** A handful of phases, each a sentence or two. If you're tempted to write five sub-bullets about how a phase works, you've dropped into plan altitude — pull back up.
+- **Order by value and risk, not by architecture.** Sequence verses so each one is usable and each builds on the last. Start with a *walking skeleton* — the thinnest thing that works end to end — then widen. Avoid "layer 1, layer 2, layer 3" orderings where nothing is usable until the last layer. If a risky assumption sits underneath everything, an early verse should be the one that validates it, so failure is cheap.
+- **Name verses by the capability unlocked, not the component built.** "User can search voters by district" — not "Add a search index." The reader should see the shape of *what becomes possible*, in what order.
+- **Deliberately coarse.** A handful of verses, each a sentence or two. If you're tempted to write five sub-bullets about how a verse works, you've dropped into plan altitude — pull back up.
 
 ### The line you don't cross
 
 The scope says *what becomes possible and in what order*. It never says *how*. No function signatures, no test strategy, no algorithms, no schemas. Those are bit_plan's job, and putting them here just creates a second place that drifts out of sync.
 
-**One deliberate exception — a light "touches" pointer.** Each phase may name the *code area* it affects — a file, a module, a component — as a **locator so the reader can spot-check that work is on the right path**. This is a "where to look," not a "how to build it."
+**One deliberate exception — a light "touches" pointer.** Each verse may name the *code area* it affects — a file, a module, a component — as a **locator so the reader can spot-check that work is on the right path**. This is a "where to look," not a "how to build it."
 
 - In: `Touches: the ETL aggregation step (district_rollup.py)`
 - Out: `add a GROUP BY on district_id and switch the write to an UPSERT`
@@ -59,19 +61,27 @@ If you can't name the area without prescribing the change, leave it vague ("the 
 
 ---
 
-## Risks & unknowns are first-class
+## Risks and unknowns become decisions
 
-A scope is the cheapest place to discover what you don't know. Surfacing an unknown here — before a detailed plan exists — lets the user go de-risk it (a spike, an experiment, a question answered) so the plan starts from as much certainty as possible.
+A scope is the cheapest place to discover what you don't know — and the place to drive those unknowns to rest before a detailed plan exists.
 
-So don't treat risks as an afterthought. For each one, pair it with **what would resolve it**, and flag whether it's worth de-risking *before* planning:
+Keep the distinction sharp:
 
-```markdown
-- **Unknown:** Does the county API return district codes, or only county codes?
-  **Resolve by:** 30-min spike hitting the staging endpoint with 3 sample counties.
-  **De-risk before planning?** Yes — the whole aggregation approach depends on this.
-```
+- An **unknown** is a question *the user still has to answer* — an open choice, an ambiguous data shape, an assumption the whole approach rests on. It's genuinely open: you don't yet know the answer. Pair each one with **what would resolve it** and whether it's worth resolving *before* planning:
 
-A risk with no path to resolution is just an anxiety; a risk with a resolution is a task the user can act on. Prefer the latter.
+  ```markdown
+  - **Unknown:** Does the county API return district codes, or only county codes?
+    **Resolve by:** 30-min spike hitting the staging endpoint with 3 sample counties.
+    **De-risk before planning?** Yes — the whole aggregation approach depends on this.
+  ```
+
+- A **decision** is a question that's been *answered* — the user made a call, or a spike came back. It's settled.
+
+**The refine loop drains unknowns into decisions.** The moment an unknown gets answered, it stops being an unknown — so move it out of Risks & unknowns and into Decisions. Don't leave it in the risk list re-labelled "Resolved": an answered question sitting in the unknowns section is clutter, and it hides what's actually still open behind a wall of settled ones. Each pass should make the risk list *shorter* and the decision list *longer*.
+
+The target state at handoff to bit_plan is a **Risks & unknowns section that's empty** — every question either answered (now a decision) or, rarely, explicitly deferred to plan-time with a reason. A scope still carrying open unknowns that block the approach isn't ready to plan; that's the signal to keep iterating (or go run the spike) rather than hand off.
+
+**Decisions double as acceptance criteria.** They're the constraints bit_plan and bit_do must honour — the things that have to hold true for the work to be right. Writing them down here is what keeps a downstream plan from quietly relitigating a call the user already made.
 
 ---
 
@@ -83,8 +93,8 @@ Before drafting, get the WHY right — it's the part the plan will lean on, so i
 2. What triggered this now — a bug report, wrong data, a deadline, a new requirement?
 3. Any constraints — things we must not touch, production concerns, ordering forced by external dependencies?
 
-Then do *light* research — enough to name the code areas each phase touches and to spot the real risks, but not a deep dive (that's bit_plan's job):
-- Locate the parts of the codebase each phase would affect, so the "touches" pointers are accurate.
+Then do *light* research — enough to name the code areas each verse touches and to spot the real risks, but not a deep dive (that's bit_plan's job):
+- Locate the parts of the codebase each verse would affect, so the "touches" pointers are accurate.
 - Notice genuine unknowns — external services, ambiguous data shapes, assumptions the whole approach rests on.
 
 Don't over-research. If you find yourself reading function bodies to design the change, you've gone past scope altitude.
@@ -101,6 +111,8 @@ TRACK=$(bit task create "<scope title>" -d "$(cat scope-body.md)")
 
 Refining an existing track means reading its body, editing, and writing it back with `bit task update <id> -d "…"`. Report the track ID to the user — it's the handle they'll name when they move to bit_plan.
 
+The order below is deliberate: the **pitch** first (why, what, and a picture of it), then the **problems still open**, then **what's been settled**, and only last **how the work breaks up**. A reader should be sold on the change and know what's undecided before they read the delivery order.
+
 The track's **title** is the scope title; the **body** is this structure (no leading `# Title` needed — the title lives in the track, not the body):
 
 ```markdown
@@ -112,26 +124,36 @@ plan will point back here.]
 ## Summary
 [The change in a few high-level sentences.]
 
-## Phases
-[A coarse, markable checklist. Each phase is a usable vertical slice, named by the
-capability it unlocks, ordered for incremental value. bit_do checks these off (- [x])
-as the underlying plan steps land.]
-
-- [ ] Phase 1 — <capability unlocked>: one or two sentences on what a user/operator can now do.
-  Touches: <code area / files> — where to look to verify.
-- [ ] Phase 2 — <capability unlocked>: …
-
 ## Visual aid
 [Where it clarifies the shape, an ASCII diagram or a ```mermaid``` block — data flow,
 component relationships, or before/after. Skip if it wouldn't add clarity.]
 
 ## Risks & unknowns
-[Each unknown paired with how to resolve it and whether to de-risk before planning.
-Omit the section only if there genuinely are none.]
+[Only questions that are genuinely still open — things the user still has to answer.
+Each paired with how to resolve it and whether to de-risk before planning. As iteration
+answers them, they move down into Decisions. Aim to empty this section before handoff;
+omit it entirely once nothing is open.]
 
 - **Unknown:** …
   **Resolve by:** …
   **De-risk before planning?** Yes / No — why.
+
+## Decisions
+[The calls that are settled — often unknowns that iteration resolved. These are the
+acceptance criteria the plan and build must honour. One line each: what it commits to,
+and briefly why.]
+
+- **<the decision>.** <what it commits to and, briefly, why.>
+
+## Verses
+[A coarse, markable checklist. Each verse is a usable vertical slice, named by the
+capability it unlocks, ordered for incremental value. bit_do checks these off (- [x])
+as the underlying plan steps land — it keys on the `Verse N` text, so keep the checkbox
+and `Verse N` on one line.]
+
+- [ ] Verse 1 — <capability unlocked>: one or two sentences on what a user/operator can now do.
+  Touches: <code area / files> — where to look to verify.
+- [ ] Verse 2 — <capability unlocked>: …
 ```
 
 Keep it tight. This is an overview a reader skims to grasp the shape of the work before a detailed plan exists. Prefer clarity over completeness.
@@ -142,12 +164,16 @@ Keep it tight. This is an overview a reader skims to grasp the shape of the work
 
 1. Read the whole scope first.
 2. Check the WHY: does it say *why*, not *what*? Would a reader who knows nothing about the codebase understand the motivation? If not, flag it and offer a rewrite — this is the section the plan depends on.
-3. Check the phases at value altitude:
-   - Is each phase a usable vertical slice (passes the litmus test), or is it a horizontal layer / internal task that belongs in the plan?
+3. Check the risks and decisions — this is where refinement does its real work:
+   - Is anything in Risks & unknowns actually *answered*? If so, it's a decision — move it down into Decisions, don't leave it re-labelled "Resolved" in the risk list.
+   - Does anything still in Risks & unknowns have a resolution path and a de-risk-before-planning call?
+   - Are the Decisions phrased as acceptance criteria a reader could check against?
+   - Push toward the goal: fewer open unknowns each pass, ideally an empty risk section at handoff.
+4. Check the verses at value altitude:
+   - Is each verse a usable vertical slice (passes the litmus test), or is it a horizontal layer / internal task that belongs in the plan?
    - Is the order delivering incremental value — walking skeleton first, riskiest assumptions early?
    - Is each named by the capability unlocked, not the component built?
-4. Check that no phase has slid into implementation detail. The "touches" pointer is a locator only — flag anything prescribing *how*.
-5. Check risks: is each unknown paired with a resolution? Are the ones worth de-risking before planning called out?
+5. Check that no verse has slid into implementation detail. The "touches" pointer is a locator only — flag anything prescribing *how*.
 6. Propose edits with reasoning — don't silently rewrite large sections. Confirm before rewriting more than a few lines.
 
 The user drives this loop; keep refining with them until they're happy enough to move to bit_plan.
@@ -156,9 +182,9 @@ The user drives this loop; keep refining with them until they're happy enough to
 
 ## Handoff to bit_plan
 
-When the user is satisfied with the scope, the next step is bit_plan, which turns each phase into detailed TDD steps — one bar per step under this track. Give them the track ID and remind them, briefly, that:
+When the user is satisfied with the scope, the next step is bit_plan, which turns each verse into detailed TDD steps — one bar per step under this track. Give them the track ID and remind them, briefly, that:
 - The plan's bars live under this track, so they inherit the WHY rather than repeating it.
-- Each bar will be tagged (`--phase`/`--phase-label`) with the scope phase it serves, so progress rolls up.
-- bit_do later moves each bar's status and rolls the track up as work lands.
+- Each bar will be tagged (`--phase`/`--phase-label`) with the verse it serves, so progress rolls up.
+- bit_do later moves each bar's status and rolls the track up — checking off a verse — as work lands.
 
 You don't build the plan — just point them at bit_plan, naming the track, when they're ready.

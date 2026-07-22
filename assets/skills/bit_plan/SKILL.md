@@ -1,13 +1,13 @@
 ---
 name: bit_plan
-description: Create or refine an implementation plan for a large task — bug fix, refactor, or new feature. Use when the user says "make a plan", "let's plan this out", "let's revise the plan", names a scope track to plan, or describes a change that is too large to implement in one session. Also triggers on casual phrasing like "let's think through this" or "how should we approach X" when the scope is clearly multi-step. This skill authors and refines the plan only — one bar (child task) per step under the scope's track in `.bit/`, through the `bit` CLI. When the user wants to frame the high-level WHY and delivery order first, use bit_scope; when they want to carry out an existing plan ("implement the plan", "continue our implementation", "do the next step"), use bit_do instead. Produces contradiction-driven step bars (each one red-green cycle and one commit) tagged with the scope phase they serve, TDD-first checklists, and an explicit split between what Claude verifies and what the user verifies.
+description: Create or refine an implementation plan for a large task — bug fix, refactor, or new feature. Use when the user says "make a plan", "let's plan this out", "let's revise the plan", names a scope track to plan, or describes a change that is too large to implement in one session. Also triggers on casual phrasing like "let's think through this" or "how should we approach X" when the scope is clearly multi-step. This skill authors and refines the plan only — one bar (child task) per step under the scope's track in `.bit/`, through the `bit` CLI. When the user wants to frame the high-level WHY and delivery order first, use bit_scope; when they want to carry out an existing plan ("implement the plan", "continue our implementation", "do the next step"), use bit_do instead. Produces contradiction-driven step bars (each one red-green cycle and one commit) tagged with the verse they serve, TDD-first checklists, and an explicit split between what Claude verifies and what the user verifies.
 ---
 
 # Implementation Plan Creator
 
 You create and refine implementation plans. A plan is a set of **bars** (child tasks) under a scope's **track** in `.bit/`, authored through the `bit` CLI — one bar per step, detailed enough to work from autonomously across sessions, minimal enough not to waste tokens.
 
-**Before you drive the CLI, read `.claude/bit-cli.md`** — the shared command contract (read the scope from its track body, create bars under the track, tag phases). Every write goes through `bit`; never hand-edit `.bit/tasks/*.md`.
+**Before you drive the CLI, read `.claude/bit-cli.md`** — the shared command contract (read the scope from its track body, create bars under the track, tag each bar's verse). Every write goes through `bit`; never hand-edit `.bit/tasks/*.md`.
 
 ## Two modes
 
@@ -31,9 +31,9 @@ If the user gives you only a "what", push back once to get the "why". Ask: what 
 
 ## Gathering context (new plans)
 
-**Start from the scope track.** The user names it (by ID or title); read its body end to end with `bit task read <track> --body` — the WHY, the phases, the "touches" pointers, and the risks. The scope hands you the delivery order and the code areas each phase affects — your job is to turn its phases into TDD steps, one bar each under that track.
+**Start from the scope track.** The user names it (by ID or title); read its body end to end with `bit task read <track> --body` — the WHY, the verses, the "touches" pointers, and the risks. The scope hands you the delivery order and the code areas each verse affects — your job is to turn its verses into TDD steps, one bar each under that track.
 
-Default to planning every phase in one pass. Splitting into multiple planning sessions exists to route around a genuine unknown — a risk the scope flagged "de-risk before planning? Yes", or a later phase whose shape depends on what an earlier phase turns out to build — not as a default posture just because a scope has more than one phase. If the scope is clear and none of its risks block a phase, plan it end to end now; don't ask the user to pick a phase to be cautious. If an unknown does block a later phase, plan up through whatever isn't blocked, then tell the user which phase(s) you're deferring and why.
+Default to planning every verse in one pass. Splitting into multiple planning sessions exists to route around a genuine unknown — a risk the scope flagged "de-risk before planning? Yes", or a later verse whose shape depends on what an earlier verse turns out to build — not as a default posture just because a scope has more than one verse. If the scope is clear and none of its risks block a verse, plan it end to end now; don't ask the user to pick a verse to be cautious. If an unknown does block a later verse, plan up through whatever isn't blocked, then tell the user which verse(s) you're deferring and why.
 
 If there's no scope, ask before researching:
 
@@ -75,9 +75,9 @@ The mechanism is **contradiction**:
 2. Write a *second* test with different inputs whose expected output contradicts the hardcoded value. This test *can't pass* without real logic.
 3. Implement the minimum real logic to make both pass. That logic may call a lower layer — which starts the same cycle (hardcoded → contradicted → real).
 
-Each step is a committable green state. The test is what pulls real code into existence — never a plan phase boundary. You never write a phase that says "now implement the child workflow" without a failing test that makes it impossible *not to*.
+Each step is a committable green state. The test is what pulls real code into existence — never a verse boundary. You never write a verse that says "now implement the child workflow" without a failing test that makes it impossible *not to*.
 
-**Why this matters:** Plans that say "Phase 1: top level. Phase 2: next level down" produce isolated layers that were never forced to integrate. The contradiction approach means every layer exists because a higher-level test demanded it. If no test demands it, it doesn't get built (YAGNI).
+**Why this matters:** Plans that say "Verse 1: top level. Verse 2: next level down" produce isolated layers that were never forced to integrate. The contradiction approach means every layer exists because a higher-level test demanded it. If no test demands it, it doesn't get built (YAGNI).
 
 ### Realistic test data
 
@@ -129,7 +129,7 @@ A test name and one-liner ("3 members, assert count is 3") looks obvious until i
 
 ## Step design
 
-Call them "steps" not "phases" — a step is one red-green cycle that earns one commit. A plan typically has more steps than it would have had phases, because each step is smaller: one test + the minimum code to pass it.
+Call them "steps" not "verses" — a step is one red-green cycle that earns one commit. A plan typically has more steps than it would have had verses, because each step is smaller: one test + the minimum code to pass it.
 
 Each step should:
 - Be one red-green cycle (one new test or a contradicting test, then make it pass)
@@ -146,11 +146,11 @@ Name steps after what they prove, not what they touch.
 Good: "Contradiction forces real fan-out"
 Bad: "Implement child workflow"
 
-### Tag each bar with its scope phase
+### Tag each bar with its verse
 
-Every bar carries the scope phase it serves as CLI metadata, not as text in the body: `--phase <N>` (the phase number from the scope's checklist) and `--phase-label "<label>"` (the phase's short name). This is what lets progress roll up: bit_do checks off a scope phase in the track body once all the bars tagged to it are done. A bar serves exactly one phase; if a step seems to span two, it's probably two bars. Create the bars in the scope's delivery order, so the walking skeleton lands first.
+Every bar carries the verse it serves as CLI metadata, not as text in the body: `--phase <N>` (the verse number from the scope's checklist) and `--phase-label "<label>"` (the verse's short name — the flag keeps the name `phase`, the scope's slice is a verse). This is what lets progress roll up: bit_do checks off a verse in the track body once all the bars tagged to it are done. A bar serves exactly one verse; if a step seems to span two, it's probably two bars. Create the bars in the scope's delivery order, so the walking skeleton lands first.
 
-**Do not put rollup or status instructions in the bar bodies.** A bar body describes only its own step (the TDD cycle and checks). No "Scope phase rollup" notes, no `**Status:**` lines — the bar's status *field* is the progress marker, and keeping the scope in sync is bit_do's job. Writing that into the body just burns tokens on what the executor already knows.
+**Do not put rollup or status instructions in the bar bodies.** A bar body describes only its own step (the TDD cycle and checks). No "verse rollup" notes, no `**Status:**` lines — the bar's status *field* is the progress marker, and keeping the scope in sync is bit_do's job. Writing that into the body just burns tokens on what the executor already knows.
 
 ### Refactor steps
 
@@ -182,7 +182,7 @@ Never put a judgment call in "Claude verifies." Never put an automatable check i
 
 ## Plan format
 
-Each step is **one bar** under the scope's track. The bar's **title** is the step name (what it proves); its `--phase`/`--phase-label` tag the scope phase; its **body** is the step detail below. Create each bar in delivery order — `task create --parent` prints the dotted bar ID (`BIT-7.1`, `BIT-7.2`, …), and the order you create them in is the order bit_do will execute them:
+Each step is **one bar** under the scope's track. The bar's **title** is the step name (what it proves); its `--phase`/`--phase-label` tag the verse it serves; its **body** is the step detail below. Create each bar in delivery order — `task create --parent` prints the dotted bar ID (`BIT-7.1`, `BIT-7.2`, …), and the order you create them in is the order bit_do will execute them:
 
 ```bash
 BAR=$(bit task create "Contradiction forces real fan-out" \
@@ -192,7 +192,7 @@ BAR=$(bit task create "Contradiction forces real fan-out" \
 
 Report the bar IDs (or just the count and the track) back to the user when you're done.
 
-The **bar body** uses this structure — no `## Step N` heading (the title is the step name), no phase text (the `--phase` metadata carries it), no `**Status:**` line (the status field is the marker):
+The **bar body** uses this structure — no `## Step N` heading (the title is the step name), no verse text (the `--phase` metadata carries it), no `**Status:**` line (the status field is the marker):
 
 ```markdown
 [One sentence: what this step accomplishes and what forces it (e.g., "hardcoded return can't satisfy both tests")]
@@ -231,7 +231,7 @@ The throughline that used to live in a plan's "How this plan works" section — 
 ## Refining an existing plan
 
 1. Read the whole plan first: the track body (`task read <track> --body`) and every bar in order (`task list --parent <track>`, then `task read <bar> --body` for each).
-2. Check the phase tags: is each bar tagged to a scope phase (`--phase`/`--phase-label`), and do the tags follow the scope's delivery order? An untagged bar, or one that jumps ahead of the walking skeleton, is a flag.
+2. Check the verse tags: is each bar tagged to a verse (`--phase`/`--phase-label`), and do the tags follow the scope's delivery order? An untagged bar, or one that jumps ahead of the walking skeleton, is a flag.
 3. Check that the bar bodies don't duplicate the WHY the track owns, or carry stray `**Status:**` lines — that's drift waiting to happen.
 4. Check the throughline: can you trace *why* each bar exists? Every bar after the first should be forced by a contradiction or dependency. If a bar says "now implement X" without a test that demands it, flag it — something is missing.
 5. Review each bar: does it start with a test? Is it one red-green cycle?

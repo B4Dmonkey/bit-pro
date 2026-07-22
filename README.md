@@ -109,6 +109,9 @@ model up front. The rough sequence of scopes:
 9. ✅ **Reorderable plans** (`BIT-8`) — a track owns an explicit ordered list of its
    bars, so `task move` and `task create --after` resequence a plan mid-stream without
    renaming any IDs. The ID is now stable identity; order lives in the track.
+10. ✅ **TUI + init cleanup** (`BIT-9`) — the quit keys exit the TUI from the detail pane
+    (not just the list), and re-running `bit init` in an initialized project offers the
+    existing prefix as a default (`Task ID prefix (BIT): `) that a bare enter reuses.
 
 All of this project's own scoping and planning now lives in `.bit/tasks/` (browse
 it with `bit task list`) rather than root-level markdown files — see the
@@ -121,15 +124,17 @@ What's up next, committed-next, and backlogged. The live tracker is `.bit/tasks/
 
 **Up next:**
 
-- **Fix the detail-pane quit bug** — once focus is on the detail pane (`→`), the quit keys
-  (`q`, `ctrl+c`) route to the viewport for scrolling instead of quitting, so you have to
-  `←` back to the list first. Small and fully spec'd under *Cleanup & known issues* below.
+- **Archiving & soft deletes** — one mechanism, two triggers: move a task's markdown file
+  out of `tasks/` into a sibling folder (e.g. `.bit/archive/`) that the TUI/list hide by
+  default, rather than leaving a completed track in the way or destroying a deleted one
+  (`bit task delete` currently removes the file outright). Recoverability falls out for
+  free — a task deleted out from under its children becomes a survivable mistake instead of
+  a lost one. Undecided, and part of scoping this: what the folder(s) are called, whether
+  archive and delete share one destination or two, whether there's a restore/view command
+  (leaning deferred — YAGNI), and how `bit task list` filtering treats them. Not yet scoped.
 
 **Committed next — not yet scoped:**
 
-- **Archiving** — move a completed track to `.bit/archive/`, hidden from the TUI/list by
-  default, to cut the noise. Viewing/restoring the archive is deliberately deferred
-  (YAGNI for now) — but the storage layout should keep it cheap to add.
 - **Board modal** — toggle a full-detail view for the selected card, so a `todo` item can
   be inspected without leaving the board.
 
@@ -165,12 +170,6 @@ decisions already made:
 - **Whether an index is needed.** `bit task list` currently globs and parses every
   file. Fine at this size; an open question once the TUI wants fast filtering over a
   real backlog.
-- **Deletes should eventually be soft.** `bit task delete` removes the file outright.
-  The direction is for a delete to move the task into a folder instead, so it's
-  recoverable — which also makes a task deleted out from under its children a survivable
-  mistake rather than a lost one. What that folder is called, whether `bit task list`
-  hides its contents, and whether there's a restore command are all undecided. Not
-  urgent: nothing here has enough data yet to regret deleting.
 - **Status/board model.** What are the kanban columns, and are they fixed or
   configurable per project?
 - **Filtering dimensions.** By epic, tag, status, assignee — kanban-md's filtering was
@@ -182,10 +181,6 @@ A running list of rough edges and deferred work from the implementation — thin
 known right answer that just aren't done yet, kept separate from the still-undecided design
 questions above.
 
-- **Can't quit from the detail pane.** Once focus is on the detail pane (after `→`), every
-  key routes to the viewport for scrolling — including `q` and `ctrl+c` — so nothing quits
-  the TUI; you have to `←` back to the list first. The fix is to let the quit keys through
-  before the focus handler forwards the message to the viewport.
 - **`h`/`l` should move focus like `←`/`→`.** Vim-style editors bind `h`/`l` to left/right,
   so the focus keys ought to accept them as aliases. Deferred deliberately — focus works on
   the arrows today, and `h`/`l` currently fall through to the list's own paging. When picked
