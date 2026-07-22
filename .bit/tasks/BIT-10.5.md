@@ -1,7 +1,7 @@
 ---
 id: BIT-10.5
 title: bit task archive wires the command
-status: todo
+status: done
 phase: 1
 phase_label: Archive
 ---
