@@ -5,8 +5,11 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
+
+	"github.com/B4Dmonkey/bit-pro/task"
 )
 
 func TestTaskDeleteCmd_RemovesFileWithYesFlag(t *testing.T) {
@@ -32,6 +35,44 @@ func TestTaskDeleteCmd_RelocatesInsteadOfDestroying(t *testing.T) {
 	}
 	if _, err := os.Stat(".bit/tasks/BIT-1.md"); !errors.Is(err, fs.ErrNotExist) {
 		t.Errorf("os.Stat(.bit/tasks/BIT-1.md) error = %v, want fs.ErrNotExist", err)
+	}
+}
+
+func TestTaskDeleteCmd_ForceDeletesUnfinished(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Track", "A track with an unfinished bar.")
+	mustRun(t, "task", "create", "Bar", "--parent", "BIT-1", "--description", "Still todo.")
+
+	mustRun(t, "task", "delete", "BIT-1", "--yes", "--force")
+
+	for _, id := range []string{"BIT-1", "BIT-1.1"} {
+		if _, err := os.Stat(".bit/archive/" + id + ".md"); err != nil {
+			t.Errorf("os.Stat(.bit/archive/%s.md) error = %v, want it relocated", id, err)
+		}
+		if _, err := os.Stat(".bit/tasks/" + id + ".md"); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("os.Stat(.bit/tasks/%s.md) error = %v, want fs.ErrNotExist", id, err)
+		}
+	}
+}
+
+func TestTaskDeleteCmd_RefusesUnfinishedWithoutForce(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Track", "A track with an unfinished bar.")
+	mustRun(t, "task", "create", "Bar", "--parent", "BIT-1", "--description", "Still todo.")
+
+	_, err := run(t, "task", "delete", "BIT-1", "--yes")
+
+	var unfinished *task.UnfinishedBarsError
+	if !errors.As(err, &unfinished) {
+		t.Fatalf("Execute() error = %v, want *task.UnfinishedBarsError", err)
+	}
+	if !slices.Contains(unfinished.Bars, "BIT-1.1") {
+		t.Errorf("UnfinishedBarsError.Bars = %v, want it to contain BIT-1.1", unfinished.Bars)
+	}
+	for _, id := range []string{"BIT-1", "BIT-1.1"} {
+		if _, err := os.Stat(".bit/tasks/" + id + ".md"); err != nil {
+			t.Errorf("os.Stat(.bit/tasks/%s.md) error = %v, want the task to survive", id, err)
+		}
 	}
 }
 

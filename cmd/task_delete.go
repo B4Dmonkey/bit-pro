@@ -11,6 +11,7 @@ import (
 
 func newTaskDeleteCmd() *cobra.Command {
 	var yes bool
+	var force bool
 
 	cmd := &cobra.Command{
 		Use:   "delete <id>",
@@ -30,10 +31,11 @@ func newTaskDeleteCmd() *cobra.Command {
 				}
 			}
 
-			return task.New(bitDir).Relocate(id, false)
+			return task.New(bitDir).Relocate(id, force)
 		},
 	}
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "skip confirmation")
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "delete a track even if it has unfinished bars")
 	return cmd
 }
 
