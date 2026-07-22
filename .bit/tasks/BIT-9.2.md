@@ -1,7 +1,7 @@
 ---
 id: BIT-9.2
 title: Bare enter reuses the existing prefix
-status: todo
+status: done
 phase: 2
 phase_label: Re-run init keeps prefix
 ---

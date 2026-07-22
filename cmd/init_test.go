@@ -40,6 +40,24 @@ func TestInitCmd_CapturesPrefix(t *testing.T) {
 	}
 }
 
+func TestInitCmd_ReuseExistingPrefixOnEnter(t *testing.T) {
+	t.Chdir(t.TempDir())
+
+	mustRun(t, "init", "--prefix", "BIT")
+
+	if _, err := runWithStdin(t, "\n", "init"); err != nil {
+		t.Fatalf("Execute() returned error: %v", err)
+	}
+
+	cfg, err := task.New(".bit").Config()
+	if err != nil {
+		t.Fatalf("reading config: %v", err)
+	}
+	if cfg.Prefix != "BIT" {
+		t.Errorf("cfg.Prefix = %q, want %q", cfg.Prefix, "BIT")
+	}
+}
+
 func TestInitCmd_SeedsClaudeTree(t *testing.T) {
 	t.Chdir(t.TempDir())
 

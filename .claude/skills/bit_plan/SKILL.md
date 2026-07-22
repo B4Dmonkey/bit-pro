@@ -237,7 +237,7 @@ The throughline that used to live in a plan's "How this plan works" section — 
 5. Review each bar: does it start with a test? Is it one red-green cycle?
 6. Flag any bar that bundles multiple scenarios (split it into two bars — each earns its own commit)
 7. Flag YAGNI violations, over-bundled bars, or missing verification
-8. Apply edits through the CLI: reword a bar with `task update <bar> -d "…"`, add a missing step with `task create --parent …`. Propose changes with reasoning — don't silently rewrite large sections.
+8. Apply edits through the CLI: reword a bar with `task update <bar> -d "…"`, add a missing step with `task create --parent …`, and **reorder a misplaced bar with `task move <bar> --before|--after <sibling>`** — the ID is stable identity, so moving a bar rewrites only the track's order list and every reference to that bar (commit messages, notes) stays valid. Don't delete-and-recreate to reorder; that churns IDs and breaks those references. Propose changes with reasoning — don't silently rewrite large sections.
 
 Confirm with the user before rewriting more than a few bars.
 

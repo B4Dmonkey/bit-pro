@@ -20,12 +20,19 @@ func newInitCmd() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if prefix == "" {
+				var existing string
+				if cfg, err := task.New(bitDir).Config(); err == nil {
+					existing = cfg.Prefix
+				}
 				fmt.Fprint(cmd.OutOrStdout(), "Task ID prefix: ")
 				line, err := bufio.NewReader(cmd.InOrStdin()).ReadString('\n')
 				if err != nil && line == "" {
 					return fmt.Errorf("reading task ID prefix: %w", err)
 				}
 				prefix = strings.TrimSpace(line)
+				if prefix == "" {
+					prefix = existing
+				}
 			}
 			if prefix == "" {
 				return errors.New("task ID prefix cannot be empty")

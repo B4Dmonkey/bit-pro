@@ -58,7 +58,19 @@ bit task list --parent "$TRACK"
 
 # List everything. Tracks are the rows whose ID has no dot; bars have a dotted ID.
 bit task list
+
+# Resequence a bar within its track. Rewrites the track's order list so every surface
+# that reads it (task list --parent, the TUI list, the board, bit_do's next-step resume)
+# reflects the new position. Pass exactly one of --before / --after; the anchor is a sibling.
+bit task move "$BAR" --before "$SIBLING"
+bit task move "$BAR" --after  "$SIBLING"
 ```
+
+A track owns an explicit ordered list of its bars, and the CLI is the only thing that
+writes it: `create` **appends** to the list, `move` **rewrites** it, `delete` removes from
+it. That's why order never depends on filesystem glob order or on hand-editing — the same
+"every write goes through `bit`" rule that protects the file format also protects the
+ordering.
 
 ## Writing a body from the shell
 
