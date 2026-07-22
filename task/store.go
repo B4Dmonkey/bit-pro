@@ -54,7 +54,30 @@ func (s *Store) relocate(id string) error {
 	return nil
 }
 
+func (s *Store) children(parent string) ([]*Task, error) {
+	tasks, err := s.List()
+	if err != nil {
+		return nil, err
+	}
+	var kids []*Task
+	for _, t := range tasks {
+		if p, ok := barParent(t.ID); ok && p == parent {
+			kids = append(kids, t)
+		}
+	}
+	return kids, nil
+}
+
 func (s *Store) Relocate(id string, force bool) error {
+	kids, err := s.children(id)
+	if err != nil {
+		return err
+	}
+	for _, kid := range kids {
+		if err := s.relocate(kid.ID); err != nil {
+			return err
+		}
+	}
 	return s.relocate(id)
 }
 

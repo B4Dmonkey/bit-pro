@@ -67,6 +67,37 @@ func TestStoreRelocate_MovesFileOutOfList(t *testing.T) {
 	}
 }
 
+func TestStoreRelocate_CascadesToBars(t *testing.T) {
+	t.Parallel()
+
+	s := New(t.TempDir())
+	for _, id := range []string{"BIT-1", "BIT-1.1", "BIT-1.2"} {
+		if err := s.Save(&Task{ID: id, Status: "done"}); err != nil {
+			t.Fatalf("seeding %s: %v", id, err)
+		}
+	}
+
+	if err := s.Relocate("BIT-1", false); err != nil {
+		t.Fatalf("Relocate() returned error: %v", err)
+	}
+
+	tasks, err := s.List()
+	if err != nil {
+		t.Fatalf("List() returned error: %v", err)
+	}
+	if len(tasks) != 0 {
+		t.Errorf("List() = %v, want no tasks after cascade", tasks)
+	}
+	for _, id := range []string{"BIT-1", "BIT-1.1", "BIT-1.2"} {
+		if _, err := os.Stat(s.archivePath(id)); err != nil {
+			t.Errorf("archived %s: os.Stat error = %v, want the file to exist", id, err)
+		}
+		if _, err := os.Stat(s.Path(id)); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("tasks %s: os.Stat error = %v, want fs.ErrNotExist", id, err)
+		}
+	}
+}
+
 func TestStoreRelocate_ContainsUntrustedID(t *testing.T) {
 	t.Parallel()
 

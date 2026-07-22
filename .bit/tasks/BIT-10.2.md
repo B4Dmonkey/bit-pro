@@ -1,7 +1,7 @@
 ---
 id: BIT-10.2
 title: Archiving a track takes its bars
-status: todo
+status: done
 phase: 1
 phase_label: Archive
 ---
