@@ -29,7 +29,7 @@ ID-reuse/backfill-on-delete is deliberately a separate follow-up.
 
 ## Phases
 
-- [ ] Phase 1 — Resequence a bar, reflected everywhere: during bit_plan you move an existing
+- [x] Phase 1 — Resequence a bar, reflected everywhere: during bit_plan you move an existing
   bar to a new position in its track, and the new order shows up consistently across every
   surface that displays it — `bit task list` and `--parent` (so bit_do resumes on the correct
   next step), the TUI list, and the kanban board. Existing tracks keep working because their
