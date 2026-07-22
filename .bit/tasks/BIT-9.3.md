@@ -1,7 +1,7 @@
 ---
 id: BIT-9.3
 title: Prompt shows the existing prefix as default
-status: todo
+status: done
 phase: 2
 phase_label: Re-run init keeps prefix
 ---

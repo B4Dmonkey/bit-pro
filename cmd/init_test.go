@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/assets"
@@ -55,6 +56,37 @@ func TestInitCmd_ReuseExistingPrefixOnEnter(t *testing.T) {
 	}
 	if cfg.Prefix != "BIT" {
 		t.Errorf("cfg.Prefix = %q, want %q", cfg.Prefix, "BIT")
+	}
+}
+
+func TestInitCmd_PromptShowsExistingPrefix(t *testing.T) {
+	tests := []struct {
+		name      string
+		seed      bool
+		wantShown string
+		wantParen bool
+	}{
+		{name: "existing config", seed: true, wantShown: "Task ID prefix (BIT): ", wantParen: true},
+		{name: "fresh project", seed: false, wantShown: "Task ID prefix: ", wantParen: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Chdir(t.TempDir())
+
+			if tt.seed {
+				mustRun(t, "init", "--prefix", "BIT")
+			}
+
+			out, _ := runWithStdin(t, "BIT\n", "init")
+
+			if !strings.Contains(out, tt.wantShown) {
+				t.Errorf("prompt = %q, want it to contain %q", out, tt.wantShown)
+			}
+			if !tt.wantParen && strings.Contains(out, "(") {
+				t.Errorf("prompt = %q, want no %q", out, "(")
+			}
+		})
 	}
 }
 

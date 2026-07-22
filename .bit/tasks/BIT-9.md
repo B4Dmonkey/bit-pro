@@ -1,7 +1,7 @@
 ---
 id: BIT-9
 title: TUI + init cleanup
-status: doing
+status: done
 ---
 ## Why
 
@@ -28,7 +28,7 @@ in the prompt, and let a bare enter reuse it.
   they do from the list.
   Touches: the key handling in the TUI update loop (`tui/model.go`, the `detailFocused`
   branch that forwards every message to the viewport).
-- [ ] Phase 2 — Re-run init keeps the existing prefix: running `bit init` where a config
+- [x] Phase 2 — Re-run init keeps the existing prefix: running `bit init` where a config
   already exists offers that prefix as the default (`Task ID prefix (BIT): `) and treats a
   bare enter as "keep it," instead of demanding a fresh value.
   Touches: the prompt in `bit init` (`cmd/init.go`) reading the existing config

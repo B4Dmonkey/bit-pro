@@ -24,7 +24,11 @@ func newInitCmd() *cobra.Command {
 				if cfg, err := task.New(bitDir).Config(); err == nil {
 					existing = cfg.Prefix
 				}
-				fmt.Fprint(cmd.OutOrStdout(), "Task ID prefix: ")
+				if existing != "" {
+					fmt.Fprintf(cmd.OutOrStdout(), "Task ID prefix (%s): ", existing)
+				} else {
+					fmt.Fprint(cmd.OutOrStdout(), "Task ID prefix: ")
+				}
 				line, err := bufio.NewReader(cmd.InOrStdin()).ReadString('\n')
 				if err != nil && line == "" {
 					return fmt.Errorf("reading task ID prefix: %w", err)
