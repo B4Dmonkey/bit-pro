@@ -106,6 +106,23 @@ func (s *Store) Move(id, anchor string, before bool) error {
 	return s.Save(track)
 }
 
+// AppendToOrder adds a newly created child to its parent track's explicit
+// Order. A parent that has never been reordered has an empty Order, and List
+// still places the new child last by ID, so it is left untouched — writing an
+// Order there would be premature. Only a present, reordered manifest is
+// extended, keeping the list ⇄ files bijection intact.
+func (s *Store) AppendToOrder(parent, id string) error {
+	track, err := s.Load(parent)
+	if err != nil {
+		return err
+	}
+	if len(track.Order) == 0 {
+		return nil
+	}
+	track.Order = append(track.Order, id)
+	return s.Save(track)
+}
+
 func (s *Store) materializeOrder(parent string) ([]string, error) {
 	tasks, err := s.List()
 	if err != nil {

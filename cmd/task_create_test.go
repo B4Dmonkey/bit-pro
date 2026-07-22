@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -115,6 +116,34 @@ func TestTaskCreateCmd_SecondChildIncrements(t *testing.T) {
 		if !strings.Contains(out, id) {
 			t.Errorf("task list = %q, want it to contain %q", out, id)
 		}
+	}
+}
+
+func TestTaskCreate_AppendsToReorderedTrack(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Track", "...")
+	mustRun(t, "task", "create", "First bar", "-d", "...", "--parent", "BIT-1")
+	mustRun(t, "task", "create", "Second bar", "-d", "...", "--parent", "BIT-1")
+	mustRun(t, "task", "move", "BIT-1.2", "--before", "BIT-1.1")
+
+	mustRun(t, "task", "create", "Third bar", "-d", "...", "--parent", "BIT-1")
+
+	track, err := task.New(".bit").Load("BIT-1")
+	if err != nil {
+		t.Fatalf("loading BIT-1: %v", err)
+	}
+	want := []string{"BIT-1.2", "BIT-1.1", "BIT-1.3"}
+	if !slices.Equal(track.Order, want) {
+		t.Errorf("BIT-1 order = %v, want %v", track.Order, want)
+	}
+
+	out := mustRun(t, "task", "list", "--parent", "BIT-1")
+	var ids []string
+	for line := range strings.SplitSeq(strings.TrimSpace(out), "\n") {
+		ids = append(ids, strings.SplitN(line, "\t", 2)[0])
+	}
+	if len(ids) == 0 || ids[len(ids)-1] != "BIT-1.3" {
+		t.Errorf("parent list = %v, want it to end with BIT-1.3", ids)
 	}
 }
 

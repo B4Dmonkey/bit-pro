@@ -47,6 +47,12 @@ func newTaskCreateCmd() *cobra.Command {
 				return err
 			}
 
+			if parent != "" {
+				if err := s.AppendToOrder(parent, id); err != nil {
+					return err
+				}
+			}
+
 			_, err = fmt.Fprintln(cmd.OutOrStdout(), id)
 			return err
 		},
