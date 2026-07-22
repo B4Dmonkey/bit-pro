@@ -1,7 +1,7 @@
 ---
 id: BIT-8.3
 title: task move reflected in the parent list
-status: doing
+status: done
 phase: 1
 phase_label: Resequence
 ---

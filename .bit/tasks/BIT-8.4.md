@@ -1,7 +1,7 @@
 ---
 id: BIT-8.4
 title: List and board preserve order everywhere
-status: todo
+status: doing
 phase: 1
 phase_label: Resequence
 ---

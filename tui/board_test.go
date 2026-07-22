@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -43,6 +44,54 @@ func TestGroupByStatus(t *testing.T) {
 				t.Errorf("unmapped task BIT-9 leaked into column %d", i)
 			}
 		}
+	}
+}
+
+func TestGroupByStatus_PreservesOrderWithinColumn(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		tasks  []*task.Task
+		column int
+		want   []string
+	}{
+		{
+			name: "todo column keeps non-ID incoming order",
+			tasks: []*task.Task{
+				{ID: "BIT-1.2", Status: "todo"},
+				{ID: "BIT-1.1", Status: "todo"},
+				{ID: "BIT-1.3", Status: "todo"},
+			},
+			column: 0,
+			want:   []string{"BIT-1.2", "BIT-1.1", "BIT-1.3"},
+		},
+		{
+			name: "done column keeps non-ID incoming order",
+			tasks: []*task.Task{
+				{ID: "BIT-1.3", Status: "done"},
+				{ID: "BIT-1.1", Status: "done"},
+				{ID: "BIT-1.2", Status: "done"},
+			},
+			column: 2,
+			want:   []string{"BIT-1.3", "BIT-1.1", "BIT-1.2"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cols := groupByStatus(tt.tasks)
+
+			var got []string
+			for _, tk := range cols[tt.column] {
+				got = append(got, tk.ID)
+			}
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("column %d order = %v, want %v", tt.column, got, tt.want)
+			}
+		})
 	}
 }
 
