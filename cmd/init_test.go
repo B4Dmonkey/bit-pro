@@ -71,6 +71,31 @@ func TestInitCmd_SeedsClaudeTree(t *testing.T) {
 	}
 }
 
+func TestInitCmd_ReseedRefreshes(t *testing.T) {
+	t.Chdir(t.TempDir())
+
+	mustRun(t, "init", "--prefix", "BIT")
+
+	stale := filepath.Join(".claude", "skills", "bit_do", "SKILL.md")
+	if err := os.WriteFile(stale, []byte("stale\n"), 0o644); err != nil {
+		t.Fatalf("os.WriteFile(%q) returned error: %v", stale, err)
+	}
+
+	mustRun(t, "init", "--prefix", "BIT")
+
+	got, err := os.ReadFile(stale)
+	if err != nil {
+		t.Fatalf("os.ReadFile(%q) returned error: %v", stale, err)
+	}
+	want, err := assets.FS.ReadFile("skills/bit_do/SKILL.md")
+	if err != nil {
+		t.Fatalf("assets.FS.ReadFile returned error: %v", err)
+	}
+	if string(got) != string(want) {
+		t.Errorf("%s was not refreshed to the embedded copy", stale)
+	}
+}
+
 func TestInitCmd_RejectsBadInvocations(t *testing.T) {
 	tests := []struct {
 		name  string

@@ -1,7 +1,7 @@
 ---
 id: BIT-7.4
 title: Re-running init refreshes seeded files
-status: todo
+status: doing
 phase: 2
 phase_label: seed skills
 ---
