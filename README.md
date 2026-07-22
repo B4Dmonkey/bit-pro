@@ -75,6 +75,12 @@ status: todo
 The task body, verbatim.
 ```
 
+Frontmatter has grown additively as the model firmed up: a bar carries `phase` /
+`phase_label` tying it to a scope phase, and a track that has been reordered carries an
+explicit `order` list of its bar IDs. The ID is stable identity; ordering lives in that
+list, so a plan can be resequenced (`task move`, `task create --after`) without renaming
+anything. A track that's never been reordered has no `order` and falls back to ID order.
+
 ## Status
 
 This project is intentionally not fully specified yet — the plan is to build it by
@@ -87,12 +93,22 @@ model up front. The rough sequence of scopes:
    update, delete, and list tasks against the directory `bit init` creates,
    including scope docs (like this project's own) living as first-class tasks
    inside `.bit/` instead of loose root files.
-3. **Status state machine** — decided against. CRUD gives tasks *a* status field;
+3. ✅ **Plans live under their scope** (`BIT-3`) — dotted child IDs (`BIT-2.5` is the
+   5th step of `BIT-2`), so a plan's steps live under the scope track that owns them.
+4. **Status state machine** — decided against. CRUD gives tasks *a* status field;
    status changes stay a direct, unvalidated write (`bit task update -s`), and
    rollup across a track's bars is logic the `bit_do` skill owns, not a
    CLI-enforced transition graph.
-4. ✅ **Explore UI (list)** (`BIT-4`) — a list + detail view in a terminal.
-5. ✅ **Explore UI (board)** (`BIT-5`) — the kanban board view.
+5. ✅ **Explore UI (list)** (`BIT-4`) — a list + detail view in a terminal.
+6. ✅ **Explore UI (board)** (`BIT-5`) — the kanban board view.
+7. ✅ **Drive the lifecycle through `bit`** (`BIT-6`) — create/read/update/list wired
+   so the `bit_*` skills drive `bin/bit` directly.
+8. ✅ **Install + portable init** (`BIT-7`) — `just install` puts `bit` on your bin dir
+   and `bit init` seeds the `bit_*` skills + `bit-cli.md` into any project, idempotently,
+   so the skills can drive bit in any repo.
+9. ✅ **Reorderable plans** (`BIT-8`) — a track owns an explicit ordered list of its
+   bars, so `task move` and `task create --after` resequence a plan mid-stream without
+   renaming any IDs. The ID is now stable identity; order lives in the track.
 
 All of this project's own scoping and planning now lives in `.bit/tasks/` (browse
 it with `bit task list`) rather than root-level markdown files — see the
@@ -100,24 +116,17 @@ it with `bit task list`) rather than root-level markdown files — see the
 
 ## Roadmap
 
-What's scoped, committed-next, and backlogged. The live tracker is `.bit/tasks/`
+What's up next, committed-next, and backlogged. The live tracker is `.bit/tasks/`
 (`bit task list`); this is the human-readable summary of what to pick up next.
 
-**In progress (scoped):**
+**Up next:**
 
-- **Install + portable init** (`BIT-7`) — bit installs locally (`just install`) and
-  `bit init` seeds the `bit_*` skills + `bit-cli.md` into any project, idempotently, so
-  the skills can drive bit in any repo. The unlock for using bit outside this repo.
+- **Fix the detail-pane quit bug** — once focus is on the detail pane (`→`), the quit keys
+  (`q`, `ctrl+c`) route to the viewport for scrolling instead of quitting, so you have to
+  `←` back to the list first. Small and fully spec'd under *Cleanup & known issues* below.
 
 **Committed next — not yet scoped:**
 
-- **Spike: how to handle reordering** — the CLI is append-only today. `task create` mints
-  the next dotted ID at the end of a track, and bit_do executes bars in creation order, so
-  a step can't be inserted mid-plan without deleting and recreating everything after it.
-  Spike the options — an `--after <id>` flag on create, a `task move` verb, or an explicit
-  order field in frontmatter — and what each costs the dotted-ID scheme. De-risk before
-  scoping the feature.
-- **Fix the detail-pane quit bug** — small; spec'd under *Cleanup & known issues* below.
 - **Archiving** — move a completed track to `.bit/archive/`, hidden from the TUI/list by
   default, to cut the noise. Viewing/restoring the archive is deliberately deferred
   (YAGNI for now) — but the storage layout should keep it cheap to add.
@@ -126,6 +135,14 @@ What's scoped, committed-next, and backlogged. The live tracker is `.bit/tasks/`
 
 **Backlog — needs definition before scoping:**
 
+- **Live-reload the TUI** — the TUI reads tasks once at startup, so changes made through
+  the CLI (by an agent, or a second terminal) while it's open don't appear until a restart.
+  Watch `.bit/tasks/` and refresh the list and board as files are created, updated, or
+  deleted, so the human's view stays in sync with the source of truth. Needs definition —
+  what to watch and how to debounce a burst of writes.
+- **Jump straight to the board** — a way to open the TUI directly on the kanban board
+  instead of landing on the list and tabbing over. Shape undecided (a flag on `bit tui`, a
+  separate `bit board` command, or config); no details yet.
 - **Search** — quickly target a task by text.
 - **Broader filtering** — closer to Backlog.md; which dimensions matter is still open (see
   *Open design questions* → Filtering dimensions).

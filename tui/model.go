@@ -121,6 +121,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.mode == modeBoard {
 			return m.updateBoard(msg)
 		}
+		switch msg.String() {
+		case "q", "esc", "ctrl+c":
+			return m, tea.Quit
+		}
 		switch msg.Type {
 		case tea.KeyRight:
 			m.detailFocused = true

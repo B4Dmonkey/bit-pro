@@ -463,6 +463,38 @@ func TestUpdate_TabTogglesMode(t *testing.T) {
 	}
 }
 
+func TestUpdate_QuitsFromDetail(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		key  tea.KeyMsg
+	}{
+		{"q", tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}},
+		{"esc", tea.KeyMsg{Type: tea.KeyEsc}},
+		{"ctrl+c", tea.KeyMsg{Type: tea.KeyCtrlC}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1"}})
+			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+			mdl, _ = mdl.Update(tea.KeyMsg{Type: tea.KeyRight})
+
+			_, cmd := mdl.Update(tt.key)
+
+			if cmd == nil {
+				t.Fatalf("%s from detail pane: cmd = nil, want a quit cmd", tt.name)
+			}
+			if _, ok := cmd().(tea.QuitMsg); !ok {
+				t.Errorf("%s from detail pane: cmd() = %T, want tea.QuitMsg", tt.name, cmd())
+			}
+		})
+	}
+}
+
 func TestUpdate_EscQuitsFromList(t *testing.T) {
 	t.Parallel()
 
