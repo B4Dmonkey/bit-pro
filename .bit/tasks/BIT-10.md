@@ -1,7 +1,7 @@
 ---
 id: BIT-10
 title: Archiving & soft deletes
-status: todo
+status: doing
 order:
     - BIT-10.1
     - BIT-10.2

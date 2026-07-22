@@ -1,7 +1,7 @@
 ---
 id: BIT-10.1
 title: A task relocates out of the active list
-status: todo
+status: done
 phase: 1
 phase_label: Archive
 ---

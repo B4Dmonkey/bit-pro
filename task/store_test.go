@@ -3,6 +3,7 @@ package task
 import (
 	"errors"
 	"io/fs"
+	"os"
 	"reflect"
 	"slices"
 	"strings"
@@ -34,6 +35,62 @@ func TestStorePath_ContainsUntrustedID(t *testing.T) {
 			}
 			if !strings.HasPrefix(got, ".bit/tasks/") {
 				t.Errorf("Path(%q) = %q, escaped the tasks directory", tt.id, got)
+			}
+		})
+	}
+}
+
+func TestStoreRelocate_MovesFileOutOfList(t *testing.T) {
+	t.Parallel()
+
+	s := New(t.TempDir())
+	if err := s.Save(&Task{ID: "BIT-1", Status: "done"}); err != nil {
+		t.Fatalf("seeding BIT-1: %v", err)
+	}
+
+	if err := s.Relocate("BIT-1", false); err != nil {
+		t.Fatalf("Relocate() returned error: %v", err)
+	}
+
+	tasks, err := s.List()
+	if err != nil {
+		t.Fatalf("List() returned error: %v", err)
+	}
+	if slices.ContainsFunc(tasks, func(t *Task) bool { return t.ID == "BIT-1" }) {
+		t.Errorf("List() still contains BIT-1 after relocate")
+	}
+	if _, err := os.Stat(s.archivePath("BIT-1")); err != nil {
+		t.Errorf("archived file: os.Stat error = %v, want the file to exist", err)
+	}
+	if _, err := os.Stat(s.Path("BIT-1")); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("tasks file: os.Stat error = %v, want fs.ErrNotExist", err)
+	}
+}
+
+func TestStoreRelocate_ContainsUntrustedID(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		id   string
+		want string
+	}{
+		{name: "plain id", id: "BIT-1", want: ".bit/archive/BIT-1.md"},
+		{name: "traversal cannot escape the archive dir", id: "../../README", want: ".bit/archive/README.md"},
+		{name: "absolute path cannot escape", id: "/etc/passwd", want: ".bit/archive/etc/passwd.md"},
+		{name: "illegal characters are stripped", id: "a:b*c", want: ".bit/archive/abc.md"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := New(".bit").archivePath(tt.id)
+			if got != tt.want {
+				t.Errorf("archivePath(%q) = %q, want %q", tt.id, got, tt.want)
+			}
+			if !strings.HasPrefix(got, ".bit/archive/") {
+				t.Errorf("archivePath(%q) = %q, escaped the archive directory", tt.id, got)
 			}
 		})
 	}

@@ -14,6 +14,7 @@ import (
 
 const (
 	tasksSubdir    = "tasks"
+	archiveSubdir  = "archive"
 	configFileName = "config.toml"
 	dirMode        = 0o755
 	fileMode       = 0o644
@@ -33,6 +34,28 @@ func (s *Store) tasksDir() string {
 
 func (s *Store) Path(id string) string {
 	return pathologize.Join(s.tasksDir(), id+".md")
+}
+
+func (s *Store) archiveDir() string {
+	return filepath.Join(s.root, archiveSubdir)
+}
+
+func (s *Store) archivePath(id string) string {
+	return pathologize.Join(s.archiveDir(), id+".md")
+}
+
+func (s *Store) relocate(id string) error {
+	if err := os.MkdirAll(s.archiveDir(), dirMode); err != nil {
+		return fmt.Errorf("creating %s: %w", s.archiveDir(), err)
+	}
+	if err := os.Rename(s.Path(id), s.archivePath(id)); err != nil {
+		return fmt.Errorf("relocating task %s: %w", id, err)
+	}
+	return nil
+}
+
+func (s *Store) Relocate(id string, force bool) error {
+	return s.relocate(id)
 }
 
 func (s *Store) Load(id string) (*Task, error) {
