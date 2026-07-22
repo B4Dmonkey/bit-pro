@@ -10,6 +10,7 @@ import (
 func newTaskCreateCmd() *cobra.Command {
 	var description string
 	var parent string
+	var after string
 	var phase int
 	var phaseLabel string
 
@@ -36,6 +37,12 @@ func newTaskCreateCmd() *cobra.Command {
 				return err
 			}
 
+			if after != "" {
+				if err := s.InsertAfter(parent, id, after); err != nil {
+					return err
+				}
+			}
+
 			if err := s.Save(&task.Task{
 				ID:         id,
 				Title:      args[0],
@@ -47,7 +54,7 @@ func newTaskCreateCmd() *cobra.Command {
 				return err
 			}
 
-			if parent != "" {
+			if parent != "" && after == "" {
 				if err := s.AppendToOrder(parent, id); err != nil {
 					return err
 				}
@@ -59,6 +66,7 @@ func newTaskCreateCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVarP(&description, "description", "d", "", "task description (body content)")
 	cmd.Flags().StringVarP(&parent, "parent", "p", "", "parent task ID (mints a dotted child ID)")
+	cmd.Flags().StringVar(&after, "after", "", "sibling bar ID to insert the new bar after in the parent's order")
 	cmd.Flags().IntVar(&phase, "phase", 0, "scope phase this step serves")
 	cmd.Flags().StringVar(&phaseLabel, "phase-label", "", "human-readable label for the phase")
 	return cmd

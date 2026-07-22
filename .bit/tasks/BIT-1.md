@@ -1,7 +1,7 @@
 ---
 id: BIT-1
 title: CLI Bootstrap
-status: todo
+status: done
 ---
 # CLI Bootstrap
 

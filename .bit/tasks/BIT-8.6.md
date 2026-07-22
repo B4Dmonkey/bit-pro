@@ -1,7 +1,7 @@
 ---
 id: BIT-8.6
 title: create --after inserts mid-plan
-status: todo
+status: done
 phase: 2
 phase_label: Insert mid-plan
 ---

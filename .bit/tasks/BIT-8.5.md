@@ -1,7 +1,7 @@
 ---
 id: BIT-8.5
 title: create appends to a reordered track
-status: doing
+status: done
 phase: 2
 phase_label: Insert mid-plan
 ---

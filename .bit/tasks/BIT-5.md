@@ -1,7 +1,7 @@
 ---
 id: BIT-5
 title: See the project as a kanban board
-status: todo
+status: done
 ---
 # See the project as a kanban board
 

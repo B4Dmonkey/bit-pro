@@ -82,11 +82,28 @@ func (s *Store) Move(id, anchor string, before bool) error {
 	if _, err := s.Load(anchor); err != nil {
 		return err
 	}
+	return s.insertInOrder(parent, id, anchor, before)
+}
+
+// InsertAfter places a newly created bar id into parent's Order immediately
+// after anchor. A parent that has never been reordered has its order
+// materialized from the current ID sequence first, so the position is well
+// defined even for a legacy track. The anchor must already belong to that
+// order — an unknown or cross-track anchor is refused rather than silently
+// appended, which keeps the list ⇄ files bijection intact.
+func (s *Store) InsertAfter(parent, id, anchor string) error {
+	return s.insertInOrder(parent, id, anchor, false)
+}
+
+// insertInOrder is the shared splice: it materializes a legacy parent's order,
+// drops id if it is already present, then places it before or after anchor. Both
+// Move (relocating an existing bar) and InsertAfter (positioning a new one) route
+// through here so ordering has a single definition.
+func (s *Store) insertInOrder(parent, id, anchor string, before bool) error {
 	track, err := s.Load(parent)
 	if err != nil {
 		return err
 	}
-
 	order := track.Order
 	if len(order) == 0 {
 		order, err = s.materializeOrder(parent)

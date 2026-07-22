@@ -1,7 +1,7 @@
 ---
 id: BIT-4
 title: Browse the project's tasks in a terminal
-status: todo
+status: done
 ---
 # Browse the project's tasks in a terminal
 

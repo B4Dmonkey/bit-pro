@@ -1,7 +1,7 @@
 ---
 id: BIT-8
 title: 'Reorderable plans: decouple bar order from ID'
-status: doing
+status: done
 ---
 ## Why
 
@@ -40,7 +40,7 @@ ID-reuse/backfill-on-delete is deliberately a separate follow-up.
   `cmd/`, `cmd/task_list.go`, the TUI (`cmd/tui.go`, `tui/model.go`, `tui/board.go`), and the
   shared contract `.claude/bit-cli.md` + the bit_plan skill.
 
-- [ ] Phase 2 — Insert a new bar mid-plan: `bit task create --after <bar>` drops a new step
+- [x] Phase 2 — Insert a new bar mid-plan: `bit task create --after <bar>` drops a new step
   into a chosen position instead of only appending to the end — the "add a missing step" half of
   the flaw-fixing workflow, on top of Phase 1's order foundation. It flows through the same
   ordering source, so it too appears correctly in the CLI, the TUI list, and the board.

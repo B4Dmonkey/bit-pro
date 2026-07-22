@@ -1,7 +1,7 @@
 ---
 id: BIT-2
 title: Task Management (CRUD)
-status: todo
+status: done
 ---
 # Task Management (CRUD)
 

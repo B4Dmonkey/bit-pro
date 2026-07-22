@@ -147,6 +147,52 @@ func TestTaskCreate_AppendsToReorderedTrack(t *testing.T) {
 	}
 }
 
+func TestTaskCreate_AfterInsertsMidPlan(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Track", "...")
+	mustRun(t, "task", "create", "First bar", "-d", "...", "--parent", "BIT-1")
+	mustRun(t, "task", "create", "Second bar", "-d", "...", "--parent", "BIT-1")
+
+	out := mustRun(t, "task", "create", "Inserted", "-d", "...", "--parent", "BIT-1", "--after", "BIT-1.1")
+
+	if out != "BIT-1.3\n" {
+		t.Errorf("minted ID = %q, want %q", out, "BIT-1.3\n")
+	}
+
+	track, err := task.New(".bit").Load("BIT-1")
+	if err != nil {
+		t.Fatalf("loading BIT-1: %v", err)
+	}
+	want := []string{"BIT-1.1", "BIT-1.3", "BIT-1.2"}
+	if !slices.Equal(track.Order, want) {
+		t.Errorf("BIT-1 order = %v, want %v", track.Order, want)
+	}
+
+	listOut := mustRun(t, "task", "list", "--parent", "BIT-1")
+	var ids []string
+	for line := range strings.SplitSeq(strings.TrimSpace(listOut), "\n") {
+		ids = append(ids, strings.SplitN(line, "\t", 2)[0])
+	}
+	if !slices.Equal(ids, want) {
+		t.Errorf("parent list = %v, want %v", ids, want)
+	}
+}
+
+func TestTaskCreate_AfterRejectsUnknownAnchor(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Track", "...")
+	mustRun(t, "task", "create", "First bar", "-d", "...", "--parent", "BIT-1")
+	mustRun(t, "task", "create", "Second bar", "-d", "...", "--parent", "BIT-1")
+
+	if _, err := run(t, "task", "create", "Inserted", "-d", "...", "--parent", "BIT-1", "--after", "BIT-1.9"); err == nil {
+		t.Fatal("Execute() returned nil error, want non-nil for an unknown anchor")
+	}
+
+	if _, err := os.Stat(".bit/tasks/BIT-1.3.md"); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("os.Stat(.bit/tasks/BIT-1.3.md) error = %v, want fs.ErrNotExist", err)
+	}
+}
+
 func TestTaskCreateCmd_ErrorsWithoutTitle(t *testing.T) {
 	initProject(t, "BIT")
 
