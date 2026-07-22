@@ -98,6 +98,39 @@ func TestStoreRelocate_CascadesToBars(t *testing.T) {
 	}
 }
 
+func TestStoreRelocate_RefusesWithUnfinishedBars(t *testing.T) {
+	t.Parallel()
+
+	s := New(t.TempDir())
+	for _, seed := range []struct{ id, status string }{
+		{"BIT-1", "done"},
+		{"BIT-1.1", "done"},
+		{"BIT-1.2", "todo"},
+	} {
+		if err := s.Save(&Task{ID: seed.id, Status: seed.status}); err != nil {
+			t.Fatalf("seeding %s: %v", seed.id, err)
+		}
+	}
+
+	err := s.Relocate("BIT-1", false)
+
+	var unfinished *UnfinishedBarsError
+	if !errors.As(err, &unfinished) {
+		t.Fatalf("Relocate() error = %v, want *UnfinishedBarsError", err)
+	}
+	if !slices.Contains(unfinished.Bars, "BIT-1.2") {
+		t.Errorf("UnfinishedBarsError.Bars = %v, want it to contain BIT-1.2", unfinished.Bars)
+	}
+	for _, id := range []string{"BIT-1", "BIT-1.1", "BIT-1.2"} {
+		if _, err := os.Stat(s.Path(id)); err != nil {
+			t.Errorf("tasks %s: os.Stat error = %v, want the file to remain", id, err)
+		}
+		if _, err := os.Stat(s.archivePath(id)); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("archive %s: os.Stat error = %v, want fs.ErrNotExist", id, err)
+		}
+	}
+}
+
 func TestStoreRelocate_ContainsUntrustedID(t *testing.T) {
 	t.Parallel()
 
