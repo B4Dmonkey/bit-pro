@@ -11,9 +11,9 @@ import (
 const delim = "---"
 
 type Task struct {
-	ID         string `yaml:"id"`
-	Title      string `yaml:"title"`
-	Status     string `yaml:"status"`
+	ID         string   `yaml:"id"`
+	Title      string   `yaml:"title"`
+	Status     string   `yaml:"status"`
 	Phase      int      `yaml:"phase,omitempty"`
 	PhaseLabel string   `yaml:"phase_label,omitempty"`
 	Order      []string `yaml:"order,omitempty"`
