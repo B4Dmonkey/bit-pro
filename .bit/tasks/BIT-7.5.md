@@ -1,7 +1,7 @@
 ---
 id: BIT-7.5
 title: Retire just build now that init installs bit on PATH
-status: todo
+status: doing
 phase: 2
 phase_label: seed skills
 ---
