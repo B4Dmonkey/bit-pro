@@ -1,7 +1,7 @@
 ---
 id: BIT-8.2
 title: Store.Move resequences a bar
-status: todo
+status: done
 phase: 1
 phase_label: Resequence
 ---

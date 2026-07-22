@@ -64,6 +64,62 @@ func (s *Store) Delete(id string) error {
 	return nil
 }
 
+func (s *Store) Move(id, anchor string, before bool) error {
+	if id == anchor {
+		return fmt.Errorf("cannot move %s relative to itself", id)
+	}
+	parent, ok := barParent(id)
+	if !ok {
+		return fmt.Errorf("%s is not a bar", id)
+	}
+	aParent, ok := barParent(anchor)
+	if !ok || aParent != parent {
+		return fmt.Errorf("anchor %s is not a sibling of %s", anchor, id)
+	}
+	if _, err := s.Load(id); err != nil {
+		return err
+	}
+	if _, err := s.Load(anchor); err != nil {
+		return err
+	}
+	track, err := s.Load(parent)
+	if err != nil {
+		return err
+	}
+
+	order := track.Order
+	if len(order) == 0 {
+		order, err = s.materializeOrder(parent)
+		if err != nil {
+			return err
+		}
+	}
+	order = slices.DeleteFunc(order, func(x string) bool { return x == id })
+	at := slices.Index(order, anchor)
+	if at == -1 {
+		return fmt.Errorf("anchor %s is not in %s's order", anchor, parent)
+	}
+	if !before {
+		at++
+	}
+	track.Order = slices.Insert(order, at, id)
+	return s.Save(track)
+}
+
+func (s *Store) materializeOrder(parent string) ([]string, error) {
+	tasks, err := s.List()
+	if err != nil {
+		return nil, err
+	}
+	var order []string
+	for _, t := range tasks {
+		if p, ok := barParent(t.ID); ok && p == parent {
+			order = append(order, t.ID)
+		}
+	}
+	return order, nil
+}
+
 func (s *Store) List() ([]*Task, error) {
 	matches, err := filepath.Glob(filepath.Join(s.tasksDir(), "*.md"))
 	if err != nil {

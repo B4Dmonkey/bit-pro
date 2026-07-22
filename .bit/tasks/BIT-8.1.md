@@ -1,7 +1,7 @@
 ---
 id: BIT-8.1
 title: List is the single ordering source
-status: doing
+status: done
 phase: 1
 phase_label: Resequence
 ---

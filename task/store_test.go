@@ -214,6 +214,106 @@ func TestStoreList_OrdersBarsByExplicitOrder(t *testing.T) {
 	}
 }
 
+func TestStoreMove_Resequences(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		order  []string
+		id     string
+		anchor string
+		before bool
+		want   []string
+	}{
+		{
+			name:   "materializes then moves to front",
+			order:  nil,
+			id:     "BIT-1.3",
+			anchor: "BIT-1.1",
+			before: true,
+			want:   []string{"BIT-1.3", "BIT-1.1", "BIT-1.2"},
+		},
+		{
+			name:   "splices an existing order to the back",
+			order:  []string{"BIT-1.1", "BIT-1.2", "BIT-1.3"},
+			id:     "BIT-1.1",
+			anchor: "BIT-1.3",
+			before: false,
+			want:   []string{"BIT-1.2", "BIT-1.3", "BIT-1.1"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			s := New(t.TempDir())
+			if err := s.Save(&Task{ID: "BIT-1", Title: "track", Status: "todo", Order: tt.order}); err != nil {
+				t.Fatalf("seeding BIT-1: %v", err)
+			}
+			for _, id := range []string{"BIT-1.1", "BIT-1.2", "BIT-1.3"} {
+				if err := s.Save(&Task{ID: id, Title: "bar", Status: "todo"}); err != nil {
+					t.Fatalf("seeding %s: %v", id, err)
+				}
+			}
+
+			if err := s.Move(tt.id, tt.anchor, tt.before); err != nil {
+				t.Fatalf("Move() returned error: %v", err)
+			}
+
+			got, err := s.Load("BIT-1")
+			if err != nil {
+				t.Fatalf("loading BIT-1: %v", err)
+			}
+			if !slices.Equal(got.Order, tt.want) {
+				t.Errorf("Order = %v, want %v", got.Order, tt.want)
+			}
+		})
+	}
+}
+
+func TestStoreMove_Rejects(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		id           string
+		anchor       string
+		wantNotExist bool
+	}{
+		{name: "anchor under a different track", id: "BIT-1.1", anchor: "BIT-2.1"},
+		{name: "unknown bar", id: "BIT-1.9", anchor: "BIT-1.1", wantNotExist: true},
+		{name: "unknown anchor", id: "BIT-1.1", anchor: "BIT-1.9", wantNotExist: true},
+		{name: "moving a bar relative to itself", id: "BIT-1.1", anchor: "BIT-1.1"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			s := New(t.TempDir())
+			for _, id := range []string{"BIT-1", "BIT-2"} {
+				if err := s.Save(&Task{ID: id, Title: "track", Status: "todo"}); err != nil {
+					t.Fatalf("seeding %s: %v", id, err)
+				}
+			}
+			for _, id := range []string{"BIT-1.1", "BIT-1.2", "BIT-2.1"} {
+				if err := s.Save(&Task{ID: id, Title: "bar", Status: "todo"}); err != nil {
+					t.Fatalf("seeding %s: %v", id, err)
+				}
+			}
+
+			err := s.Move(tt.id, tt.anchor, false)
+			if err == nil {
+				t.Fatalf("Move(%q, %q) returned nil error, want non-nil", tt.id, tt.anchor)
+			}
+			if tt.wantNotExist && !errors.Is(err, fs.ErrNotExist) {
+				t.Errorf("Move(%q, %q) error = %v, want it to wrap fs.ErrNotExist", tt.id, tt.anchor, err)
+			}
+		})
+	}
+}
+
 func TestStoreConfig_RoundTrips(t *testing.T) {
 	t.Parallel()
 
