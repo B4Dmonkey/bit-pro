@@ -1,7 +1,7 @@
 ---
 id: BIT-3.9
 title: The import proves the model
-status: doing
+status: done
 phase: 4
 phase_label: The project's own plans are in the project
 ---

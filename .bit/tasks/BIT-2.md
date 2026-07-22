@@ -69,7 +69,7 @@ the next scope after this one.
   warns/confirms before removing anything, so a typo'd ID doesn't silently destroy work.
   Touches: new `cmd/task*.go`
 
-- [ ] Phase 5 — the next scoping pass can happen inside `bit` instead of loose root
+- [x] Phase 5 — the next scoping pass can happen inside `bit` instead of loose root
   files: scope documents become a first-class task/epic type inside `.bit/` — the same
   scope markdown this skill already writes, with frontmatter added so it's addressable
   through the CRUD commands built in Phases 1–4. A consistent template/scaffold command

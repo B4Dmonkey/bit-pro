@@ -1,7 +1,7 @@
 ---
 id: BIT-3
 title: Plans live in the project, under their scope
-status: todo
+status: done
 ---
 # Plans live in the project, under their scope
 
@@ -57,7 +57,7 @@ fixture.
   Touches: `task/task.go` (frontmatter), `cmd/task_create.go`, `cmd/task_update.go`,
   and whichever of `cmd/task_read.go` / `cmd/task_list.go` surfaces it
 
-- [ ] Phase 4 — the project's own plans are in the project: `cli-bootstrap-plan.md` and
+- [x] Phase 4 — the project's own plans are in the project: `cli-bootstrap-plan.md` and
   `task-crud-plan.md` are imported under BIT-1 and BIT-2, and this scope's own work lands
   as BIT-3 with its plan's steps beneath it — steps parented and phase-labelled, driven by
   the prompt below. This is the acceptance test — the same one the scope import passed —
