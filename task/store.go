@@ -338,34 +338,42 @@ func (s *Store) NextChildID(parent string) (string, error) {
 		return "", fmt.Errorf("parent %s does not exist: %w", parent, err)
 	}
 
-	matches, err := filepath.Glob(filepath.Join(s.tasksDir(), parent+".*.md"))
-	if err != nil {
-		return "", fmt.Errorf("scanning %s for existing child IDs: %w", s.tasksDir(), err)
-	}
-
+	glob := parent + ".*.md"
 	re := regexp.MustCompile(`^` + regexp.QuoteMeta(parent) + `\.(\d+)\.md$`)
-	highest := 0
-	for _, m := range matches {
-		sub := re.FindStringSubmatch(filepath.Base(m))
-		if sub == nil {
-			continue
-		}
-		n, err := strconv.Atoi(sub[1])
-		if err != nil {
-			continue
-		}
-		highest = max(highest, n)
+	highest, err := s.highestReserved(glob, re, "child IDs")
+	if err != nil {
+		return "", err
 	}
 	return fmt.Sprintf("%s.%d", parent, highest+1), nil
 }
 
 func (s *Store) NextID(prefix string) (string, error) {
-	matches, err := filepath.Glob(filepath.Join(s.tasksDir(), prefix+"-*.md"))
-	if err != nil {
-		return "", fmt.Errorf("scanning %s for existing task IDs: %w", s.tasksDir(), err)
-	}
-
+	glob := prefix + "-*.md"
 	re := regexp.MustCompile(`^` + regexp.QuoteMeta(prefix) + `-(\d+)\.md$`)
+	highest, err := s.highestReserved(glob, re, "task IDs")
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s-%d", prefix, highest+1), nil
+}
+
+func (s *Store) highestReserved(glob string, re *regexp.Regexp, what string) (int, error) {
+	highest := 0
+	for _, dir := range []string{s.tasksDir(), s.archiveDir()} {
+		n, err := highestSuffix(dir, glob, re)
+		if err != nil {
+			return 0, fmt.Errorf("scanning %s for existing %s: %w", dir, what, err)
+		}
+		highest = max(highest, n)
+	}
+	return highest, nil
+}
+
+func highestSuffix(dir, glob string, re *regexp.Regexp) (int, error) {
+	matches, err := filepath.Glob(filepath.Join(dir, glob))
+	if err != nil {
+		return 0, err
+	}
 	highest := 0
 	for _, m := range matches {
 		sub := re.FindStringSubmatch(filepath.Base(m))
@@ -378,5 +386,5 @@ func (s *Store) NextID(prefix string) (string, error) {
 		}
 		highest = max(highest, n)
 	}
-	return fmt.Sprintf("%s-%d", prefix, highest+1), nil
+	return highest, nil
 }

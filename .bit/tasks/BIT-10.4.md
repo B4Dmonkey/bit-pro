@@ -1,7 +1,7 @@
 ---
 id: BIT-10.4
 title: Archived IDs stay reserved
-status: todo
+status: done
 phase: 1
 phase_label: Archive
 ---

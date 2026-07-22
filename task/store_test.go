@@ -256,6 +256,52 @@ func TestStoreNextChildID_MintsWhenParentExists(t *testing.T) {
 	}
 }
 
+func TestStoreNextID_ReservesArchivedIDs(t *testing.T) {
+	t.Parallel()
+
+	s := New(t.TempDir())
+	if err := s.Save(&Task{ID: "BIT-1", Title: "seed", Status: "todo"}); err != nil {
+		t.Fatalf("seeding BIT-1: %v", err)
+	}
+	if err := s.Save(&Task{ID: "BIT-2", Title: "seed", Status: "done"}); err != nil {
+		t.Fatalf("seeding BIT-2: %v", err)
+	}
+	if err := s.Relocate("BIT-2", false); err != nil {
+		t.Fatalf("Relocate(BIT-2): %v", err)
+	}
+
+	got, err := s.NextID("BIT")
+	if err != nil {
+		t.Fatalf("NextID() returned error: %v", err)
+	}
+	if got != "BIT-3" {
+		t.Errorf("NextID() = %q, want %q", got, "BIT-3")
+	}
+}
+
+func TestStoreNextChildID_ReservesArchivedChildren(t *testing.T) {
+	t.Parallel()
+
+	s := New(t.TempDir())
+	if err := s.Save(&Task{ID: "BIT-1", Title: "seed", Status: "todo"}); err != nil {
+		t.Fatalf("seeding BIT-1: %v", err)
+	}
+	if err := s.Save(&Task{ID: "BIT-1.1", Title: "seed", Status: "done"}); err != nil {
+		t.Fatalf("seeding BIT-1.1: %v", err)
+	}
+	if err := s.Relocate("BIT-1.1", false); err != nil {
+		t.Fatalf("Relocate(BIT-1.1): %v", err)
+	}
+
+	got, err := s.NextChildID("BIT-1")
+	if err != nil {
+		t.Fatalf("NextChildID() returned error: %v", err)
+	}
+	if got != "BIT-1.2" {
+		t.Errorf("NextChildID() = %q, want %q", got, "BIT-1.2")
+	}
+}
+
 func TestStoreSaveLoad_RoundTrips(t *testing.T) {
 	t.Parallel()
 

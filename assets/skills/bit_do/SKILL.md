@@ -57,22 +57,25 @@ Run the deterministic checks the step lists under **Claude verifies** — whatev
 
 If an automated check fails, fix it within this bar's scope and re-run before stopping. A bar isn't ready for the user until its own checks pass.
 
-### 5. Stop for user verification
+### 5. Close out the bar
 
-Present the bar's **User verifies** items as a checklist for the user to work through. Then state the bar's suggested commit message — don't wait to be asked for it; it's part of what "done with this bar" means, not a follow-up question. Then stop:
-- Do **not** commit.
-- Do **not** start the next bar.
-- Do **not** compact yet.
+How you close out depends on whether the bar has anything left for a *human* to judge — that's exactly what its **User verifies** items are.
 
-Hand control back and wait.
+**If the bar has User verifies items**, those are real judgment calls the automated checks can't settle — does the API feel right, is this safe to ship, does the output make sense for real data. Present them as a checklist for the user to work through, state the bar's suggested commit message (don't wait to be asked — it's part of what "done" means, not a follow-up question), then stop and hand control back. Leave the bar `doing`; it isn't done until the user has looked. When they confirm, run the **Verified good** close-out below.
 
-The user often follows up with small cleanup on the step you just implemented — a tweak, a rename, "actually make this a table test," fixing something the checks didn't catch. Handle those in place, without treating them as a new step. But every such reply still ends with the commit message (refined if the change affects what it should say), the same way the original stop did. The point is that the user never has to ask for it — it should be the last thing they see once the step's code is in a state they could commit, however many small back-and-forths it took to get there.
+**If the bar has no User verifies items**, there's nothing for a human to judge — the passing "Claude verifies" checks *are* the verification, and waiting for a "looks good" that carries no new information just burns a round-trip. So run the **Verified good** close-out now, inline: mark the bar `done`, roll the track up, state the commit message, and prompt the compaction point. This is optimistic, not unsupervised — the user still reads the diff when they commit. If they spot a problem, they say so and you **unwind**: set the bar back to `doing` (`bit task update <bar> -s doing`), reverse any verse checkoff you made, and treat it as **Not as expected**. The done state is cheap to undo, and marking it now keeps the `.bit/tasks/*.md` status change in the tree for the *same* commit as the code, instead of lagging into the next bar's.
+
+Either way, two lines hold firm: do **not** commit, and do **not** start the next bar. Both are the user's call.
+
+The user often follows up with small cleanup on the step you just implemented — a tweak, a rename, "actually make this a table test," fixing something the checks didn't catch. Handle those in place, without treating them as a new step. But every such reply still ends with the commit message (refined if the change affects what it should say), the same way the original close-out did. The point is that the user never has to ask for it — it should be the last thing they see once the step's code is in a state they could commit, however many small back-and-forths it took to get there.
 
 ---
 
-## After the user verifies
+## Closing out
 
 ### Verified good
+
+This is the close-out procedure step 5 points to — run it inline for a bar with no **User verifies** items, or once the user confirms a bar that had them.
 
 1. **Mark the bar done.** `bit task update <bar> -s done`. The status field is the resume marker: a fresh session continues at the first bar that isn't `done`, with no doc to parse. (You don't need to tick the checklist boxes inside the bar body — the status field supersedes them.)
 2. **Roll the track up.** This is skill logic run through the CLI (the tool doesn't cascade for you):
@@ -93,7 +96,7 @@ Don't thrash or silently retry the same approach. Figure out which of three prob
 2. **The plan is wrong.** The scope is sound, but this bar's detail was off. Stop implementing and hand back to **bit_plan** to revise the bar. Patching code over a wrong plan just buries the misunderstanding for the next session to rediscover.
 3. **The plan is right, the implementation is wrong.** The intent was correct but the code doesn't deliver it. The user will often fix this directly. Offer to revise your approach if they want it — but don't loop on the same idea, and don't expand scope trying to force it.
 
-In all cases, leave the bar **not `done`** (its `doing` status is fine, and is accurate — work started, not verified) so it stays the next bar to resume.
+In all cases, leave the bar **not `done`** so it stays the next bar to resume. Its `doing` status is fine and accurate — work started, not verified. If you'd already auto-marked it `done` (the no-User-verifies path) and the user then flagged a problem, set it back to `doing` and reverse any verse checkoff you made — that's the unwind step 5 mentions.
 
 ---
 
