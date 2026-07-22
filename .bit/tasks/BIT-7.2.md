@@ -1,7 +1,7 @@
 ---
 id: BIT-7.2
 title: init seeds the embedded .claude tree
-status: todo
+status: doing
 phase: 2
 phase_label: seed skills
 ---

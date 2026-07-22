@@ -6,6 +6,8 @@ var version = "dev"
 
 const bitDir = ".bit"
 
+const claudeDir = ".claude"
+
 func NewRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:           "bit",

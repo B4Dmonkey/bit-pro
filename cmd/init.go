@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/B4Dmonkey/bit-pro/assets"
 	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/spf13/cobra"
 )
@@ -29,7 +30,10 @@ func newInitCmd() *cobra.Command {
 			if prefix == "" {
 				return errors.New("task ID prefix cannot be empty")
 			}
-			return task.New(bitDir).SaveConfig(&task.Config{Prefix: prefix})
+			if err := task.New(bitDir).SaveConfig(&task.Config{Prefix: prefix}); err != nil {
+				return err
+			}
+			return assets.Seed(claudeDir)
 		},
 	}
 	cmd.Flags().StringVar(&prefix, "prefix", "", "task ID prefix for this project (e.g. BIT)")
