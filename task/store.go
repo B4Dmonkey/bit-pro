@@ -122,13 +122,6 @@ func (s *Store) Save(t *Task) error {
 	return nil
 }
 
-func (s *Store) Delete(id string) error {
-	if err := os.Remove(s.Path(id)); err != nil {
-		return fmt.Errorf("deleting task %s: %w", id, err)
-	}
-	return nil
-}
-
 func (s *Store) Move(id, anchor string, before bool) error {
 	if id == anchor {
 		return fmt.Errorf("cannot move %s relative to itself", id)

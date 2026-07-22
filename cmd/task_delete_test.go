@@ -20,6 +20,21 @@ func TestTaskDeleteCmd_RemovesFileWithYesFlag(t *testing.T) {
 	}
 }
 
+func TestTaskDeleteCmd_RelocatesInsteadOfDestroying(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Recoverable", "Deleted, not destroyed.")
+	mustRun(t, "task", "update", "BIT-1", "-s", "done")
+
+	mustRun(t, "task", "delete", "BIT-1", "--yes")
+
+	if _, err := os.Stat(".bit/archive/BIT-1.md"); err != nil {
+		t.Errorf("os.Stat(.bit/archive/BIT-1.md) error = %v, want the task recoverable", err)
+	}
+	if _, err := os.Stat(".bit/tasks/BIT-1.md"); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("os.Stat(.bit/tasks/BIT-1.md) error = %v, want fs.ErrNotExist", err)
+	}
+}
+
 func TestTaskDeleteCmd_PromptsForConfirmation(t *testing.T) {
 	tests := []struct {
 		name       string

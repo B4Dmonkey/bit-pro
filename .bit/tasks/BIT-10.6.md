@@ -1,7 +1,7 @@
 ---
 id: BIT-10.6
 title: Delete relocates instead of destroying
-status: todo
+status: done
 phase: 2
 phase_label: Non-destructive delete
 ---

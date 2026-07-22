@@ -30,7 +30,7 @@ func newTaskDeleteCmd() *cobra.Command {
 				}
 			}
 
-			return task.New(bitDir).Delete(id)
+			return task.New(bitDir).Relocate(id, false)
 		},
 	}
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "skip confirmation")

@@ -334,19 +334,6 @@ func TestStoreLoad_ErrorsOnUnknownID(t *testing.T) {
 	}
 }
 
-func TestStoreDelete_ErrorsOnUnknownID(t *testing.T) {
-	t.Parallel()
-
-	err := New(t.TempDir()).Delete("BIT-99")
-
-	if !errors.Is(err, fs.ErrNotExist) {
-		t.Fatalf("Delete() error = %v, want an error wrapping fs.ErrNotExist", err)
-	}
-	if !strings.Contains(err.Error(), "BIT-99") {
-		t.Errorf("Delete() error = %q, want it to name the task ID", err)
-	}
-}
-
 func TestStoreList_EmptyWhenNoTasksDir(t *testing.T) {
 	t.Parallel()
 

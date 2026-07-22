@@ -69,7 +69,7 @@ before                          after (archive BIT-9 / delete BIT-9)
 
 ## Verses
 
-- [ ] Verse 1 — Clearing finished work out of the way: an archive action relocates a track
+- [x] Verse 1 — Clearing finished work out of the way: an archive action relocates a track
   and its bars into `.bit/archive/`, so `bit task list`, the board, and the TUI show only live
   work — and the relocated IDs stay reserved, never re-minted. Refuses unless every bar is
   `done` (`--force` overrides). This is the pain felt today, and it proves the relocate
