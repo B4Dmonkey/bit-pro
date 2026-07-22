@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -25,7 +26,7 @@ func TestTaskCreateCmd_WritesFirstTask(t *testing.T) {
 		Status: "todo",
 		Body:   "Add flags for prefix capture.",
 	}
-	if *got != want {
+	if !reflect.DeepEqual(*got, want) {
 		t.Errorf("task = %+v, want %+v", *got, want)
 	}
 }

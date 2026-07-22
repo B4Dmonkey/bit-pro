@@ -1,7 +1,7 @@
 ---
 id: BIT-7
 title: Install bit and bootstrap any project with the skills
-status: doing
+status: done
 ---
 ## Why
 
@@ -29,7 +29,7 @@ which bundles `src/guidelines/*.md` into its binary and writes them out idempote
   `./bin/` prefix, no needing to be in this repo. Touches: `justfile` (an install target),
   README install docs.
 
-- [ ] Phase 2 — any project is bootstrapped (and refreshed) with the skills: `bit init`
+- [x] Phase 2 — any project is bootstrapped (and refreshed) with the skills: `bit init`
   writes the `bit_*` skills + `bit-cli.md` into the target repo's `.claude/` from copies
   embedded in the binary, idempotently, and the seeded skills call `bit` (on `PATH`) not
   `./bin/bit`. This repo regenerates its own `.claude/skills/` the same way. Touches:

@@ -1,6 +1,7 @@
 package task
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -52,7 +53,7 @@ func TestParse_RoundTripsThroughBytes(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Parse() returned error: %v", err)
 			}
-			if *got != tt.task {
+			if !reflect.DeepEqual(*got, tt.task) {
 				t.Errorf("Parse(Bytes()) = %+v, want %+v", *got, tt.task)
 			}
 		})

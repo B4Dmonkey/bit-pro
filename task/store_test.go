@@ -3,6 +3,8 @@ package task
 import (
 	"errors"
 	"io/fs"
+	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -119,7 +121,7 @@ func TestStoreSaveLoad_RoundTrips(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() returned error: %v", err)
 	}
-	if *got != want {
+	if !reflect.DeepEqual(*got, want) {
 		t.Errorf("Load() = %+v, want %+v", *got, want)
 	}
 }
@@ -159,6 +161,56 @@ func TestStoreList_EmptyWhenNoTasksDir(t *testing.T) {
 	}
 	if len(tasks) != 0 {
 		t.Errorf("List() = %v, want no tasks", tasks)
+	}
+}
+
+func TestStoreList_OrdersBarsByExplicitOrder(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		order []string
+		want  []string
+	}{
+		{
+			name:  "explicit order overrides id sequence",
+			order: []string{"BIT-1.2", "BIT-1.1"},
+			want:  []string{"BIT-1", "BIT-1.2", "BIT-1.1"},
+		},
+		{
+			name:  "no order falls back to id sequence",
+			order: nil,
+			want:  []string{"BIT-1", "BIT-1.1", "BIT-1.2"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			s := New(t.TempDir())
+			if err := s.Save(&Task{ID: "BIT-1", Title: "track", Status: "todo", Order: tt.order}); err != nil {
+				t.Fatalf("seeding BIT-1: %v", err)
+			}
+			for _, id := range []string{"BIT-1.1", "BIT-1.2"} {
+				if err := s.Save(&Task{ID: id, Title: "bar", Status: "todo"}); err != nil {
+					t.Fatalf("seeding %s: %v", id, err)
+				}
+			}
+
+			tasks, err := s.List()
+			if err != nil {
+				t.Fatalf("List() returned error: %v", err)
+			}
+
+			got := make([]string, len(tasks))
+			for i, task := range tasks {
+				got[i] = task.ID
+			}
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("List() order = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 

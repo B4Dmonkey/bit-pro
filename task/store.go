@@ -82,8 +82,60 @@ func (s *Store) List() ([]*Task, error) {
 		}
 		tasks = append(tasks, t)
 	}
-	slices.SortFunc(tasks, func(a, b *Task) int { return compareIDs(a.ID, b.ID) })
+	pos := orderPositions(tasks)
+	slices.SortFunc(tasks, func(a, b *Task) int {
+		if cmp, ok := compareByOrder(pos, a.ID, b.ID); ok {
+			return cmp
+		}
+		return compareIDs(a.ID, b.ID)
+	})
 	return tasks, nil
+}
+
+// orderPositions indexes each track's explicit Order into a track ID → bar ID →
+// position map, so List's comparator can look up a bar's rank in O(1).
+func orderPositions(tasks []*Task) map[string]map[string]int {
+	pos := make(map[string]map[string]int)
+	for _, t := range tasks {
+		if len(t.Order) == 0 {
+			continue
+		}
+		idx := make(map[string]int, len(t.Order))
+		for i, id := range t.Order {
+			idx[id] = i
+		}
+		pos[t.ID] = idx
+	}
+	return pos
+}
+
+// compareByOrder ranks two bars by their track's explicit Order, but only when
+// both are children of the same track and both appear in its order list. Every
+// other pairing (tracks, cross-track, unlisted bars) falls through to compareIDs.
+func compareByOrder(pos map[string]map[string]int, a, b string) (int, bool) {
+	pa, aOK := barParent(a)
+	pb, bOK := barParent(b)
+	if !aOK || !bOK || pa != pb {
+		return 0, false
+	}
+	idx, ok := pos[pa]
+	if !ok {
+		return 0, false
+	}
+	ia, aOK := idx[a]
+	ib, bOK := idx[b]
+	if !aOK || !bOK {
+		return 0, false
+	}
+	return ia - ib, true
+}
+
+func barParent(id string) (string, bool) {
+	i := strings.LastIndex(id, ".")
+	if i == -1 {
+		return "", false
+	}
+	return id[:i], true
 }
 
 // compareIDs orders IDs by (track, bar): tracks descending, newest first

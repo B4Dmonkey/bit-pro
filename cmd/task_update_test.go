@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -46,7 +47,7 @@ func TestTaskUpdateCmd(t *testing.T) {
 			if err != nil {
 				t.Fatalf("loading BIT-1: %v", err)
 			}
-			if *got != tt.want {
+			if !reflect.DeepEqual(*got, tt.want) {
 				t.Errorf("task = %+v, want %+v", *got, tt.want)
 			}
 		})
