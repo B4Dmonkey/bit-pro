@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/task"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 func TestNew_PreservesStoreOrder(t *testing.T) {
@@ -43,7 +43,7 @@ func TestUpdate_ForwardsNavigationToList(t *testing.T) {
 
 	m := New(tasks)
 
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 
 	if got := updated.(model).Index(); got != 1 {
 		t.Errorf("after KeyDown, Index() = %d, want 1", got)
@@ -166,7 +166,7 @@ func TestView_FitsWindowHeight(t *testing.T) {
 
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 
-	if h := lipgloss.Height(updated.(model).View()); h > 24 {
+	if h := lipgloss.Height(updated.(model).View().Content); h > 24 {
 		t.Fatalf("View height = %d, want <= 24 (detail must not overflow the screen)", h)
 	}
 }
@@ -194,7 +194,7 @@ func TestView_PaneTitles(t *testing.T) {
 			var mdl tea.Model = New(tasks)
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 
-			view := mdl.(model).View()
+			view := mdl.(model).View().Content
 			if !strings.Contains(view, tt.want) {
 				t.Errorf("View() missing %q", tt.want)
 			}
@@ -213,7 +213,7 @@ func TestView_HelpBarPresentAndBounded(t *testing.T) {
 
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 
-	view := updated.(model).View()
+	view := updated.(model).View().Content
 	if !strings.Contains(view, "focus") {
 		t.Errorf("View() missing help text %q", "focus")
 	}
@@ -233,13 +233,13 @@ func TestUpdate_QuestionTogglesFullHelp(t *testing.T) {
 		t.Fatal("help starts expanded, want collapsed")
 	}
 
-	q := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}}
+	q := tea.KeyPressMsg{Code: '?', Text: "?"}
 	mdl, _ = mdl.Update(q)
 
 	if !mdl.(model).help.ShowAll {
 		t.Error("after ?, help.ShowAll = false, want true (full menu)")
 	}
-	if h := lipgloss.Height(mdl.(model).View()); h > 24 {
+	if h := lipgloss.Height(mdl.(model).View().Content); h > 24 {
 		t.Fatalf("expanded help View height = %d, want <= 24", h)
 	}
 
@@ -256,7 +256,7 @@ func TestUpdate_WindowSizeSizesViewport(t *testing.T) {
 
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 
-	if h := updated.(model).viewport.Height; h != 21 {
+	if h := updated.(model).viewport.Height(); h != 21 {
 		t.Fatalf("viewport.Height = %d, want 21", h)
 	}
 }
@@ -268,10 +268,11 @@ func TestUpdate_CtrlDScrollsDetail(t *testing.T) {
 	m := New([]*task.Task{{ID: "BIT-1", Body: body}})
 
 	sized, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-	focused, _ := sized.(model).Update(tea.KeyMsg{Type: tea.KeyRight})
-	scrolled, _ := focused.(model).Update(tea.KeyMsg{Type: tea.KeyCtrlD})
+	focused, _ := sized.(model).Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	scrolled, _ := focused.(model).Update(tea.KeyPressMsg{Code: 'd', Mod: tea.ModCtrl})
 
-	if off := scrolled.(model).viewport.YOffset; off == 0 {
+	got := scrolled.(model)
+	if off := got.viewport.YOffset(); off == 0 {
 		t.Fatal("after ctrl+d, viewport.YOffset = 0, want > 0")
 	}
 }
@@ -286,16 +287,18 @@ func TestUpdate_NavigationResetsDetailScroll(t *testing.T) {
 	})
 
 	sized, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-	focused, _ := sized.(model).Update(tea.KeyMsg{Type: tea.KeyRight})
-	scrolled, _ := focused.(model).Update(tea.KeyMsg{Type: tea.KeyCtrlD})
-	if scrolled.(model).viewport.YOffset == 0 {
+	focused, _ := sized.(model).Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	scrolled, _ := focused.(model).Update(tea.KeyPressMsg{Code: 'd', Mod: tea.ModCtrl})
+	scrolledModel := scrolled.(model)
+	if scrolledModel.viewport.YOffset() == 0 {
 		t.Fatal("setup: ctrl+d did not scroll the detail")
 	}
 
-	listFocused, _ := scrolled.(model).Update(tea.KeyMsg{Type: tea.KeyLeft})
-	moved, _ := listFocused.(model).Update(tea.KeyMsg{Type: tea.KeyDown})
+	listFocused, _ := scrolled.(model).Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+	moved, _ := listFocused.(model).Update(tea.KeyPressMsg{Code: tea.KeyDown})
 
-	if off := moved.(model).viewport.YOffset; off != 0 {
+	movedModel := moved.(model)
+	if off := movedModel.viewport.YOffset(); off != 0 {
 		t.Fatalf("after changing selection, viewport.YOffset = %d, want 0", off)
 	}
 }
@@ -305,14 +308,14 @@ func TestUpdate_Focus(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		keys        []tea.KeyType
+		keys        []rune
 		wantFocused bool
 	}{
 		{"default is list", nil, false},
-		{"right focuses detail", []tea.KeyType{tea.KeyRight}, true},
-		{"right then left returns to list", []tea.KeyType{tea.KeyRight, tea.KeyLeft}, false},
-		{"left on list clamps to list", []tea.KeyType{tea.KeyLeft}, false},
-		{"right twice clamps to detail", []tea.KeyType{tea.KeyRight, tea.KeyRight}, true},
+		{"right focuses detail", []rune{tea.KeyRight}, true},
+		{"right then left returns to list", []rune{tea.KeyRight, tea.KeyLeft}, false},
+		{"left on list clamps to list", []rune{tea.KeyLeft}, false},
+		{"right twice clamps to detail", []rune{tea.KeyRight, tea.KeyRight}, true},
 	}
 
 	for _, tt := range tests {
@@ -322,7 +325,7 @@ func TestUpdate_Focus(t *testing.T) {
 			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Body: "# Hi"}})
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 			for _, k := range tt.keys {
-				mdl, _ = mdl.Update(tea.KeyMsg{Type: k})
+				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: k})
 			}
 
 			if got := mdl.(model).detailFocused; got != tt.wantFocused {
@@ -338,7 +341,7 @@ func TestUpdate_RightDoesNotPageList(t *testing.T) {
 	m := New([]*task.Task{{ID: "BIT-1"}, {ID: "BIT-2"}, {ID: "BIT-3"}})
 	sized, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 
-	moved, _ := sized.(model).Update(tea.KeyMsg{Type: tea.KeyRight})
+	moved, _ := sized.(model).Update(tea.KeyPressMsg{Code: tea.KeyRight})
 
 	got := moved.(model)
 	if idx := got.Index(); idx != 0 {
@@ -355,12 +358,12 @@ func TestUpdate_FocusRoutesArrows(t *testing.T) {
 	body := strings.Repeat("line\n", 500)
 	tests := []struct {
 		name         string
-		keys         []tea.KeyType
+		keys         []rune
 		wantIndex    int
 		wantScrolled bool
 	}{
-		{"list focused: down moves selection, detail still", []tea.KeyType{tea.KeyDown}, 1, false},
-		{"detail focused: down scrolls body, list still", []tea.KeyType{tea.KeyRight, tea.KeyDown}, 0, true},
+		{"list focused: down moves selection, detail still", []rune{tea.KeyDown}, 1, false},
+		{"detail focused: down scrolls body, list still", []rune{tea.KeyRight, tea.KeyDown}, 0, true},
 	}
 
 	for _, tt := range tests {
@@ -373,15 +376,15 @@ func TestUpdate_FocusRoutesArrows(t *testing.T) {
 			})
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 			for _, k := range tt.keys {
-				mdl, _ = mdl.Update(tea.KeyMsg{Type: k})
+				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: k})
 			}
 
 			got := mdl.(model)
 			if got.Index() != tt.wantIndex {
 				t.Errorf("Index() = %d, want %d", got.Index(), tt.wantIndex)
 			}
-			if scrolled := got.viewport.YOffset > 0; scrolled != tt.wantScrolled {
-				t.Errorf("viewport scrolled = %v (YOffset=%d), want %v", scrolled, got.viewport.YOffset, tt.wantScrolled)
+			if scrolled := got.viewport.YOffset() > 0; scrolled != tt.wantScrolled {
+				t.Errorf("viewport scrolled = %v (YOffset=%d), want %v", scrolled, got.viewport.YOffset(), tt.wantScrolled)
 			}
 		})
 	}
@@ -453,7 +456,7 @@ func TestUpdate_TabTogglesMode(t *testing.T) {
 
 			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1"}})
 			for range tt.presses {
-				mdl, _ = mdl.Update(tea.KeyMsg{Type: tea.KeyTab})
+				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 			}
 
 			if got := mdl.(model).mode; got != tt.want {
@@ -468,11 +471,11 @@ func TestUpdate_QuitsFromDetail(t *testing.T) {
 
 	tests := []struct {
 		name string
-		key  tea.KeyMsg
+		key  tea.KeyPressMsg
 	}{
-		{"q", tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}},
-		{"esc", tea.KeyMsg{Type: tea.KeyEsc}},
-		{"ctrl+c", tea.KeyMsg{Type: tea.KeyCtrlC}},
+		{"q", tea.KeyPressMsg{Code: 'q', Text: "q"}},
+		{"esc", tea.KeyPressMsg{Code: tea.KeyEsc}},
+		{"ctrl+c", tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}},
 	}
 
 	for _, tt := range tests {
@@ -481,7 +484,7 @@ func TestUpdate_QuitsFromDetail(t *testing.T) {
 
 			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1"}})
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-			mdl, _ = mdl.Update(tea.KeyMsg{Type: tea.KeyRight})
+			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyRight})
 
 			_, cmd := mdl.Update(tt.key)
 
@@ -500,7 +503,7 @@ func TestUpdate_EscQuitsFromList(t *testing.T) {
 
 	m := New([]*task.Task{{ID: "BIT-1"}})
 
-	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 
 	if cmd == nil {
 		t.Fatal("after KeyEsc in list, cmd = nil, want a quit cmd")

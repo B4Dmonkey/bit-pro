@@ -4,10 +4,10 @@ import (
 	"fmt"
 
 	"github.com/B4Dmonkey/bit-pro/task"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 type boardKeyMap struct {
@@ -73,7 +73,7 @@ func newColumnList(tasks []*task.Task) list.Model {
 	return l
 }
 
-func (m model) updateBoard(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m model) updateBoard(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "q", "esc", "ctrl+c":
 		return m, tea.Quit

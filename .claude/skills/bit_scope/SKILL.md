@@ -67,7 +67,7 @@ A scope is the cheapest place to discover what you don't know — and the place 
 
 Keep the distinction sharp:
 
-- An **unknown** is a question *the user still has to answer* — an open choice, an ambiguous data shape, an assumption the whole approach rests on. It's genuinely open: you don't yet know the answer. Pair each one with **what would resolve it** and whether it's worth resolving *before* planning:
+- An **unknown** is any genuinely-open question the approach rests on. Three kinds all count: a *choice the user still has to make* (a name, some wording, which columns), an *ambiguous data shape*, or a *technical-feasibility assumption* — does this library or technique actually do what the approach needs? Who answers it doesn't matter — the user, a spike, or an early verse that proves it by building. What matters is that it's open and load-bearing, so it gets named here rather than discovered late. Pair each one with **what would resolve it** and whether it's worth resolving *before* planning:
 
   ```markdown
   - **Unknown:** Does the county API return district codes, or only county codes?
@@ -79,7 +79,9 @@ Keep the distinction sharp:
 
 **The refine loop drains unknowns into decisions.** The moment an unknown gets answered, it stops being an unknown — so move it out of Risks & unknowns and into Decisions. Don't leave it in the risk list re-labelled "Resolved": an answered question sitting in the unknowns section is clutter, and it hides what's actually still open behind a wall of settled ones. Each pass should make the risk list *shorter* and the decision list *longer*.
 
-The target state at handoff to bit_plan is a **Risks & unknowns section that's empty** — every question either answered (now a decision) or, rarely, explicitly deferred to plan-time with a reason. A scope still carrying open unknowns that block the approach isn't ready to plan; that's the signal to keep iterating (or go run the spike) rather than hand off.
+An unknown has exactly two honest resting places: **answered now** — it becomes a Decision — or **named in Risks, tied to the specific early verse that resolves it by building** (walking-skeleton-first, so a wrong assumption fails cheap and early). The target state at handoff is a **Risks & unknowns section that's empty or close to it**: every question either settled into a Decision or, at most, a named risk a first verse is about to prove.
+
+What you must never do is **dissolve an open question into a verse's prose** — "how X is composited is deferred to plan-time," "the technical question is left for later." That reads like a resolution but hides an unknown where nothing tracks it. And it misreads bit_plan: **bit_plan is not a discovery phase.** It turns a *settled* shape into TDD steps; it has no mechanism to answer an open feasibility question, so "defer to plan-time" just launders the question downstream into a bogus step or a fake "User verifies" check — the very trap the design-choices note below warns about. If a quick spike can answer it, run the spike and write the Decision. If only building can prove it, say exactly that *in Risks*, pointed at the verse that proves it — don't bury it in the verse's description.
 
 **Decisions double as acceptance criteria.** They're the constraints bit_plan and bit_do must honour — the things that have to hold true for the work to be right. Writing them down here is what keeps a downstream plan from quietly relitigating a call the user already made.
 
@@ -175,7 +177,7 @@ Keep it tight. This is an overview a reader skims to grasp the shape of the work
    - Is each verse a usable vertical slice (passes the litmus test), or is it a horizontal layer / internal task that belongs in the plan?
    - Is the order delivering incremental value — walking skeleton first, riskiest assumptions early?
    - Is each named by the capability unlocked, not the component built?
-5. Check that no verse has slid into implementation detail. The "touches" pointer is a locator only — flag anything prescribing *how*.
+5. Check that no verse has slid into implementation detail, **and that no verse is smuggling an open question** — a "TBD", a "deferred to plan-time", a "the technical question is…". The "touches" pointer is a locator only; flag anything prescribing *how*, and flag any unknown hiding in a verse: it belongs in Risks & unknowns, or answered in Decisions — never in the verse text.
 6. Propose edits with reasoning — don't silently rewrite large sections. Confirm before rewriting more than a few lines.
 
 The user drives this loop; keep refining with them until they're happy enough to move to bit_plan.

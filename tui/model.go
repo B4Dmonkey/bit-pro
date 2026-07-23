@@ -2,18 +2,18 @@ package tui
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/B4Dmonkey/bit-pro/task"
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/glamour"
-	"github.com/charmbracelet/glamour/styles"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/termenv"
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/list"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/glamour/v2"
+	"charm.land/glamour/v2/styles"
+	"charm.land/lipgloss/v2"
 )
 
 type viewMode int
@@ -83,10 +83,10 @@ func New(tasks []*task.Task) model {
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
 	style := styles.LightStyle
-	if termenv.HasDarkBackground() {
+	if lipgloss.HasDarkBackground(os.Stdin, os.Stdout) {
 		style = styles.DarkStyle
 	}
-	vp := viewport.New(0, 0)
+	vp := viewport.New()
 	var boardCols [3]list.Model
 	for i, cards := range groupByStatus(tasks) {
 		boardCols[i] = newColumnList(cards)
@@ -104,13 +104,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.renderer = newRenderer(m.style, max(m.detailWidth-2, 1))
 		m.refreshDetail()
 		return m, nil
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if key.Matches(msg, m.keys.help) {
 			m.help.ShowAll = !m.help.ShowAll
 			m.layout()
 			return m, nil
 		}
-		if msg.Type == tea.KeyTab {
+		if msg.Code == tea.KeyTab {
 			if m.mode == modeList {
 				m.mode = modeBoard
 			} else {
@@ -125,7 +125,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q", "esc", "ctrl+c":
 			return m, tea.Quit
 		}
-		switch msg.Type {
+		switch msg.Code {
 		case tea.KeyRight:
 			m.detailFocused = true
 			return m, nil
@@ -183,19 +183,26 @@ func (m model) helpKeys() help.KeyMap {
 
 func (m *model) layout() {
 	listW, detailW := splitWidth(m.winWidth)
-	m.help.Width = m.winWidth
+	m.help.SetWidth(m.winWidth)
 	helpHeight := lipgloss.Height(m.help.View(m.helpKeys()))
 	paneHeight := max(m.winHeight-helpHeight, 0)
 	m.listWidth, m.detailWidth, m.height = listW, detailW, paneHeight
 	m.SetSize(max(listW-2, 0), max(paneHeight-2, 0))
-	m.viewport.Width, m.viewport.Height = max(detailW-2, 0), max(paneHeight-2, 0)
+	m.viewport.SetWidth(max(detailW-2, 0))
+	m.viewport.SetHeight(max(paneHeight-2, 0))
 	colW := m.winWidth / len(boardColumns)
 	for i := range m.boardCols {
 		m.boardCols[i].SetSize(max(colW-2, 0), max(paneHeight-2, 0))
 	}
 }
 
-func (m model) View() string {
+func (m model) View() tea.View {
+	v := tea.NewView(m.content())
+	v.AltScreen = true
+	return v
+}
+
+func (m model) content() string {
 	if m.mode == modeBoard {
 		return lipgloss.JoinVertical(lipgloss.Left, boardView(m), m.help.View(m.helpKeys()))
 	}
@@ -212,8 +219,8 @@ func titledBorder(content, title string, width, height int, active bool) string 
 	boxStyle := lipgloss.NewStyle().
 		Border(border).
 		BorderTop(false).
-		Width(width).
-		Height(height)
+		Width(width + 2).
+		Height(height + 1)
 	topStyle := lipgloss.NewStyle()
 	if active {
 		accent := lipgloss.Color("99")

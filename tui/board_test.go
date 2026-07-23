@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/task"
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 func TestGroupByStatus(t *testing.T) {
@@ -138,9 +138,9 @@ func TestView_BoardColumnCounts(t *testing.T) {
 
 	var mdl tea.Model = New(tasks)
 	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
-	mdl, _ = mdl.Update(tea.KeyMsg{Type: tea.KeyTab})
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 
-	view := mdl.(model).View()
+	view := mdl.(model).View().Content
 	for _, want := range []string{"To Do (4)", "Doing (1)", "Done (2)"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("board View() missing %q", want)
@@ -165,15 +165,15 @@ func TestUpdate_BoardActiveColumn(t *testing.T) {
 
 	tests := []struct {
 		name string
-		keys []tea.KeyType
+		keys []rune
 		want int
 	}{
 		{"default first column", nil, 0},
-		{"right advances", []tea.KeyType{tea.KeyRight}, 1},
-		{"right twice", []tea.KeyType{tea.KeyRight, tea.KeyRight}, 2},
-		{"right clamps at last", []tea.KeyType{tea.KeyRight, tea.KeyRight, tea.KeyRight}, 2},
-		{"left retreats from last", []tea.KeyType{tea.KeyRight, tea.KeyRight, tea.KeyLeft}, 1},
-		{"left clamps at first", []tea.KeyType{tea.KeyLeft, tea.KeyLeft, tea.KeyLeft}, 0},
+		{"right advances", []rune{tea.KeyRight}, 1},
+		{"right twice", []rune{tea.KeyRight, tea.KeyRight}, 2},
+		{"right clamps at last", []rune{tea.KeyRight, tea.KeyRight, tea.KeyRight}, 2},
+		{"left retreats from last", []rune{tea.KeyRight, tea.KeyRight, tea.KeyLeft}, 1},
+		{"left clamps at first", []rune{tea.KeyLeft, tea.KeyLeft, tea.KeyLeft}, 0},
 	}
 
 	for _, tt := range tests {
@@ -185,9 +185,9 @@ func TestUpdate_BoardActiveColumn(t *testing.T) {
 				{ID: "BIT-2", Status: "doing"},
 				{ID: "BIT-3", Status: "done"},
 			})
-			mdl, _ = mdl.Update(tea.KeyMsg{Type: tea.KeyTab})
+			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 			for _, k := range tt.keys {
-				mdl, _ = mdl.Update(tea.KeyMsg{Type: k})
+				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: k})
 			}
 
 			if got := mdl.(model).activeCol; got != tt.want {
@@ -202,14 +202,14 @@ func TestUpdate_BoardCardSelection(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		keys    []tea.KeyType
+		keys    []rune
 		wantCol int
 		wantIdx int
 	}{
-		{"empty column stays at zero", []tea.KeyType{tea.KeyDown}, 0, 0},
-		{"down advances in active column", []tea.KeyType{tea.KeyRight, tea.KeyRight, tea.KeyDown}, 2, 1},
-		{"down clamps at last card", []tea.KeyType{tea.KeyRight, tea.KeyRight, tea.KeyDown, tea.KeyDown, tea.KeyDown}, 2, 2},
-		{"selection survives column round trip", []tea.KeyType{tea.KeyRight, tea.KeyRight, tea.KeyDown, tea.KeyLeft, tea.KeyLeft, tea.KeyRight, tea.KeyRight}, 2, 1},
+		{"empty column stays at zero", []rune{tea.KeyDown}, 0, 0},
+		{"down advances in active column", []rune{tea.KeyRight, tea.KeyRight, tea.KeyDown}, 2, 1},
+		{"down clamps at last card", []rune{tea.KeyRight, tea.KeyRight, tea.KeyDown, tea.KeyDown, tea.KeyDown}, 2, 2},
+		{"selection survives column round trip", []rune{tea.KeyRight, tea.KeyRight, tea.KeyDown, tea.KeyLeft, tea.KeyLeft, tea.KeyRight, tea.KeyRight}, 2, 1},
 	}
 
 	for _, tt := range tests {
@@ -223,9 +223,9 @@ func TestUpdate_BoardCardSelection(t *testing.T) {
 				{ID: "BIT-4", Status: "done"},
 			})
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
-			mdl, _ = mdl.Update(tea.KeyMsg{Type: tea.KeyTab})
+			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 			for _, k := range tt.keys {
-				mdl, _ = mdl.Update(tea.KeyMsg{Type: k})
+				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: k})
 			}
 
 			if got := mdl.(model).boardCols[tt.wantCol].Index(); got != tt.wantIdx {
@@ -259,10 +259,10 @@ func TestView_BoardHelp(t *testing.T) {
 			})
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 			if tt.toBoard {
-				mdl, _ = mdl.Update(tea.KeyMsg{Type: tea.KeyTab})
+				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 			}
 
-			view := mdl.(model).View()
+			view := mdl.(model).View().Content
 			for _, want := range tt.contains {
 				if !strings.Contains(view, want) {
 					t.Errorf("View() missing %q", want)
@@ -282,11 +282,11 @@ func TestUpdate_BoardQuits(t *testing.T) {
 
 	tests := []struct {
 		name string
-		key  tea.KeyMsg
+		key  tea.KeyPressMsg
 	}{
-		{"q", tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}},
-		{"esc", tea.KeyMsg{Type: tea.KeyEsc}},
-		{"ctrl+c", tea.KeyMsg{Type: tea.KeyCtrlC}},
+		{"q", tea.KeyPressMsg{Code: 'q', Text: "q"}},
+		{"esc", tea.KeyPressMsg{Code: tea.KeyEsc}},
+		{"ctrl+c", tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}},
 	}
 
 	for _, tt := range tests {
@@ -294,7 +294,7 @@ func TestUpdate_BoardQuits(t *testing.T) {
 			t.Parallel()
 
 			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo"}})
-			mdl, _ = mdl.Update(tea.KeyMsg{Type: tea.KeyTab})
+			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 
 			_, cmd := mdl.Update(tt.key)
 
