@@ -369,6 +369,72 @@ func TestUpdate_ModalCloses(t *testing.T) {
 	}
 }
 
+func TestUpdate_ModalCapturesInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		key   tea.KeyPressMsg
+		check func(t *testing.T, mdl tea.Model, cmd tea.Cmd)
+	}{
+		{
+			"ctrl+c quits",
+			tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl},
+			func(t *testing.T, mdl tea.Model, cmd tea.Cmd) {
+				if cmd == nil {
+					t.Fatalf("cmd = nil, want quit")
+				}
+				if _, ok := cmd().(tea.QuitMsg); !ok {
+					t.Errorf("cmd() = %T, want tea.QuitMsg", cmd())
+				}
+			},
+		},
+		{
+			"right swallowed",
+			tea.KeyPressMsg{Code: tea.KeyRight},
+			func(t *testing.T, mdl tea.Model, _ tea.Cmd) {
+				if got := mdl.(model).activeCol; got != 0 {
+					t.Errorf("activeCol = %d, want 0", got)
+				}
+				if !mdl.(model).modalOpen {
+					t.Errorf("modalOpen = false, want true")
+				}
+			},
+		},
+		{
+			"tab swallowed",
+			tea.KeyPressMsg{Code: tea.KeyTab},
+			func(t *testing.T, mdl tea.Model, _ tea.Cmd) {
+				if got := mdl.(model).mode; got != modeBoard {
+					t.Errorf("mode = %v, want modeBoard", got)
+				}
+				if !mdl.(model).modalOpen {
+					t.Errorf("modalOpen = false, want true")
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var mdl tea.Model = New([]*task.Task{
+				{ID: "BIT-1", Status: "todo", Body: "body"},
+				{ID: "BIT-2", Status: "doing", Body: "body"},
+				{ID: "BIT-3", Status: "done", Body: "body"},
+			})
+			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+			mdl, cmd := mdl.Update(tt.key)
+
+			tt.check(t, mdl, cmd)
+		})
+	}
+}
+
 func TestUpdate_BoardEnterEmptyColumnNoop(t *testing.T) {
 	t.Parallel()
 

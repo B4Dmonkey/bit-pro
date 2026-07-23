@@ -87,7 +87,10 @@ func (m model) updateBoard(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		case "q", "esc":
 			m.modalOpen = false
 			return m, nil
+		case "ctrl+c":
+			return m, tea.Quit
 		}
+		return m, nil
 	}
 	if msg.Code == tea.KeyEnter {
 		if m.boardSelected() != nil {

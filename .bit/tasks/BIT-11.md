@@ -65,7 +65,7 @@ board (no modal)                  modal open (Enter on selected card)
 
 ## Verses
 
-- [ ] Verse 1 — Open a card's details in a modal and dismiss it: on the board, Enter on the
+- [x] Verse 1 — Open a card's details in a modal and dismiss it: on the board, Enter on the
   selected card floats a bordered box over the board showing that card's rendered body; q or
   esc closes it back to the board (app stays open); ctrl+c still quits. Delivers the core
   inspect-without-leaving-the-board capability, and — as the walking skeleton — is what first

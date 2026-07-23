@@ -108,6 +108,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.refreshDetail()
 		return m, nil
 	case tea.KeyPressMsg:
+		if m.mode == modeBoard && m.modalOpen {
+			return m.updateBoard(msg)
+		}
 		if key.Matches(msg, m.keys.help) {
 			m.help.ShowAll = !m.help.ShowAll
 			m.layout()

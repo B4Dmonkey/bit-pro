@@ -1,7 +1,7 @@
 ---
 id: BIT-11.5
 title: Modal captures input while open
-status: todo
+status: done
 phase: 1
 phase_label: Open & dismiss
 ---
