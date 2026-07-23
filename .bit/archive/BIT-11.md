@@ -1,7 +1,7 @@
 ---
 id: BIT-11
 title: Board modal
-status: doing
+status: done
 ---
 ## Why
 
