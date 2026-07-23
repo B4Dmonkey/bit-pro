@@ -307,6 +307,19 @@ func TestUpdate_BoardEnterOpensModal(t *testing.T) {
 	}
 }
 
+func TestUpdate_BoardEnterEmptyColumnNoop(t *testing.T) {
+	t.Parallel()
+
+	var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "doing", Body: "body"}})
+	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+	if got := mdl.(model).modalOpen; got {
+		t.Errorf("modalOpen = %v, want false", got)
+	}
+}
+
 func TestUpdate_BoardQuits(t *testing.T) {
 	t.Parallel()
 

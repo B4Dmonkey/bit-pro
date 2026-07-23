@@ -73,9 +73,19 @@ func newColumnList(tasks []*task.Task) list.Model {
 	return l
 }
 
+func (m model) boardSelected() *task.Task {
+	it, ok := m.boardCols[m.activeCol].SelectedItem().(item)
+	if !ok {
+		return nil
+	}
+	return it.t
+}
+
 func (m model) updateBoard(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if msg.Code == tea.KeyEnter {
-		m.modalOpen = true
+		if m.boardSelected() != nil {
+			m.modalOpen = true
+		}
 		return m, nil
 	}
 	switch msg.String() {

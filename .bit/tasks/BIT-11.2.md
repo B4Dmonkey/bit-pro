@@ -1,7 +1,7 @@
 ---
 id: BIT-11.2
 title: Enter on an empty column is a no-op
-status: todo
+status: done
 phase: 1
 phase_label: Open & dismiss
 ---
