@@ -1,6 +1,6 @@
 ---
 name: bit_do
-description: Execute an existing implementation plan one step at a time, stopping after each step for the user to verify before continuing. Use whenever the user says "implement the plan", "continue our implementation", "let's build the next step", "do the next step", "pick up where we left off", or otherwise wants to carry out — not write or revise — a markdown bit_plan. This is the execution counterpart to bit_plan and bit_scope: bit_scope frames the WHY and delivery order in a track, bit_plan authors the detailed steps as bars under it, bit_do carries them out. It finds the track in `.bit/`, reads the track body and its bars through the `bit` CLI, tracks each bar's checklist as tasks, runs the automated checks, moves each bar's status (`doing` → `done`) and rolls the track up (checking off completed verses and setting the track's status), and hands off to the user for verification and commit between bars. This project is a Go codebase — bit_do applies the project's Go skills (go, cobra-viper, wails, fileflow-pathologize, go-spec-reviewer, go-release) while implementing so code stays idiomatic. Trigger this — not bit_plan — when a plan already exists and the user wants to start or resume building it.
+description: Execute an existing implementation plan one step at a time, stopping after each step for the user to verify before continuing. Use whenever the user says "implement the plan", "continue our implementation", "let's build the next step", "do the next step", "pick up where we left off", or otherwise wants to carry out — not write or revise — a markdown bit_plan. This is the execution counterpart to bit_plan and bit_scope: bit_scope frames the WHY and delivery order in a track, bit_plan authors the detailed steps as bars under it, bit_do carries them out. It finds the track in `.bit/`, reads the track body and its bars through the `bit` CLI, tracks each bar's checklist as tasks, runs the automated checks, moves each bar's status (`doing` → `done`) and rolls the track up (checking off completed verses and setting the track's status), and hands off to the user for verification and commit between bars. When every bar is done it stops short of marking the track done on its own — the user's explicit sign-off is what flips the track to `done` and archives it (and its bars) out of the active list. This project is a Go codebase — bit_do applies the project's Go skills (go, cobra-viper, wails, fileflow-pathologize, go-spec-reviewer, go-release) while implementing so code stays idiomatic. Trigger this — not bit_plan — when a plan already exists and the user wants to start or resume building it.
 ---
 
 # Plan Implementer
@@ -81,12 +81,26 @@ This is the close-out procedure step 5 points to — run it inline for a bar wit
 2. **Roll the track up.** This is skill logic run through the CLI (the tool doesn't cascade for you):
    - Re-list the bars: `bit task list --parent <track>`.
    - **Verse checkoff:** if this bar was the *last* one tagged to its verse — every bar with that `--phase` is now `done` — check off that verse in the track body: find its `- [ ] Verse N` line and change `[ ]` to `[x]` (bit_scope keeps the checkbox and `Verse N` on the same line, so it's a one-line toggle). Read the body, edit that line, write it back.
-   - **Track status:** all bars `done` → track `done`; none started (all `todo`) → `todo`; anything in between → `doing`.
+   - **Track status:** none started (all `todo`) → `todo`; anything else → `doing`. Note what's deliberately *absent*: even when every bar is now `done`, you do **not** set the track `done` here. A finished-looking track stays `doing` until the human signs it off — that sign-off, not the rollup, is what marks it done and archives it. See **Track sign-off** below.
    - Apply both in one call so the track moves once: `bit task update <track> -d "<edited body>" -s <status>` — pass `-d` only if the verse checkoff changed the body, `-s` only if the status changed. **If neither changed, there's nothing to roll up — skip the call.** (This is the common mid-verse case: finishing a bar when its verse isn't complete yet and the track is already `doing`.)
 
    Keeping the track's verse checklist and status current lets a reader see delivered value at a glance from `task read <track>` — and the track and its bars never disagree about what's done.
 3. **Suggest the commit.** Offer the bar's commit message (refined if the work diverged from it). The user commits — you never run the commit yourself. The `.bit/tasks/*.md` changes from steps 1–2 are part of the working tree, so they go into the same commit as the code — mention that.
-4. **Compaction point.** Tell the user this is a clean place to `/compact` before the next bar, since it's done, verified, and committed. You can't run `/compact` yourself — it's a user command — so prompt them, then continue to the next bar when they say so.
+4. **Compaction point.** Tell the user this is a clean place to `/compact`, since the bar is done, verified, and committed. You can't run `/compact` yourself — it's a user command — so prompt them, then continue when they say so. If this was the **last** bar — the rollup shows every bar `done` — there's no next bar to continue to; point them at **Track sign-off** instead.
+
+### Track sign-off
+
+Marking a track `done` is the human's call, not a rollup side effect — so it lives here, apart from the per-bar close-out, and it's what triggers archiving the finished work out of the active list. The reasoning is that "all bars done" and "this track is truly finished" aren't the same claim: the last bar's checks passing doesn't mean the whole slice of work holds together, and only a person looking at the committed result can say it does. Auto-flipping the track to `done` would make that judgment for them and file the work away before they'd looked.
+
+So when you close out a bar and the rollup shows **every** bar is now `done`, don't set the track `done` yourself. Finish that last bar's own close-out as normal (verified, commit suggested), then tell the user the whole track is ready: every verse has landed, and a final check of the committed work is the last thing between here and done. Then stop — the sign-off is a fresh cycle, and it's theirs to give.
+
+When the user signs off:
+
+1. **Mark the track done.** `bit task update <track> -s done`.
+2. **Archive it.** `bit task archive <track>` relocates the track *and* all its bars into `.bit/archive/` in one action, so the finished work drops out of `task list`, the board, and the TUI. A fully-done track needs no `--force` — the guard (every bar `done`) is already satisfied. Use `archive`, not `delete`: the work is filed away complete, not thrown away, even though both ride the same relocate mechanism.
+3. **Suggest the commit.** The archive moves files (the track and every bar) out of `tasks/`, which surfaces in the working tree as renames — offer a commit for it, e.g. `chore(bit): archive completed <track>`. As always, the user commits; you never run it.
+
+If the user isn't ready — wants more testing, or spots something — the track just stays `doing`. Nothing is lost, and you pick the sign-off back up whenever they're satisfied.
 
 ### Not as expected
 
@@ -105,5 +119,6 @@ In all cases, leave the bar **not `done`** so it stays the next bar to resume. I
 - **Author or redesign the scope or plan** — that's bit_scope and bit_plan. If there are no bars yet, or the bars or the track's shape need rethinking, switch to the right authoring skill.
 - **Commit** — always the user's action; you suggest the message.
 - **Run multiple bars unattended** — one bar per cycle, every time.
+- **Declare a track done on its own** — finishing the last bar makes the track *ready*; the human's sign-off is what marks it `done` and archives it.
 - **Hand-edit `.bit/tasks/*.md`** — every status move and body change goes through `bit`.
 - **Compact on its own** — the user runs `/compact`; you mark the boundary.

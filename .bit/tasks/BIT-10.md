@@ -90,7 +90,7 @@ before                          after (archive BIT-9 / delete BIT-9)
   guard and `--force` as archive).
   Touches: `task/store.go` (`Delete` relocates instead of `os.Remove`), `cmd/task_delete.go`
   (confirmation wording).
-- [ ] Verse 3 — Relocating keeps a track's bar ordering honest: after a bar is archived or
+- [x] Verse 3 — Relocating keeps a track's bar ordering honest: after a bar is archived or
   deleted, its id is dropped from the parent track's `Order` list too, so the ordering never
   carries a phantom entry pointing at a bar that's no longer live — restore and anything that
   reads `Order` stay trustworthy. Discovered after Verses 1–2 shipped: the relocate primitive

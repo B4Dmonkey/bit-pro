@@ -93,9 +93,11 @@ newline, which `$( )` strips and which never matters for markdown).
 ## Gotchas
 
 - **Status is stored verbatim — spelling matters.** There's no validation: `task update -s
-  doen` succeeds and stores `doen`. Rollup logic keys on the exact words (`all bars "done"
-  → track "done"`), so a typo silently breaks it — a bar that reads `doen` will never count
-  as done and the track will never roll up. Always pass exactly `todo`, `doing`, or `done`.
+  doen` succeeds and stores `doen`. Rollup keys on the exact word `done` — a verse checks off
+  only once every bar tagged to it reads exactly `done`, and a track is *ready for sign-off*
+  only once all its bars do. A typo silently breaks that: a bar reading `doen` never counts as
+  done, so its verse never checks off and the track never signals ready. Always pass exactly
+  `todo`, `doing`, or `done`.
 - **Deleting or archiving a task reserves its ID — it isn't freed.** `task delete` and
   `task archive` both *relocate* the file into `.bit/archive/` instead of destroying it, and
   `NextID`/`NextChildID` count `archive/` when choosing the next number. So a removed ID is

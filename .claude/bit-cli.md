@@ -13,7 +13,7 @@ own development.
 ## The two kinds of task
 
 - A **track** is a top-level task — one whole scope. Its ID has no dot: `BIT-7`.
-  Its **body** holds the scope prose (Why / Summary / Phases / Risks).
+  Its **body** holds the scope prose (Why / Summary / Verses / Risks).
 - A **bar** is a child of a track — one plan step. Its ID is dotted: `BIT-7.3`.
   Its **body** holds that step's detail; its `--phase`/`--phase-label` tag the scope
   phase it serves.
@@ -82,7 +82,7 @@ For a small, surgical change to a stored body — toggling one phase checkbox, f
 read it out, stream-edit, and write it back:
 
 ```bash
-bit task read "$ID" --body | sed 's/- \[ \] Phase 1/- [x] Phase 1/' > body.md
+bit task read "$ID" --body | sed 's/- \[ \] Verse 1/- [x] Verse 1/' > body.md
 bit task update "$ID" -d "$(cat body.md)"
 ```
 
@@ -93,13 +93,17 @@ newline, which `$( )` strips and which never matters for markdown).
 ## Gotchas
 
 - **Status is stored verbatim — spelling matters.** There's no validation: `task update -s
-  doen` succeeds and stores `doen`. Rollup logic keys on the exact words (`all bars "done"
-  → track "done"`), so a typo silently breaks it — a bar that reads `doen` will never count
-  as done and the track will never roll up. Always pass exactly `todo`, `doing`, or `done`.
-- **Deleting a task frees its ID.** IDs backfill deleted slots rather than only ever
-  incrementing, so a `create` after a `delete` can re-mint an ID that older commit messages
-  or notes already reference. Avoid `task delete` on a bar mid-plan for this reason; prefer
-  leaving it and moving its status.
+  doen` succeeds and stores `doen`. Rollup keys on the exact word `done` — a verse checks off
+  only once every bar tagged to it reads exactly `done`, and a track is *ready for sign-off*
+  only once all its bars do. A typo silently breaks that: a bar reading `doen` never counts as
+  done, so its verse never checks off and the track never signals ready. Always pass exactly
+  `todo`, `doing`, or `done`.
+- **Deleting or archiving a task reserves its ID — it isn't freed.** `task delete` and
+  `task archive` both *relocate* the file into `.bit/archive/` instead of destroying it, and
+  `NextID`/`NextChildID` count `archive/` when choosing the next number. So a removed ID is
+  never re-minted onto a different task, and older commit messages or notes that reference it
+  stay valid. Dropping a bar mid-plan with `task delete`/`task archive` is safe for this
+  reason — the file is recoverable on disk and its ID stays put.
 
 ## Rollup is skill logic, run through the CLI
 
