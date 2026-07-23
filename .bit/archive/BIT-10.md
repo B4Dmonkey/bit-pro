@@ -1,7 +1,7 @@
 ---
 id: BIT-10
 title: Archiving & soft deletes
-status: doing
+status: done
 order:
     - BIT-10.1
     - BIT-10.2
@@ -101,7 +101,7 @@ before                          after (archive BIT-9 / delete BIT-9)
   the primitive needs fixing before that workflow ships on top of it.
   Touches: `task/store.go` (the relocate primitive also drops the id from the parent's `Order`),
   `assets/bit-cli.md` (the "`delete` removes from it" line becomes accurate).
-- [ ] Verse 4 (last) — Archiving becomes part of the lifecycle: update the bit_* skills (via
+- [x] Verse 4 (last) — Archiving becomes part of the lifecycle: update the bit_* skills (via
   skill-creator) so a track is archived on the human's explicit sign-off (per the decision
   above — a deliberate final call, not an automatic status flip), and a step dropped mid-plan
   is archived rather than `delete`d so its ID isn't freed. Finished and abandoned work leaves

@@ -112,6 +112,14 @@ model up front. The rough sequence of scopes:
 10. ✅ **TUI + init cleanup** (`BIT-9`) — the quit keys exit the TUI from the detail pane
     (not just the list), and re-running `bit init` in an initialized project offers the
     existing prefix as a default (`Task ID prefix (BIT): `) that a bare enter reuses.
+11. ✅ **Archiving & soft deletes** (`BIT-10`) — one relocate mechanism, several triggers:
+    `bit task archive` moves a finished track (and its bars) into `.bit/archive/` so the
+    list, board, and TUI show only live work, and `bit task delete` reuses the same
+    primitive so a mistaken delete is recoverable instead of destroyed. Relocating reserves
+    the ID (never re-minted) and drops the bar from its parent track's order so the sequence
+    stays honest. A track only relocates once every bar is `done` (`--force` overrides), and
+    the `bit_*` skills archive a track on the human's explicit sign-off rather than an
+    automatic status flip.
 
 All of this project's own scoping and planning now lives in `.bit/tasks/` (browse
 it with `bit task list`) rather than root-level markdown files — see the
@@ -124,19 +132,10 @@ What's up next, committed-next, and backlogged. The live tracker is `.bit/tasks/
 
 **Up next:**
 
-- **Archiving & soft deletes** — one mechanism, two triggers: move a task's markdown file
-  out of `tasks/` into a sibling folder (e.g. `.bit/archive/`) that the TUI/list hide by
-  default, rather than leaving a completed track in the way or destroying a deleted one
-  (`bit task delete` currently removes the file outright). Recoverability falls out for
-  free — a task deleted out from under its children becomes a survivable mistake instead of
-  a lost one. Undecided, and part of scoping this: what the folder(s) are called, whether
-  archive and delete share one destination or two, whether there's a restore/view command
-  (leaning deferred — YAGNI), and how `bit task list` filtering treats them. Not yet scoped.
-
-**Committed next — not yet scoped:**
-
-- **Board modal** — toggle a full-detail view for the selected card, so a `todo` item can
-  be inspected without leaving the board.
+- **Board modal** — toggle a full-detail view for the selected card, so a `todo` item can be
+  inspected without leaving the board. The list view already has a detail pane; the board
+  only shows the card face, so there's no way to read a task's body without tabbing back to
+  the list. Not yet scoped.
 
 **Backlog — needs definition before scoping:**
 
@@ -154,8 +153,9 @@ What's up next, committed-next, and backlogged. The live tracker is `.bit/tasks/
 - **Approved / sign-off** — mark a track or bar reviewed-and-ready-to-pick-up, and filter
   on it. Needs a model decision first: a new frontmatter field, a status value, or a
   separate flag — and how it coexists with `todo`/`doing`/`done`.
-- **Viewing the archive** — a filter to show archived tracks; paired with archiving above,
-  not built yet.
+- **Viewing the archive** — a filter (or command) to surface archived tracks. Archiving
+  itself is built (`BIT-10`); a restore/view command was deferred (YAGNI), so this is the
+  read-side that pairs with it — not built yet.
 - **UI polish** — general TUI visual improvements.
 
 ## Open design questions
