@@ -72,6 +72,7 @@ type model struct {
 	style         string
 	renderer      *glamour.TermRenderer
 	detailFocused bool
+	modalOpen     bool
 }
 
 func New(tasks []*task.Task) model {

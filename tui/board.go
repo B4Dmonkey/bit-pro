@@ -74,6 +74,10 @@ func newColumnList(tasks []*task.Task) list.Model {
 }
 
 func (m model) updateBoard(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if msg.Code == tea.KeyEnter {
+		m.modalOpen = true
+		return m, nil
+	}
 	switch msg.String() {
 	case "q", "esc", "ctrl+c":
 		return m, tea.Quit

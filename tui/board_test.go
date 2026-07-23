@@ -277,6 +277,36 @@ func TestView_BoardHelp(t *testing.T) {
 	}
 }
 
+func TestUpdate_BoardEnterOpensModal(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		enter bool
+		want  bool
+	}{
+		{"no key leaves modal closed", false, false},
+		{"enter opens modal", true, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo", Body: "body"}})
+			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+			if tt.enter {
+				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+			}
+
+			if got := mdl.(model).modalOpen; got != tt.want {
+				t.Errorf("modalOpen = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestUpdate_BoardQuits(t *testing.T) {
 	t.Parallel()
 
