@@ -97,7 +97,25 @@ func (s *Store) Relocate(id string, force bool) error {
 			return err
 		}
 	}
-	return s.relocate(id)
+	if err := s.relocate(id); err != nil {
+		return err
+	}
+	if parent, ok := barParent(id); ok {
+		return s.removeFromOrder(parent, id)
+	}
+	return nil
+}
+
+func (s *Store) removeFromOrder(parent, id string) error {
+	track, err := s.Load(parent)
+	if err != nil {
+		return err
+	}
+	if len(track.Order) == 0 {
+		return nil
+	}
+	track.Order = slices.DeleteFunc(track.Order, func(x string) bool { return x == id })
+	return s.Save(track)
 }
 
 func (s *Store) Load(id string) (*Task, error) {

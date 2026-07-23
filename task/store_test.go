@@ -188,6 +188,58 @@ func TestStoreRelocate_ContainsUntrustedID(t *testing.T) {
 	}
 }
 
+func TestStoreRelocate_DropsBarFromParentOrder(t *testing.T) {
+	t.Parallel()
+
+	s := New(t.TempDir())
+	if err := s.Save(&Task{ID: "BIT-1", Status: "done", Order: []string{"BIT-1.1", "BIT-1.2", "BIT-1.3"}}); err != nil {
+		t.Fatalf("seeding BIT-1: %v", err)
+	}
+	for _, id := range []string{"BIT-1.1", "BIT-1.2", "BIT-1.3"} {
+		if err := s.Save(&Task{ID: id, Status: "done"}); err != nil {
+			t.Fatalf("seeding %s: %v", id, err)
+		}
+	}
+
+	if err := s.Relocate("BIT-1.2", false); err != nil {
+		t.Fatalf("Relocate() returned error: %v", err)
+	}
+
+	got, err := s.Load("BIT-1")
+	if err != nil {
+		t.Fatalf("loading BIT-1: %v", err)
+	}
+	if want := []string{"BIT-1.1", "BIT-1.3"}; !slices.Equal(got.Order, want) {
+		t.Errorf("Order = %v, want %v", got.Order, want)
+	}
+}
+
+func TestStoreRelocate_LeavesLegacyOrderUnmaterialized(t *testing.T) {
+	t.Parallel()
+
+	s := New(t.TempDir())
+	if err := s.Save(&Task{ID: "BIT-1", Status: "done", Order: nil}); err != nil {
+		t.Fatalf("seeding BIT-1: %v", err)
+	}
+	for _, id := range []string{"BIT-1.1", "BIT-1.2"} {
+		if err := s.Save(&Task{ID: id, Status: "done"}); err != nil {
+			t.Fatalf("seeding %s: %v", id, err)
+		}
+	}
+
+	if err := s.Relocate("BIT-1.1", false); err != nil {
+		t.Fatalf("Relocate() returned error: %v", err)
+	}
+
+	got, err := s.Load("BIT-1")
+	if err != nil {
+		t.Fatalf("loading BIT-1: %v", err)
+	}
+	if len(got.Order) != 0 {
+		t.Errorf("Order = %v, want empty", got.Order)
+	}
+}
+
 func TestStoreNextID(t *testing.T) {
 	t.Parallel()
 

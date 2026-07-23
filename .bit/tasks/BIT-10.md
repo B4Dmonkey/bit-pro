@@ -11,6 +11,7 @@ order:
     - BIT-10.5
     - BIT-10.6
     - BIT-10.7
+    - BIT-10.9
 ---
 ## Why
 
@@ -31,8 +32,9 @@ the board, and `--parent` views for free. Relocating **reserves the ID**: `NextI
 `NextChildID` count archived files, so archiving `BIT-12` still leaves `BIT-13` next and a
 stored ID is never silently re-minted onto a different task. Triggers wire onto this primitive
 in delivery order: an archive action (declutter done work — the felt pain), a non-destructive
-`bit task delete` (recoverable), and finally the bit_* skill lifecycle so a track gets archived
-when the human explicitly signs it off as done.
+`bit task delete` (recoverable), a fix so relocating keeps the parent track's bar ordering
+consistent, and finally the bit_* skill lifecycle so a track gets archived when the human
+explicitly signs it off as done.
 
 ## Visual aid
 
@@ -54,10 +56,16 @@ before                          after (archive BIT-9 / delete BIT-9)
 - **Relocating reserves the ID.** Archiving `BIT-12` does not free `12` — `NextID`/
   `NextChildID` count `archive/`, so the next ID is `13`. A stored ID is stable identity and is
   never silently re-minted onto a different task.
+- **Relocating a bar updates its parent track's `Order`.** The relocate primitive renames the
+  file but never touched the parent's ordering list, so an archived or deleted bar left a
+  phantom entry behind. Relocating must also drop the bar's id from its parent's `Order`,
+  keeping the "every write goes through `bit`, so the list ⇄ files stay in sync" invariant true
+  on the relocate path too. (A track relocate is covered for free — its bars' parent is the
+  track being removed.)
 - **Explicit human sign-off marks a track done — not auto-rollup.** Finishing the last bar
   rolls its verse up, but the track is *not* auto-flipped to `done`; the human makes that call
-  after a final check, and it's that call that triggers the archive. So Verse 3 must change
-  bit_do's rollup to stop short of auto-`done` and leave the final track-done to the person.
+  after a final check, and it's that call that triggers the archive. So the lifecycle verse must
+  change bit_do's rollup to stop short of auto-`done` and leave the final track-done to the person.
 - **Relocating a track cascades to its bars.** Archiving or deleting a track moves the track
   *and* all its bars into `.bit/archive/` in one action, so a finished (or discarded) track
   never leaves its bars cluttering the list — the declutter goal holds on every path. The
@@ -82,7 +90,18 @@ before                          after (archive BIT-9 / delete BIT-9)
   guard and `--force` as archive).
   Touches: `task/store.go` (`Delete` relocates instead of `os.Remove`), `cmd/task_delete.go`
   (confirmation wording).
-- [ ] Verse 3 (last) — Archiving becomes part of the lifecycle: update the bit_* skills (via
+- [ ] Verse 3 — Relocating keeps a track's bar ordering honest: after a bar is archived or
+  deleted, its id is dropped from the parent track's `Order` list too, so the ordering never
+  carries a phantom entry pointing at a bar that's no longer live — restore and anything that
+  reads `Order` stay trustworthy. Discovered after Verses 1–2 shipped: the relocate primitive
+  renamed the file but never updated `Order` (only `move`/`create` ever wrote it), so the
+  documented "`delete` removes from the order list" contract was quietly false. Harmless today
+  only because `List` globs `tasks/` — but Verse 4 introduces dropping a bar mid-plan by
+  archiving it, which is exactly when a *live* track would be left holding a phantom entry, so
+  the primitive needs fixing before that workflow ships on top of it.
+  Touches: `task/store.go` (the relocate primitive also drops the id from the parent's `Order`),
+  `assets/bit-cli.md` (the "`delete` removes from it" line becomes accurate).
+- [ ] Verse 4 (last) — Archiving becomes part of the lifecycle: update the bit_* skills (via
   skill-creator) so a track is archived on the human's explicit sign-off (per the decision
   above — a deliberate final call, not an automatic status flip), and a step dropped mid-plan
   is archived rather than `delete`d so its ID isn't freed. Finished and abandoned work leaves
@@ -93,4 +112,5 @@ before                          after (archive BIT-9 / delete BIT-9)
   `.claude/skills/` would leave `init` shipping stale copies.
   Touches: `assets/skills/bit_do/` (the seeded source of truth, incl. the rollup change from the
   decision above; and `bit_plan`/`bit_scope` if their lifecycle docs mention archiving), the
-  repo's own `.claude/skills/` copies kept in sync.
+  repo's own `.claude/skills/` copies kept in sync, and `assets/bit-cli.md` (rephrase the
+  "status spelling matters" rollup example — all-bars-`done` no longer auto-flips a track).
