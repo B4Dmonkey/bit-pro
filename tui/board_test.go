@@ -7,6 +7,7 @@ import (
 
 	"github.com/B4Dmonkey/bit-pro/task"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 func TestGroupByStatus(t *testing.T) {
@@ -431,6 +432,44 @@ func TestUpdate_ModalCapturesInput(t *testing.T) {
 			mdl, cmd := mdl.Update(tt.key)
 
 			tt.check(t, mdl, cmd)
+		})
+	}
+}
+
+func TestUpdate_ModalScrollsLongBody(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		key  tea.KeyPressMsg
+	}{
+		{"down arrow", tea.KeyPressMsg{Code: tea.KeyDown}},
+		{"j", tea.KeyPressMsg{Code: 'j', Text: "j"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo", Title: "T", Body: strings.Repeat("line\n", 500)}})
+			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+			opened := mdl.(model)
+			if got := opened.modalViewport.YOffset(); got != 0 {
+				t.Fatalf("YOffset after open = %d, want 0", got)
+			}
+
+			mdl, _ = mdl.Update(tt.key)
+
+			scrolled := mdl.(model)
+			if got := scrolled.modalViewport.YOffset(); got <= 0 {
+				t.Errorf("YOffset after %s = %d, want > 0", tt.name, got)
+			}
+			if h := lipgloss.Height(scrolled.View().Content); h > 24 {
+				t.Errorf("View height = %d, want <= 24", h)
+			}
 		})
 	}
 }

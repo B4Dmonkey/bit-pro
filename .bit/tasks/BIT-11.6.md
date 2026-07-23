@@ -1,7 +1,7 @@
 ---
 id: BIT-11.6
 title: Long bodies scroll inside the modal
-status: todo
+status: done
 phase: 2
 phase_label: Scroll in modal
 ---

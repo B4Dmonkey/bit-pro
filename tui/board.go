@@ -89,6 +89,10 @@ func (m model) updateBoard(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case "ctrl+c":
 			return m, tea.Quit
+		case "up", "down", "left", "right", "j", "k", "h", "l":
+			var cmd tea.Cmd
+			m.modalViewport, cmd = m.modalViewport.Update(msg)
+			return m, cmd
 		}
 		return m, nil
 	}

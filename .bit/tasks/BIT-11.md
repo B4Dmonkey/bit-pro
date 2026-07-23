@@ -72,7 +72,7 @@ board (no modal)                  modal open (Enter on selected card)
   exercises lipgloss's v2 compositor over the live board render. Touches: `tui/board.go`
   (updateBoard key handling, the overlay view), `tui/model.go` (model gains modal state;
   Update routes Enter/close/quit) — where to look to verify.
-- [ ] Verse 2 — Read a long body by scrolling inside the modal: a body taller than the modal
+- [x] Verse 2 — Read a long body by scrolling inside the modal: a body taller than the modal
   scrolls within it (ctrl+u/ctrl+d) instead of overflowing the box, so long tracks are fully
   readable on the board. Touches: `tui/model.go` (the modal's viewport sizing + scroll-key
   routing, reusing the list detail's viewport) — where to look to verify.
