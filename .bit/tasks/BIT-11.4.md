@@ -1,7 +1,7 @@
 ---
 id: BIT-11.4
 title: q/esc close the modal, app stays open
-status: todo
+status: done
 phase: 1
 phase_label: Open & dismiss
 ---

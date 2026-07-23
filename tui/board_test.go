@@ -337,6 +337,38 @@ func TestView_ModalShowsBody(t *testing.T) {
 	}
 }
 
+func TestUpdate_ModalCloses(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		key  tea.KeyPressMsg
+	}{
+		{"q", tea.KeyPressMsg{Code: 'q', Text: "q"}},
+		{"esc", tea.KeyPressMsg{Code: tea.KeyEsc}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo", Body: "body"}})
+			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+			mdl, cmd := mdl.Update(tt.key)
+
+			if mdl.(model).modalOpen {
+				t.Errorf("modalOpen = true, want false")
+			}
+			if cmd != nil {
+				t.Errorf("cmd = %T, want nil", cmd())
+			}
+		})
+	}
+}
+
 func TestUpdate_BoardEnterEmptyColumnNoop(t *testing.T) {
 	t.Parallel()
 

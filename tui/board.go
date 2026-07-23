@@ -82,6 +82,13 @@ func (m model) boardSelected() *task.Task {
 }
 
 func (m model) updateBoard(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if m.modalOpen {
+		switch msg.String() {
+		case "q", "esc":
+			m.modalOpen = false
+			return m, nil
+		}
+	}
 	if msg.Code == tea.KeyEnter {
 		if m.boardSelected() != nil {
 			m.modalOpen = true
