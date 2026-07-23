@@ -160,21 +160,55 @@ TDD is red-green-**refactor**. After accumulating 3–7 examples of a pattern, c
 
 ## Verification split
 
-After the TDD cycle in each step, there are two types of additional checks:
+After the TDD cycle in each step, there are two kinds of additional check.
 
-**Claude verifies** — deterministic, scriptable:
+**Claude verifies** — deterministic, scriptable, run before the bar is handed over:
 - Tests pass (`make test`, `go test ./...`, specific test file)
 - Linter passes (`make lint`)
 - Build succeeds (`make build`)
 - Specific output assertion (e.g., count matches, format correct)
 
-**User verifies** — judgment calls that require human eyes:
-- Business logic makes sense for real data
-- API design feels right
-- Safe to commit or deploy
-- Approach aligns with team conventions
+**User verifies** — a concrete manual check the automated tests can't make: something the
+human *does* in the running system and *observes* a specific result. There's an action and a
+pass/fail.
 
-Never put a judgment call in "Claude verifies." Never put an automatable check in "User verifies."
+- "In `bit tui`, press `→`, then confirm `q`/`esc`/`ctrl+c` each quit and `ctrl+d` still scrolls."
+- "`git status`: these files are added; the only diffs to `.claude/` are X."
+- "Run `bit task list` against the real records — the 13 bars under BIT-2 stay in one column, nothing wraps."
+
+The litmus test: *could the user pass or fail this by doing one thing and looking?* If there's
+no action-and-observation — if you're asking them to **bless a choice** rather than **observe a
+behavior** — it isn't a verification. See the two traps below.
+
+Never put a judgment call in "Claude verifies." Never put an automatable check in "User
+verifies." Not every bar needs a User-verify — a pure-plumbing bar the Claude-checks already
+cover should say so ("none — deterministic") rather than manufacture one.
+
+### Trap 1: a decision wearing a checkbox
+
+If you catch yourself writing *"X is acceptable"*, *"reads naturally"*, *"feels right"*, *"is a
+reasonable shape"*, *"is the right call — worth confirming"* — stop. That's not something the
+user can pass or fail; it's a **choice**, and a choice is a scope Decision, not a plan
+verification. It shows up because the scope never settled it, so the plan launders the open
+question into a fake checkbox — "the `archive` command reads naturally next to `delete`" is a
+naming call; "the refusal message reads clearly" is copy; neither is a check.
+
+When this happens, **hand back to bit_scope** to record the choice as a Decision — its Decisions
+section is exactly for naming, wording, data-shape, and strategy calls, and they double as
+acceptance criteria. Once it's decided, the bar either needs no User-verify or gets a concrete
+one that *observes* the now-settled behavior. Don't ship the launder.
+
+### Trap 2: a "how does it feel" spread across every bar
+
+Some checks are real but subjective — *does the whole slice integrate, does this capability feel
+right end to end.* Legitimate, but they're about the **verse as a delivered capability**, not any
+single bar. Scattering "does this feel natural" onto each bar drags a squishy check no one can
+answer until the slice is whole — and manufactures busywork.
+
+Put the verse's one integration/feel check on its **last bar** — the one that completes the verse
+— phrased against the capability the verse unlocks ("Whole slice: archiving a done track moves it
+and its bars out of the active view — the declutter goal actually lands"). Earlier bars carry
+only their own concrete checks, or none.
 
 **Claude never commits.** The plan includes a suggested commit message per step, but committing is always the user's action.
 
@@ -219,7 +253,7 @@ The **bar body** uses this structure — no `## Step N` heading (the title is th
 - [ ] linter passes
 
 **User verifies:**
-- [ ] [judgment call, if any — not every step needs one]
+- [ ] [concrete manual check — do X, observe Y; omit on a pure-plumbing bar. A verse's integration/feel check goes on its *last* bar. Never a decision-in-disguise ("reads naturally", "is acceptable") — that's a scope Decision, hand it back.]
 
 **Commit (user):** `feat(scope): short description`
 ```
@@ -236,8 +270,9 @@ The throughline that used to live in a plan's "How this plan works" section — 
 4. Check the throughline: can you trace *why* each bar exists? Every bar after the first should be forced by a contradiction or dependency. If a bar says "now implement X" without a test that demands it, flag it — something is missing.
 5. Review each bar: does it start with a test? Is it one red-green cycle?
 6. Flag any bar that bundles multiple scenarios (split it into two bars — each earns its own commit)
-7. Flag YAGNI violations, over-bundled bars, or missing verification
-8. Apply edits through the CLI: reword a bar with `task update <bar> -d "…"`, add a missing step with `task create --parent …`, and **reorder a misplaced bar with `task move <bar> --before|--after <sibling>`** — the ID is stable identity, so moving a bar rewrites only the track's order list and every reference to that bar (commit messages, notes) stays valid. Don't delete-and-recreate to reorder; that churns IDs and breaks those references. Propose changes with reasoning — don't silently rewrite large sections.
+7. Check each bar's **User verifies** against the two traps (see Verification split): a decision-in-disguise ("reads naturally", "is acceptable", "feels right") is a missing scope Decision — flag it and hand back to bit_scope; a subjective "how does it feel" on a non-final bar belongs on its verse's last bar instead. A concrete do-X-observe-Y check is fine as is.
+8. Flag YAGNI violations, over-bundled bars, or missing verification
+9. Apply edits through the CLI: reword a bar with `task update <bar> -d "…"`, add a missing step with `task create --parent …`, and **reorder a misplaced bar with `task move <bar> --before|--after <sibling>`** — the ID is stable identity, so moving a bar rewrites only the track's order list and every reference to that bar (commit messages, notes) stays valid. Don't delete-and-recreate to reorder; that churns IDs and breaks those references. Propose changes with reasoning — don't silently rewrite large sections.
 
 Confirm with the user before rewriting more than a few bars.
 

@@ -83,6 +83,8 @@ The target state at handoff to bit_plan is a **Risks & unknowns section that's e
 
 **Decisions double as acceptance criteria.** They're the constraints bit_plan and bit_do must honour — the things that have to hold true for the work to be right. Writing them down here is what keeps a downstream plan from quietly relitigating a call the user already made.
 
+**Design choices are decisions too.** A naming call (is the command `archive` or `stash`?), user-facing wording, the shape of stored data, an ID strategy — these are choices, and a choice left open here doesn't vanish; it resurfaces downstream as a bogus "User verifies: the command reads naturally" checkbox, because bit_plan had nowhere to defer to and launders the open question into a fake check. If bit_plan hands one back — "this reads like a choice, not a check" — that's the signal: settle it here as a Decision. Deciding it once, in the open, is what stops it from being relitigated as a fake verification later.
+
 ---
 
 ## Gathering context (new scopes)
