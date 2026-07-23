@@ -1,7 +1,7 @@
 ---
 id: BIT-10.7
 title: Delete honors the guard and --force
-status: doing
+status: done
 phase: 2
 phase_label: Non-destructive delete
 ---

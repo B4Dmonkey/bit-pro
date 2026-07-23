@@ -76,7 +76,7 @@ before                          after (archive BIT-9 / delete BIT-9)
   mechanism end to end.
   Touches: a new `cmd/task_archive.go`, `task/store.go` (the relocate primitive; `NextID`/
   `NextChildID` scan `archive/` so IDs stay reserved).
-- [ ] Verse 2 — Deleting a task no longer loses it: `bit task delete <id>` reuses the relocate
+- [x] Verse 2 — Deleting a task no longer loses it: `bit task delete <id>` reuses the relocate
   primitive instead of `os.Remove`, so a fat-fingered delete is survivable — the file is still
   on disk, its ID stays reserved, and deleting a track takes its bars with it (same all-done
   guard and `--force` as archive).
