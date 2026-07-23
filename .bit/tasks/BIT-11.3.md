@@ -1,7 +1,7 @@
 ---
 id: BIT-11.3
 title: Modal floats the card body over the board
-status: todo
+status: done
 phase: 1
 phase_label: Open & dismiss
 ---

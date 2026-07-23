@@ -307,6 +307,36 @@ func TestUpdate_BoardEnterOpensModal(t *testing.T) {
 	}
 }
 
+func TestView_ModalShowsBody(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		enter bool
+		want  bool
+	}{
+		{"closed hides body", false, false},
+		{"open shows body", true, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo", Title: "T", Body: "MODALBODYTOKEN"}})
+			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+			if tt.enter {
+				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+			}
+
+			if got := strings.Contains(mdl.(model).View().Content, "MODALBODYTOKEN"); got != tt.want {
+				t.Errorf("View contains body token = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestUpdate_BoardEnterEmptyColumnNoop(t *testing.T) {
 	t.Parallel()
 

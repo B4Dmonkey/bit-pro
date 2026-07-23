@@ -58,6 +58,7 @@ func (k keyMap) FullHelp() [][]key.Binding {
 type model struct {
 	list.Model
 	viewport      viewport.Model
+	modalViewport viewport.Model
 	help          help.Model
 	keys          keyMap
 	boardKeys     boardKeyMap
@@ -88,11 +89,12 @@ func New(tasks []*task.Task) model {
 		style = styles.DarkStyle
 	}
 	vp := viewport.New()
+	mvp := viewport.New()
 	var boardCols [3]list.Model
 	for i, cards := range groupByStatus(tasks) {
 		boardCols[i] = newColumnList(cards)
 	}
-	return model{Model: l, viewport: vp, help: help.New(), keys: newKeyMap(), boardKeys: newBoardKeyMap(), style: style, boardCols: boardCols}
+	return model{Model: l, viewport: vp, modalViewport: mvp, help: help.New(), keys: newKeyMap(), boardKeys: newBoardKeyMap(), style: style, boardCols: boardCols}
 }
 
 func (m model) Init() tea.Cmd { return nil }
@@ -175,6 +177,25 @@ func (m *model) refreshDetail() {
 	m.viewport.GotoTop()
 }
 
+func (m *model) refreshModal() {
+	t := m.boardSelected()
+	if t == nil {
+		m.modalViewport.SetContent("")
+		return
+	}
+	innerW, innerH := modalInner(m.winWidth, m.winHeight)
+	m.modalViewport.SetWidth(innerW)
+	m.modalViewport.SetHeight(innerH)
+	body := t.Body
+	if r := newRenderer(m.style, max(innerW, 1)); r != nil {
+		if out, err := r.Render(t.Body); err == nil {
+			body = out
+		}
+	}
+	m.modalViewport.SetContent(body)
+	m.modalViewport.GotoTop()
+}
+
 func (m model) helpKeys() help.KeyMap {
 	if m.mode == modeBoard {
 		return m.boardKeys
@@ -205,7 +226,11 @@ func (m model) View() tea.View {
 
 func (m model) content() string {
 	if m.mode == modeBoard {
-		return lipgloss.JoinVertical(lipgloss.Left, boardView(m), m.help.View(m.helpKeys()))
+		board := boardView(m)
+		if m.modalOpen {
+			board = modalView(m, board)
+		}
+		return lipgloss.JoinVertical(lipgloss.Left, board, m.help.View(m.helpKeys()))
 	}
 	listTitle := fmt.Sprintf("Tasks (%d)", len(m.Items()))
 	listPane := titledBorder(m.Model.View(), listTitle, max(m.listWidth-2, 0), max(m.height-2, 0), !m.detailFocused)

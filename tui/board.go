@@ -85,6 +85,7 @@ func (m model) updateBoard(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if msg.Code == tea.KeyEnter {
 		if m.boardSelected() != nil {
 			m.modalOpen = true
+			m.refreshModal()
 		}
 		return m, nil
 	}
@@ -105,6 +106,27 @@ func (m model) updateBoard(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 	return m, nil
+}
+
+func modalInner(winWidth, winHeight int) (innerW, innerH int) {
+	modalW := 2 * winWidth / 3
+	modalH := winHeight - 6
+	return max(modalW-4, 1), max(modalH-3, 1)
+}
+
+func modalView(m model, board string) string {
+	t := m.boardSelected()
+	if t == nil {
+		return board
+	}
+	innerW, innerH := modalInner(m.winWidth, m.winHeight)
+	title := t.ID + " — " + t.Title
+	box := titledBorder(m.modalViewport.View(), title, innerW, innerH, true)
+	cx := max((m.winWidth-lipgloss.Width(box))/2, 0)
+	cy := max((lipgloss.Height(board)-lipgloss.Height(box))/2, 0)
+	base := lipgloss.NewLayer(board)
+	modal := lipgloss.NewLayer(box).X(cx).Y(cy).Z(1)
+	return lipgloss.NewCompositor(base, modal).Render()
 }
 
 func boardView(m model) string {
