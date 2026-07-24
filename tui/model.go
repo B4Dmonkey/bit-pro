@@ -29,7 +29,10 @@ type item struct {
 
 type reloadedMsg struct {
 	tasks []*task.Task
+	err   error
 }
+
+type tickMsg struct{}
 
 func (i item) FilterValue() string { return i.t.Title }
 func (i item) Title() string       { return i.t.Title }
@@ -76,6 +79,7 @@ type model struct {
 	height        int
 	style         string
 	renderer      *glamour.TermRenderer
+	reload        func() ([]*task.Task, error)
 	detailFocused bool
 	modalOpen     bool
 }
@@ -103,6 +107,17 @@ func New(tasks []*task.Task) model {
 
 func (m model) Init() tea.Cmd { return nil }
 
+func (m model) reloadCmd() tea.Cmd {
+	if m.reload == nil {
+		return nil
+	}
+	reload := m.reload
+	return func() tea.Msg {
+		tasks, err := reload()
+		return reloadedMsg{tasks: tasks, err: err}
+	}
+}
+
 func (m *model) setTasks(tasks []*task.Task) {
 	items := make([]list.Item, len(tasks))
 	for i, t := range tasks {
@@ -118,6 +133,8 @@ func (m *model) setTasks(tasks []*task.Task) {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tickMsg:
+		return m, m.reloadCmd()
 	case reloadedMsg:
 		m.setTasks(msg.tasks)
 		return m, nil

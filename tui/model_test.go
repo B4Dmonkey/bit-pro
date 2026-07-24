@@ -67,6 +67,29 @@ func TestUpdate_ReloadedMsgRebuildsBoard(t *testing.T) {
 	}
 }
 
+func TestUpdate_TickTriggersReload(t *testing.T) {
+	t.Parallel()
+
+	m := New(nil)
+	m.reload = func() ([]*task.Task, error) { return []*task.Task{{ID: "BIT-9"}}, nil }
+
+	_, cmd := m.Update(tickMsg{})
+
+	if cmd == nil {
+		t.Fatal("tickMsg produced cmd = nil, want a reload cmd")
+	}
+	rm, ok := cmd().(reloadedMsg)
+	if !ok {
+		t.Fatalf("tickMsg cmd() = %T, want reloadedMsg", cmd())
+	}
+	if len(rm.tasks) != 1 || rm.tasks[0].ID != "BIT-9" {
+		t.Errorf("reloadedMsg tasks = %v, want one task BIT-9", rm.tasks)
+	}
+	if rm.err != nil {
+		t.Errorf("reloadedMsg err = %v, want nil", rm.err)
+	}
+}
+
 func TestUpdate_ForwardsNavigationToList(t *testing.T) {
 	t.Parallel()
 

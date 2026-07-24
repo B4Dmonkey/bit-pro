@@ -1,7 +1,7 @@
 ---
 id: BIT-13.3
 title: A tick triggers a reload from the injected source
-status: todo
+status: done
 phase: 1
 phase_label: See CLI edits
 ---
