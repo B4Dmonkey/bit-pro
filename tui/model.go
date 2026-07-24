@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/B4Dmonkey/bit-pro/task"
 	"charm.land/bubbles/v2/help"
@@ -105,7 +106,23 @@ func New(tasks []*task.Task) model {
 	return model{Model: l, viewport: vp, modalViewport: mvp, help: help.New(), keys: newKeyMap(), boardKeys: newBoardKeyMap(), style: style, boardCols: boardCols}
 }
 
-func (m model) Init() tea.Cmd { return nil }
+const pollInterval = time.Second
+
+func tick() tea.Cmd {
+	return tea.Tick(pollInterval, func(time.Time) tea.Msg { return tickMsg{} })
+}
+
+func (m model) WithReload(r func() ([]*task.Task, error)) model {
+	m.reload = r
+	return m
+}
+
+func (m model) Init() tea.Cmd {
+	if m.reload != nil {
+		return tick()
+	}
+	return nil
+}
 
 func (m model) reloadCmd() tea.Cmd {
 	if m.reload == nil {
@@ -137,7 +154,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.reloadCmd()
 	case reloadedMsg:
 		m.setTasks(msg.tasks)
-		return m, nil
+		return m, tick()
 	case tea.WindowSizeMsg:
 		m.winWidth, m.winHeight = msg.Width, msg.Height
 		m.layout()

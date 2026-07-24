@@ -1,7 +1,7 @@
 ---
 id: BIT-13.4
 title: The poll loop starts, sustains itself, wired to store
-status: todo
+status: done
 phase: 1
 phase_label: See CLI edits
 ---

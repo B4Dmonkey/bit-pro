@@ -12,11 +12,12 @@ func newTUICmd() *cobra.Command {
 		Short: "Browse tasks in a terminal UI",
 		Args:  cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			tasks, err := task.New(bitDir).List()
+			s := task.New(bitDir)
+			tasks, err := s.List()
 			if err != nil {
 				return err
 			}
-			return tui.Run(tui.New(tasks))
+			return tui.Run(tui.New(tasks).WithReload(s.List))
 		},
 	}
 }

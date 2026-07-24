@@ -55,7 +55,7 @@ after:   tea.Tick ──interval──> Store.List() ──changed?──> reloa
 
 ## Verses
 
-- [ ] Verse 1 — See CLI edits without restarting: with the TUI open, a task created, changed,
+- [x] Verse 1 — See CLI edits without restarting: with the TUI open, a task created, changed,
   or removed through the CLI appears in the list and board on its own — no quit-and-relaunch.
   The thinnest end-to-end path: a tick reloads and rebuilds every interval; selection may
   reset until Verse 2.

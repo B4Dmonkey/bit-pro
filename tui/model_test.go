@@ -90,6 +90,32 @@ func TestUpdate_TickTriggersReload(t *testing.T) {
 	}
 }
 
+func TestInit_StartsPollingWhenReloadSet(t *testing.T) {
+	t.Parallel()
+
+	set := New(nil).WithReload(func() ([]*task.Task, error) { return nil, nil })
+	none := New(nil)
+
+	if set.Init() == nil {
+		t.Error("Init() with reload set = nil, want a poll cmd")
+	}
+	if none.Init() != nil {
+		t.Error("Init() with no reload = non-nil, want nil")
+	}
+}
+
+func TestUpdate_ReloadedMsgReschedules(t *testing.T) {
+	t.Parallel()
+
+	m := New(nil).WithReload(func() ([]*task.Task, error) { return nil, nil })
+
+	_, cmd := m.Update(reloadedMsg{tasks: nil})
+
+	if cmd == nil {
+		t.Error("reloadedMsg produced cmd = nil, want the next poll cmd")
+	}
+}
+
 func TestUpdate_ForwardsNavigationToList(t *testing.T) {
 	t.Parallel()
 
