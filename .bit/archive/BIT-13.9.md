@@ -1,7 +1,7 @@
 ---
 id: BIT-13.9
 title: A failed reload holds the last good view
-status: todo
+status: done
 phase: 3
 phase_label: Quiet & safe
 ---

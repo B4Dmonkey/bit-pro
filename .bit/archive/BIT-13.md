@@ -1,7 +1,7 @@
 ---
 id: BIT-13
 title: Live-reload the TUI
-status: doing
+status: done
 ---
 ## Why
 
@@ -67,7 +67,7 @@ after:   tea.Tick ──interval──> Store.List() ──changed?──> reloa
   pulling you out of context.
   Touches: `tui/model.go` (reconcile the new task set against the current selection by ID;
   preserve column / mode / modal / scroll).
-- [ ] Verse 3 — The poll stays quiet and safe: a tick refreshes only when the listing
+- [x] Verse 3 — The poll stays quiet and safe: a tick refreshes only when the listing
   actually changed, so nothing rebuilds (and nothing flickers) while the task set is
   unchanged, and a burst of writes between ticks collapses into one refresh; a tick that
   reads a file mid-write holds the last good view instead of blanking or crashing.

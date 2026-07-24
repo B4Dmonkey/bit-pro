@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -113,6 +114,23 @@ func TestUpdate_ReloadedMsgReschedules(t *testing.T) {
 
 	if cmd == nil {
 		t.Error("reloadedMsg produced cmd = nil, want the next poll cmd")
+	}
+}
+
+func TestUpdate_ReloadErrorHoldsView(t *testing.T) {
+	t.Parallel()
+
+	m := New(nil).WithReload(func() ([]*task.Task, error) { return nil, nil })
+
+	good, _ := m.Update(reloadedMsg{tasks: []*task.Task{{ID: "BIT-1"}, {ID: "BIT-2"}}})
+
+	updated, cmd := good.(model).Update(reloadedMsg{tasks: nil, err: errors.New("mid-write")})
+
+	if got := len(updated.(model).Items()); got != 2 {
+		t.Fatalf("after errored reloadedMsg, len(Items()) = %d, want 2", got)
+	}
+	if cmd == nil {
+		t.Error("errored reloadedMsg produced cmd = nil, want the next poll cmd")
 	}
 }
 

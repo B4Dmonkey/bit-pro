@@ -197,6 +197,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tickMsg:
 		return m, m.reloadCmd()
 	case reloadedMsg:
+		if msg.err != nil {
+			return m, tick()
+		}
 		if sameTasks(m.loaded, msg.tasks) {
 			return m, tick()
 		}
