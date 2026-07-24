@@ -116,6 +116,24 @@ func TestUpdate_ReloadedMsgReschedules(t *testing.T) {
 	}
 }
 
+func TestUpdate_ReloadPreservesListSelection(t *testing.T) {
+	t.Parallel()
+
+	m := New([]*task.Task{{ID: "BIT-2"}, {ID: "BIT-2.1"}, {ID: "BIT-1"}})
+	m.Select(2)
+
+	updated, _ := m.Update(reloadedMsg{tasks: []*task.Task{
+		{ID: "BIT-3"},
+		{ID: "BIT-2"},
+		{ID: "BIT-2.1"},
+		{ID: "BIT-1"},
+	}})
+
+	if got := updated.(model).selected().ID; got != "BIT-1" {
+		t.Errorf("after reload, selected().ID = %q, want %q", got, "BIT-1")
+	}
+}
+
 func TestUpdate_ForwardsNavigationToList(t *testing.T) {
 	t.Parallel()
 

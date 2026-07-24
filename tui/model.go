@@ -136,11 +136,23 @@ func (m model) reloadCmd() tea.Cmd {
 }
 
 func (m *model) setTasks(tasks []*task.Task) {
+	var prevID string
+	if t := m.selected(); t != nil {
+		prevID = t.ID
+	}
 	items := make([]list.Item, len(tasks))
 	for i, t := range tasks {
 		items[i] = item{t: t}
 	}
 	m.SetItems(items)
+	if prevID != "" {
+		for i, t := range tasks {
+			if t.ID == prevID {
+				m.Select(i)
+				break
+			}
+		}
+	}
 	for i, cards := range groupByStatus(tasks) {
 		m.boardCols[i] = newColumnList(cards)
 	}

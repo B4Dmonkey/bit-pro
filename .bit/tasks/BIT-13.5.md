@@ -1,7 +1,7 @@
 ---
 id: BIT-13.5
 title: A reload keeps the list selection on the same task
-status: todo
+status: done
 phase: 2
 phase_label: Keep your place
 ---
