@@ -46,6 +46,35 @@ func TestDelegate_UnselectedBarRowFollowsTerminalDefault(t *testing.T) {
 	}
 }
 
+func TestDelegate_SelectedBoardCardInverted(t *testing.T) {
+	t.Parallel()
+
+	l := list.New([]list.Item{item{t: &task.Task{ID: "BIT-1", Title: "Card"}}}, delegate{board: true}, 40, 4)
+	var buf bytes.Buffer
+	delegate{board: true}.Render(&buf, l, 0, l.Items()[0])
+
+	got := buf.String()
+	if !strings.Contains(got, "\x1b[7;32m") {
+		t.Errorf("selected board card = %q, want reverse-green SGR \\x1b[7;32m", got)
+	}
+}
+
+func TestDelegate_SelectedListRowNotInverted(t *testing.T) {
+	t.Parallel()
+
+	l := list.New([]list.Item{item{t: &task.Task{ID: "BIT-1", Title: "Row"}}}, delegate{}, 40, 4)
+	var buf bytes.Buffer
+	delegate{}.Render(&buf, l, 0, l.Items()[0])
+
+	got := buf.String()
+	if !strings.Contains(got, "32m") {
+		t.Errorf("selected list row = %q, want terminal green 32m", got)
+	}
+	if strings.Contains(got, "\x1b[7;32m") {
+		t.Errorf("selected list row = %q, should not be reverse-inverted \\x1b[7;32m", got)
+	}
+}
+
 func TestDelegate_TrackVsBarDistinguishedByWeightNotColor(t *testing.T) {
 	t.Parallel()
 

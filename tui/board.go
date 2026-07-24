@@ -65,7 +65,7 @@ func newColumnList(tasks []*task.Task) list.Model {
 	for i, t := range tasks {
 		items[i] = item{t: t}
 	}
-	l := list.New(items, delegate{}, 0, 0)
+	l := list.New(items, delegate{board: true}, 0, 0)
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
 	l.SetShowTitle(false)

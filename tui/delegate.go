@@ -12,17 +12,20 @@ import (
 var (
 	trackStyle    = lipgloss.NewStyle().Bold(true)
 	barStyle      = lipgloss.NewStyle()
-	verseStyle    = lipgloss.NewStyle().Faint(true).Italic(true)
-	selectedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Bold(true)
+	verseStyle         = lipgloss.NewStyle().Faint(true).Italic(true)
+	selectedStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Bold(true)
+	selectedBoardStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Reverse(true)
 )
 
-type delegate struct{}
+type delegate struct {
+	board bool
+}
 
 func (delegate) Height() int                         { return 1 }
 func (delegate) Spacing() int                        { return 0 }
 func (delegate) Update(tea.Msg, *list.Model) tea.Cmd { return nil }
 
-func (delegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
+func (d delegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
 	it, ok := listItem.(item)
 	if !ok {
 		return
@@ -38,6 +41,9 @@ func (delegate) Render(w io.Writer, m list.Model, index int, listItem list.Item)
 	}
 	if selected {
 		main = selectedStyle
+		if d.board {
+			main = selectedBoardStyle
+		}
 	}
 
 	cursor := "  "
