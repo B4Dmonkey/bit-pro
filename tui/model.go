@@ -363,10 +363,14 @@ func titledBorder(content, title string, width, height int, active bool) string 
 		titleStyle = titleStyle.Foreground(accent).Reverse(true)
 	}
 
-	fill := max(width-lipgloss.Width(title)-3, 0)
+	titleSeg := " " + title + " "
+	if !active {
+		titleSeg = "| " + title + " |"
+	}
+	fill := max(width-lipgloss.Width(titleSeg)-1, 0)
 	left := border.TopLeft + border.Top
 	right := strings.Repeat(border.Top, fill) + border.TopRight
-	top := topStyle.Render(left) + titleStyle.Render(" "+title+" ") + topStyle.Render(right)
+	top := topStyle.Render(left) + titleStyle.Render(titleSeg) + topStyle.Render(right)
 	return lipgloss.JoinVertical(lipgloss.Left, top, boxStyle.Render(content))
 }
 

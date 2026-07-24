@@ -775,6 +775,26 @@ func TestTitledBorder_ActiveTitleInverted(t *testing.T) {
 	}
 }
 
+func TestTitledBorder_InactiveTitleFramed(t *testing.T) {
+	t.Parallel()
+
+	got := titledBorder("body", "Doing (0)", 20, 3, false)
+
+	if !strings.Contains(got, "| Doing (0) |") {
+		t.Errorf("titledBorder inactive = %q, want framed title | Doing (0) |", got)
+	}
+}
+
+func TestTitledBorder_ActiveTitleNotFramed(t *testing.T) {
+	t.Parallel()
+
+	got := titledBorder("body", "Tasks (0)", 20, 3, true)
+
+	if strings.Contains(got, "| Tasks (0) |") {
+		t.Errorf("titledBorder active = %q, should not frame title with pipes", got)
+	}
+}
+
 func TestView_ModalTitleInverted(t *testing.T) {
 	t.Parallel()
 

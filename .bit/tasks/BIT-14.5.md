@@ -1,7 +1,7 @@
 ---
 id: BIT-14.5
 title: Unfocused titles gain a framed look
-status: todo
+status: done
 phase: 2
 phase_label: Focus
 ---
