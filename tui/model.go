@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -81,6 +82,7 @@ type model struct {
 	style         string
 	renderer      *glamour.TermRenderer
 	reload        func() ([]*task.Task, error)
+	loaded        []*task.Task
 	detailFocused bool
 	modalOpen     bool
 }
@@ -103,7 +105,18 @@ func New(tasks []*task.Task) model {
 	for i, cards := range groupByStatus(tasks) {
 		boardCols[i] = newColumnList(cards)
 	}
-	return model{Model: l, viewport: vp, modalViewport: mvp, help: help.New(), keys: newKeyMap(), boardKeys: newBoardKeyMap(), style: style, boardCols: boardCols}
+	return model{Model: l, viewport: vp, modalViewport: mvp, help: help.New(), keys: newKeyMap(), boardKeys: newBoardKeyMap(), style: style, boardCols: boardCols, loaded: tasks}
+}
+
+func sameTasks(a, b []*task.Task) bool {
+	return slices.EqualFunc(a, b, func(x, y *task.Task) bool {
+		return x.ID == y.ID &&
+			x.Status == y.Status &&
+			x.Title == y.Title &&
+			x.Body == y.Body &&
+			x.Phase == y.Phase &&
+			x.PhaseLabel == y.PhaseLabel
+	})
 }
 
 const pollInterval = time.Second
@@ -174,6 +187,7 @@ func (m *model) setTasks(tasks []*task.Task) {
 	if m.modalOpen {
 		m.refreshModal()
 	}
+	m.loaded = tasks
 	m.layout()
 	m.refreshDetail()
 }
@@ -183,6 +197,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tickMsg:
 		return m, m.reloadCmd()
 	case reloadedMsg:
+		if sameTasks(m.loaded, msg.tasks) {
+			return m, tick()
+		}
 		m.setTasks(msg.tasks)
 		return m, tick()
 	case tea.WindowSizeMsg:

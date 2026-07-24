@@ -1,7 +1,7 @@
 ---
 id: BIT-13.8
 title: A reload only rebuilds when the listing changed
-status: todo
+status: done
 phase: 3
 phase_label: Quiet & safe
 ---

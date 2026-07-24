@@ -193,6 +193,63 @@ func TestUpdate_ReloadPreservesBoardSelection(t *testing.T) {
 	}
 }
 
+func TestSameTasks(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		a    []*task.Task
+		b    []*task.Task
+		want bool
+	}{
+		{
+			name: "identical single task",
+			a:    []*task.Task{{ID: "BIT-1", Status: "todo", Title: "one", Body: "b"}},
+			b:    []*task.Task{{ID: "BIT-1", Status: "todo", Title: "one", Body: "b"}},
+			want: true,
+		},
+		{
+			name: "different length",
+			a:    []*task.Task{{ID: "BIT-1"}},
+			b:    []*task.Task{{ID: "BIT-1"}, {ID: "BIT-2"}},
+			want: false,
+		},
+		{
+			name: "same length different ID",
+			a:    []*task.Task{{ID: "BIT-1"}},
+			b:    []*task.Task{{ID: "BIT-2"}},
+			want: false,
+		},
+		{
+			name: "same ID different Status",
+			a:    []*task.Task{{ID: "BIT-1", Status: "todo"}},
+			b:    []*task.Task{{ID: "BIT-1", Status: "doing"}},
+			want: false,
+		},
+		{
+			name: "same ID different Body",
+			a:    []*task.Task{{ID: "BIT-1", Body: "before"}},
+			b:    []*task.Task{{ID: "BIT-1", Body: "after"}},
+			want: false,
+		},
+		{
+			name: "two tasks reordered",
+			a:    []*task.Task{{ID: "BIT-1"}, {ID: "BIT-2"}},
+			b:    []*task.Task{{ID: "BIT-2"}, {ID: "BIT-1"}},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := sameTasks(tt.a, tt.b); got != tt.want {
+				t.Errorf("sameTasks() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestUpdate_ForwardsNavigationToList(t *testing.T) {
 	t.Parallel()
 
