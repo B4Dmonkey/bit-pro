@@ -95,6 +95,8 @@ func New(tasks []*task.Task) model {
 	l := list.New(items, delegate{}, 0, 0)
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
+	l.SetShowTitle(false)
+	l.SetShowStatusBar(false)
 	style := styles.LightStyle
 	if lipgloss.HasDarkBackground(os.Stdin, os.Stdout) {
 		style = styles.DarkStyle

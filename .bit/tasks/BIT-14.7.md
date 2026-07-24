@@ -1,7 +1,7 @@
 ---
 id: BIT-14.7
 title: Drop the list title heading
-status: todo
+status: done
 phase: 3
 phase_label: Declutter
 ---

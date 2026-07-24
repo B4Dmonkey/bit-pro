@@ -1,7 +1,7 @@
 ---
 id: BIT-14.6
 title: Selected board cards render inverted
-status: doing
+status: done
 phase: 2
 phase_label: Focus
 ---

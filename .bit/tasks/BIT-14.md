@@ -73,7 +73,7 @@ LIST VIEW body
 - [x] Verse 1 — The chrome follows your terminal theme: the purple accent becomes terminal
   green and unselected rows become terminal white, so re-theming the terminal re-colors the
   tool. Touches: `tui/delegate.go` (row styles), `tui/model.go` (`titledBorder` accent).
-- [ ] Verse 2 — Focus is unmistakable: the focused pane's title (list view) and focused
+- [x] Verse 2 — Focus is unmistakable: the focused pane's title (list view) and focused
   column's title (board) render inverted, unfocused board columns show the framed `─| Title |─`
   look, selected cards render inverted, and an opened card modal shows its title inverted.
   Touches: `tui/model.go` (`titledBorder`, `content`), `tui/board.go` (`boardView`, `modalView`),

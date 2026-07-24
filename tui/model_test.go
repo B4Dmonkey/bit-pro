@@ -441,6 +441,34 @@ func TestView_PaneTitles(t *testing.T) {
 	}
 }
 
+func TestView_ListHidesTitleHeading(t *testing.T) {
+	t.Parallel()
+
+	var mdl tea.Model = New(nil)
+	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 60, Height: 16})
+
+	view := mdl.(model).View().Content
+	if strings.Contains(view, "List") {
+		t.Errorf("View() = %q, still renders the List title heading", view)
+	}
+}
+
+func TestView_ListHidesItemCount(t *testing.T) {
+	t.Parallel()
+
+	tasks := make([]*task.Task, 3)
+	for i := range tasks {
+		tasks[i] = &task.Task{ID: "BIT-1"}
+	}
+	var mdl tea.Model = New(tasks)
+	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 60, Height: 16})
+
+	view := mdl.(model).View().Content
+	if strings.Contains(view, "3 items") {
+		t.Errorf("View() = %q, still renders the list item-count status bar", view)
+	}
+}
+
 func TestView_HelpBarPresentAndBounded(t *testing.T) {
 	t.Parallel()
 
