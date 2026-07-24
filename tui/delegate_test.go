@@ -24,3 +24,56 @@ func TestDelegate_SelectedRowUsesTerminalGreen(t *testing.T) {
 		t.Errorf("selected row = %q, still contains 256-purple 38;5;99", got)
 	}
 }
+
+func TestDelegate_UnselectedBarRowFollowsTerminalDefault(t *testing.T) {
+	t.Parallel()
+
+	l := list.New([]list.Item{
+		item{t: &task.Task{ID: "BIT-1", Title: "Track"}},
+		item{t: &task.Task{ID: "BIT-1.1", Title: "Bar"}},
+	}, delegate{}, 40, 6)
+	l.Select(0)
+
+	var buf bytes.Buffer
+	delegate{}.Render(&buf, l, 1, l.Items()[1])
+
+	got := buf.String()
+	if strings.Contains(got, "38;5;245") {
+		t.Errorf("unselected bar row = %q, still contains gray 38;5;245", got)
+	}
+	if !strings.Contains(got, "BIT-1.1") {
+		t.Errorf("unselected bar row = %q, want row text BIT-1.1", got)
+	}
+}
+
+func TestDelegate_TrackVsBarDistinguishedByWeightNotColor(t *testing.T) {
+	t.Parallel()
+
+	l := list.New([]list.Item{
+		item{t: &task.Task{ID: "BIT-1", Title: "Track"}},
+		item{t: &task.Task{ID: "BIT-1.1", Title: "Bar"}},
+	}, delegate{}, 40, 6)
+
+	l.Select(1)
+	var trackBuf bytes.Buffer
+	delegate{}.Render(&trackBuf, l, 0, l.Items()[0])
+
+	l.Select(0)
+	var barBuf bytes.Buffer
+	delegate{}.Render(&barBuf, l, 1, l.Items()[1])
+
+	track := trackBuf.String()
+	bar := barBuf.String()
+	if !strings.Contains(track, "\x1b[1m") {
+		t.Errorf("unselected track = %q, want bold SGR \\x1b[1m", track)
+	}
+	if strings.Contains(bar, "\x1b[1m") {
+		t.Errorf("unselected bar = %q, should not be bold", bar)
+	}
+	if strings.Contains(track, "38;5") {
+		t.Errorf("unselected track = %q, should carry no foreground color", track)
+	}
+	if strings.Contains(bar, "38;5") {
+		t.Errorf("unselected bar = %q, should carry no foreground color", bar)
+	}
+}

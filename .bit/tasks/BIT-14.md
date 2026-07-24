@@ -70,7 +70,7 @@ LIST VIEW body
 
 ## Verses
 
-- [ ] Verse 1 — The chrome follows your terminal theme: the purple accent becomes terminal
+- [x] Verse 1 — The chrome follows your terminal theme: the purple accent becomes terminal
   green and unselected rows become terminal white, so re-theming the terminal re-colors the
   tool. Touches: `tui/delegate.go` (row styles), `tui/model.go` (`titledBorder` accent).
 - [ ] Verse 2 — Focus is unmistakable: the focused pane's title (list view) and focused

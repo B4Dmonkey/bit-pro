@@ -1,7 +1,7 @@
 ---
 id: BIT-14.3
 title: Unselected rows follow terminal default
-status: todo
+status: done
 phase: 1
 phase_label: Theme
 ---
