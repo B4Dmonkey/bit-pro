@@ -62,7 +62,7 @@ after:   tea.Tick ──interval──> Store.List() ──changed?──> reloa
   Touches: `cmd/tui.go` (give the model a reload source — the store / bit dir — not just a
   one-shot task slice), `tui/model.go` (`Init` starts the tick; `Update` handles the tick →
   reload Cmd + reschedule, and the loaded tasks → rebuild list + board).
-- [ ] Verse 2 — The refresh keeps your place: after a live reload the selected card, active
+- [x] Verse 2 — The refresh keeps your place: after a live reload the selected card, active
   column, view mode, and open modal stay put, so an agent's edit updates the view without
   pulling you out of context.
   Touches: `tui/model.go` (reconcile the new task set against the current selection by ID;

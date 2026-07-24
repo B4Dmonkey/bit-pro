@@ -157,6 +157,42 @@ func TestUpdate_ReloadSelectionGoneClamps(t *testing.T) {
 	}
 }
 
+func TestUpdate_ReloadPreservesBoardSelection(t *testing.T) {
+	t.Parallel()
+
+	var mdl tea.Model = New([]*task.Task{
+		{ID: "BIT-1", Status: "todo"},
+		{ID: "BIT-2", Status: "doing"},
+		{ID: "BIT-3", Status: "doing"},
+	})
+	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+
+	mdl, _ = mdl.Update(reloadedMsg{tasks: []*task.Task{
+		{ID: "BIT-1", Status: "todo"},
+		{ID: "BIT-2", Status: "doing"},
+		{ID: "BIT-3", Status: "doing"},
+		{ID: "BIT-4", Status: "todo"},
+	}})
+	got := mdl.(model)
+
+	if got.activeCol != 1 {
+		t.Errorf("after reload, activeCol = %d, want 1", got.activeCol)
+	}
+	if got.mode != modeBoard {
+		t.Errorf("after reload, mode = %v, want modeBoard", got.mode)
+	}
+	sel := got.boardSelected()
+	if sel == nil {
+		t.Fatalf("after reload, boardSelected() = nil, want a valid card")
+	}
+	if sel.ID != "BIT-3" {
+		t.Errorf("after reload, boardSelected().ID = %q, want %q", sel.ID, "BIT-3")
+	}
+}
+
 func TestUpdate_ForwardsNavigationToList(t *testing.T) {
 	t.Parallel()
 

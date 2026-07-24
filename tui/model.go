@@ -156,8 +156,23 @@ func (m *model) setTasks(tasks []*task.Task) {
 		}
 		m.Select(target)
 	}
+	var prevBoardID string
+	if t := m.boardSelected(); t != nil {
+		prevBoardID = t.ID
+	}
 	for i, cards := range groupByStatus(tasks) {
 		m.boardCols[i] = newColumnList(cards)
+	}
+	if prevBoardID != "" {
+		for i, it := range m.boardCols[m.activeCol].Items() {
+			if bi, ok := it.(item); ok && bi.t.ID == prevBoardID {
+				m.boardCols[m.activeCol].Select(i)
+				break
+			}
+		}
+	}
+	if m.modalOpen {
+		m.refreshModal()
 	}
 	m.layout()
 	m.refreshDetail()

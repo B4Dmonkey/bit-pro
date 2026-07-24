@@ -1,7 +1,7 @@
 ---
 id: BIT-13.7
 title: A reload keeps the board card, column, and mode
-status: todo
+status: done
 phase: 2
 phase_label: Keep your place
 ---
