@@ -32,6 +32,25 @@ func TestNew_PreservesStoreOrder(t *testing.T) {
 	}
 }
 
+func TestUpdate_ReloadedMsgRebuildsList(t *testing.T) {
+	t.Parallel()
+
+	m := New([]*task.Task{{ID: "BIT-1"}})
+
+	updated, _ := m.Update(reloadedMsg{tasks: []*task.Task{{ID: "BIT-1"}, {ID: "BIT-2"}}})
+
+	items := updated.(model).Items()
+	if len(items) != 2 {
+		t.Fatalf("after reloadedMsg, len(Items()) = %d, want 2", len(items))
+	}
+	if got := items[0].(item).t.ID; got != "BIT-1" {
+		t.Errorf("items[0].ID = %q, want %q", got, "BIT-1")
+	}
+	if got := items[1].(item).t.ID; got != "BIT-2" {
+		t.Errorf("items[1].ID = %q, want %q", got, "BIT-2")
+	}
+}
+
 func TestUpdate_ForwardsNavigationToList(t *testing.T) {
 	t.Parallel()
 

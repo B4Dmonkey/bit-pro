@@ -27,6 +27,10 @@ type item struct {
 	t *task.Task
 }
 
+type reloadedMsg struct {
+	tasks []*task.Task
+}
+
 func (i item) FilterValue() string { return i.t.Title }
 func (i item) Title() string       { return i.t.Title }
 func (i item) Description() string { return i.t.ID + " · " + i.t.Status }
@@ -99,8 +103,19 @@ func New(tasks []*task.Task) model {
 
 func (m model) Init() tea.Cmd { return nil }
 
+func (m *model) setTasks(tasks []*task.Task) {
+	items := make([]list.Item, len(tasks))
+	for i, t := range tasks {
+		items[i] = item{t: t}
+	}
+	m.SetItems(items)
+}
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case reloadedMsg:
+		m.setTasks(msg.tasks)
+		return m, nil
 	case tea.WindowSizeMsg:
 		m.winWidth, m.winHeight = msg.Width, msg.Height
 		m.layout()
