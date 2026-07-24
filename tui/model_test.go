@@ -469,6 +469,18 @@ func TestView_ListHidesItemCount(t *testing.T) {
 	}
 }
 
+func TestView_EmptyListSingleEmptyState(t *testing.T) {
+	t.Parallel()
+
+	var mdl tea.Model = New(nil)
+	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 60, Height: 16})
+
+	view := mdl.(model).View().Content
+	if got := strings.Count(view, "No items"); got != 1 {
+		t.Errorf("View() = %q, %d %q lines, want exactly 1", view, got, "No items")
+	}
+}
+
 func TestView_HelpBarPresentAndBounded(t *testing.T) {
 	t.Parallel()
 

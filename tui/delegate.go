@@ -51,7 +51,12 @@ func (d delegate) Render(w io.Writer, m list.Model, index int, listItem list.Ite
 		cursor = selectedStyle.Render("▎ ")
 	}
 
-	row := cursor + main.Render(indent+t.ID+"  "+t.Title)
+	mark := "  "
+	if t.Status == "done" {
+		mark = "✓ "
+	}
+
+	row := cursor + mark + main.Render(indent+t.ID+"  "+t.Title)
 	if v := verse(t); v != "" {
 		row += "  " + verseStyle.Render(v)
 	}

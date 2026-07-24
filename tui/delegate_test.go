@@ -75,6 +75,32 @@ func TestDelegate_SelectedListRowNotInverted(t *testing.T) {
 	}
 }
 
+func TestDelegate_DoneRowShowsMarker(t *testing.T) {
+	t.Parallel()
+
+	l := list.New([]list.Item{item{t: &task.Task{ID: "BIT-1", Title: "Track", Status: "done"}}}, delegate{}, 40, 4)
+	var buf bytes.Buffer
+	delegate{}.Render(&buf, l, 0, l.Items()[0])
+
+	got := buf.String()
+	if !strings.Contains(got, "✓") {
+		t.Errorf("done row = %q, want ✓ marker", got)
+	}
+}
+
+func TestDelegate_UnfinishedRowHasNoMarker(t *testing.T) {
+	t.Parallel()
+
+	l := list.New([]list.Item{item{t: &task.Task{ID: "BIT-1", Title: "Track", Status: "todo"}}}, delegate{}, 40, 4)
+	var buf bytes.Buffer
+	delegate{}.Render(&buf, l, 0, l.Items()[0])
+
+	got := buf.String()
+	if strings.Contains(got, "✓") {
+		t.Errorf("unfinished row = %q, should have no ✓ marker", got)
+	}
+}
+
 func TestDelegate_TrackVsBarDistinguishedByWeightNotColor(t *testing.T) {
 	t.Parallel()
 

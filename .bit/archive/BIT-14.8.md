@@ -1,7 +1,7 @@
 ---
 id: BIT-14.8
 title: Show one clean empty state
-status: todo
+status: done
 phase: 3
 phase_label: Declutter
 ---

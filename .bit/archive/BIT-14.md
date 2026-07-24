@@ -1,7 +1,7 @@
 ---
 id: BIT-14
 title: Theme-native, legible TUI chrome
-status: doing
+status: done
 ---
 ## Why
 
@@ -78,6 +78,6 @@ LIST VIEW body
   look, selected cards render inverted, and an opened card modal shows its title inverted.
   Touches: `tui/model.go` (`titledBorder`, `content`), `tui/board.go` (`boardView`, `modalView`),
   `tui/delegate.go` (selected-card style).
-- [ ] Verse 3 — The list view sheds its noise: the redundant `List` heading and the duplicate
+- [x] Verse 3 — The list view sheds its noise: the redundant `List` heading and the duplicate
   empty-state line are gone, leaving one clean empty state. Touches: `tui/model.go` (list setup),
   `tui/delegate.go` if the empty state renders there.
