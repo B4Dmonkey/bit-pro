@@ -355,15 +355,19 @@ func titledBorder(content, title string, width, height int, active bool) string 
 		Width(width + 2).
 		Height(height + 1)
 	topStyle := lipgloss.NewStyle()
+	titleStyle := lipgloss.NewStyle()
 	if active {
 		accent := lipgloss.Color("2")
 		boxStyle = boxStyle.BorderForeground(accent)
 		topStyle = topStyle.Foreground(accent)
+		titleStyle = titleStyle.Foreground(accent).Reverse(true)
 	}
 
 	fill := max(width-lipgloss.Width(title)-3, 0)
-	top := border.TopLeft + border.Top + " " + title + " " + strings.Repeat(border.Top, fill) + border.TopRight
-	return lipgloss.JoinVertical(lipgloss.Left, topStyle.Render(top), boxStyle.Render(content))
+	left := border.TopLeft + border.Top
+	right := strings.Repeat(border.Top, fill) + border.TopRight
+	top := topStyle.Render(left) + titleStyle.Render(" "+title+" ") + topStyle.Render(right)
+	return lipgloss.JoinVertical(lipgloss.Left, top, boxStyle.Render(content))
 }
 
 func splitWidth(total int) (listW, detailW int) {

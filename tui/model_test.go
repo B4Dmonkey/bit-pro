@@ -761,3 +761,33 @@ func TestTitledBorder_ActiveUsesTerminalGreen(t *testing.T) {
 		t.Errorf("titledBorder active = %q, still contains 256-purple 38;5;99", got)
 	}
 }
+
+func TestTitledBorder_ActiveTitleInverted(t *testing.T) {
+	t.Parallel()
+
+	got := titledBorder("body", "Tasks (0)", 20, 3, true)
+
+	if !strings.Contains(got, "\x1b[7;32m") {
+		t.Errorf("titledBorder active = %q, want reverse-green title SGR \\x1b[7;32m", got)
+	}
+	if !strings.Contains(got, "\x1b[32m") {
+		t.Errorf("titledBorder active = %q, want green border SGR \\x1b[32m", got)
+	}
+}
+
+func TestView_ModalTitleInverted(t *testing.T) {
+	t.Parallel()
+
+	m := New([]*task.Task{{ID: "BIT-1", Status: "todo", Title: "T", Body: "b"}})
+	mdl, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	mdl, _ = mdl.(model).Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	mdl, _ = mdl.(model).Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+	view := mdl.(model).View().Content
+	if !strings.Contains(view, "\x1b[7m BIT-1 — T \x1b[27m") {
+		t.Errorf("modal view = %q, want reverse-video title span \\x1b[7m BIT-1 — T \\x1b[27m", view)
+	}
+	if !strings.Contains(view, "\x1b[32m") {
+		t.Errorf("modal view = %q, want green border SGR \\x1b[32m", view)
+	}
+}

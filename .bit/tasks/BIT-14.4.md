@@ -1,7 +1,7 @@
 ---
 id: BIT-14.4
 title: Focused title renders as an inverted block
-status: todo
+status: done
 phase: 2
 phase_label: Focus
 ---
