@@ -109,6 +109,11 @@ func (m *model) setTasks(tasks []*task.Task) {
 		items[i] = item{t: t}
 	}
 	m.SetItems(items)
+	for i, cards := range groupByStatus(tasks) {
+		m.boardCols[i] = newColumnList(cards)
+	}
+	m.layout()
+	m.refreshDetail()
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {

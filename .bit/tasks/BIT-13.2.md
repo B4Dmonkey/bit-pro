@@ -1,7 +1,7 @@
 ---
 id: BIT-13.2
 title: A reload message rebuilds the board columns
-status: todo
+status: done
 phase: 1
 phase_label: See CLI edits
 ---

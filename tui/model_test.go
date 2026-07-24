@@ -51,6 +51,22 @@ func TestUpdate_ReloadedMsgRebuildsList(t *testing.T) {
 	}
 }
 
+func TestUpdate_ReloadedMsgRebuildsBoard(t *testing.T) {
+	t.Parallel()
+
+	var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo"}})
+	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+
+	mdl, _ = mdl.Update(reloadedMsg{tasks: []*task.Task{
+		{ID: "BIT-1", Status: "todo"},
+		{ID: "BIT-2", Status: "todo"},
+	}})
+
+	if got := len(mdl.(model).boardCols[0].Items()); got != 2 {
+		t.Fatalf("after reloadedMsg, To Do column has %d items, want 2", got)
+	}
+}
+
 func TestUpdate_ForwardsNavigationToList(t *testing.T) {
 	t.Parallel()
 
