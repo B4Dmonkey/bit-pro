@@ -1,7 +1,7 @@
 ---
 id: BIT-14.2
 title: Selected list row follows terminal green
-status: todo
+status: done
 phase: 1
 phase_label: Theme
 ---

@@ -13,7 +13,7 @@ var (
 	trackStyle    = lipgloss.NewStyle().Bold(true)
 	barStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
 	verseStyle    = lipgloss.NewStyle().Faint(true).Italic(true)
-	selectedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("99")).Bold(true)
+	selectedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Bold(true)
 )
 
 type delegate struct{}
