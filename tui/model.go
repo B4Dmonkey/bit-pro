@@ -137,6 +137,7 @@ func (m model) reloadCmd() tea.Cmd {
 
 func (m *model) setTasks(tasks []*task.Task) {
 	var prevID string
+	prevIndex := m.Index()
 	if t := m.selected(); t != nil {
 		prevID = t.ID
 	}
@@ -145,13 +146,15 @@ func (m *model) setTasks(tasks []*task.Task) {
 		items[i] = item{t: t}
 	}
 	m.SetItems(items)
-	if prevID != "" {
+	if prevID != "" && len(tasks) > 0 {
+		target := min(prevIndex, len(tasks)-1)
 		for i, t := range tasks {
 			if t.ID == prevID {
-				m.Select(i)
+				target = i
 				break
 			}
 		}
+		m.Select(target)
 	}
 	for i, cards := range groupByStatus(tasks) {
 		m.boardCols[i] = newColumnList(cards)

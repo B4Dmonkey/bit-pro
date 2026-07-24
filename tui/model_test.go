@@ -134,6 +134,29 @@ func TestUpdate_ReloadPreservesListSelection(t *testing.T) {
 	}
 }
 
+func TestUpdate_ReloadSelectionGoneClamps(t *testing.T) {
+	t.Parallel()
+
+	m := New([]*task.Task{{ID: "BIT-5"}, {ID: "BIT-4"}, {ID: "BIT-3"}, {ID: "BIT-2"}, {ID: "BIT-1"}})
+	sized, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 40})
+	m = sized.(model)
+	m.Select(4)
+
+	updated, _ := m.Update(reloadedMsg{tasks: []*task.Task{{ID: "BIT-5"}, {ID: "BIT-4"}}})
+	got := updated.(model)
+
+	if got.Index() != 1 {
+		t.Errorf("after reload dropping the selected task, Index() = %d, want 1", got.Index())
+	}
+	sel := got.selected()
+	if sel == nil {
+		t.Fatalf("after reload dropping the selected task, selected() = nil, want a valid item")
+	}
+	if sel.ID != "BIT-4" {
+		t.Errorf("after reload dropping the selected task, selected().ID = %q, want %q", sel.ID, "BIT-4")
+	}
+}
+
 func TestUpdate_ForwardsNavigationToList(t *testing.T) {
 	t.Parallel()
 

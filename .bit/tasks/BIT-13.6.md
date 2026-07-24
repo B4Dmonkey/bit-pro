@@ -1,7 +1,7 @@
 ---
 id: BIT-13.6
 title: A reload that drops the selected task clamps safely
-status: todo
+status: done
 phase: 2
 phase_label: Keep your place
 ---
