@@ -148,9 +148,9 @@ Bad: "Implement child workflow"
 
 ### Tag each bar with its verse
 
-Every bar carries the verse it serves as CLI metadata, not as text in the body: `--phase <N>` (the verse number from the scope's checklist) and `--phase-label "<label>"` (the verse's short name — the flag keeps the name `phase`, the scope's slice is a verse). This is what lets progress roll up: bit_do checks off a verse in the track body once all the bars tagged to it are done. A bar serves exactly one verse; if a step seems to span two, it's probably two bars. Create the bars in the scope's delivery order, so the walking skeleton lands first.
+Every bar carries the verse it serves as CLI metadata: `--phase <N>` (the verse number from the scope's checklist) and `--phase-label "<label>"` (the verse's short name — the flag keeps the name `phase`, the scope's slice is a verse). This metadata is what lets progress roll up: bit_do checks off a verse in the track body once all the bars tagged to it are done — so the `--phase` value, not any body text, is the source of truth for rollup. The bar body *also* opens by naming that verse (`## **Verse N**`) so a reader can place the step at a glance, but if the two ever disagree, trust `--phase`. A bar serves exactly one verse; if a step seems to span two, it's probably two bars. Create the bars in the scope's delivery order, so the walking skeleton lands first.
 
-**Do not put rollup or status instructions in the bar bodies.** A bar body describes only its own step (the TDD cycle and checks). No "verse rollup" notes, no `**Status:**` lines — the bar's status *field* is the progress marker, and keeping the scope in sync is bit_do's job. Writing that into the body just burns tokens on what the executor already knows.
+**Do not put rollup or status instructions in the bar bodies.** Naming the verse the bar serves in its opening line is fine — that's context for the reader, not a rollup instruction. But a bar body describes only its own step beyond that (the TDD cycle and checks): no "verse rollup" notes, no `**Status:**` lines — the bar's status *field* is the progress marker, and keeping the scope in sync is bit_do's job. Writing that into the body just burns tokens on what the executor already knows.
 
 ### Refactor steps
 
@@ -226,16 +226,18 @@ BAR=$(bit task create "Contradiction forces real fan-out" \
 
 Report the bar IDs (or just the count and the track) back to the user when you're done.
 
-The **bar body** uses this structure — no `## Step N` heading (the title is the step name), no verse text (the `--phase` metadata carries it), no `**Status:**` line (the status field is the marker):
+The **bar body** uses this structure. It opens with the verse the bar serves (`## **Verse N**`) so a reader knows the slice at a glance — the same verse the `--phase` metadata carries. After that: no `## Step N` heading (the title is the step name) and no `**Status:**` line (the status field is the marker). The step's sections are `##` headings so they stand apart when the body is read on its own:
 
 ```markdown
+## **Verse 1**
+
 [One sentence: what this step accomplishes and what forces it (e.g., "hardcoded return can't satisfy both tests")]
 
-**Scope:**
+## Scope
 - `path/to/file.go` — what changes here
 - `path/to/other.go` — what changes here
 
-**TDD cycle:**
+## TDD cycle
 
 1. **Write test (RED):**
    - [ ] `TestName` (table-driven subtest if applicable)
@@ -248,14 +250,15 @@ The **bar body** uses this structure — no `## Step N` heading (the title is th
 2. **Implement (GREEN):**
    - [ ] specific implementation task (may be a hardcoded return — that's fine for the first bar)
 
-**Claude verifies:**
+## Claude verifies
 - [ ] tests pass (use the project's task runner — check CLAUDE.md or Makefile/justfile/etc.)
 - [ ] linter passes
 
-**User verifies:**
+## User verifies
 - [ ] [concrete manual check — do X, observe Y; omit on a pure-plumbing bar. A verse's integration/feel check goes on its *last* bar. Never a decision-in-disguise ("reads naturally", "is acceptable") — that's a scope Decision, hand it back.]
 
-**Commit (user):** `feat(scope): short description`
+## Commit (user)
+`feat(scope): short description`
 ```
 
 The throughline that used to live in a plan's "How this plan works" section — what the entry point is and how tests drive deeper — belongs in the **track body** (a sentence or two), not repeated per bar. If it's missing and would help, offer to add it to the track via bit_scope.

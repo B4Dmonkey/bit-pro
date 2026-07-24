@@ -748,3 +748,16 @@ func TestUpdate_EscQuitsFromList(t *testing.T) {
 		t.Errorf("after KeyEsc in list, cmd() = %T, want tea.QuitMsg", cmd())
 	}
 }
+
+func TestTitledBorder_ActiveUsesTerminalGreen(t *testing.T) {
+	t.Parallel()
+
+	got := titledBorder("body", "Tasks (0)", 20, 3, true)
+
+	if !strings.Contains(got, "\x1b[32m") {
+		t.Errorf("titledBorder active = %q, want terminal green SGR \\x1b[32m", got)
+	}
+	if strings.Contains(got, "38;5;99") {
+		t.Errorf("titledBorder active = %q, still contains 256-purple 38;5;99", got)
+	}
+}

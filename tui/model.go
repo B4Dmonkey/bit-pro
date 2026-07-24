@@ -356,7 +356,7 @@ func titledBorder(content, title string, width, height int, active bool) string 
 		Height(height + 1)
 	topStyle := lipgloss.NewStyle()
 	if active {
-		accent := lipgloss.Color("99")
+		accent := lipgloss.Color("2")
 		boxStyle = boxStyle.BorderForeground(accent)
 		topStyle = topStyle.Foreground(accent)
 	}
