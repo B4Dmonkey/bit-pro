@@ -19,22 +19,12 @@ takes that shape and wires it specifically to an LLM-first workflow — the CLI 
 primary interface (for Claude, or any agent), and the TUI is the human's window into
 the same data.
 
-## Vision
+## Design principles
 
-`bit` is a CLI-first project-management tool for tracking tasks — create, read,
-update, delete — with a terminal UI (a list view and a kanban board) over the same
-data:
-
-- **CLI** — create, read, update, and delete tasks; this is the primary interface,
-  built for an LLM (or any agent) to drive directly.
-- **`bit tui`** — the human view: a task list and a kanban board over the same data,
-  with filtering (by epic, status, tag, whatever turns out to matter) — this is the
-  part directly inspired by Backlog.md's UI and kanban-md's filtering.
-
-The CLI is the source of truth and must stay easy for an LLM to drive: predictable
-subcommands and flags, scriptable, non-interactive by default, structured output where
-it helps. The TUI is a second, human-facing view over the same underlying data — it
-never becomes a second source of truth.
+The CLI is the source of truth and stays easy for an LLM to drive: predictable
+subcommands and flags, scriptable, non-interactive by default. `bit tui` is a second,
+human-facing view over the same markdown files — it never becomes a second source of
+truth. Anything the TUI can show, the CLI can already answer.
 
 ## Install
 
@@ -47,6 +37,21 @@ GOPATH)/bin`) so you can run `bit` from any directory. That dir must be on your 
 check with `bit --help`; if it's not found, add it (e.g. `export
 PATH="$(go env GOPATH)/bin:$PATH"`).
 
+## Quickstart
+
+```
+cd your-project
+bit init                          # prompts for a task ID prefix, creates .bit/
+bit task create "Add OAuth login" -d "Why this matters…"
+bit task create "Write the token test" -p PREFIX-1 --phase 1 --phase-label "Token exchange"
+bit task list
+bit task update PREFIX-1.1 -s doing
+bit tui                           # the human view: list + board
+```
+
+`bit init` is idempotent — re-running it in an initialized project offers the existing
+prefix as a default and re-seeds the agent skills without touching your tasks.
+
 ## Storage
 
 A project is a `.bit/` directory at the repo root, created by `bit init`:
@@ -54,12 +59,14 @@ A project is a `.bit/` directory at the repo root, created by `bit init`:
 ```
 .bit/
 ├── config.toml        # prefix = "BIT"
-└── tasks/
-    ├── BIT-1.md
-    └── BIT-2.md
+├── tasks/             # live work
+│   ├── BIT-1.md
+│   └── BIT-2.md
+└── archive/           # finished and deleted work; these IDs are never re-minted
+    └── BIT-3.md
 ```
 
-Tasks are flat — one markdown file per task, named for its ID, no per-epic
+Tasks are flat — one markdown file per task, named for its ID, no per-track
 subdirectories. IDs are `<PREFIX>-<N>`, where the prefix is captured once by `bit init`
 and `N` is one past the highest existing task's number. There's no index: `bit task
 list` globs the directory and parses each file. Frontmatter is deliberately minimal —
@@ -81,130 +88,132 @@ explicit `order` list of its bar IDs. The ID is stable identity; ordering lives 
 list, so a plan can be resequenced (`task move`, `task create --after`) without renaming
 anything. A track that's never been reordered has no `order` and falls back to ID order.
 
-## Status
+## Features
 
-This project is intentionally not fully specified yet — the plan is to build it by
-feel, scoping and planning one increment at a time rather than designing the whole data
-model up front. The rough sequence of scopes:
+What `bit` does today. It's an MVP — usable end to end for the workflow it was built
+for, and still moving.
 
-1. ✅ **Bootstrap** (`BIT-1`) — a runnable, installable Cobra CLI with a
-   `just`-based task runner and a `bit init` command.
-2. ✅ **Simple task management (CRUD)** (`BIT-2`) — the data model: create, read,
-   update, delete, and list tasks against the directory `bit init` creates,
-   including scope docs (like this project's own) living as first-class tasks
-   inside `.bit/` instead of loose root files.
-3. ✅ **Plans live under their scope** (`BIT-3`) — dotted child IDs (`BIT-2.5` is the
-   5th step of `BIT-2`), so a plan's steps live under the scope track that owns them.
-4. **Status state machine** — decided against. CRUD gives tasks *a* status field;
-   status changes stay a direct, unvalidated write (`bit task update -s`), and
-   rollup across a track's bars is logic the `bit_do` skill owns, not a
-   CLI-enforced transition graph.
-5. ✅ **Explore UI (list)** (`BIT-4`) — a list + detail view in a terminal.
-6. ✅ **Explore UI (board)** (`BIT-5`) — the kanban board view.
-7. ✅ **Drive the lifecycle through `bit`** (`BIT-6`) — create/read/update/list wired
-   so the `bit_*` skills drive `bin/bit` directly.
-8. ✅ **Install + portable init** (`BIT-7`) — `just install` puts `bit` on your bin dir
-   and `bit init` seeds the `bit_*` skills + `bit-cli.md` into any project, idempotently,
-   so the skills can drive bit in any repo.
-9. ✅ **Reorderable plans** (`BIT-8`) — a track owns an explicit ordered list of its
-   bars, so `task move` and `task create --after` resequence a plan mid-stream without
-   renaming any IDs. The ID is now stable identity; order lives in the track.
-10. ✅ **TUI + init cleanup** (`BIT-9`) — the quit keys exit the TUI from the detail pane
-    (not just the list), and re-running `bit init` in an initialized project offers the
-    existing prefix as a default (`Task ID prefix (BIT): `) that a bare enter reuses.
-11. ✅ **Archiving & soft deletes** (`BIT-10`) — one relocate mechanism, several triggers:
-    `bit task archive` moves a finished track (and its bars) into `.bit/archive/` so the
-    list, board, and TUI show only live work, and `bit task delete` reuses the same
-    primitive so a mistaken delete is recoverable instead of destroyed. Relocating reserves
-    the ID (never re-minted) and drops the bar from its parent track's order so the sequence
-    stays honest. A track only relocates once every bar is `done` (`--force` overrides), and
-    the `bit_*` skills archive a track on the human's explicit sign-off rather than an
-    automatic status flip.
+**Tasks from the command line.** `bit task create/read/list/update/move/archive/delete`
+covers the full lifecycle. Every command is non-interactive by default (`delete` takes
+`-y`), so an agent can drive the whole thing without a prompt to answer. `bit task read
+--body` prints just the markdown body for feeding straight back into a model.
 
-All of this project's own scoping and planning now lives in `.bit/tasks/` (browse
-it with `bit task list`) rather than root-level markdown files — see the
-`.claude/skills/bit_scope` / `bit_plan` / `bit_do` skills for how.
+**Plans nest under the scope that owns them.** A dotted ID makes a task a child:
+`BIT-2.5` is the 5th step of `BIT-2`. `--parent` mints the child (and refuses if the
+parent doesn't exist), `--phase`/`--phase-label` tag a step with the coarse chunk of the
+scope it serves, and `bit task list --parent BIT-2` shows just that plan. The parent is
+readable straight out of the ID — no index, no lookup, and `ls` shows the tree. See
+[hierarchy.md](./hierarchy.md) for the vocabulary (album / track / verse / bar).
+
+**Plans resequence without renaming.** A track carries an explicit ordered list of its
+steps, so `bit task move --before/--after` and `bit task create --after` reorder a plan
+mid-stream while every ID stays stable. IDs are identity; order lives in the parent.
+
+**Archive instead of destroy.** `bit task archive` relocates a finished track and its
+steps into `.bit/archive/`, so the list, board, and TUI show only live work. `bit task
+delete` reuses the same primitive — a mistaken delete is a file move, not a loss.
+Relocating reserves the ID forever (it's never re-minted) and drops the step from its
+parent's order, so the sequence stays honest. A track only relocates once every step is
+`done`, with `--force` to override.
+
+**Status is a plain field, not a state machine.** Tasks have `todo`/`doing`/`done`, and
+changing one is a direct write (`bit task update -s doing`). There's no transition graph
+to fight; rollup across a plan's steps is workflow logic, deliberately left to the agent
+skills rather than enforced by the CLI.
+
+**A terminal UI for the human.** `bit tui` opens a list with a detail pane that renders
+the task body as markdown, and `tab` flips to a kanban board (To Do / Doing / Done).
+`enter` on a card floats a scrollable modal with its full body, so you can read a task
+without leaving the board. Focus moves with `←`/`→`, `?` toggles full help, `q` quits.
+
+**The TUI stays live.** It re-reads `.bit/tasks/` on a short timer and refreshes when
+something actually changed, so edits an agent makes in another terminal appear without a
+restart — and your selection, column, view mode, and open modal survive the refresh. A
+burst of writes between ticks collapses into one refresh, and a failed read holds the
+last good view instead of flashing an error.
+
+**Chrome that follows your terminal theme.** Colors come from the terminal's ANSI
+palette rather than fixed hex values, so `bit` matches however you've themed your
+terminal. Focus is unmistakable: the focused pane or column title renders inverted.
+
+**Agent skills ship with the binary.** `bit init` seeds a `bit_scope` → `bit_plan` →
+`bit_do` → `bit_check` skill set plus a CLI contract doc into the project's `.claude/`
+directory, idempotently, so the agent workflow works in any repo the moment it's
+initialized. (These are Claude Code skills today; the CLI itself has no agent-specific
+dependency.)
+
+This project tracks its own scoping and planning in `.bit/tasks/` — browse it with `bit
+task list`, or `bit tui`.
 
 ## Roadmap
 
-What's up next, committed-next, and backlogged. The live tracker is `.bit/tasks/`
-(`bit task list`); this is the human-readable summary of what to pick up next.
+The live tracker is `.bit/tasks/` (`bit task list`); this is the human-readable summary
+of what to pick up next.
 
 **Up next:**
 
-- **Board modal** — toggle a full-detail view for the selected card, so a `todo` item can be
-  inspected without leaving the board. The list view already has a detail pane; the board
-  only shows the card face, so there's no way to read a task's body without tabbing back to
-  the list. Not yet scoped.
+- **Rename the binary `bit` → `bp`** (`BIT-15`, scoped, not started) — `bit` collides with
+  other tools; `bp` (bit-pro) is unambiguous. Binary name only: the `.bit/` directory and
+  `BIT-` ID prefix don't change. The Justfile, the Cobra root command, and the embedded
+  skill assets move in lockstep.
+- **Mark a task approved / refined** — a scope or plan that's been reviewed and is ready to
+  pick up looks identical to one that was just drafted, so "what's actually ready to work
+  on?" isn't answerable from the list or the board. Add that signal, and let the TUI filter
+  on it. Needs a model decision first: a new frontmatter field, another status value, or a
+  separate flag — and how it coexists with `todo`/`doing`/`done`.
 
 **Backlog — needs definition before scoping:**
 
-- **Live-reload the TUI** — the TUI reads tasks once at startup, so changes made through
-  the CLI (by an agent, or a second terminal) while it's open don't appear until a restart.
-  Watch `.bit/tasks/` and refresh the list and board as files are created, updated, or
-  deleted, so the human's view stays in sync with the source of truth. Needs definition —
-  what to watch and how to debounce a burst of writes.
+- **Homebrew packaging** — `just install` assumes a Go toolchain, which is the wrong ask for
+  anyone who just wants the tool. Ship a formula so `brew install` works. Needs decisions
+  before scoping: a personal tap or homebrew-core, and whether release binaries come from
+  GoReleaser (which would also cover Linux) or a from-source formula. Wants the rename to
+  land first, so the formula names the final binary.
 - **Jump straight to the board** — a way to open the TUI directly on the kanban board
   instead of landing on the list and tabbing over. Shape undecided (a flag on `bit tui`, a
   separate `bit board` command, or config); no details yet.
 - **Search** — quickly target a task by text.
 - **Broader filtering** — closer to Backlog.md; which dimensions matter is still open (see
   *Open design questions* → Filtering dimensions).
-- **Approved / sign-off** — mark a track or bar reviewed-and-ready-to-pick-up, and filter
-  on it. Needs a model decision first: a new frontmatter field, a status value, or a
-  separate flag — and how it coexists with `todo`/`doing`/`done`.
 - **Viewing the archive** — a filter (or command) to surface archived tracks. Archiving
-  itself is built (`BIT-10`); a restore/view command was deferred (YAGNI), so this is the
-  read-side that pairs with it — not built yet.
-- **UI polish** — general TUI visual improvements.
+  itself is built; a restore/view command was deferred (YAGNI), so this is the read-side
+  that pairs with it.
+- **Vim keys for focus, and a home for paging** — `h`/`l` should move focus like `←`/`→` in
+  the list view. They don't today: the arrows work, and `h`/`l` fall through to the list's
+  own paging. The fix is one keymap rework — intercept `h`/`l` alongside `KeyLeft`/`KeyRight`
+  in the focus handler, and rebind the list's `NextPage`/`PrevPage` to `ctrl+f`/`ctrl+b` so
+  paging keeps an explicit home. (The board modal already scrolls on `h`/`j`/`k`/`l`.)
+- **UI polish** — general TUI visual improvements. The one open thread with history behind
+  it is the list-row delegate (`tui/delegate.go`): rows are single-line, which is denser than
+  Bubbles' default but has no room for a status column, so status shows only as a `✓` on done
+  rows and in full in the detail pane. Whether to bring status back as a right-aligned
+  column, go back to two-line rows, or leave it is undecided — `bit task read BIT-4.12
+  --body` has the fuller record.
 
 ## Open design questions
 
-These aren't answered yet — they're what future scoping work needs to resolve, not
-decisions already made:
+Genuinely unresolved — what future scoping needs to answer, not decisions already made.
 
-- ✅ **Relationships in frontmatter — resolved.** A task points at a parent via a
-  dotted ID (`BIT-2.5` is the 5th step of `BIT-2`), assigned with `--parent` and
-  validated (a missing parent refuses to mint). See
-  [hierarchy.md](./hierarchy.md) for the vocabulary this introduced.
-- **Whether an index is needed.** `bit task list` currently globs and parses every
-  file. Fine at this size; an open question once the TUI wants fast filtering over a
-  real backlog.
-- **Status/board model.** What are the kanban columns, and are they fixed or
-  configurable per project?
-- **Filtering dimensions.** By epic, tag, status, assignee — kanban-md's filtering was
-  called out as something to match, but which dimensions matter hasn't been decided.
-
-## Cleanup & known issues
-
-A running list of rough edges and deferred work from the implementation — things with a
-known right answer that just aren't done yet, kept separate from the still-undecided design
-questions above.
-
-- **`h`/`l` should move focus like `←`/`→`.** Vim-style editors bind `h`/`l` to left/right,
-  so the focus keys ought to accept them as aliases. Deferred deliberately — focus works on
-  the arrows today, and `h`/`l` currently fall through to the list's own paging. When picked
-  up: intercept `h`/`l` alongside `KeyLeft`/`KeyRight` in the focus handler (which also stops
-  them paging the list).
-- **Paging should move to `ctrl+f`/`ctrl+b`.** The list's default keymap pages on `h`/`l`
-  (also `f`/`b`, `u`/`d`, `pgup`/`pgdn`). This is the same keymap rework as the `h`/`l` item
-  above: once `h`/`l` become focus aliases, list paging needs an explicit home — rebind the
-  list's `NextPage`/`PrevPage` to `ctrl+f`/`ctrl+b`.
-- **Revisit the list-row rendering (track/bar/verse delegate).** The custom delegate that
-  renders the list (`tui/delegate.go`, added in `9442a7d` "feat(tui): render tracks, bars,
-  and verses in the list") is kept but not settled — it's liked for now, but not quite what
-  was originally in mind, so it may change. What it does today: one line per row (denser than
-  Bubbles' default two-line title+description), plain IDs bold at the left edge for tracks,
-  dotted IDs indented two columns and dimmed for bars, each phased bar's verse (`phase N —
-  Label`) shown faint/italic after the title, and the selected row marked with `▎` in the
-  accent colour (`99`, matching the focused-pane border). Rows are clipped with
-  `MaxWidth(m.Width())` so a long title can't wrap and break the one-line layout. Known
-  trade-offs to reconsider if revisited: going single-line **dropped the per-row status
-  field** (`todo`/`done`) the default delegate used to show — status now lives only in the
-  detail pane; the dim/faint/italic styling and the `245`/`99` colours are a first cut (same
-  "flavor is deferred polish" note as the Step 9 border accent). Likely directions: bring
-  status back as a right-aligned column, or restore a two-line row, or refine the styling —
-  none decided. See `BIT-4.12` (`bit task read BIT-4.12 --body`) for the fuller record.
+- **Whether an index is needed.** `bit task list` globs `.bit/tasks/` and parses every file;
+  there's no index. Fine at this size, and it's what keeps the storage format honest (the
+  files are the state, with nothing to fall out of sync). But the TUI now re-reads the whole
+  directory on a timer, so the cost is paid continuously rather than once per command — the
+  question is what task count makes that felt, and whether the answer then is an index, a
+  cheaper change-check (mtime/hash before parse), or a longer interval.
+- **Are the board columns fixed?** They're hardcoded to To Do / Doing / Done, matching the
+  three status values. A project wanting `blocked`, `review`, or a WIP limit has nowhere to
+  say so. Open: whether statuses become project config (in `.bit/config.toml`, which today
+  holds only the prefix) and what that does to the agent skills, which currently assume the
+  three values by name.
+- **Filtering dimensions.** kanban-md's filtering is the thing to match, but the frontmatter
+  has no tags, no assignee, and no dates — so "filter by tag" is a data-model decision before
+  it's a UI one. Open: which dimensions earn a field, and whether they're fixed keys or
+  free-form.
+- **How much of the workflow belongs in the CLI.** Status rollup, sign-off, and archiving
+  triggers all live in the agent skills right now, which keeps the CLI to primitives and lets
+  the workflow change without a release. The cost is that the rules aren't enforced and don't
+  travel to anyone using the CLI without the skills. Open: whether any of it graduates into
+  the binary.
 
 ## Inspiration
 
