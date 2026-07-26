@@ -100,6 +100,7 @@ Before drafting, get the WHY right — it's the part the plan will lean on, so i
 Then do *light* research — enough to name the code areas each verse touches and to spot the real risks, but not a deep dive (that's bit_plan's job):
 - Locate the parts of the codebase each verse would affect, so the "touches" pointers are accurate.
 - Notice genuine unknowns — external services, ambiguous data shapes, assumptions the whole approach rests on.
+- **Capture any reference docs the user provided.** If the user shared a file path, URL, pasted spec, design doc, or named any external artifact as an authority this scope should honor, record it in the `## References` section of the track body. A reference doc is something the user is pointing to as a source of truth — not every file mentioned casually, only the ones they're invoking as constraints or specifications.
 
 Don't over-research. If you find yourself reading function bodies to design the change, you've gone past scope altitude.
 
@@ -158,6 +159,13 @@ and `Verse N` on one line.]
 - [ ] Verse 1 — <capability unlocked>: one or two sentences on what a user/operator can now do.
   Touches: <code area / files> — where to look to verify.
 - [ ] Verse 2 — <capability unlocked>: …
+
+## References
+[Omit this section if no reference docs were provided. List only external artifacts the
+user explicitly pointed to as authorities — specs, design docs, API references, pasted
+content. One line each: the path or URL, and which verses it informs.]
+
+- `path/to/doc.md` — what this doc is and which verses it informs
 ```
 
 Keep it tight. This is an overview a reader skims to grasp the shape of the work before a detailed plan exists. Prefer clarity over completeness.
@@ -178,7 +186,8 @@ Keep it tight. This is an overview a reader skims to grasp the shape of the work
    - Is the order delivering incremental value — walking skeleton first, riskiest assumptions early?
    - Is each named by the capability unlocked, not the component built?
 5. Check that no verse has slid into implementation detail, **and that no verse is smuggling an open question** — a "TBD", a "deferred to plan-time", a "the technical question is…". The "touches" pointer is a locator only; flag anything prescribing *how*, and flag any unknown hiding in a verse: it belongs in Risks & unknowns, or answered in Decisions — never in the verse text.
-6. Propose edits with reasoning — don't silently rewrite large sections. Confirm before rewriting more than a few lines.
+6. Check the References section: did the user provide any reference docs during this session that aren't captured there? If so, add them. If no references exist yet and none were provided, omit the section entirely.
+7. Propose edits with reasoning — don't silently rewrite large sections. Confirm before rewriting more than a few lines.
 
 The user drives this loop; keep refining with them until they're happy enough to move to bit_plan.
 

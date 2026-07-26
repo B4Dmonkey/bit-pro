@@ -31,7 +31,7 @@ If the user gives you only a "what", push back once to get the "why". Ask: what 
 
 ## Gathering context (new plans)
 
-**Start from the scope track.** The user names it (by ID or title); read its body end to end with `bit task read <track> --body` — the WHY, the verses, the "touches" pointers, and the risks. The scope hands you the delivery order and the code areas each verse affects — your job is to turn its verses into TDD steps, one bar each under that track.
+**Start from the scope track.** The user names it (by ID or title); read its body end to end with `bit task read <track> --body` — the WHY, the verses, the "touches" pointers, the risks, and the References section if one exists. If the scope has a `## References` section, note which reference docs are relevant to which verses before drafting bars — the right ones need to be carried forward into the right bar bodies, not left in the scope where they'll be out of context when bit_do executes the step. The scope hands you the delivery order and the code areas each verse affects — your job is to turn its verses into TDD steps, one bar each under that track.
 
 Default to planning every verse in one pass. Splitting into multiple planning sessions exists to route around a genuine unknown — a risk the scope flagged "de-risk before planning? Yes", or a later verse whose shape depends on what an earlier verse turns out to build — not as a default posture just because a scope has more than one verse. If the scope is clear and none of its risks block a verse, plan it end to end now; don't ask the user to pick a verse to be cautious. If an unknown does block a later verse, plan up through whatever isn't blocked, then tell the user which verse(s) you're deferring and why.
 
@@ -237,6 +237,12 @@ The **bar body** uses this structure. It opens with the verse the bar serves (`#
 - `path/to/file.go` — what changes here
 - `path/to/other.go` — what changes here
 
+## References
+[Omit if no reference from the scope's References section applies to this step.
+Only include references the implementer actually needs to read for this bar.]
+
+- `path/to/doc.md` — what to use it for in this step
+
 ## TDD cycle
 
 1. **Write test (RED):**
@@ -274,8 +280,9 @@ The throughline that used to live in a plan's "How this plan works" section — 
 5. Review each bar: does it start with a test? Is it one red-green cycle?
 6. Flag any bar that bundles multiple scenarios (split it into two bars — each earns its own commit)
 7. Check each bar's **User verifies** against the two traps (see Verification split): a decision-in-disguise ("reads naturally", "is acceptable", "feels right") is a missing scope Decision — flag it and hand back to bit_scope; a subjective "how does it feel" on a non-final bar belongs on its verse's last bar instead. A concrete do-X-observe-Y check is fine as is.
-8. Flag YAGNI violations, over-bundled bars, or missing verification
-9. Apply edits through the CLI: reword a bar with `task update <bar> -d "…"`, add a missing step with `task create --parent …`, and **reorder a misplaced bar with `task move <bar> --before|--after <sibling>`** — the ID is stable identity, so moving a bar rewrites only the track's order list and every reference to that bar (commit messages, notes) stays valid. Don't delete-and-recreate to reorder; that churns IDs and breaks those references. Propose changes with reasoning — don't silently rewrite large sections.
+8. Check references: if the scope track has a `## References` section, are the relevant references carried into bars that need them? A bar touching a verse that depends on a spec or design doc should have a `## References` section pointing to it. Flag any bar where the reference is missing and the implementer would need it.
+9. Flag YAGNI violations, over-bundled bars, or missing verification
+10. Apply edits through the CLI: reword a bar with `task update <bar> -d "…"`, add a missing step with `task create --parent …`, and **reorder a misplaced bar with `task move <bar> --before|--after <sibling>`** — the ID is stable identity, so moving a bar rewrites only the track's order list and every reference to that bar (commit messages, notes) stays valid. Don't delete-and-recreate to reorder; that churns IDs and breaks those references. Propose changes with reasoning — don't silently rewrite large sections.
 
 Confirm with the user before rewriting more than a few bars.
 
