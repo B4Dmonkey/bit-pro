@@ -1,7 +1,7 @@
 ---
 id: BIT-16.2
 title: The repo installs as its own marketplace
-status: doing
+status: done
 phase: 1
 phase_label: 'spike: delivery'
 ---
