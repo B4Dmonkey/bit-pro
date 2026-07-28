@@ -1,13 +1,13 @@
 ---
 name: bit_plan
-description: Create or refine an implementation plan for a large task — bug fix, refactor, or new feature. Use when the user says "make a plan", "let's plan this out", "let's revise the plan", names a scope track to plan, or describes a change that is too large to implement in one session. Also triggers on casual phrasing like "let's think through this" or "how should we approach X" when the scope is clearly multi-step. This skill authors and refines the plan only — one bar (child task) per step under the scope's track in `.bit/`, through the `bit` CLI. When the user wants to frame the high-level WHY and delivery order first, use bit_scope; when they want to carry out an existing plan ("implement the plan", "continue our implementation", "do the next step"), use bit_do instead. Produces contradiction-driven step bars (each one red-green cycle and one commit) tagged with the verse they serve, TDD-first checklists, and an explicit split between what Claude verifies and what the user verifies.
+description: Create or refine an implementation plan for a large task — bug fix, refactor, or new feature. Use when the user says "make a plan", "let's plan this out", "let's revise the plan", names a scope track to plan, or describes a change that is too large to implement in one session. Also triggers on casual phrasing like "let's think through this" or "how should we approach X" when the scope is clearly multi-step. This skill authors and refines the plan only — one bar (child task) per step under the scope's track in `.bit/`, through the `bp` CLI. When the user wants to frame the high-level WHY and delivery order first, use bit_scope; when they want to carry out an existing plan ("implement the plan", "continue our implementation", "do the next step"), use bit_do instead. Produces contradiction-driven step bars (each one red-green cycle and one commit) tagged with the verse they serve, TDD-first checklists, and an explicit split between what Claude verifies and what the user verifies.
 ---
 
 # Implementation Plan Creator
 
-You create and refine implementation plans. A plan is a set of **bars** (child tasks) under a scope's **track** in `.bit/`, authored through the `bit` CLI — one bar per step, detailed enough to work from autonomously across sessions, minimal enough not to waste tokens.
+You create and refine implementation plans. A plan is a set of **bars** (child tasks) under a scope's **track** in `.bit/`, authored through the `bp` CLI — one bar per step, detailed enough to work from autonomously across sessions, minimal enough not to waste tokens.
 
-**Before you drive the CLI, read `.claude/bit-cli.md`** — the shared command contract (read the scope from its track body, create bars under the track, tag each bar's verse). Every write goes through `bit`; never hand-edit `.bit/tasks/*.md`.
+**Before you drive the CLI, read `.claude/bit-cli.md`** — the shared command contract (read the scope from its track body, create bars under the track, tag each bar's verse). Every write goes through `bp`; never hand-edit `.bit/tasks/*.md`.
 
 ## Two modes
 
@@ -18,7 +18,7 @@ You create and refine implementation plans. A plan is a set of **bars** (child t
 
 ## Context — defer to the scope
 
-The WHY lives in the **scope** — the track body (bit_scope's work), not here. Because the bars you create live *under* that track, the linkage is structural: a reader opening a bar reads the parent track (`bit task read <track> --body`) for the WHY. You don't repeat the motivation in each bar, and there's no separate Context pointer to maintain — the parent relationship is the pointer.
+The WHY lives in the **scope** — the track body (bit_scope's work), not here. Because the bars you create live *under* that track, the linkage is structural: a reader opening a bar reads the parent track (`bp task read <track> --body`) for the WHY. You don't repeat the motivation in each bar, and there's no separate Context pointer to maintain — the parent relationship is the pointer.
 
 If **no scope track exists** — the user came straight to a plan — you still need the WHY before drafting. Either suggest writing a quick scope first (bit_scope creates the track), or capture 2–3 sentences of motivation and put them at the top of the track body yourself. A reader who knows nothing about the codebase should understand *why* this work is needed:
 
@@ -31,7 +31,7 @@ If the user gives you only a "what", push back once to get the "why". Ask: what 
 
 ## Gathering context (new plans)
 
-**Start from the scope track.** The user names it (by ID or title); read its body end to end with `bit task read <track> --body` — the WHY, the verses, the "touches" pointers, and the risks. The scope hands you the delivery order and the code areas each verse affects — your job is to turn its verses into TDD steps, one bar each under that track.
+**Start from the scope track.** The user names it (by ID or title); read its body end to end with `bp task read <track> --body` — the WHY, the verses, the "touches" pointers, the risks, and the References section if one exists. If the scope has a `## References` section, note which reference docs are relevant to which verses before drafting bars — the right ones need to be carried forward into the right bar bodies, not left in the scope where they'll be out of context when bit_do executes the step. The scope hands you the delivery order and the code areas each verse affects — your job is to turn its verses into TDD steps, one bar each under that track.
 
 Default to planning every verse in one pass. Splitting into multiple planning sessions exists to route around a genuine unknown — a risk the scope flagged "de-risk before planning? Yes", or a later verse whose shape depends on what an earlier verse turns out to build — not as a default posture just because a scope has more than one verse. If the scope is clear and none of its risks block a verse, plan it end to end now; don't ask the user to pick a verse to be cautious. If an unknown does block a later verse, plan up through whatever isn't blocked, then tell the user which verse(s) you're deferring and why.
 
@@ -172,9 +172,9 @@ After the TDD cycle in each step, there are two kinds of additional check.
 human *does* in the running system and *observes* a specific result. There's an action and a
 pass/fail.
 
-- "In `bit tui`, press `→`, then confirm `q`/`esc`/`ctrl+c` each quit and `ctrl+d` still scrolls."
+- "In `bp tui`, press `→`, then confirm `q`/`esc`/`ctrl+c` each quit and `ctrl+d` still scrolls."
 - "`git status`: these files are added; the only diffs to `.claude/` are X."
-- "Run `bit task list` against the real records — the 13 bars under BIT-2 stay in one column, nothing wraps."
+- "Run `bp task list` against the real records — the 13 bars under BIT-2 stay in one column, nothing wraps."
 
 The litmus test: *could the user pass or fail this by doing one thing and looking?* If there's
 no action-and-observation — if you're asking them to **bless a choice** rather than **observe a
@@ -219,7 +219,7 @@ only their own concrete checks, or none.
 Each step is **one bar** under the scope's track. The bar's **title** is the step name (what it proves); its `--phase`/`--phase-label` tag the verse it serves; its **body** is the step detail below. Create each bar in delivery order — `task create --parent` prints the dotted bar ID (`BIT-7.1`, `BIT-7.2`, …), and the order you create them in is the order bit_do will execute them:
 
 ```bash
-BAR=$(bit task create "Contradiction forces real fan-out" \
+BAR=$(bp task create "Contradiction forces real fan-out" \
         --parent "$TRACK" --phase 1 --phase-label "Ingest" \
         -d "$(cat step-body.md)")
 ```
@@ -236,6 +236,12 @@ The **bar body** uses this structure. It opens with the verse the bar serves (`#
 ## Scope
 - `path/to/file.go` — what changes here
 - `path/to/other.go` — what changes here
+
+## References
+[Omit if no reference from the scope's References section applies to this step.
+Only include references the implementer actually needs to read for this bar.]
+
+- `path/to/doc.md` — what to use it for in this step
 
 ## TDD cycle
 
@@ -274,8 +280,9 @@ The throughline that used to live in a plan's "How this plan works" section — 
 5. Review each bar: does it start with a test? Is it one red-green cycle?
 6. Flag any bar that bundles multiple scenarios (split it into two bars — each earns its own commit)
 7. Check each bar's **User verifies** against the two traps (see Verification split): a decision-in-disguise ("reads naturally", "is acceptable", "feels right") is a missing scope Decision — flag it and hand back to bit_scope; a subjective "how does it feel" on a non-final bar belongs on its verse's last bar instead. A concrete do-X-observe-Y check is fine as is.
-8. Flag YAGNI violations, over-bundled bars, or missing verification
-9. Apply edits through the CLI: reword a bar with `task update <bar> -d "…"`, add a missing step with `task create --parent …`, and **reorder a misplaced bar with `task move <bar> --before|--after <sibling>`** — the ID is stable identity, so moving a bar rewrites only the track's order list and every reference to that bar (commit messages, notes) stays valid. Don't delete-and-recreate to reorder; that churns IDs and breaks those references. Propose changes with reasoning — don't silently rewrite large sections.
+8. Check references: if the scope track has a `## References` section, are the relevant references carried into bars that need them? A bar touching a verse that depends on a spec or design doc should have a `## References` section pointing to it. Flag any bar where the reference is missing and the implementer would need it.
+9. Flag YAGNI violations, over-bundled bars, or missing verification
+10. Apply edits through the CLI: reword a bar with `task update <bar> -d "…"`, add a missing step with `task create --parent …`, and **reorder a misplaced bar with `task move <bar> --before|--after <sibling>`** — the ID is stable identity, so moving a bar rewrites only the track's order list and every reference to that bar (commit messages, notes) stays valid. Don't delete-and-recreate to reorder; that churns IDs and breaks those references. Propose changes with reasoning — don't silently rewrite large sections.
 
 Confirm with the user before rewriting more than a few bars.
 

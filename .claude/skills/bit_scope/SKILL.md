@@ -1,13 +1,13 @@
 ---
 name: bit_scope
-description: Create or refine a high-level scope (an RFC-style overview) for a feature or change BEFORE any detailed planning. Use this first — whenever the user wants to frame WHAT is changing and WHY at a high level, sketch the shape of a feature request, decide the order of delivery, or surface risks and unknowns to de-risk before committing to a detailed plan. Triggers on "scope this out", "give me a high-level overview", "what's the shape of this feature", "let's write an RFC", "think through the delivery order", "before we plan", or describing a feature request where implementation detail isn't wanted yet. Authors the scope as a track in `.bit/` through the `bit` CLI: the motivation (WHY), a coarse checklist of value-delivering verses (each a usable vertical slice, ordered for incremental value), light pointers to the code areas each verse touches, the open risks/unknowns, and the decisions that iteration has settled. This is the overview that feeds bit_plan — bit_scope owns the WHY and the delivery order; bit_plan turns each verse into detailed TDD steps; bit_do executes. Reach for bit_scope for the high-level shape, bit_plan for the detailed plan, bit_do to build it.
+description: Create or refine a high-level scope (an RFC-style overview) for a feature or change BEFORE any detailed planning. Use this first — whenever the user wants to frame WHAT is changing and WHY at a high level, sketch the shape of a feature request, decide the order of delivery, or surface risks and unknowns to de-risk before committing to a detailed plan. Triggers on "scope this out", "give me a high-level overview", "what's the shape of this feature", "let's write an RFC", "think through the delivery order", "before we plan", or describing a feature request where implementation detail isn't wanted yet. Authors the scope as a track in `.bit/` through the `bp` CLI: the motivation (WHY), a coarse checklist of value-delivering verses (each a usable vertical slice, ordered for incremental value), light pointers to the code areas each verse touches, the open risks/unknowns, and the decisions that iteration has settled. This is the overview that feeds bit_plan — bit_scope owns the WHY and the delivery order; bit_plan turns each verse into detailed TDD steps; bit_do executes. Reach for bit_scope for the high-level shape, bit_plan for the detailed plan, bit_do to build it.
 ---
 
 # Scope Creator
 
 You write and refine a **scope** — a short, high-level overview of a proposed software change. You do NOT write code, name functions, or produce a granular task list; a later skill (bit_plan) does that. Your job is clarity about **what** is changing, **why**, and **in what order** value gets delivered.
 
-A scope lives as a **track** in `.bit/` — a top-level task whose body holds the scope prose — authored and refined through the local `bit` CLI. The user refines it until they're happy with the shape of the work. It is the first of three artifacts:
+A scope lives as a **track** in `.bit/` — a top-level task whose body holds the scope prose — authored and refined through the local `bp` CLI. The user refines it until they're happy with the shape of the work. It is the first of three artifacts:
 
 - **bit_scope** (this skill) — the high-level shape: why, and the order of delivery. Owns the WHY.
 - **bit_plan** — turns the scope's verses into detailed, contradiction-driven TDD steps, one **bar** (child task) per step under this track.
@@ -17,14 +17,14 @@ A **verse** is one value slice in the delivery order (the checklist you write he
 
 Because bit_scope owns the WHY, the plan won't repeat it — the bars live under this track, so a reader gets the WHY by reading the track body. That makes the motivation in this document load-bearing: get it right.
 
-**Before you drive the CLI, read `.claude/bit-cli.md`** — the shared command contract (create a track, read/write a body, list bars). Every write goes through `bit`; never hand-edit `.bit/tasks/*.md`.
+**Before you drive the CLI, read `.claude/bit-cli.md`** — the shared command contract (create a track, read/write a body, list bars). Every write goes through `bp`; never hand-edit `.bit/tasks/*.md`.
 
 ---
 
 ## Two modes
 
 **Create** — start from a feature request or problem description and build the scope from scratch as a new track.
-**Refine** — improve an existing scope. The user names the track (by ID like `BIT-7`, or by title); read its body with `bit task read <id> --body`, then write the refined body back. The user will typically loop here several times, tightening the verses and resolving unknowns into decisions, until they're satisfied enough to move to bit_plan.
+**Refine** — improve an existing scope. The user names the track (by ID like `BIT-7`, or by title); read its body with `bp task read <id> --body`, then write the refined body back. The user will typically loop here several times, tightening the verses and resolving unknowns into decisions, until they're satisfied enough to move to bit_plan.
 
 ---
 
@@ -100,6 +100,7 @@ Before drafting, get the WHY right — it's the part the plan will lean on, so i
 Then do *light* research — enough to name the code areas each verse touches and to spot the real risks, but not a deep dive (that's bit_plan's job):
 - Locate the parts of the codebase each verse would affect, so the "touches" pointers are accurate.
 - Notice genuine unknowns — external services, ambiguous data shapes, assumptions the whole approach rests on.
+- **Capture any reference docs the user provided.** If the user shared a file path, URL, pasted spec, design doc, or named any external artifact as an authority this scope should honor, record it in the `## References` section of the track body. A reference doc is something the user is pointing to as a source of truth — not every file mentioned casually, only the ones they're invoking as constraints or specifications.
 
 Don't over-research. If you find yourself reading function bodies to design the change, you've gone past scope altitude.
 
@@ -110,10 +111,10 @@ Don't over-research. If you find yourself reading function bodies to design the 
 The scope is authored as a **track body**. Draft the body (the markdown below), then create the track with it in one call — `task create` prints the new track ID, which is how bit_plan and bit_do later find this work:
 
 ```bash
-TRACK=$(bit task create "<scope title>" -d "$(cat scope-body.md)")
+TRACK=$(bp task create "<scope title>" -d "$(cat scope-body.md)")
 ```
 
-Refining an existing track means reading its body, editing, and writing it back with `bit task update <id> -d "…"`. Report the track ID to the user — it's the handle they'll name when they move to bit_plan.
+Refining an existing track means reading its body, editing, and writing it back with `bp task update <id> -d "…"`. Report the track ID to the user — it's the handle they'll name when they move to bit_plan.
 
 The order below is deliberate: the **pitch** first (why, what, and a picture of it), then the **problems still open**, then **what's been settled**, and only last **how the work breaks up**. A reader should be sold on the change and know what's undecided before they read the delivery order.
 
@@ -158,6 +159,13 @@ and `Verse N` on one line.]
 - [ ] Verse 1 — <capability unlocked>: one or two sentences on what a user/operator can now do.
   Touches: <code area / files> — where to look to verify.
 - [ ] Verse 2 — <capability unlocked>: …
+
+## References
+[Omit this section if no reference docs were provided. List only external artifacts the
+user explicitly pointed to as authorities — specs, design docs, API references, pasted
+content. One line each: the path or URL, and which verses it informs.]
+
+- `path/to/doc.md` — what this doc is and which verses it informs
 ```
 
 Keep it tight. This is an overview a reader skims to grasp the shape of the work before a detailed plan exists. Prefer clarity over completeness.
@@ -178,7 +186,8 @@ Keep it tight. This is an overview a reader skims to grasp the shape of the work
    - Is the order delivering incremental value — walking skeleton first, riskiest assumptions early?
    - Is each named by the capability unlocked, not the component built?
 5. Check that no verse has slid into implementation detail, **and that no verse is smuggling an open question** — a "TBD", a "deferred to plan-time", a "the technical question is…". The "touches" pointer is a locator only; flag anything prescribing *how*, and flag any unknown hiding in a verse: it belongs in Risks & unknowns, or answered in Decisions — never in the verse text.
-6. Propose edits with reasoning — don't silently rewrite large sections. Confirm before rewriting more than a few lines.
+6. Check the References section: did the user provide any reference docs during this session that aren't captured there? If so, add them. If no references exist yet and none were provided, omit the section entirely.
+7. Propose edits with reasoning — don't silently rewrite large sections. Confirm before rewriting more than a few lines.
 
 The user drives this loop; keep refining with them until they're happy enough to move to bit_plan.
 

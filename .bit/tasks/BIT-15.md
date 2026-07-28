@@ -17,5 +17,5 @@ Rename the installed binary from `bit` to `bp`. The Justfile build step, the Cob
 ## Verses
 - [x] Verse 1 — Binary runs as `bp`: `just install` builds `bp` into `$GOBIN`; `bp tui`, `bp task list`, etc. all work; tests pass against the new name.
   Touches: `Justfile` (build -o flag), `cmd/root.go` (cobra `Use:`), `cmd/root_test.go` (string assertions).
-- [ ] Verse 2 — Skill assets call `bp`: all four skill SKILL.md files and `bit-cli.md` in `assets/` updated from `bit task …` to `bp task …`; binary reinstalled; `bp init` re-seeds `.claude/` with the updated contract.
+- [x] Verse 2 — Skill assets call `bp`: all four skill SKILL.md files and `bit-cli.md` in `assets/` updated from `bit task …` to `bp task …`; binary reinstalled; `bp init` re-seeds `.claude/` with the updated contract.
   Touches: `assets/bit-cli.md`, `assets/skills/bit_scope/SKILL.md`, `assets/skills/bit_plan/SKILL.md`, `assets/skills/bit_do/SKILL.md`, `assets/skills/bit_check/SKILL.md`.

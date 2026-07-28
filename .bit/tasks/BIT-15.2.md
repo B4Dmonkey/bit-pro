@@ -1,7 +1,7 @@
 ---
 id: BIT-15.2
 title: Asset files call bp
-status: todo
+status: done
 phase: 2
 phase_label: Skill assets call bp
 ---

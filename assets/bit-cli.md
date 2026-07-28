@@ -1,11 +1,11 @@
-# Driving bit through `bit`
+# Driving bp through `bp`
 
 The bit_scope, bit_plan, bit_do, and bit_check skills all track their own work inside
-`.bit/` by driving the local `bit` CLI. This is the shared command contract they
+`.bit/` by driving the local `bp` CLI. This is the shared command contract they
 rely on. Read it once at the start of a session; the individual skills tell you *when* to
 run each command, this file tells you *how*.
 
-The single rule that makes the rest safe: **every write goes through `bit`. Never
+The single rule that makes the rest safe: **every write goes through `bp`. Never
 edit `.bit/tasks/*.md` by hand.** The CLI owns the file format (YAML frontmatter + body);
 hand-edits drift from what the tool expects and defeat the point of the tool tracking its
 own development.
@@ -28,48 +28,48 @@ command substitution strips the trailing newline — so `ID=$(...)` holds exactl
 
 ```bash
 # Create a track (a scope). Prints the new track ID.
-TRACK=$(bit task create "<scope title>" -d "<scope body>")
+TRACK=$(bp task create "<scope title>" -d "<scope body>")
 
 # Create a bar (a step) under a track. Prints the new dotted bar ID.
 # --phase / --phase-label carry the scope phase the step serves.
-BAR=$(bit task create "<step name>" --parent "$TRACK" \
+BAR=$(bp task create "<step name>" --parent "$TRACK" \
         --phase 1 --phase-label "<phase label>" -d "<step body>")
 
 # Read a body only — no header line. Round-trips byte-for-byte, so this is the
 # read side of a read → edit → write-back refine.
-bit task read "$ID" --body
+bp task read "$ID" --body
 
 # Read the one-line summary: <ID>\t<status>\t<title>[\tphase N — label]
-bit task read "$ID" | head -1
+bp task read "$ID" | head -1
 
 # Rewrite a body wholesale. -d "$(...)" is a proven byte-safe whole-body write
 # (backticks, $, code fences, and --- lines all survive).
-bit task update "$ID" -d "<new body>"
+bp task update "$ID" -d "<new body>"
 
 # Set status. Status is a plain field you set directly — there is no state machine.
 # Use exactly one of todo | doing | done.
-bit task update "$ID" -s todo|doing|done
+bp task update "$ID" -s todo|doing|done
 
 # You can change body and status (and title/phase) in one call:
-bit task update "$TRACK" -d "<new body>" -s done
+bp task update "$TRACK" -d "<new body>" -s done
 
 # List one track's bars only, in step order: <ID>\t<status>\t<title>\tphase N — label
-bit task list --parent "$TRACK"
+bp task list --parent "$TRACK"
 
 # List everything. Tracks are the rows whose ID has no dot; bars have a dotted ID.
-bit task list
+bp task list
 
 # Resequence a bar within its track. Rewrites the track's order list so every surface
 # that reads it (task list --parent, the TUI list, the board, bit_do's next-step resume)
 # reflects the new position. Pass exactly one of --before / --after; the anchor is a sibling.
-bit task move "$BAR" --before "$SIBLING"
-bit task move "$BAR" --after  "$SIBLING"
+bp task move "$BAR" --before "$SIBLING"
+bp task move "$BAR" --after  "$SIBLING"
 ```
 
 A track owns an explicit ordered list of its bars, and the CLI is the only thing that
 writes it: `create` **appends** to the list, `move` **rewrites** it, `delete` removes from
 it. That's why order never depends on filesystem glob order or on hand-editing — the same
-"every write goes through `bit`" rule that protects the file format also protects the
+"every write goes through `bp`" rule that protects the file format also protects the
 ordering.
 
 ## Writing a body from the shell
@@ -82,8 +82,8 @@ For a small, surgical change to a stored body — toggling one phase checkbox, f
 read it out, stream-edit, and write it back:
 
 ```bash
-bit task read "$ID" --body | sed 's/- \[ \] Verse 1/- [x] Verse 1/' > body.md
-bit task update "$ID" -d "$(cat body.md)"
+bp task read "$ID" --body | sed 's/- \[ \] Verse 1/- [x] Verse 1/' > body.md
+bp task update "$ID" -d "$(cat body.md)"
 ```
 
 Don't try to hand-edit a body held in a shell variable — it's multi-line text, so route it
