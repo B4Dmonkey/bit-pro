@@ -152,7 +152,7 @@ assets/skills/*/SKILL.md                 bit/skills/{scope,plan,do,check}/SKILL.
 
 ## Verses
 
-- [ ] Verse 1 (spike) — **Does pushing a skill change deliver it to an installed plugin?**: this repo carries a
+- [x] Verse 1 (spike) — **Does pushing a skill change deliver it to an installed plugin?**: this repo carries a
   `bit` plugin holding one trivial skill and publishes itself as a marketplace, so the plugin can
   be installed for real — and then editing that skill, pushing, and updating shows the new version
   arriving. The payload is deliberately trivial because the mechanism is what's under test; the

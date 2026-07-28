@@ -1,7 +1,7 @@
 ---
 id: BIT-16.3
 title: A pushed edit reaches the installed plugin
-status: doing
+status: done
 phase: 1
 phase_label: 'spike: delivery'
 ---
