@@ -30,7 +30,7 @@ func mustRun(t *testing.T, args ...string) string {
 
 	out, err := run(t, args...)
 	if err != nil {
-		t.Fatalf("bit %s returned error: %v", strings.Join(args, " "), err)
+		t.Fatalf("bp %s returned error: %v", strings.Join(args, " "), err)
 	}
 	return out
 }

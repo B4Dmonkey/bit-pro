@@ -10,8 +10,8 @@ const claudeDir = ".claude"
 
 func NewRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:           "bit",
-		Short:         "bit is a project-management CLI for LLM-driven development workflows",
+		Use:           "bp",
+		Short:         "bp is a project-management CLI for LLM-driven development workflows",
 		Version:       version,
 		SilenceUsage:  true,
 		SilenceErrors: true,

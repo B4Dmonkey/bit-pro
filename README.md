@@ -161,6 +161,33 @@ of what to pick up next.
   on?" isn't answerable from the list or the board. Add that signal, and let the TUI filter
   on it. Needs a model decision first: a new frontmatter field, another status value, or a
   separate flag — and how it coexists with `todo`/`doing`/`done`.
+- **Ship the skills as a Claude Code plugin** (not scoped) — the skills are embedded in the
+  binary today, so editing one costs a rebuild and a re-init, and there's no versioned way to
+  distribute them across repos. Package them as a plugin instead, with `bit init` wiring the
+  plugin into the project. The minimum bar is porting the existing asset set over unchanged;
+  `assets/` and the `//go:embed` then go away, making the plugin the only source of skills.
+  Worth doing on the packaging win alone — the open question to test first is whether a
+  running session picks up plugin edits automatically, but even without reload this beats the
+  rebuild loop. Note the tradeoff it creates: CLI and skills version independently, so `bit`'s
+  command surface becomes an API a separately-released client consumes. Overlaps with
+  `BIT-15`, which currently assumes the embedded assets move with the rename.
+- **Retro notes, and a `bit_retro` skill to evaluate them** (not scoped) — when a run goes
+  sideways today the fix is to stop, repair the scope and plan, and carry on. That repair is
+  lossy: the broken plan is gone, so a finished track that was rewritten mid-flight looks
+  identical to one that went smoothly, and there's nothing left to learn from. Split it in
+  two. **Capture** is a `bit` subcommand that appends an observation to the track — which bar
+  it happened at, what the plan said, what the work actually required, before/after commit
+  hashes — called from `bit_do` and `bit_plan` when a correction lands, so it doesn't depend
+  on anyone invoking a skill mid-run. Notes hang off the track, not the bar, because
+  replanning renumbers bars and would orphan them. **Evaluation** is a new `bit_retro` skill
+  (the underscore-family port of `bit-retro`) that reads the track, its notes, and the plan
+  against what actually changed, then routes each note to the stage that should have caught
+  it — a missing exemplar back to `bit_plan`'s citations, an unasked question into
+  `bit_scope`'s checklist. Needs decisions before scoping: whether notes are a markdown
+  section or frontmatter, and the cause taxonomy — small and closed enough to count across
+  cycles, with an explicit "not preventable" bucket so the checklists don't bloat with
+  defensive questions. Aggregating notes across repos and clients wants a store above
+  `.bit/`; out of scope here.
 
 **Backlog — needs definition before scoping:**
 

@@ -8,15 +8,15 @@ import (
 func TestRootCmd_Help(t *testing.T) {
 	out := mustRun(t, "--help")
 
-	if !strings.Contains(out, "bit") {
-		t.Errorf("help output missing command name %q, got:\n%s", "bit", out)
+	if !strings.Contains(out, "bp") {
+		t.Errorf("help output missing command name %q, got:\n%s", "bp", out)
 	}
 }
 
 func TestRootCmd_Version(t *testing.T) {
 	out := mustRun(t, "--version")
 
-	want := "bit version " + version + "\n"
+	want := "bp version " + version + "\n"
 	if out != want {
 		t.Errorf("version output = %q, want %q", out, want)
 	}
