@@ -1,6 +1,6 @@
 ---
 name: bit_plan
-description: Create or refine an implementation plan for a large task — bug fix, refactor, or new feature. Use when the user says "make a plan", "let's plan this out", "let's revise the plan", names a scope track to plan, or describes a change that is too large to implement in one session. Also triggers on casual phrasing like "let's think through this" or "how should we approach X" when the scope is clearly multi-step. This skill authors and refines the plan only — one bar (child task) per step under the scope's track in `.bit/`, through the `bp` CLI. When the user wants to frame the high-level WHY and delivery order first, use bit_scope; when they want to carry out an existing plan ("implement the plan", "continue our implementation", "do the next step"), use bit_do instead. Produces contradiction-driven step bars (each one red-green cycle and one commit) tagged with the verse they serve, TDD-first checklists, and an explicit split between what Claude verifies and what the user verifies.
+description: Create or refine an implementation plan for a large task — bug fix, refactor, or new feature. Use when the user says "make a plan", "let's plan this out", "let's revise the plan", names a scope track to plan, or describes a change that is too large to implement in one session. Also triggers on casual phrasing like "let's think through this" or "how should we approach X" when the scope is clearly multi-step. This skill authors and refines the plan only — one bar (child task) per step under the scope's track in `.bit/`, through the `bp` CLI. When the user wants to frame the high-level WHY and delivery order first, use bit_scope; when they want to carry out an existing plan ("implement the plan", "continue our implementation", "do the next step"), use bit_do instead. Produces contradiction-driven step bars (each one red-green cycle and one commit) tagged with the verse they serve, TDD-first checklists, and an explicit split between what Claude verifies and what the user verifies. If the scope marks a verse `(spike)` — work whose deliverable is an answer to an open unknown — this skill plans every spike first and then either stops there or proposes splitting the scope, depending on whether the remaining verses depend on the answer.
 ---
 
 # Implementation Plan Creator
@@ -33,7 +33,21 @@ If the user gives you only a "what", push back once to get the "why". Ask: what 
 
 **Start from the scope track.** The user names it (by ID or title); read its body end to end with `bp task read <track> --body` — the WHY, the verses, the "touches" pointers, the risks, and the References section if one exists. If the scope has a `## References` section, note which reference docs are relevant to which verses before drafting bars — the right ones need to be carried forward into the right bar bodies, not left in the scope where they'll be out of context when bit_do executes the step. The scope hands you the delivery order and the code areas each verse affects — your job is to turn its verses into TDD steps, one bar each under that track.
 
-Default to planning every verse in one pass. Splitting into multiple planning sessions exists to route around a genuine unknown — a risk the scope flagged "de-risk before planning? Yes", or a later verse whose shape depends on what an earlier verse turns out to build — not as a default posture just because a scope has more than one verse. If the scope is clear and none of its risks block a verse, plan it end to end now; don't ask the user to pick a verse to be cautious. If an unknown does block a later verse, plan up through whatever isn't blocked, then tell the user which verse(s) you're deferring and why.
+Default to planning every verse in one pass. Splitting into multiple planning sessions exists to route around a genuine unknown, not as a default posture just because a scope has more than one verse. If the scope is clear and nothing is open, plan it end to end now; don't ask the user to pick a verse to be cautious.
+
+### When the scope has spike verses
+
+A **spike** is a verse whose deliverable is an *answer*, not a capability. bit_scope marks it `Verse N (spike)` in the checklist and, in the Risks & unknowns entry it resolves, states the question, what counts as a yes or a no, whether the artifact is kept, and — the field you need most — what's **downstream** of the answer. Read that before drafting any bars, because spikes change *how much of the scope you plan*, and getting that wrong wastes a whole cycle.
+
+**Plan every spike.** More than one unknown means more than one spike, they're independent questions, and there's no reason to serialise learning. All of them get bars.
+
+Then use the downstream note:
+
+- **Later verses depend on the answer → plan the spikes and nothing else.** Don't ask about this one; it's the correct move, so make it and say so. Name the verses you're leaving unplanned, and state the loop back: run the spikes with bit_do, take the results to bit_scope, which turns the unknown into a Decision and revises those verses, then plan again. The reason to stop rather than plan optimistically is that a plan which gets rewritten is worse than no plan — it reads as settled, so nobody re-reads it, and its detailed steps quietly become the shape of the work even after the answer contradicted them.
+
+- **Later verses stand on their own → this is a signal to split the scope, and you ask first.** A scope carrying both settled work and an open question is doing two independent jobs: the known work could be planned, built, and signed off without ever waiting on the answer, and holding it hostage to a spike is pure delay. So propose the split — one track for the knowns, one for the spikes and whatever follows from them — and say what it buys. But **confirm before doing it**: it creates a second track and changes what the user is tracking day to day, which is theirs to decide, not a mechanical consequence of the scope's shape. If they agree, hand back to bit_scope to author the split (it owns tracks; you own bars), then plan each track. If they'd rather keep one track, plan the spikes and the independent verses together in it and defer only what genuinely hangs on an answer.
+
+If the scope has a spike but no downstream note, that's the one thing you can't work around — ask, or hand back to bit_scope to settle it. Guessing picks between "plan almost nothing" and "split the user's track," and both are expensive to be wrong about.
 
 If there's no scope, ask before researching:
 
@@ -118,6 +132,14 @@ A test name and one-liner ("3 members, assert count is 3") looks obvious until i
      - **Assertions:** …
      - **Boundary:** …
 ```
+
+### The one exception: spike bars
+
+A spike bar's deliverable is an *answer*, so there's nothing to test-drive. What's being proven is whether some mechanism outside your control behaves the way the approach assumes, and no test you write can settle that — a test asserting the answer you hope for is the same laundering as a decision wearing a checkbox (see Trap 1 below). It looks like verification and verifies nothing.
+
+What replaces the red-green cycle is a **falsifiable observation**: state up front what you'd see if the answer is yes and what you'd see if it's no, exactly the way an ordinary bar states its expected failure reason. That's what stops a spike from wandering around and concluding "seems to work" — the failure mode spikes actually have. And a "no" is a real result the bar can succeed at producing, not a failed bar.
+
+TDD still applies to whatever code the spike **keeps**. The scope says whether the artifact survives; carry that into the bar, because a probe you throw away is built as cheaply as possible while a probe whose artifact later verses build on is real code with a real test. Blurring the two is how throwaway code ends up load-bearing.
 
 ### Why this matters
 
@@ -269,6 +291,38 @@ Only include references the implementer actually needs to read for this bar.]
 
 The throughline that used to live in a plan's "How this plan works" section — what the entry point is and how tests drive deeper — belongs in the **track body** (a sentence or two), not repeated per bar. If it's missing and would help, offer to add it to the track via bit_scope.
 
+### A spike bar's body
+
+Same frame, different middle: the TDD cycle is replaced by the question and how it gets settled. Prefix the phase label with `spike:` so it's visible wherever bars are listed — `--phase 1 --phase-label "spike: delivery"` — since a reader scanning the board should be able to tell which bars produce knowledge and which produce capability.
+
+```markdown
+## **Verse 1 (spike)**
+
+**Question:** [the unknown, phrased so an answer is recognisable]
+**Yes looks like:** [the concrete observation]
+**No looks like:** [the concrete observation — a real outcome, not a failed bar]
+
+## Scope
+- `path/to/thing` — what gets built, and whether it's kept or thrown away
+
+## Method
+- [ ] the concrete steps that produce the observation
+
+## Claude verifies
+- [ ] [whatever is deterministic — a command exits 0, a file contains X. Plus tests, if this bar keeps code.]
+
+## User verifies
+- [ ] [the observation itself, when only a human can see it]
+
+## Report back
+- [ ] Take the answer to bit_scope: the unknown becomes a Decision, and Verses N–M get revised against it before they're planned.
+
+## Commit (user)
+`<type>(scope): short description`
+```
+
+The `Report back` item is what closes the loop — without it a spike's answer lives only in the session that ran it, and the scope keeps its unknown while the work has moved on.
+
 ---
 
 ## Refining an existing plan
@@ -281,8 +335,9 @@ The throughline that used to live in a plan's "How this plan works" section — 
 6. Flag any bar that bundles multiple scenarios (split it into two bars — each earns its own commit)
 7. Check each bar's **User verifies** against the two traps (see Verification split): a decision-in-disguise ("reads naturally", "is acceptable", "feels right") is a missing scope Decision — flag it and hand back to bit_scope; a subjective "how does it feel" on a non-final bar belongs on its verse's last bar instead. A concrete do-X-observe-Y check is fine as is.
 8. Check references: if the scope track has a `## References` section, are the relevant references carried into bars that need them? A bar touching a verse that depends on a spec or design doc should have a `## References` section pointing to it. Flag any bar where the reference is missing and the implementer would need it.
-9. Flag YAGNI violations, over-bundled bars, or missing verification
-10. Apply edits through the CLI: reword a bar with `task update <bar> -d "…"`, add a missing step with `task create --parent …`, and **reorder a misplaced bar with `task move <bar> --before|--after <sibling>`** — the ID is stable identity, so moving a bar rewrites only the track's order list and every reference to that bar (commit messages, notes) stays valid. Don't delete-and-recreate to reorder; that churns IDs and breaks those references. Propose changes with reasoning — don't silently rewrite large sections.
+9. Check the spikes both ways. Does each spike bar state a falsifiable observation (yes looks like / no looks like), say whether its artifact is kept, and end with a `Report back` item? And the drift case that matters more: are there bars planned for verses the scope says depend on an *unresolved* spike? Those were written without the answer, so flag them — the fix is to hold them until the spike reports back, not to polish them.
+10. Flag YAGNI violations, over-bundled bars, or missing verification
+11. Apply edits through the CLI: reword a bar with `task update <bar> -d "…"`, add a missing step with `task create --parent …`, and **reorder a misplaced bar with `task move <bar> --before|--after <sibling>`** — the ID is stable identity, so moving a bar rewrites only the track's order list and every reference to that bar (commit messages, notes) stays valid. Don't delete-and-recreate to reorder; that churns IDs and breaks those references. Propose changes with reasoning — don't silently rewrite large sections.
 
 Confirm with the user before rewriting more than a few bars.
 

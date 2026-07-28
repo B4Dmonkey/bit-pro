@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "bit",
+  "displayName": "bit pipeline",
+  "description": "The bit scope → plan → do pipeline: author a scope, turn it into contradiction-driven TDD steps, and execute them one commit at a time, all tracked in .bit/ through the bp CLI."
+}
