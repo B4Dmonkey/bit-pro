@@ -5,6 +5,7 @@
     "go-spec-reviewer@go-skills": true,
     "go-release@go-skills": true,
     "wails@go-skills": true,
-    "fileflow-pathologize@go-skills": true
+    "fileflow-pathologize@go-skills": true,
+    "bit@bit-pro": true
   }
 }
