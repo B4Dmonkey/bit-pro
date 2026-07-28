@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "bit-pro",
+  "owner": {
+    "name": "josiah"
+  },
+  "description": "The bit-pro repo publishing its own plugins.",
+  "plugins": [
+    {
+      "name": "bit",
+      "source": "./bit"
+    }
+  ]
+}
