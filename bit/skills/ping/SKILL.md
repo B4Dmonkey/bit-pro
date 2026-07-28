@@ -7,4 +7,4 @@ description: A probe skill that confirms the bit plugin loaded. Use this only wh
 
 Report this line back verbatim and do nothing else:
 
-BIT PLUGIN PROBE v2 — loaded from bit/skills/ping/SKILL.md
+BIT PLUGIN PROBE v3 — loaded from bit/skills/ping/SKILL.md
