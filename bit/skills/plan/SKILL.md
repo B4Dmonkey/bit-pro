@@ -220,6 +220,11 @@ section is exactly for naming, wording, data-shape, and strategy calls, and they
 acceptance criteria. Once it's decided, the bar either needs no User-verify or gets a concrete
 one that *observes* the now-settled behavior. Don't ship the launder.
 
+A launder caught here *is* a decision the plan didn't make, so it's worth recording as well as
+fixing. Offer that in one line alongside the hand-back — yes or no, and `/bit:feedback` writes the
+note. Recording the Decision is what erases the trace, so the offer belongs before the hand-back,
+not after.
+
 ### Trap 2: a "how does it feel" spread across every bar
 
 Some checks are real but subjective — *does the whole slice integrate, does this capability feel
@@ -340,6 +345,11 @@ The `Report back` item is what closes the loop — without it a spike's answer l
 11. Apply edits through the CLI: reword a bar with `task update <bar> -d "…"`, add a missing step with `task create --parent …`, and **reorder a misplaced bar with `task move <bar> --before|--after <sibling>`** — the ID is stable identity, so moving a bar rewrites only the track's order list and every reference to that bar (commit messages, notes) stays valid. Don't delete-and-recreate to reorder; that churns IDs and breaks those references. Propose changes with reasoning — don't silently rewrite large sections.
 
 Confirm with the user before rewriting more than a few bars.
+
+Once the edits are agreed, offer to record what drove them: a bar reworded, split, or reordered
+because it was wrong is the same plan gap seen after the fact. One line, yes or no, and
+`/bit:feedback` writes the note. A refine pass that only tightened wording needs no offer — this is
+for the passes where something was actually wrong.
 
 ---
 

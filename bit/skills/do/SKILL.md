@@ -69,6 +69,8 @@ Either way, two lines hold firm: do **not** commit, and do **not** start the nex
 
 The user often follows up with small cleanup on the step you just implemented — a tweak, a rename, "actually make this a table test," fixing something the checks didn't catch. Handle those in place, without treating them as a new step. But every such reply still ends with the commit message (refined if the change affects what it should say), the same way the original close-out did. The point is that the user never has to ask for it — it should be the last thing they see once the step's code is in a state they could commit, however many small back-and-forths it took to get there.
 
+When one of those follow-ups was a *correction* — the tweak fixed something the plan should have settled and didn't — add one line offering to record it: "want me to capture that as a feedback note?" Yes or no, and `/bit:feedback` writes it. Never write the note unasked; the user is the judge of what counts as feedback, and the offer only saves them having to remember it exists.
+
 ---
 
 ## Closing out
@@ -109,6 +111,8 @@ Don't thrash or silently retry the same approach. Figure out which of three prob
 1. **The scope is wrong.** The bar did what it said, but the *direction* is off — the verse isn't delivering the value we expected, or the delivery order is wrong. This is bigger than one bar. Stop and hand back to **bit_scope** to rethink the track's shape; that will usually mean re-planning the affected verses (their bars) with bit_plan afterward.
 2. **The plan is wrong.** The scope is sound, but this bar's detail was off. Stop implementing and hand back to **bit_plan** to revise the bar. Patching code over a wrong plan just buries the misunderstanding for the next session to rediscover.
 3. **The plan is right, the implementation is wrong.** The intent was correct but the code doesn't deliver it. The user will often fix this directly. Offer to revise your approach if they want it — but don't loop on the same idea, and don't expand scope trying to force it.
+
+Cases 1 and 2 are plan gaps by definition — the plan was silent, or wrong, about something the work turned out to require. So before control leaves for bit_scope or bit_plan, offer to record it in one line, answered yes or no; `/bit:feedback` writes the note. The timing is the whole point: the hand-back is what overwrites the broken plan, so this is the last moment the evidence of what went wrong still exists.
 
 In all cases, leave the bar **not `done`** so it stays the next bar to resume. Its `doing` status is fine and accurate — work started, not verified. If you'd already auto-marked it `done` (the no-User-verifies path) and the user then flagged a problem, set it back to `doing` and reverse any verse checkoff you made — that's the unwind step 5 mentions.
 

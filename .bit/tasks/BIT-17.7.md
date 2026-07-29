@@ -1,7 +1,7 @@
 ---
 id: BIT-17.7
 title: The offer reaches the points corrections land
-status: todo
+status: done
 phase: 3
 phase_label: Offered, not remembered
 ---

@@ -1,7 +1,7 @@
 ---
 id: BIT-17
 title: Capture feedback notes when a correction lands
-status: doing
+status: done
 ---
 ## Why
 
@@ -120,12 +120,12 @@ notes exist, survive, and are worth reading when that consumer arrives.
   afterward and the track being archived. Run by hand at first — the value is that repair stops
   destroying its own evidence.
   Touches: a new command under `cmd/`, and the store in `task/`.
-- [ ] Verse 2 — **A correction becomes a good note without the user composing it**: invoking
+- [x] Verse 2 — **A correction becomes a good note without the user composing it**: invoking
   `/bit:feedback` turns "that's wrong, do X instead" into a well-formed note — the right track and
   bar, what the plan said, what the work actually required — so recording one costs a sentence
   rather than a writing exercise.
   Touches: a new `bit_feedback` skill under the plugin's `skills/`.
-- [ ] Verse 3 — **The user gets offered the note instead of having to think of it**: `bit_do` and
+- [x] Verse 3 — **The user gets offered the note instead of having to think of it**: `bit_do` and
   `bit_plan` recommend capture at the points where corrections land, so a yes is all it takes.
   Convenience on top of Verses 1 and 2, which already work without it.
   Touches: the `bit_do` and `bit_plan` skill text.

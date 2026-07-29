@@ -1,7 +1,7 @@
 ---
 id: BIT-17.6
 title: One sentence becomes a well-formed note
-status: doing
+status: done
 phase: 2
 phase_label: The skill composes it
 ---

@@ -1,7 +1,7 @@
 ---
 id: BIT-16
 title: Ship the bit_* skills as a Claude Code plugin
-status: doing
+status: done
 ---
 ## Why
 
