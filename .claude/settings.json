@@ -1,11 +1,19 @@
 {
   "enabledPlugins": {
-    "go@go-skills": true,
+    "bit@bit-pro": true,
     "cobra-viper@go-skills": true,
-    "go-spec-reviewer@go-skills": true,
-    "go-release@go-skills": true,
-    "wails@go-skills": true,
     "fileflow-pathologize@go-skills": true,
-    "bit@bit-pro": true
+    "go-release@go-skills": true,
+    "go-spec-reviewer@go-skills": true,
+    "go@go-skills": true,
+    "wails@go-skills": true
+  },
+  "extraKnownMarketplaces": {
+    "bit-pro": {
+      "source": {
+        "source": "github",
+        "repo": "B4Dmonkey/bit-pro"
+      }
+    }
   }
 }

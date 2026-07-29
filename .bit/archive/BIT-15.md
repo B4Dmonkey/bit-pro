@@ -1,7 +1,7 @@
 ---
 id: BIT-15
 title: Rename binary from bit to bp
-status: doing
+status: done
 ---
 ## Why
 The `bit` binary name collides with other tools in the dev environment. `bp` (bit-pro) is short, unique, and unambiguous — so `bp tui`, `bp task list`, etc. work without shadowing anything else.
