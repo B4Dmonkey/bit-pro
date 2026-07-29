@@ -1,7 +1,7 @@
 ---
 id: BIT-16.7
 title: An existing settings file survives the wiring
-status: todo
+status: done
 phase: 3
 phase_label: Init keeps it current
 ---
