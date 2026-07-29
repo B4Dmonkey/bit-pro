@@ -29,7 +29,7 @@ A note keys to a **track**, not a bar.
 
 Usually the session settles it — the work in flight is the track. Two tracks being open isn't ambiguity; the bar you were working in names its own parent. It's ambiguous when the correction's *subject matter* belongs to a different track than the bar you were in — or when it reaches back into work from an earlier session. In that case list the candidates with `bp task list` and **ask**. Don't guess: a note filed under the wrong track is a note the retro can't use, and the whole value of a note is that a future reader trusts where it came from.
 
-Both active and archived tracks are accepted, so a note about finished work still has somewhere to go.
+Active, completed, and archived tracks are all accepted, so a note about finished work still has somewhere to go.
 
 ## 2. Write the note
 
