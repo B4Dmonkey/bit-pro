@@ -1,7 +1,7 @@
 ---
 id: BIT-17.2
 title: A second note contradicts the hardcoded sequence
-status: todo
+status: done
 phase: 1
 phase_label: A durable record
 ---
