@@ -75,7 +75,7 @@ before                          after
 
 ## Verses
 
-- [ ] Verse 1 — Signing a track off files it as completed, not in the same bin as deleted work: `bp task complete <id>` moves the track and its bars to `.bit/completed/`, and the two things that read the old single directory keep working — the next created ID still counts up past the completed one, and a feedback note still attaches to a track that's been completed.
+- [x] Verse 1 — Signing a track off files it as completed, not in the same bin as deleted work: `bp task complete <id>` moves the track and its bars to `.bit/completed/`, and the two things that read the old single directory keep working — the next created ID still counts up past the completed one, and a feedback note still attaches to a track that's been completed.
   Touches: `task/store.go` (the relocate destination and `highestReserved`), `task/feedback.go` (`trackExists`), a new `cmd/task_complete.go`, `cmd/task.go` — where to look to verify.
 - [ ] Verse 2 — Deleting work files it under archive, laid out like the rest of `.bit/`: `bp task delete` writes to `.bit/archive/tasks/`, and `bp task archive` no longer exists, so the only way to file something as done is to say `complete`.
   Touches: `task/store.go`, `cmd/task_archive.go` (removed), `cmd/task.go` — where to look to verify.

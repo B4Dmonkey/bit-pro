@@ -1,7 +1,7 @@
 ---
 id: BIT-18.4
 title: A note still attaches to a completed track
-status: todo
+status: done
 phase: 1
 phase_label: Filed as completed
 ---

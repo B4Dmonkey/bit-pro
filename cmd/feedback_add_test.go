@@ -85,6 +85,27 @@ func TestFeedbackAddCmd_AcceptsArchivedTrack(t *testing.T) {
 	}
 }
 
+func TestFeedbackAddCmd_AcceptsCompletedTrack(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Ship the bit plugin", "## Why\n\nThe skills only exist in this repo.\n")
+	mustRun(t, "task", "update", "BIT-1", "-s", "done")
+	mustRun(t, "task", "complete", "BIT-1")
+
+	out := mustRun(t, "feedback", "add", "BIT-1", "-d", firstNote)
+
+	if want := ".bit/feedback/BIT-1-001.md\n"; out != want {
+		t.Errorf("feedback add against a completed track stdout = %q, want %q", out, want)
+	}
+
+	data, err := os.ReadFile(".bit/feedback/BIT-1-001.md")
+	if err != nil {
+		t.Fatalf("reading note: %v", err)
+	}
+	if string(data) != firstNote {
+		t.Errorf("note = %q, want %q", data, firstNote)
+	}
+}
+
 func TestFeedbackAddCmd_NoteSurvivesTrackRewrite(t *testing.T) {
 	initProject(t, "BIT")
 	createTask(t, "Ship the bit plugin", "## Why\n\nThe skills only exist in this repo.\n")

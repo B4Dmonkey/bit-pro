@@ -30,7 +30,7 @@ func (s *Store) nextNoteSeq(track string) (int, error) {
 }
 
 func (s *Store) trackExists(track string) bool {
-	for _, path := range []string{s.Path(track), s.archivePath(track)} {
+	for _, path := range []string{s.Path(track), s.completedPath(track), s.archivePath(track)} {
 		if _, err := os.Stat(path); err == nil {
 			return true
 		}

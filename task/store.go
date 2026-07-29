@@ -49,6 +49,10 @@ func (s *Store) completedDir() string {
 	return filepath.Join(s.root, completedSubdir)
 }
 
+func (s *Store) completedPath(id string) string {
+	return pathologize.Join(s.completedDir(), id+".md")
+}
+
 func (s *Store) relocateInto(dir, id string) error {
 	if err := os.MkdirAll(dir, dirMode); err != nil {
 		return fmt.Errorf("creating %s: %w", dir, err)
