@@ -62,9 +62,15 @@ A project is a `.bit/` directory at the repo root, created by `bit init`:
 ├── tasks/             # live work
 │   ├── BIT-1.md
 │   └── BIT-2.md
-└── archive/           # finished and deleted work; these IDs are never re-minted
-    └── BIT-3.md
+├── completed/         # signed-off work
+│   └── BIT-3.md
+└── archive/
+    └── tasks/         # soft-deleted work
+        └── BIT-4.md
 ```
+
+All three directories reserve their IDs: the next number counts past the highest found in
+`tasks/`, `completed/`, and `archive/tasks/`, so an ID is never re-minted onto different work.
 
 Tasks are flat — one markdown file per task, named for its ID, no per-track
 subdirectories. IDs are `<PREFIX>-<N>`, where the prefix is captured once by `bit init`
@@ -93,7 +99,7 @@ anything. A track that's never been reordered has no `order` and falls back to I
 What `bit` does today. It's an MVP — usable end to end for the workflow it was built
 for, and still moving.
 
-**Tasks from the command line.** `bit task create/read/list/update/move/archive/delete`
+**Tasks from the command line.** `bit task create/read/list/update/move/complete/delete`
 covers the full lifecycle. Every command is non-interactive by default (`delete` takes
 `-y`), so an agent can drive the whole thing without a prompt to answer. `bit task read
 --body` prints just the markdown body for feeding straight back into a model.
@@ -109,12 +115,13 @@ readable straight out of the ID — no index, no lookup, and `ls` shows the tree
 steps, so `bit task move --before/--after` and `bit task create --after` reorder a plan
 mid-stream while every ID stays stable. IDs are identity; order lives in the parent.
 
-**Archive instead of destroy.** `bit task archive` relocates a finished track and its
-steps into `.bit/archive/`, so the list, board, and TUI show only live work. `bit task
-delete` reuses the same primitive — a mistaken delete is a file move, not a loss.
-Relocating reserves the ID forever (it's never re-minted) and drops the step from its
-parent's order, so the sequence stays honest. A track only relocates once every step is
-`done`, with `--force` to override.
+**Two destinations, neither destroys.** `bit task complete` files a signed-off track and
+its steps under `.bit/completed/`; `bit task delete` soft-deletes into
+`.bit/archive/tasks/`. Both ride the same relocate primitive, so the list, board, and TUI
+show only live work and a mistaken delete is a file move, not a loss. Relocating reserves
+the ID forever (it's never re-minted) and drops the step from its parent's order, so the
+sequence stays honest. A track only relocates once every step is `done` — for `complete`
+that guard is absolute, while `delete` keeps `--force` to override it.
 
 **Status is a plain field, not a state machine.** Tasks have `todo`/`doing`/`done`, and
 changing one is a direct write (`bit task update -s doing`). There's no transition graph
@@ -202,9 +209,9 @@ of what to pick up next.
 - **Search** — quickly target a task by text.
 - **Broader filtering** — closer to Backlog.md; which dimensions matter is still open (see
   *Open design questions* → Filtering dimensions).
-- **Viewing the archive** — a filter (or command) to surface archived tracks. Archiving
-  itself is built; a restore/view command was deferred (YAGNI), so this is the read-side
-  that pairs with it.
+- **Viewing completed and archived work** — a filter (or command) to surface tracks that have
+  left `tasks/`. Writing to both destinations is built; a restore/view command was deferred
+  (YAGNI), so this is the read-side that pairs with them.
 - **Vim keys for focus, and a home for paging** — `h`/`l` should move focus like `←`/`→` in
   the list view. They don't today: the arrows work, and `h`/`l` fall through to the list's
   own paging. The fix is one keymap rework — intercept `h`/`l` alongside `KeyLeft`/`KeyRight`

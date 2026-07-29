@@ -1,7 +1,7 @@
 ---
 id: BIT-18.8
 title: The README shows three directories
-status: todo
+status: done
 phase: 3
 phase_label: The session says complete
 ---
