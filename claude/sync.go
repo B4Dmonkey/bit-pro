@@ -22,7 +22,9 @@ func SyncPlugin(ctx context.Context, run Runner) error {
 		return fmt.Errorf("refreshing the bit-pro marketplace: %w", err)
 	}
 	if err := run(ctx, "claude", "plugin", "update", "bit@bit-pro", "--scope", "project"); err != nil {
-		return fmt.Errorf("updating the bit plugin: %w", err)
+		if err := run(ctx, "claude", "plugin", "install", "bit@bit-pro", "--scope", "project"); err != nil {
+			return fmt.Errorf("installing the bit plugin: %w", err)
+		}
 	}
 	return nil
 }

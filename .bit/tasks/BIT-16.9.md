@@ -1,7 +1,7 @@
 ---
 id: BIT-16.9
 title: A fresh clone installs rather than fails
-status: todo
+status: doing
 phase: 3
 phase_label: Init keeps it current
 ---
