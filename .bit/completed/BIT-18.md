@@ -1,7 +1,7 @@
 ---
 id: BIT-18
 title: Separate completed work from soft-deleted work
-status: doing
+status: done
 ---
 ## Why
 
@@ -79,5 +79,5 @@ before                          after
   Touches: `task/store.go` (the relocate destination and `highestReserved`), `task/feedback.go` (`trackExists`), a new `cmd/task_complete.go`, `cmd/task.go` — where to look to verify.
 - [x] Verse 2 — Deleting work files it under archive, laid out like the rest of `.bit/`: `bp task delete` writes to `.bit/archive/tasks/`, and `bp task archive` no longer exists, so the only way to file something as done is to say `complete`.
   Touches: `task/store.go`, `cmd/task_archive.go` (removed), `cmd/task.go` — where to look to verify.
-- [ ] Verse 3 — A live session files finished work in the right place: bit_do's track sign-off, the feedback skill's wording, and the `bp instructions` contract all name `complete` and the two destinations, so following the skills produces the new layout instead of the old one.
+- [x] Verse 3 — A live session files finished work in the right place: bit_do's track sign-off, the feedback skill's wording, and the `bp instructions` contract all name `complete` and the two destinations, so following the skills produces the new layout instead of the old one.
   Touches: `bit/skills/do/SKILL.md`, `bit/skills/feedback/SKILL.md`, `assets/bit-cli.md` — where to look to verify.

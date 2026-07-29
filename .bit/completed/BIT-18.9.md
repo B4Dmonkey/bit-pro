@@ -1,7 +1,7 @@
 ---
 id: BIT-18.9
 title: A live sign-off completes instead of archiving
-status: doing
+status: done
 phase: 3
 phase_label: The session says complete
 ---
