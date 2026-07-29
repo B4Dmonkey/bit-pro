@@ -17,6 +17,7 @@ func NewRootCmd() *cobra.Command {
 		SilenceErrors: true,
 	}
 	rootCmd.AddCommand(newInitCmd())
+	rootCmd.AddCommand(newInstructionsCmd())
 	rootCmd.AddCommand(newTaskCmd())
 	rootCmd.AddCommand(newTUICmd())
 	return rootCmd
