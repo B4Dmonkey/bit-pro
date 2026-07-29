@@ -1,7 +1,7 @@
 ---
 id: BIT-18.3
 title: A completed ID is never re-minted
-status: todo
+status: done
 phase: 1
 phase_label: Filed as completed
 ---

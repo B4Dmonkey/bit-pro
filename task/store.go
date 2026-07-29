@@ -383,7 +383,7 @@ func (s *Store) NextID(prefix string) (string, error) {
 
 func (s *Store) highestReserved(glob string, re *regexp.Regexp, what string) (int, error) {
 	highest := 0
-	for _, dir := range []string{s.tasksDir(), s.archiveDir()} {
+	for _, dir := range []string{s.tasksDir(), s.completedDir(), s.archiveDir()} {
 		n, err := highestSuffix(dir, glob, re)
 		if err != nil {
 			return 0, fmt.Errorf("scanning %s for existing %s: %w", dir, what, err)
