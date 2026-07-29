@@ -1,7 +1,7 @@
 ---
 id: BIT-17
 title: Capture feedback notes when a correction lands
-status: todo
+status: doing
 ---
 ## Why
 

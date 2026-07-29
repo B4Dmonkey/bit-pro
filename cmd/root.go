@@ -23,6 +23,7 @@ func newRootCmd(run claude.Runner) *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
+	rootCmd.AddCommand(newFeedbackCmd())
 	rootCmd.AddCommand(newInitCmd(run))
 	rootCmd.AddCommand(newInstructionsCmd())
 	rootCmd.AddCommand(newTaskCmd())
