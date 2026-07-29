@@ -1,7 +1,7 @@
 ---
 id: BIT-16.5
 title: The four real skills load from the plugin
-status: todo
+status: doing
 phase: 2
 phase_label: The plugin ships the skills
 ---
