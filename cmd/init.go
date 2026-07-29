@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newInitCmd() *cobra.Command {
+func newInitCmd(run claude.Runner) *cobra.Command {
 	var prefix string
 
 	cmd := &cobra.Command{
@@ -47,6 +47,10 @@ func newInitCmd() *cobra.Command {
 				return err
 			}
 			if err := claude.WriteSettings(filepath.Join(claudeDir, "settings.json")); err != nil {
+				return err
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), "Bringing the bit plugin current...")
+			if err := claude.SyncPlugin(cmd.Context(), run); err != nil {
 				return err
 			}
 			return assets.Seed(claudeDir)

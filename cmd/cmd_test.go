@@ -2,8 +2,11 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"strings"
 	"testing"
+
+	"github.com/B4Dmonkey/bit-pro/claude"
 )
 
 func run(t *testing.T, args ...string) (string, error) {
@@ -13,8 +16,13 @@ func run(t *testing.T, args ...string) (string, error) {
 
 func runWithStdin(t *testing.T, stdin string, args ...string) (string, error) {
 	t.Helper()
+	return runWithRunner(t, func(context.Context, string, ...string) error { return nil }, stdin, args...)
+}
 
-	root := NewRootCmd()
+func runWithRunner(t *testing.T, run claude.Runner, stdin string, args ...string) (string, error) {
+	t.Helper()
+
+	root := newRootCmd(run)
 	out := &bytes.Buffer{}
 	root.SetOut(out)
 	root.SetErr(out)

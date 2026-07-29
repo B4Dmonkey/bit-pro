@@ -1,10 +1,12 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -157,6 +159,28 @@ func TestInitCmd_WritesPluginWiring(t *testing.T) {
 	}
 	if !strings.Contains(string(data), "bit@bit-pro") {
 		t.Errorf("settings.json = %s, want it to contain %q", data, "bit@bit-pro")
+	}
+}
+
+func TestInitCmd_SyncsThePlugin(t *testing.T) {
+	t.Chdir(t.TempDir())
+
+	var calls [][]string
+	run := func(_ context.Context, name string, args ...string) error {
+		calls = append(calls, append([]string{name}, args...))
+		return nil
+	}
+
+	if _, err := runWithRunner(t, run, "", "init", "--prefix", "BIT"); err != nil {
+		t.Fatalf("Execute() returned error: %v", err)
+	}
+
+	want := [][]string{
+		{"claude", "plugin", "marketplace", "update", "bit-pro"},
+		{"claude", "plugin", "update", "bit@bit-pro", "--scope", "project"},
+	}
+	if !slices.EqualFunc(calls, want, slices.Equal) {
+		t.Errorf("calls = %v, want %v", calls, want)
 	}
 }
 

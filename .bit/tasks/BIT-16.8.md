@@ -1,7 +1,7 @@
 ---
 id: BIT-16.8
 title: Init brings the plugin current
-status: todo
+status: doing
 phase: 3
 phase_label: Init keeps it current
 ---
