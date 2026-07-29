@@ -177,7 +177,7 @@ assets/skills/*/SKILL.md                 bit/skills/{scope,plan,do,check}/SKILL.
   arriving. Answered yes; see the first Decision for what was observed.
   Touches: new `bit/` directory at the repo root (`.claude-plugin/plugin.json`, `skills/`), and
   `.claude-plugin/marketplace.json` at the repo root.
-- [ ] Verse 2 — **The real pipeline ships through the plugin**: the four skills move into the
+- [x] Verse 2 — **The real pipeline ships through the plugin**: the four skills move into the
   plugin and are invoked as `/bit:scope` and friends, learning the CLI contract by asking `bp` for
   it rather than reading a path. Editing one and running `/reload-plugins` under `claude
   --plugin-dir ./bit` takes effect with no rebuild and no re-init. The spike's `ping` probe goes

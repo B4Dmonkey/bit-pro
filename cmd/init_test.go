@@ -146,6 +146,20 @@ func TestInitCmd_ReseedRefreshes(t *testing.T) {
 	}
 }
 
+func TestInitCmd_WritesPluginWiring(t *testing.T) {
+	t.Chdir(t.TempDir())
+
+	mustRun(t, "init", "--prefix", "BIT")
+
+	data, err := os.ReadFile(filepath.Join(".claude", "settings.json"))
+	if err != nil {
+		t.Fatalf("os.ReadFile(.claude/settings.json) returned error: %v", err)
+	}
+	if !strings.Contains(string(data), "bit@bit-pro") {
+		t.Errorf("settings.json = %s, want it to contain %q", data, "bit@bit-pro")
+	}
+}
+
 func TestInitCmd_RejectsBadInvocations(t *testing.T) {
 	tests := []struct {
 		name  string

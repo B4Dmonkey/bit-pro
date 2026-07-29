@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/B4Dmonkey/bit-pro/assets"
+	"github.com/B4Dmonkey/bit-pro/claude"
 	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/spf13/cobra"
 )
@@ -42,6 +44,9 @@ func newInitCmd() *cobra.Command {
 				return errors.New("task ID prefix cannot be empty")
 			}
 			if err := task.New(bitDir).SaveConfig(&task.Config{Prefix: prefix}); err != nil {
+				return err
+			}
+			if err := claude.WriteSettings(filepath.Join(claudeDir, "settings.json")); err != nil {
 				return err
 			}
 			return assets.Seed(claudeDir)
