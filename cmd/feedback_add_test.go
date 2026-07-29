@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"testing"
 )
@@ -59,5 +61,22 @@ func TestFeedbackAddCmd_SecondNoteGetsNextSequence(t *testing.T) {
 	}
 	if string(first) != firstNote {
 		t.Errorf("first note = %q, want %q", first, firstNote)
+	}
+}
+
+func TestFeedbackAddCmd_ErrorsOnUnknownTrack(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Ship the bit plugin", "## Why\n\nThe skills only exist in this repo.\n")
+
+	if _, err := run(t, "feedback", "add", "BIT-99", "-d", firstNote); err == nil {
+		t.Fatal("feedback add against an unknown track returned no error")
+	}
+
+	if _, err := os.Stat(".bit/feedback/BIT-99-001.md"); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("stat note = %v, want fs.ErrNotExist", err)
+	}
+
+	if _, err := os.Stat(".bit/feedback"); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("stat feedback dir = %v, want fs.ErrNotExist", err)
 	}
 }

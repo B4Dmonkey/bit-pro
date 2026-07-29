@@ -30,6 +30,9 @@ func (s *Store) nextNoteSeq(track string) (int, error) {
 }
 
 func (s *Store) AddNote(track, body string) (string, error) {
+	if _, err := os.Stat(s.Path(track)); err != nil {
+		return "", fmt.Errorf("track %s does not exist: %w", track, err)
+	}
 	if err := os.MkdirAll(s.feedbackDir(), dirMode); err != nil {
 		return "", fmt.Errorf("creating %s: %w", s.feedbackDir(), err)
 	}

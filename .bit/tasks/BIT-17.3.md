@@ -1,7 +1,7 @@
 ---
 id: BIT-17.3
 title: A note refuses a track that does not exist
-status: todo
+status: done
 phase: 1
 phase_label: A durable record
 ---
