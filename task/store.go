@@ -13,11 +13,12 @@ import (
 )
 
 const (
-	tasksSubdir    = "tasks"
-	archiveSubdir  = "archive"
-	configFileName = "config.toml"
-	dirMode        = 0o755
-	fileMode       = 0o644
+	tasksSubdir     = "tasks"
+	completedSubdir = "completed"
+	archiveSubdir   = "archive"
+	configFileName  = "config.toml"
+	dirMode         = 0o755
+	fileMode        = 0o644
 )
 
 type Store struct {
@@ -44,11 +45,15 @@ func (s *Store) archivePath(id string) string {
 	return pathologize.Join(s.archiveDir(), id+".md")
 }
 
-func (s *Store) relocate(id string) error {
-	if err := os.MkdirAll(s.archiveDir(), dirMode); err != nil {
-		return fmt.Errorf("creating %s: %w", s.archiveDir(), err)
+func (s *Store) completedDir() string {
+	return filepath.Join(s.root, completedSubdir)
+}
+
+func (s *Store) relocateInto(dir, id string) error {
+	if err := os.MkdirAll(dir, dirMode); err != nil {
+		return fmt.Errorf("creating %s: %w", dir, err)
 	}
-	if err := os.Rename(s.Path(id), s.archivePath(id)); err != nil {
+	if err := os.Rename(s.Path(id), pathologize.Join(dir, id+".md")); err != nil {
 		return fmt.Errorf("relocating task %s: %w", id, err)
 	}
 	return nil
@@ -77,6 +82,14 @@ func (e *UnfinishedBarsError) Error() string {
 }
 
 func (s *Store) Relocate(id string, force bool) error {
+	return s.relocateTree(s.archiveDir(), id, force)
+}
+
+func (s *Store) Complete(id string) error {
+	return s.relocateTree(s.completedDir(), id, false)
+}
+
+func (s *Store) relocateTree(dir, id string, force bool) error {
 	kids, err := s.children(id)
 	if err != nil {
 		return err
@@ -93,11 +106,11 @@ func (s *Store) Relocate(id string, force bool) error {
 		}
 	}
 	for _, kid := range kids {
-		if err := s.relocate(kid.ID); err != nil {
+		if err := s.relocateInto(dir, kid.ID); err != nil {
 			return err
 		}
 	}
-	if err := s.relocate(id); err != nil {
+	if err := s.relocateInto(dir, id); err != nil {
 		return err
 	}
 	if parent, ok := barParent(id); ok {
