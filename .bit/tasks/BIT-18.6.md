@@ -1,7 +1,7 @@
 ---
 id: BIT-18.6
 title: Soft deletes land where .bit puts tasks
-status: todo
+status: done
 phase: 2
 phase_label: Archive is the soft delete
 ---

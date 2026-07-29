@@ -1,7 +1,7 @@
 ---
 id: BIT-18.7
 title: The contract teaches the new verb
-status: todo
+status: done
 phase: 3
 phase_label: The session says complete
 ---

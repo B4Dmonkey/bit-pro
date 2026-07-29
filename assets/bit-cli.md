@@ -59,6 +59,10 @@ bp task list --parent "$TRACK"
 # List everything. Tracks are the rows whose ID has no dot; bars have a dotted ID.
 bp task list
 
+# File a signed-off track and its bars under .bit/completed/. Refuses a track that still
+# has an unfinished bar, and there is no override — mark the bars done first.
+bp task complete "$TRACK"
+
 # Resequence a bar within its track. Rewrites the track's order list so every surface
 # that reads it (task list --parent, the TUI list, the board, bit_do's next-step resume)
 # reflects the new position. Pass exactly one of --before / --after; the anchor is a sibling.
@@ -67,8 +71,8 @@ bp task move "$BAR" --after  "$SIBLING"
 ```
 
 A track owns an explicit ordered list of its bars, and the CLI is the only thing that
-writes it: `create` **appends** to the list, `move` **rewrites** it, `delete` removes from
-it. That's why order never depends on filesystem glob order or on hand-editing — the same
+writes it: `create` **appends** to the list, `move` **rewrites** it, and `complete` and
+`delete` each remove from it. That's why order never depends on filesystem glob order or on hand-editing — the same
 "every write goes through `bp`" rule that protects the file format also protects the
 ordering.
 
@@ -108,9 +112,9 @@ bp feedback add "$TRACK" -d "$(cat note.md)"
 - A note keys to a **track**, and cites its bar in the prose as data ("happened at BIT-11.4").
   Replanning renumbers bars and replanning is frequently the fix itself, so a note keyed to a
   bar would be orphaned by the very event it describes.
-- The track may be active or archived; both are accepted.
-- Archiving a track leaves its notes in place — `task archive` moves files within
-  `.bit/tasks/` → `.bit/archive/` and never touches `.bit/feedback/`.
+- The track may be active, completed, or archived; all three are accepted.
+- Completing or deleting a track leaves its notes in place — both move files within `.bit/`
+  and never touch `.bit/feedback/`.
 
 ## Gotchas
 
@@ -120,12 +124,12 @@ bp feedback add "$TRACK" -d "$(cat note.md)"
   only once all its bars do. A typo silently breaks that: a bar reading `doen` never counts as
   done, so its verse never checks off and the track never signals ready. Always pass exactly
   `todo`, `doing`, or `done`.
-- **Deleting or archiving a task reserves its ID — it isn't freed.** `task delete` and
-  `task archive` both *relocate* the file into `.bit/archive/` instead of destroying it, and
-  `NextID`/`NextChildID` count `archive/` when choosing the next number. So a removed ID is
-  never re-minted onto a different task, and older commit messages or notes that reference it
-  stay valid. Dropping a bar mid-plan with `task delete`/`task archive` is safe for this
-  reason — the file is recoverable on disk and its ID stays put.
+- **Relocating a task reserves its ID — it isn't freed.** `task delete` *relocates* the file
+  into `.bit/archive/tasks/` and `task complete` into `.bit/completed/`, instead of destroying
+  it, and `NextID`/`NextChildID` count `tasks/`, `completed/`, and `archive/tasks/` when
+  choosing the next number. So a removed ID is never re-minted onto a different task, and
+  older commit messages or notes that reference it stay valid. Dropping a bar mid-plan with
+  `task delete` is safe for this reason — the file is recoverable on disk and its ID stays put.
 
 ## Rollup is skill logic, run through the CLI
 
