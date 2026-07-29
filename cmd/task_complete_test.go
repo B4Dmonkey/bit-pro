@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -28,5 +29,20 @@ func TestTaskCompleteCmd_FilesTrackAndBarsUnderCompleted(t *testing.T) {
 	}
 	if _, err := os.Stat(".bit/archive"); !errors.Is(err, fs.ErrNotExist) {
 		t.Errorf("os.Stat(.bit/archive) error = %v, want fs.ErrNotExist", err)
+	}
+}
+
+func TestTaskCompleteCmd_ReplacesArchive(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Done thing", "Finished work.")
+	mustRun(t, "task", "update", "BIT-1", "-s", "done")
+
+	out, _ := run(t, "task", "archive", "BIT-1")
+
+	if _, err := os.Stat(".bit/tasks/BIT-1.md"); err != nil {
+		t.Errorf("os.Stat(.bit/tasks/BIT-1.md) error = %v, want the track left where it was", err)
+	}
+	if strings.Contains(out, "archive") {
+		t.Errorf("task archive output = %q, want no archive subcommand in it", out)
 	}
 }

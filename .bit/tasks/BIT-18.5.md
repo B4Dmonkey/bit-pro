@@ -1,7 +1,7 @@
 ---
 id: BIT-18.5
 title: Nothing files itself as archived any more
-status: todo
+status: doing
 phase: 2
 phase_label: Archive is the soft delete
 ---
