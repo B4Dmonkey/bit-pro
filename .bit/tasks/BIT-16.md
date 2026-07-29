@@ -184,12 +184,12 @@ assets/skills/*/SKILL.md                 bit/skills/{scope,plan,do,check}/SKILL.
   out in the same verse, so the plugin exposes exactly the four real skills.
   Touches: `bit/skills/` — content copied from `assets/`, `bit/skills/ping/` deleted; a new
   `instructions` command under `cmd/`.
-- [ ] Verse 3 — **`bp init` leaves a repo on the current skills**: init writes the marketplace and
+- [x] Verse 3 — **`bp init` leaves a repo on the current skills**: init writes the marketplace and
   enabled-plugin entries into checked-in project settings and brings the plugin current, so one
   command in a fresh repo — or a re-run in an existing one after a fix lands — ends with the
   up-to-date skills available.
   Touches: `cmd/init.go`, `.claude/settings.json`.
-- [ ] Verse 4 — **There is one source of truth for the skills**: the embedded skill tree and the
+- [x] Verse 4 — **There is one source of truth for the skills**: the embedded skill tree and the
   init code that seeded it are gone, so init can no longer ship a stale copy and there is nowhere
   for a second version of a `SKILL.md` to hide.
   Touches: `cmd/init.go`, `cmd/init_test.go`, `assets/`.

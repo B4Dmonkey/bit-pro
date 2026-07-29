@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/B4Dmonkey/bit-pro/assets"
 	"github.com/B4Dmonkey/bit-pro/claude"
 	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/spf13/cobra"
@@ -50,10 +49,7 @@ func newInitCmd(run claude.Runner) *cobra.Command {
 				return err
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), "Bringing the bit plugin current...")
-			if err := claude.SyncPlugin(cmd.Context(), run); err != nil {
-				return err
-			}
-			return assets.Seed(claudeDir)
+			return claude.SyncPlugin(cmd.Context(), run)
 		},
 	}
 	cmd.Flags().StringVar(&prefix, "prefix", "", "task ID prefix for this project (e.g. BIT)")

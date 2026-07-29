@@ -1,7 +1,7 @@
 ---
 id: BIT-16.10
 title: Init can no longer ship a stale skill copy
-status: todo
+status: done
 phase: 4
 phase_label: One source of truth
 ---

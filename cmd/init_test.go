@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/B4Dmonkey/bit-pro/assets"
 	"github.com/B4Dmonkey/bit-pro/task"
 )
 
@@ -92,59 +91,19 @@ func TestInitCmd_PromptShowsExistingPrefix(t *testing.T) {
 	}
 }
 
-func TestInitCmd_SeedsClaudeTree(t *testing.T) {
+func TestInitCmd_WritesNoSkills(t *testing.T) {
 	t.Chdir(t.TempDir())
 
 	mustRun(t, "init", "--prefix", "BIT")
 
-	seeded := []string{
-		".claude/bit-cli.md",
-		".claude/skills/bit_scope/SKILL.md",
-		".claude/skills/bit_plan/SKILL.md",
-		".claude/skills/bit_do/SKILL.md",
-		".claude/skills/bit_check/SKILL.md",
-	}
-	for _, rel := range seeded {
-		got, err := os.ReadFile(rel)
-		if err != nil {
-			t.Fatalf("os.ReadFile(%q) returned error: %v", rel, err)
-		}
-		want, err := assets.FS.ReadFile(filepath.ToSlash(rel[len(".claude/"):]))
-		if err != nil {
-			t.Fatalf("assets.FS.ReadFile for %q returned error: %v", rel, err)
-		}
-		if string(got) != string(want) {
-			t.Errorf("%s bytes do not match the embedded copy", rel)
+	for _, rel := range []string{".claude/skills", ".claude/bit-cli.md"} {
+		if _, err := os.Stat(rel); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("os.Stat(%q) error = %v, want fs.ErrNotExist", rel, err)
 		}
 	}
 
-	if _, err := os.Stat(".claude/CLAUDE.md"); !errors.Is(err, fs.ErrNotExist) {
-		t.Errorf("os.Stat(.claude/CLAUDE.md) error = %v, want fs.ErrNotExist", err)
-	}
-}
-
-func TestInitCmd_ReseedRefreshes(t *testing.T) {
-	t.Chdir(t.TempDir())
-
-	mustRun(t, "init", "--prefix", "BIT")
-
-	stale := filepath.Join(".claude", "skills", "bit_do", "SKILL.md")
-	if err := os.WriteFile(stale, []byte("stale\n"), 0o644); err != nil {
-		t.Fatalf("os.WriteFile(%q) returned error: %v", stale, err)
-	}
-
-	mustRun(t, "init", "--prefix", "BIT")
-
-	got, err := os.ReadFile(stale)
-	if err != nil {
-		t.Fatalf("os.ReadFile(%q) returned error: %v", stale, err)
-	}
-	want, err := assets.FS.ReadFile("skills/bit_do/SKILL.md")
-	if err != nil {
-		t.Fatalf("assets.FS.ReadFile returned error: %v", err)
-	}
-	if string(got) != string(want) {
-		t.Errorf("%s was not refreshed to the embedded copy", stale)
+	if _, err := os.Stat(filepath.Join(".claude", "settings.json")); err != nil {
+		t.Errorf("os.Stat(.claude/settings.json) returned error: %v", err)
 	}
 }
 
