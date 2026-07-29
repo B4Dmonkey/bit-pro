@@ -30,8 +30,8 @@ func TestTaskDeleteCmd_RelocatesInsteadOfDestroying(t *testing.T) {
 
 	mustRun(t, "task", "delete", "BIT-1", "--yes")
 
-	if _, err := os.Stat(".bit/archive/BIT-1.md"); err != nil {
-		t.Errorf("os.Stat(.bit/archive/BIT-1.md) error = %v, want the task recoverable", err)
+	if _, err := os.Stat(".bit/archive/tasks/BIT-1.md"); err != nil {
+		t.Errorf("os.Stat(.bit/archive/tasks/BIT-1.md) error = %v, want the task recoverable", err)
 	}
 	if _, err := os.Stat(".bit/tasks/BIT-1.md"); !errors.Is(err, fs.ErrNotExist) {
 		t.Errorf("os.Stat(.bit/tasks/BIT-1.md) error = %v, want fs.ErrNotExist", err)
@@ -46,8 +46,8 @@ func TestTaskDeleteCmd_ForceDeletesUnfinished(t *testing.T) {
 	mustRun(t, "task", "delete", "BIT-1", "--yes", "--force")
 
 	for _, id := range []string{"BIT-1", "BIT-1.1"} {
-		if _, err := os.Stat(".bit/archive/" + id + ".md"); err != nil {
-			t.Errorf("os.Stat(.bit/archive/%s.md) error = %v, want it relocated", id, err)
+		if _, err := os.Stat(".bit/archive/tasks/" + id + ".md"); err != nil {
+			t.Errorf("os.Stat(.bit/archive/tasks/%s.md) error = %v, want it relocated", id, err)
 		}
 		if _, err := os.Stat(".bit/tasks/" + id + ".md"); !errors.Is(err, fs.ErrNotExist) {
 			t.Errorf("os.Stat(.bit/tasks/%s.md) error = %v, want fs.ErrNotExist", id, err)

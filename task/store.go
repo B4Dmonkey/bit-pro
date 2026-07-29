@@ -37,12 +37,12 @@ func (s *Store) Path(id string) string {
 	return pathologize.Join(s.tasksDir(), id+".md")
 }
 
-func (s *Store) archiveDir() string {
-	return filepath.Join(s.root, archiveSubdir)
+func (s *Store) archiveTasksDir() string {
+	return filepath.Join(s.root, archiveSubdir, tasksSubdir)
 }
 
 func (s *Store) archivePath(id string) string {
-	return pathologize.Join(s.archiveDir(), id+".md")
+	return pathologize.Join(s.archiveTasksDir(), id+".md")
 }
 
 func (s *Store) completedDir() string {
@@ -86,7 +86,7 @@ func (e *UnfinishedBarsError) Error() string {
 }
 
 func (s *Store) Relocate(id string, force bool) error {
-	return s.relocateTree(s.archiveDir(), id, force)
+	return s.relocateTree(s.archiveTasksDir(), id, force)
 }
 
 func (s *Store) Complete(id string) error {
@@ -387,7 +387,7 @@ func (s *Store) NextID(prefix string) (string, error) {
 
 func (s *Store) highestReserved(glob string, re *regexp.Regexp, what string) (int, error) {
 	highest := 0
-	for _, dir := range []string{s.tasksDir(), s.completedDir(), s.archiveDir()} {
+	for _, dir := range []string{s.tasksDir(), s.completedDir(), s.archiveTasksDir()} {
 		n, err := highestSuffix(dir, glob, re)
 		if err != nil {
 			return 0, fmt.Errorf("scanning %s for existing %s: %w", dir, what, err)

@@ -167,10 +167,10 @@ func TestStoreRelocate_ContainsUntrustedID(t *testing.T) {
 		id   string
 		want string
 	}{
-		{name: "plain id", id: "BIT-1", want: ".bit/archive/BIT-1.md"},
-		{name: "traversal cannot escape the archive dir", id: "../../README", want: ".bit/archive/README.md"},
-		{name: "absolute path cannot escape", id: "/etc/passwd", want: ".bit/archive/etc/passwd.md"},
-		{name: "illegal characters are stripped", id: "a:b*c", want: ".bit/archive/abc.md"},
+		{name: "plain id", id: "BIT-1", want: ".bit/archive/tasks/BIT-1.md"},
+		{name: "traversal cannot escape the archive dir", id: "../../README", want: ".bit/archive/tasks/README.md"},
+		{name: "absolute path cannot escape", id: "/etc/passwd", want: ".bit/archive/tasks/etc/passwd.md"},
+		{name: "illegal characters are stripped", id: "a:b*c", want: ".bit/archive/tasks/abc.md"},
 	}
 
 	for _, tt := range tests {
@@ -181,7 +181,7 @@ func TestStoreRelocate_ContainsUntrustedID(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("archivePath(%q) = %q, want %q", tt.id, got, tt.want)
 			}
-			if !strings.HasPrefix(got, ".bit/archive/") {
+			if !strings.HasPrefix(got, ".bit/archive/tasks/") {
 				t.Errorf("archivePath(%q) = %q, escaped the archive directory", tt.id, got)
 			}
 		})
