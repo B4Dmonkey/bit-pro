@@ -115,7 +115,7 @@ notes exist, survive, and are worth reading when that consumer arrives.
 
 ## Verses
 
-- [ ] Verse 1 — **A correction leaves a durable record instead of vanishing**: `bp feedback add`
+- [x] Verse 1 — **A correction leaves a durable record instead of vanishing**: `bp feedback add`
   writes a note into `.bit/feedback/`, and the note survives the scope and plan being rewritten
   afterward and the track being archived. Run by hand at first — the value is that repair stops
   destroying its own evidence.

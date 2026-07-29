@@ -1,7 +1,7 @@
 ---
 id: BIT-17.4
 title: A note outlives its track
-status: todo
+status: done
 phase: 1
 phase_label: A durable record
 ---

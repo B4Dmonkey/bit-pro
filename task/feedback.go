@@ -29,9 +29,18 @@ func (s *Store) nextNoteSeq(track string) (int, error) {
 	return highest + 1, nil
 }
 
+func (s *Store) trackExists(track string) bool {
+	for _, path := range []string{s.Path(track), s.archivePath(track)} {
+		if _, err := os.Stat(path); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Store) AddNote(track, body string) (string, error) {
-	if _, err := os.Stat(s.Path(track)); err != nil {
-		return "", fmt.Errorf("track %s does not exist: %w", track, err)
+	if !s.trackExists(track) {
+		return "", fmt.Errorf("track %s does not exist", track)
 	}
 	if err := os.MkdirAll(s.feedbackDir(), dirMode); err != nil {
 		return "", fmt.Errorf("creating %s: %w", s.feedbackDir(), err)

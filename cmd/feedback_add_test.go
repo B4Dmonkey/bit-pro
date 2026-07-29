@@ -64,6 +64,69 @@ func TestFeedbackAddCmd_SecondNoteGetsNextSequence(t *testing.T) {
 	}
 }
 
+func TestFeedbackAddCmd_AcceptsArchivedTrack(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Ship the bit plugin", "## Why\n\nThe skills only exist in this repo.\n")
+	mustRun(t, "task", "update", "BIT-1", "-s", "done")
+	mustRun(t, "task", "archive", "BIT-1")
+
+	out := mustRun(t, "feedback", "add", "BIT-1", "-d", firstNote)
+
+	if want := ".bit/feedback/BIT-1-001.md\n"; out != want {
+		t.Errorf("feedback add against an archived track stdout = %q, want %q", out, want)
+	}
+
+	data, err := os.ReadFile(".bit/feedback/BIT-1-001.md")
+	if err != nil {
+		t.Fatalf("reading note: %v", err)
+	}
+	if string(data) != firstNote {
+		t.Errorf("note = %q, want %q", data, firstNote)
+	}
+}
+
+func TestFeedbackAddCmd_NoteSurvivesTrackRewrite(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Ship the bit plugin", "## Why\n\nThe skills only exist in this repo.\n")
+	mustRun(t, "feedback", "add", "BIT-1", "-d", firstNote)
+
+	mustRun(t, "task", "update", "BIT-1", "-d", "## Why\n\nA wholesale rewritten scope body.\n")
+
+	data, err := os.ReadFile(".bit/feedback/BIT-1-001.md")
+	if err != nil {
+		t.Fatalf("reading note after track rewrite: %v", err)
+	}
+	if string(data) != firstNote {
+		t.Errorf("note after track rewrite = %q, want %q", data, firstNote)
+	}
+}
+
+func TestFeedbackAddCmd_NoteSurvivesTrackArchive(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Ship the bit plugin", "## Why\n\nThe skills only exist in this repo.\n")
+	mustRun(t, "task", "create", "A bar", "--parent", "BIT-1", "--description", "One step.")
+	mustRun(t, "feedback", "add", "BIT-1", "-d", firstNote)
+	mustRun(t, "task", "update", "BIT-1.1", "-s", "done")
+	mustRun(t, "task", "update", "BIT-1", "-s", "done")
+
+	mustRun(t, "task", "archive", "BIT-1")
+
+	if _, err := os.Stat(".bit/tasks/BIT-1.md"); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("stat track under tasks = %v, want fs.ErrNotExist", err)
+	}
+	if _, err := os.Stat(".bit/archive/BIT-1.md"); err != nil {
+		t.Errorf("stat archived track = %v, want it relocated", err)
+	}
+
+	data, err := os.ReadFile(".bit/feedback/BIT-1-001.md")
+	if err != nil {
+		t.Fatalf("reading note after track archive: %v", err)
+	}
+	if string(data) != firstNote {
+		t.Errorf("note after track archive = %q, want %q", data, firstNote)
+	}
+}
+
 func TestFeedbackAddCmd_ErrorsOnUnknownTrack(t *testing.T) {
 	initProject(t, "BIT")
 	createTask(t, "Ship the bit plugin", "## Why\n\nThe skills only exist in this repo.\n")
