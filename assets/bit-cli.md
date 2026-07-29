@@ -1,9 +1,9 @@
 # Driving bp through `bp`
 
-The bit_scope, bit_plan, bit_do, and bit_check skills all track their own work inside
-`.bit/` by driving the local `bp` CLI. This is the shared command contract they
-rely on. Read it once at the start of a session; the individual skills tell you *when* to
-run each command, this file tells you *how*.
+The bit_scope, bit_plan, bit_do, bit_check, and bit_feedback skills all track their own
+work inside `.bit/` by driving the local `bp` CLI. This is the shared command contract
+they rely on. Read it once at the start of a session; the individual skills tell you
+*when* to run each command, this file tells you *how*.
 
 The single rule that makes the rest safe: **every write goes through `bp`. Never
 edit `.bit/tasks/*.md` by hand.** The CLI owns the file format (YAML frontmatter + body);
@@ -89,6 +89,28 @@ bp task update "$ID" -d "$(cat body.md)"
 Don't try to hand-edit a body held in a shell variable — it's multi-line text, so route it
 through a file or a stream editor. Either way it round-trips byte-for-byte (minus a trailing
 newline, which `$( )` strips and which never matters for markdown).
+
+## Capturing feedback
+
+A **note** records a correction that landed during a cycle — what the plan said, and what the
+work actually turned out to require. Its body is multi-line prose authored exactly like a task
+body, so build it in a file and pass it the same way:
+
+```bash
+# Record a feedback note against a track. Prints the note's path.
+bp feedback add "$TRACK" -d "$(cat note.md)"
+```
+
+- Notes live in `.bit/feedback/`, one file per note, named `<TRACK>-NNN.md`.
+- The write is **create-only** — `add` is the only subcommand, with no counterpart that reads,
+  rewrites, or removes a note. A new note can never damage one already recorded, which is the
+  point: capture fires at the least reliable moment in a cycle, right after a run went wrong.
+- A note keys to a **track**, and cites its bar in the prose as data ("happened at BIT-11.4").
+  Replanning renumbers bars and replanning is frequently the fix itself, so a note keyed to a
+  bar would be orphaned by the very event it describes.
+- The track may be active or archived; both are accepted.
+- Archiving a track leaves its notes in place — `task archive` moves files within
+  `.bit/tasks/` → `.bit/archive/` and never touches `.bit/feedback/`.
 
 ## Gotchas
 

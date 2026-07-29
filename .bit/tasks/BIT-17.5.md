@@ -1,7 +1,7 @@
 ---
 id: BIT-17.5
 title: The contract teaches the write path
-status: todo
+status: done
 phase: 2
 phase_label: The skill composes it
 ---
