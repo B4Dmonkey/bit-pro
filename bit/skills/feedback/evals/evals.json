@@ -1,0 +1,42 @@
+{
+  "skill_name": "bit_feedback",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "A prior assessment used bit_scope's downstream-impact test to say an open Risk was fine to carry into planning; the user overrides that with 'i want all risk resolved before planning'. Record this as a feedback note.",
+      "expected_output": "A note that quotes the scope's Risk entry verbatim, names bit_scope's downstream-impact test as the mechanism that produced the prior verdict, and states the user's actual standard (all risk resolved before planning) — short, observational, no proposed fix.",
+      "files": [],
+      "expectations": [
+        "Quotes the scope's Risk line verbatim, not a paraphrase",
+        "Names the specific upstream mechanism (bit_scope's downstream-impact / de-risk-before-planning test)",
+        "States the user's standard: all risk resolved before planning, regardless of downstream impact",
+        "Stays observational: no cause, no proposed fix, no lesson learned",
+        "Stays short (a few sentences)"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Implementing a bar, the agent had to decide whether a plugin-install fallback also needs to register the marketplace first — a decision this session's own plan didn't settle (no other skill's mechanism involved). Record this as a feedback note.",
+      "expected_output": "A note citing the bar, stating what the plan said vs. what the work required, without inventing an upstream-mechanism citation where none applies.",
+      "files": [],
+      "expectations": [
+        "Cites the bar as prose",
+        "States plan-said vs. work-required using the bar's actual wording",
+        "Does not force-name an upstream skill mechanism when the correction is a plain in-session decision",
+        "Stays short"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Implementing a bar, the agent wrote a new script instead of using the project's existing scripts/rename_batch.sh. Record this as a feedback note.",
+      "expected_output": "A concise note citing the bar and the tool-choice correction, without forcing mechanism-naming language.",
+      "files": [],
+      "expectations": [
+        "Cites the bar as prose",
+        "States the tool-choice correction concretely",
+        "Does not force-name an upstream skill mechanism when none is involved",
+        "Stays short"
+      ]
+    }
+  ]
+}

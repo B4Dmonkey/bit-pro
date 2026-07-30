@@ -5,9 +5,9 @@ description: Record a correction that landed mid-cycle as a feedback note agains
 
 # Feedback Capture
 
-You record **one note**: a correction that landed during a cycle, written down as evidence. A note has one job — preserve what the plan said and what the work actually turned out to require, at the moment that gap was visible. Nothing more happens here. You don't decide what caused it, you don't fix it, and you don't revise anything.
+You record **one note**: a correction that landed during a cycle, written down as evidence. A note has one job — preserve the scope and plan text that bears on the correction, the actual exchange that surfaced it, and what consideration was missing, so a reader who wasn't in the session can see the whole gap without reopening the track. Nothing more happens here. You don't decide what caused it, you don't fix it, and you don't revise anything.
 
-Capture is worth doing only if it's cheap. A note the user has to sit down and compose won't get written at the moment it's worth writing, so the whole point of this skill is that **one sentence in produces a well-formed note out** — you supply the track, the bar, and the structure; the user supplies the correction.
+Capture is worth doing only if it's cheap **for the user** — a note they have to sit down and compose won't get written at the moment it's worth writing. That cheapness is about their input, not the note's length: **one sentence in produces a complete note out** — you gather the scope text, the plan text, and the actual exchange from what's already in front of you; the user only ever supplies the correction.
 
 **Before you drive the CLI, run `bp instructions`** — the shared command contract (find the track, record a note, read a body). Every write into `.bit/` goes through `bp`; never hand-write a file under `.bit/feedback/`.
 
@@ -33,23 +33,69 @@ Active, completed, and archived tracks are all accepted, so a note about finishe
 
 ## 2. Write the note
 
-The body has three parts and nothing else:
+A note gathers whatever a future retro needs to see the whole gap — it isn't a fixed number of one-liners to fill in. Ask, for each note: cold, with no memory of this session, what would someone need to read to know what went wrong and where to look? That's usually four kinds of material:
 
-- **Where it happened** — cite the bar as prose: `Happened at BIT-11.4.` It's data in the text, not a key, because replanning renumbers bars and replanning is frequently the fix itself.
-- **What the plan said** — quote or paraphrase the instruction as written.
-- **What the work actually turned out to require** — the decision that got made, or the correction that was needed.
+- **Where it happened** — cite the track and, if there is one yet, the bar, as prose: `Happened at BIT-11.4, under track BIT-11.` Data in the text, not a key, because replanning renumbers bars and replanning is frequently the fix itself.
+- **The relevant scope and plan text, quoted verbatim** — whatever part of the track's WHY/Decisions/Risks and the bar's body actually bears on the correction. Quote it directly; don't describe it from memory. Paraphrasing loses the exact wording a retro would need to check the claim without reopening the track. If what's being corrected is a verdict another skill's own mechanism produced — not something this session decided — name that mechanism and quote what it produced. A retro can't revisit a behavior it was never told the name of.
+- **The exchange itself, quoted verbatim** — the actual question and correction as they were said, not a summary of them. A summary is already someone's interpretation of what mattered; the real exchange lets the retro form its own read of it instead of inheriting yours.
+- **What consideration was missing** — a fact about the scope or plan (what step, question, or check wasn't there), not about the specific substitution that happened to surface it. "Wrote a Python script instead of using the existing shell script" is the instance; "neither the scope nor the bar asked whether existing project tooling should be checked before building something new" is the gap a retro can act on. Keep the instance too, as the concrete example — it's evidence for the gap, not the gap itself.
 
 ```markdown
-Happened at BIT-11.4.
+Happened at BIT-11.4, under track BIT-11 ("Ballot image batch rename").
 
-The plan said: fall back to `plugin install` when `plugin update` fails.
-The work required: deciding whether the fallback also runs `marketplace add`,
-which the plan did not settle.
+Scope (BIT-11) says: "Batch-rename a directory of scanned ballot images to
+the project's file-naming convention." No tooling constraint is named
+anywhere in the track.
+
+Bar BIT-11.4 says: "Rename every file under `incoming/` to
+`<county>-<precinct>-<seq>.tif` using the county/precinct parsed from each
+filename's existing prefix." It doesn't ask whether existing tooling should
+be reused first either.
+
+Exchange:
+> Assistant: Done — I wrote a small Python script that parses each filename
+> with a regex and renames the file to the convention.
+> User: this project already has `scripts/rename_batch.sh` for exactly this —
+> you should have used that instead of writing a new script.
+
+Neither the scope nor the bar included a step asking whether existing
+project tooling should be checked before building something new — that's
+the gap this surfaced. (The specific instance: a new Python script was
+written where `scripts/rename_batch.sh` already existed.)
 ```
 
-**Observations only.** No cause, no blame, no proposed fix, no lesson learned. This isn't modesty — it's that right after being corrected, attribution is unreliable: it skews toward faulting the artifact ("the plan was unclear") over the choice actually made ("I didn't read the file I was told to read"). Facts are cheap and accurate in flight; judgment isn't. Classifying a note is the retro's job, and it does that job better with clean evidence than with a conclusion it has to unpick.
+The same shape covers a correction to another skill's mechanism, even before a bar exists:
 
-**Keep it short.** A few sentences. If it's growing past that, you're explaining rather than recording.
+```markdown
+Happened during bit_scope work on BIT-3's risk review (no bar yet — this
+surfaced before bit_plan).
+
+Scope (BIT-3) says: Phases 1-2 build a nightly export report's core
+sections; Phase 3 is a spike into locale-aware currency formatting,
+contingent on the upstream feed carrying a currency code. Its Risks section
+reads: "De-risk before planning? No — nothing in Verses 1–3 depend on the
+answer."
+
+bit_scope's downstream-impact test produced that verdict: it asks whether
+anything already planned or built would need to be redone once the risk
+resolves, and judged this one non-blocking because Phase 3 is purely
+additive.
+
+Exchange:
+> Assistant: [recommends moving to bit_plan, citing the reasoning above]
+> User: why should we not derisk before planning?
+> Assistant: [restates the downstream-impact reasoning]
+> User: i want all risk resolved before planning.
+
+Neither the scope's risk entry nor bit_scope's downstream-impact test asks
+whether the user's own risk tolerance is "resolve everything," regardless of
+downstream impact — that's the gap. (The specific instance: this one Risk
+entry was left open going into planning.)
+```
+
+**Observations only.** No blame, no proposed fix, no lesson learned, and — this is the part worth being careful with — no "should have" written as advice. "What consideration was missing" is a fact about the artifact: a step, question, or check that wasn't there, phrased as an absence. "The plan should have asked whether to reuse existing tooling" is the retro's conclusion to draw when it reads the note; the note itself just says the question wasn't asked. This isn't modesty — it's that right after being corrected, attribution is unreliable: it skews toward faulting the artifact ("the plan was unclear") over the choice actually made ("I didn't read the file I was told to read"). Facts are cheap and accurate in flight; judgment isn't. Classifying a note is the retro's job, and it does that job better with clean evidence than with a conclusion it has to unpick.
+
+**Brevity is not the goal.** A note missing the scope text, the plan text, or the actual exchange isn't short — it's incomplete, and the retro will have to reopen the track and reconstruct the conversation to do the job the note exists to save it from doing. The one thing that stays cheap is what the user has to supply: they give the correction, in one sentence if that's all it takes. Gathering everything else the note needs is your job, not theirs.
 
 ## 3. Record it
 
