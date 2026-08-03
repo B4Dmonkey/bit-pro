@@ -61,6 +61,10 @@ Then research the codebase (a scope's light "touches" pointers are a starting po
 - Note specific function names, line numbers, and current vs. desired behavior
 - Identify tests that will need updating
 
+Also identify any verse that will need real-shaped data from an external system — a mock response, a poll condition, a citation, an example payload. The user is the actual authority on what real data looks like here, not the model's recollection, so work out when to loop them in:
+- **Obtainable now** (an existing endpoint, an existing query, a doc you can point to) — ask the user for it before drafting, so the bar is written against something real instead of a plausible guess.
+- **Only obtainable once part of the feature is built** (you can't capture a real response until the client wrapper this plan is about to create actually exists) — don't block drafting on it. Instead, give that bar a `**Needs real data:**` note (see Plan format) naming the actual mechanism to get it once the bar is reached — a command to run, an endpoint to hit, a query to make. bit_do won't have this section's context by the time it gets there, so the note has to name the real mechanism, not just flag that one exists.
+
 Don't start drafting until you've done this research. A plan that names wrong files or misunderstands the existing pattern wastes more time than it saves.
 
 ---
@@ -104,6 +108,8 @@ When you can't use real data (external services, databases, auth), mock — but 
 - Helper functions they provide for building realistic test objects
 
 Don't invent a mocking approach when the repo already has one. Consistency with the existing test infrastructure matters more than theoretical purity.
+
+Matching the existing pattern controls *shape* — it doesn't make the specific values true. Build the mock's field values, poll conditions, and citations from the real artifact gathered for this bar (the one the user supplied during gathering, or the one this bar's `**Needs real data:**` step produces) — not from recollection of what the response probably looks like.
 
 ### Describing tests in a plan
 
@@ -269,6 +275,12 @@ The **bar body** uses this structure. It opens with the verse the bar serves (`#
 Only include references the implementer actually needs to read for this bar.]
 
 - `path/to/doc.md` — what to use it for in this step
+
+## Needs real data
+[Omit unless this bar's test data can only be obtained once this bar's own work exists —
+see Gathering context. Name the actual mechanism, not just that one is needed.]
+
+- [ ] [a command to run, an endpoint to hit, a query to make]
 
 ## TDD cycle
 

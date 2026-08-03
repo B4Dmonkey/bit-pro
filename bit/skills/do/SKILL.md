@@ -37,6 +37,7 @@ Then put each implementation-checklist item from the bar into your harness's ses
 ### 3. Implement the bar
 
 Do only this bar's work:
+- Check the bar body for a `**Needs real data:**` note before writing anything. If present, run the mechanism it names — or ask the user to run it or hand you the result — and use that real artifact for the test data. Writing the test first against an invented value defeats the point of this bar having flagged it.
 - Touch only the scope files the step names. Read them and their adjacent code before editing, so you extend the existing pattern rather than inventing a new one.
 - Follow the plan's intent on tests (TDD where it says so; YAGNI — don't add behavior or tests the step didn't ask for).
 - No "while we're in here" cleanup. If you notice something out of scope, mention it for a later step; don't fix it now.
