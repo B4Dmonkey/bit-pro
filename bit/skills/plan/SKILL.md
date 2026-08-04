@@ -206,7 +206,7 @@ pass/fail.
 
 The litmus test: *could the user pass or fail this by doing one thing and looking?* If there's
 no action-and-observation — if you're asking them to **bless a choice** rather than **observe a
-behavior** — it isn't a verification. See the two traps below.
+behavior** — it isn't a verification. See the three traps below.
 
 Never put a judgment call in "Claude verifies." Never put an automatable check in "User
 verifies." Not every bar needs a User-verify — a pure-plumbing bar the Claude-checks already
@@ -242,6 +242,17 @@ Put the verse's one integration/feel check on its **last bar** — the one that 
 — phrased against the capability the verse unlocks ("Whole slice: archiving a done track moves it
 and its bars out of the active view — the declutter goal actually lands"). Earlier bars carry
 only their own concrete checks, or none.
+
+### Trap 3: a real-shaped action that isn't real
+
+An action-and-observation check can still be false — the command it names might not exist, or
+might not do what the wording assumes. Passing the litmus test only confirms the *shape* is
+right, not that the named action actually works.
+
+Before writing a command the user is meant to run, confirm it actually works in this project —
+check the task runner, README, or an already-correct bar elsewhere in the same track. If no
+invocation convention exists yet for this new capability, that's a scope Decision, not something
+to guess in the plan — hand back to bit_scope.
 
 **Claude never commits.** The plan includes a suggested commit message per step, but committing is always the user's action.
 
@@ -351,7 +362,7 @@ The `Report back` item is what closes the loop — without it a spike's answer l
 5. Check the throughline: can you trace *why* each bar exists? Every bar after the first should be forced by a contradiction or dependency. If a bar says "now implement X" without a test that demands it, flag it — something is missing.
 6. Review each bar: does it start with a test? Is it one red-green cycle?
 7. Flag any bar that bundles multiple scenarios (split it into two bars — each earns its own commit)
-8. Check each bar's **User verifies** against the two traps (see Verification split): a decision-in-disguise ("reads naturally", "is acceptable", "feels right") is a missing scope Decision — flag it and hand back to bit_scope; a subjective "how does it feel" on a non-final bar belongs on its verse's last bar instead. A concrete do-X-observe-Y check is fine as is.
+8. Check each bar's **User verifies** against the three traps (see Verification split): a decision-in-disguise ("reads naturally", "is acceptable", "feels right") is a missing scope Decision — flag it and hand back to bit_scope; a subjective "how does it feel" on a non-final bar belongs on its verse's last bar instead; a command named without confirming it actually works in this project is a real-shaped-but-not-real check — verify it or hand back to bit_scope if no invocation convention exists yet. A concrete do-X-observe-Y check confirmed against this project is fine as is.
 9. Check references: if the scope track has a `## References` section, are the relevant references carried into bars that need them? A bar touching a verse that depends on a spec or design doc should have a `## References` section pointing to it. Flag any bar where the reference is missing and the implementer would need it.
 10. Check the spikes both ways. Does each spike bar state a falsifiable observation (yes looks like / no looks like), say whether its artifact is kept, and end with a `Report back` item? And the drift case that matters more: are there bars planned for verses the scope says depend on an *unresolved* spike? Those were written without the answer, so flag them — the fix is to hold them until the spike reports back, not to polish them.
 11. Flag YAGNI violations, over-bundled bars, or missing verification
