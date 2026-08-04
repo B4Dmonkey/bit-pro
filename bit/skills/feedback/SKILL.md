@@ -96,6 +96,8 @@ before planning, regardless of what the downstream-impact test concluded.
 
 ## 3. Record it
 
+Before running this, state the note (or its gist) and get an explicit go-ahead — even when you noticed the gap yourself and nobody asked. Noticing it yourself means drafting and offering it, not writing it unasked.
+
 The body is multi-line prose, so build it in a file and pass it the same way a task body is passed:
 
 ```bash
