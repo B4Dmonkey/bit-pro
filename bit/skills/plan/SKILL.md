@@ -174,6 +174,8 @@ Name steps after what they prove, not what they touch.
 Good: "Contradiction forces real fan-out"
 Bad: "Implement child workflow"
 
+**"Leave the system green" is a whole-module property, not a per-bar one.** A bar's own test passing doesn't mean the codebase still builds. Before sequencing bars that change a shared function's signature, check whether existing callers are tested through a fake/interface boundary or hit the real implementation directly. If they hit it directly, the steps are not actually independently green — merge them into one bar, or add a bar that introduces the boundary first.
+
 ### Tag each bar with its verse
 
 Every bar carries the verse it serves as CLI metadata: `--phase <N>` (the verse number from the scope's checklist) and `--phase-label "<label>"` (the verse's short name — the flag keeps the name `phase`, the scope's slice is a verse). This metadata is what lets progress roll up: bit_do checks off a verse in the track body once all the bars tagged to it are done — so the `--phase` value, not any body text, is the source of truth for rollup. The bar body *also* opens by naming that verse (`## **Verse N**`) so a reader can place the step at a glance, but if the two ever disagree, trust `--phase`. A bar serves exactly one verse; if a step seems to span two, it's probably two bars. Create the bars in the scope's delivery order, so the walking skeleton lands first.
