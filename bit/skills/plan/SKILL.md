@@ -317,6 +317,11 @@ see Gathering context. Name the actual mechanism, not just that one is needed.]
 `feat(scope): short description`
 ```
 
+Before finalizing a bar, trace its RED test's assertions against its GREEN checklist line by
+line. If the checklist, read literally, would still leave the test failing, the checklist is
+incomplete — "a test at this level forces it" is not a substitute for checking this specific
+bar.
+
 The throughline that used to live in a plan's "How this plan works" section — what the entry point is and how tests drive deeper — belongs in the **track body** (a sentence or two), not repeated per bar. If it's missing and would help, offer to add it to the track via bit_scope.
 
 ### A spike bar's body
