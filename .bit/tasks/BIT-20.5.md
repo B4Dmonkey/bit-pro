@@ -1,7 +1,7 @@
 ---
 id: BIT-20.5
 title: flattenBoard produces the modal's cross-column paging order
-status: todo
+status: done
 phase: 2
 phase_label: Modal paging
 ---

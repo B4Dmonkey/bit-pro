@@ -221,6 +221,68 @@ func TestFirstBarIndex(t *testing.T) {
 	}
 }
 
+func TestFlattenBoard(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		cols [3]list.Model
+		want []boardEntry
+	}{
+		{
+			name: "single column",
+			cols: [3]list.Model{{}, newColumnList([]*task.Task{{ID: "BIT-1"}, {ID: "BIT-1.1"}}), {}},
+			want: []boardEntry{
+				{col: 1, pos: 0, t: &task.Task{ID: "BIT-1"}},
+				{col: 1, pos: 1, t: &task.Task{ID: "BIT-1.1"}},
+			},
+		},
+		{
+			name: "all three columns concatenate in order",
+			cols: [3]list.Model{
+				newColumnList([]*task.Task{{ID: "BIT-2"}}),
+				newColumnList([]*task.Task{{ID: "BIT-1"}, {ID: "BIT-1.1"}}),
+				newColumnList([]*task.Task{{ID: "BIT-3"}}),
+			},
+			want: []boardEntry{
+				{col: 0, pos: 0, t: &task.Task{ID: "BIT-2"}},
+				{col: 1, pos: 0, t: &task.Task{ID: "BIT-1"}},
+				{col: 1, pos: 1, t: &task.Task{ID: "BIT-1.1"}},
+				{col: 2, pos: 0, t: &task.Task{ID: "BIT-3"}},
+			},
+		},
+		{
+			name: "empty columns are skipped not padded",
+			cols: [3]list.Model{{}, newColumnList([]*task.Task{{ID: "BIT-1"}}), {}},
+			want: []boardEntry{
+				{col: 1, pos: 0, t: &task.Task{ID: "BIT-1"}},
+			},
+		},
+		{
+			name: "all empty returns empty not nil panic",
+			cols: [3]list.Model{{}, {}, {}},
+			want: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := flattenBoard(tt.cols)
+			if len(got) != len(tt.want) {
+				t.Fatalf("flattenBoard() = %d entries, want %d", len(got), len(tt.want))
+			}
+			for i, e := range got {
+				if e.col != tt.want[i].col || e.pos != tt.want[i].pos || e.t.ID != tt.want[i].t.ID {
+					t.Errorf("entry %d = {col:%d pos:%d id:%q}, want {col:%d pos:%d id:%q}",
+						i, e.col, e.pos, e.t.ID, tt.want[i].col, tt.want[i].pos, tt.want[i].t.ID)
+				}
+			}
+		})
+	}
+}
+
 func TestView_BoardColumnCounts(t *testing.T) {
 	t.Parallel()
 

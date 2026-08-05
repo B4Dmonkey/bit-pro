@@ -85,6 +85,23 @@ func defaultColumn(cols [3][]*task.Task) int {
 	return 0
 }
 
+type boardEntry struct {
+	col, pos int
+	t        *task.Task
+}
+
+func flattenBoard(cols [3]list.Model) []boardEntry {
+	var entries []boardEntry
+	for col := range cols {
+		for pos, it := range cols[col].Items() {
+			if bi, ok := it.(item); ok {
+				entries = append(entries, boardEntry{col: col, pos: pos, t: bi.t})
+			}
+		}
+	}
+	return entries
+}
+
 func firstBarIndex(items []list.Item) int {
 	for i, it := range items {
 		if bi, ok := it.(item); ok && isBar(bi.t.ID) {
