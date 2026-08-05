@@ -1,7 +1,7 @@
 ---
 id: BIT-20.6
 title: Modal left/right/h/l page between tasks in board order
-status: todo
+status: done
 phase: 2
 phase_label: Modal paging
 ---

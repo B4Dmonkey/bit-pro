@@ -543,11 +543,11 @@ func TestUpdate_ModalCapturesInput(t *testing.T) {
 			},
 		},
 		{
-			"right swallowed",
+			"right pages to next task instead of switching column the old way",
 			tea.KeyPressMsg{Code: tea.KeyRight},
 			func(t *testing.T, mdl tea.Model, _ tea.Cmd) {
-				if got := mdl.(model).activeCol; got != 1 {
-					t.Errorf("activeCol = %d, want 1", got)
+				if got := mdl.(model).boardSelected().ID; got != "BIT-3" {
+					t.Errorf("boardSelected().ID = %q, want %q", got, "BIT-3")
 				}
 				if !mdl.(model).modalOpen {
 					t.Errorf("modalOpen = false, want true")
@@ -621,6 +621,131 @@ func TestUpdate_ModalScrollsLongBody(t *testing.T) {
 				t.Errorf("View height = %d, want <= 24", h)
 			}
 		})
+	}
+}
+
+func TestUpdate_ModalPagesWithinColumn(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		key  tea.KeyPressMsg
+	}{
+		{"right", tea.KeyPressMsg{Code: tea.KeyRight}},
+		{"l", tea.KeyPressMsg{Code: 'l', Text: "l"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var mdl tea.Model = New([]*task.Task{
+				{ID: "BIT-1", Status: "doing"},
+				{ID: "BIT-1.1", Status: "doing"},
+			})
+			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyUp})
+			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+			mdl, _ = mdl.Update(tt.key)
+
+			opened := mdl.(model)
+			if got := opened.boardSelected().ID; got != "BIT-1.1" {
+				t.Errorf("boardSelected().ID = %q, want %q", got, "BIT-1.1")
+			}
+			if !opened.modalOpen {
+				t.Errorf("modalOpen = false, want true")
+			}
+		})
+	}
+}
+
+func TestUpdate_ModalPagesAcrossColumns(t *testing.T) {
+	t.Parallel()
+
+	var mdl tea.Model = New([]*task.Task{
+		{ID: "BIT-2", Status: "todo"},
+		{ID: "BIT-1", Status: "doing"},
+		{ID: "BIT-1.1", Status: "doing"},
+	})
+	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+	steps := []struct {
+		key     tea.KeyPressMsg
+		wantID  string
+		wantCol int
+	}{
+		{tea.KeyPressMsg{Code: tea.KeyLeft}, "BIT-1", 1},
+		{tea.KeyPressMsg{Code: tea.KeyLeft}, "BIT-2", 0},
+		{tea.KeyPressMsg{Code: tea.KeyRight}, "BIT-1", 1},
+		{tea.KeyPressMsg{Code: tea.KeyRight}, "BIT-1.1", 1},
+	}
+
+	for _, s := range steps {
+		mdl, _ = mdl.Update(s.key)
+		got := mdl.(model)
+		if id := got.boardSelected().ID; id != s.wantID {
+			t.Fatalf("boardSelected().ID = %q, want %q", id, s.wantID)
+		}
+		if got.activeCol != s.wantCol {
+			t.Fatalf("activeCol = %d, want %d", got.activeCol, s.wantCol)
+		}
+	}
+}
+
+func TestUpdate_ModalPagingClampsAtEnds(t *testing.T) {
+	t.Parallel()
+
+	var mdl tea.Model = New([]*task.Task{
+		{ID: "BIT-2", Status: "todo"},
+		{ID: "BIT-1", Status: "doing"},
+		{ID: "BIT-1.1", Status: "doing"},
+	})
+	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+	if got := mdl.(model).boardSelected().ID; got != "BIT-2" {
+		t.Fatalf("boardSelected().ID = %q, want %q (clamp at start)", got, "BIT-2")
+	}
+
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	if got := mdl.(model).boardSelected().ID; got != "BIT-1.1" {
+		t.Fatalf("boardSelected().ID = %q, want %q", got, "BIT-1.1")
+	}
+
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	if got := mdl.(model).boardSelected().ID; got != "BIT-1.1" {
+		t.Fatalf("boardSelected().ID = %q, want %q (clamp at end)", got, "BIT-1.1")
+	}
+}
+
+func TestUpdate_ModalPagingSingleTaskNoop(t *testing.T) {
+	t.Parallel()
+
+	var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "doing"}})
+	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+	got := mdl.(model)
+	if got.boardSelected().ID != "BIT-1" {
+		t.Errorf("boardSelected().ID = %q, want %q", got.boardSelected().ID, "BIT-1")
+	}
+	if !got.modalOpen {
+		t.Errorf("modalOpen = false, want true")
+	}
+
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	got = mdl.(model)
+	if got.boardSelected().ID != "BIT-1" {
+		t.Errorf("boardSelected().ID = %q, want %q", got.boardSelected().ID, "BIT-1")
+	}
+	if !got.modalOpen {
+		t.Errorf("modalOpen = false, want true")
 	}
 }
 

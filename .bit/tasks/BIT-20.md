@@ -46,7 +46,7 @@ while expanded.
   working on: Kanban view, Doing column, topmost bar selected — no Tab, no hunting.
   Touches: `cmd/tui.go`, `tui/model.go` (initial view mode), `tui/board.go` (initial column
   and selection).
-- [ ] Verse 2 — With the Kanban modal open, an operator pages through every task's detail
+- [x] Verse 2 — With the Kanban modal open, an operator pages through every task's detail
   with left/right or h/l without ever closing the popup, reviewing a whole column (or the
   whole board) in one sitting.
   Touches: `tui/board.go` (modal key handling, `refreshModal`).

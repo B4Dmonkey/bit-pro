@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/B4Dmonkey/bit-pro/task"
 	"charm.land/bubbles/v2/key"
@@ -111,6 +112,23 @@ func firstBarIndex(items []list.Item) int {
 	return 0
 }
 
+func (m *model) pageModal(delta int) {
+	order := flattenBoard(m.boardCols)
+	if len(order) == 0 {
+		return
+	}
+	idx := 0
+	if cur := m.boardSelected(); cur != nil {
+		if i := slices.IndexFunc(order, func(e boardEntry) bool { return e.t.ID == cur.ID }); i >= 0 {
+			idx = i
+		}
+	}
+	idx = min(max(idx+delta, 0), len(order)-1)
+	m.activeCol = order[idx].col
+	m.boardCols[m.activeCol].Select(order[idx].pos)
+	m.refreshModal()
+}
+
 func (m model) boardSelected() *task.Task {
 	it, ok := m.boardCols[m.activeCol].SelectedItem().(item)
 	if !ok {
@@ -127,10 +145,16 @@ func (m model) updateBoard(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case "ctrl+c":
 			return m, tea.Quit
-		case "up", "down", "left", "right", "j", "k", "h", "l":
+		case "up", "down", "j", "k":
 			var cmd tea.Cmd
 			m.modalViewport, cmd = m.modalViewport.Update(msg)
 			return m, cmd
+		case "left", "h":
+			m.pageModal(-1)
+			return m, nil
+		case "right", "l":
+			m.pageModal(1)
+			return m, nil
 		}
 		return m, nil
 	}
