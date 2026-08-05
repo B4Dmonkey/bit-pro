@@ -103,11 +103,14 @@ func New(tasks []*task.Task) model {
 	}
 	vp := viewport.New()
 	mvp := viewport.New()
+	cols := groupByStatus(tasks)
 	var boardCols [3]list.Model
-	for i, cards := range groupByStatus(tasks) {
+	for i, cards := range cols {
 		boardCols[i] = newColumnList(cards)
 	}
-	return model{Model: l, viewport: vp, modalViewport: mvp, help: help.New(), keys: newKeyMap(), boardKeys: newBoardKeyMap(), style: style, boardCols: boardCols, loaded: tasks, mode: modeBoard}
+	activeCol := defaultColumn(cols)
+	boardCols[activeCol].Select(firstBarIndex(boardCols[activeCol].Items()))
+	return model{Model: l, viewport: vp, modalViewport: mvp, help: help.New(), keys: newKeyMap(), boardKeys: newBoardKeyMap(), style: style, boardCols: boardCols, activeCol: activeCol, loaded: tasks, mode: modeBoard}
 }
 
 func sameTasks(a, b []*task.Task) bool {

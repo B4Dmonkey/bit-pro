@@ -184,7 +184,6 @@ func TestUpdate_ReloadPreservesBoardSelection(t *testing.T) {
 		{ID: "BIT-3", Status: "doing"},
 	})
 	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
-	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyRight})
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 
 	mdl, _ = mdl.Update(reloadedMsg{tasks: []*task.Task{
@@ -313,6 +312,25 @@ func TestNew_DefaultsToBoardMode(t *testing.T) {
 
 	if m.mode != modeBoard {
 		t.Errorf("New() mode = %v, want modeBoard", m.mode)
+	}
+}
+
+func TestNew_LandsOnDoingsTopBar(t *testing.T) {
+	t.Parallel()
+
+	tasks := []*task.Task{
+		{ID: "BIT-2", Status: "todo"},
+		{ID: "BIT-1", Status: "doing"},
+		{ID: "BIT-1.1", Status: "doing"},
+	}
+
+	m := New(tasks)
+
+	if m.activeCol != 1 {
+		t.Errorf("New() activeCol = %d, want 1 (Doing)", m.activeCol)
+	}
+	if got := m.boardSelected(); got == nil || got.ID != "BIT-1.1" {
+		t.Errorf("New() boardSelected() = %v, want BIT-1.1", got)
 	}
 }
 

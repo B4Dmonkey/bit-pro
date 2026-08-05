@@ -8,9 +8,10 @@ phase_label: Kanban-first default
 ## **Verse 1**
 
 Landing on the board is only half of Verse 1 — it also has to land on the *right* column. This
-step builds the pure lookup that decides which one: the first non-empty column in
-To Do → Doing → Done order. Kept as its own function (rather than inlined into `New()`) so it's
-directly table-testable, matching the existing style of small tested helpers like `isBar`.
+step builds the pure lookup that decides which one: Doing takes priority whenever it has
+tasks, falling back to the first non-empty of To Do, then Done. Kept as its own function
+(rather than inlined into `New()`) so it's directly table-testable, matching the existing
+style of small tested helpers like `isBar`.
 
 ## Scope
 - `tui/board.go` — add `defaultColumn(cols [3][]*task.Task) int`.
@@ -31,24 +32,33 @@ directly table-testable, matching the existing style of small tested helpers lik
      test above.
 
 3. **More tests (RED → GREEN):**
+   - [ ] `TestDefaultColumn/doing_wins_even_when_to_do_is_also_populated`
+     - **Behavior:** Doing takes priority over To Do regardless of array order — the case that
+       distinguishes "Doing is prioritized" from "first non-empty by position," which the
+       first test case's single-Doing-populated setup can't tell apart.
+     - **Setup:** `cols := [3][]*task.Task{ {&task.Task{ID: "BIT-4"}}, {&task.Task{ID: "BIT-1"}}, {&task.Task{ID: "BIT-9"}} }` (all three columns populated).
+     - **Assertions:** `defaultColumn(cols) == 1`.
+     - **Boundary:** every column populated at once — the case a simple first-non-empty scan
+       gets wrong (it would return 0); proves Doing is checked first, not merely first-in-order.
    - [ ] `TestDefaultColumn/falls_back_to_to_do_when_doing_is_empty`
      - **Behavior:** an empty Doing column is skipped in favor of To Do, proving the search is
        real, not fixed on index 1.
      - **Setup:** `cols := [3][]*task.Task{ {&task.Task{ID: "BIT-4"}}, nil, nil }`.
      - **Assertions:** `defaultColumn(cols) == 0`.
-     - **Boundary:** contradicts the hardcoded `return 1` — forces a real first-non-empty scan.
+     - **Boundary:** contradicts the hardcoded `return 1` — forces a real Doing-first check with
+       a fallback scan.
    - [ ] `TestDefaultColumn/falls_back_to_done_when_only_done_has_tasks`
-     - **Behavior:** the scan reaches all the way to Done, not just past Doing.
+     - **Behavior:** the fallback scan reaches all the way to Done, not just past Doing.
      - **Setup:** `cols := [3][]*task.Task{ nil, nil, {&task.Task{ID: "BIT-4"}} }`.
      - **Assertions:** `defaultColumn(cols) == 2`.
-     - **Boundary:** the last index in the array — the far end of the scan order.
+     - **Boundary:** the last index in the array — the far end of the fallback scan.
    - [ ] `TestDefaultColumn/all_empty_defaults_to_zero`
      - **Behavior:** an empty board (e.g. a brand-new project) doesn't panic or return an
        out-of-range index.
      - **Setup:** `cols := [3][]*task.Task{}`.
      - **Assertions:** `defaultColumn(cols) == 0`.
      - **Boundary:** the zero case — no column has anything, the lower bound of the input space.
-   - [ ] Implement the real loop: `for i, c := range cols { if len(c) > 0 { return i } }; return 0`.
+   - [ ] Implement Doing-first: `if len(cols[1]) > 0 { return 1 }; for i, c := range cols { if len(c) > 0 { return i } }; return 0`.
 
 ## Claude verifies
 - [ ] `go test ./tui/... -run TestDefaultColumn` passes.

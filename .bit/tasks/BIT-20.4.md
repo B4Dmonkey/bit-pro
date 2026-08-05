@@ -1,7 +1,7 @@
 ---
 id: BIT-20.4
 title: New() lands on the Doing column's topmost bar
-status: todo
+status: done
 phase: 1
 phase_label: Kanban-first default
 ---
@@ -35,9 +35,17 @@ no hunting. This closes Verse 1.
    - [ ] Call `boardCols[activeCol].Select(firstBarIndex(boardCols[activeCol].Items()))` before
      returning.
 
+3. **Migrate a test whose setup relied on the old zero-value default:**
+   - [ ] `TestUpdate_BoardEnterEmptyColumnNoop` (in `tui/board_test.go`) built its board with
+     `New([]*task.Task{{ID: "BIT-1", Status: "doing", Body: "body"}})` and relied on `activeCol`
+     staying at the Go zero value (0, an empty To Do column) to exercise the empty-column-Enter
+     no-op. `New()` now actively selects Doing when it's populated, so that setup no longer
+     produces an empty active column. Change its setup to `New(nil)` — a genuinely empty board —
+     so the test still exercises what its name says.
+
 ## Claude verifies
-- [ ] `go test ./tui/...` passes (full package, confirming Bar 1.1's migrated tests and this
-  new test are all green together).
+- [ ] `go test ./tui/...` passes (full package, confirming Bar 1.1's migrated tests, the
+  `TestUpdate_BoardEnterEmptyColumnNoop` migration, and this new test are all green together).
 - [ ] `golangci-lint run` passes.
 
 ## User verifies

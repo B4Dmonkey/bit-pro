@@ -74,6 +74,9 @@ func newColumnList(tasks []*task.Task) list.Model {
 }
 
 func defaultColumn(cols [3][]*task.Task) int {
+	if len(cols[1]) > 0 {
+		return 1
+	}
 	for i, c := range cols {
 		if len(c) > 0 {
 			return i

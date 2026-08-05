@@ -139,6 +139,11 @@ func TestDefaultColumn(t *testing.T) {
 			want: 1,
 		},
 		{
+			name: "doing wins even when to do is also populated",
+			cols: [3][]*task.Task{{{ID: "BIT-4"}}, {{ID: "BIT-1"}}, {{ID: "BIT-9"}}},
+			want: 1,
+		},
+		{
 			name: "falls back to to do when doing is empty",
 			cols: [3][]*task.Task{{{ID: "BIT-4"}}, nil, nil},
 			want: 0,
@@ -274,7 +279,6 @@ func TestUpdate_BoardActiveColumn(t *testing.T) {
 
 			var mdl tea.Model = New([]*task.Task{
 				{ID: "BIT-1", Status: "todo"},
-				{ID: "BIT-2", Status: "doing"},
 				{ID: "BIT-3", Status: "done"},
 			})
 			for _, k := range tt.keys {
@@ -480,8 +484,8 @@ func TestUpdate_ModalCapturesInput(t *testing.T) {
 			"right swallowed",
 			tea.KeyPressMsg{Code: tea.KeyRight},
 			func(t *testing.T, mdl tea.Model, _ tea.Cmd) {
-				if got := mdl.(model).activeCol; got != 0 {
-					t.Errorf("activeCol = %d, want 0", got)
+				if got := mdl.(model).activeCol; got != 1 {
+					t.Errorf("activeCol = %d, want 1", got)
 				}
 				if !mdl.(model).modalOpen {
 					t.Errorf("modalOpen = false, want true")
@@ -561,7 +565,7 @@ func TestUpdate_ModalScrollsLongBody(t *testing.T) {
 func TestUpdate_BoardEnterEmptyColumnNoop(t *testing.T) {
 	t.Parallel()
 
-	var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "doing", Body: "body"}})
+	var mdl tea.Model = New(nil)
 	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 

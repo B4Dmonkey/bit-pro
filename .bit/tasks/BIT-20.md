@@ -22,10 +22,12 @@ while expanded.
 ## Decisions
 - **Kanban is the default view on startup**, replacing list view as `bp tui`'s zero-value
   default. List view remains reachable via the existing Tab toggle.
-- **Default column and selection.** On open, focus the first non-empty column in the order
-  To Do → Doing → Done (in practice almost always Doing). Within that column, default to
-  the first *bar* (a dotted child ID) in list order, skipping over track-level rows;
-  if the column contains no bars, default to its first row (a track).
+- **Default column and selection.** On open, focus Doing whenever it has any tasks — an
+  operator opening `bp tui` wants to land on what they're actively working on, regardless of
+  whether other columns are also populated. Only when Doing is empty does it fall back to the
+  first non-empty of To Do, then Done. Within the chosen column, default to the first *bar*
+  (a dotted child ID) in list order, skipping over track-level rows; if the column contains
+  no bars, default to its first row (a track).
 - **Keybindings are context-sensitive, not a global rebind.** In Kanban, left/right/h/l mean
   "switch column" while the modal is closed (unchanged from today) and "previous/next task"
   only while the modal is open. In list view, left/right/h/l mean "switch focus between the
@@ -40,7 +42,7 @@ while expanded.
   content exactly as they do today; only left/right/h/l change meaning when the modal opens.
 
 ## Verses
-- [ ] Verse 1 — Operator opens `bp tui` and lands directly on the task they're already
+- [x] Verse 1 — Operator opens `bp tui` and lands directly on the task they're already
   working on: Kanban view, Doing column, topmost bar selected — no Tab, no hunting.
   Touches: `cmd/tui.go`, `tui/model.go` (initial view mode), `tui/board.go` (initial column
   and selection).
