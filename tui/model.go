@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/B4Dmonkey/bit-pro/task"
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
@@ -16,6 +15,7 @@ import (
 	"charm.land/glamour/v2"
 	"charm.land/glamour/v2/styles"
 	"charm.land/lipgloss/v2"
+	"github.com/B4Dmonkey/bit-pro/task"
 )
 
 type viewMode int
@@ -66,25 +66,26 @@ func (k keyMap) FullHelp() [][]key.Binding {
 
 type model struct {
 	list.Model
-	viewport      viewport.Model
-	modalViewport viewport.Model
-	help          help.Model
-	keys          keyMap
-	boardKeys     boardKeyMap
-	mode          viewMode
-	boardCols     [3]list.Model
-	activeCol     int
-	detailWidth   int
-	listWidth     int
-	winWidth      int
-	winHeight     int
-	height        int
-	style         string
-	renderer      *glamour.TermRenderer
-	reload        func() ([]*task.Task, error)
-	loaded        []*task.Task
-	detailFocused bool
-	modalOpen     bool
+	viewport       viewport.Model
+	modalViewport  viewport.Model
+	help           help.Model
+	keys           keyMap
+	boardKeys      boardKeyMap
+	mode           viewMode
+	boardCols      [3]list.Model
+	activeCol      int
+	detailWidth    int
+	listWidth      int
+	winWidth       int
+	winHeight      int
+	height         int
+	style          string
+	renderer       *glamour.TermRenderer
+	reload         func() ([]*task.Task, error)
+	loaded         []*task.Task
+	detailFocused  bool
+	modalOpen      bool
+	detailExpanded bool
 }
 
 func New(tasks []*task.Task) model {
@@ -316,7 +317,12 @@ func (m model) helpKeys() help.KeyMap {
 }
 
 func (m *model) layout() {
-	listW, detailW := splitWidth(m.winWidth)
+	var listW, detailW int
+	if m.detailExpanded {
+		listW, detailW = splitWidthExpanded(m.winWidth)
+	} else {
+		listW, detailW = splitWidth(m.winWidth)
+	}
 	m.help.SetWidth(m.winWidth)
 	helpHeight := lipgloss.Height(m.help.View(m.helpKeys()))
 	paneHeight := max(m.winHeight-helpHeight, 0)

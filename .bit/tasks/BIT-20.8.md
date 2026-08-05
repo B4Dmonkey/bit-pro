@@ -1,7 +1,7 @@
 ---
 id: BIT-20.8
 title: layout() uses the expanded split when detailExpanded is set
-status: todo
+status: done
 phase: 3
 phase_label: Expanded detail pane
 ---

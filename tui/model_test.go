@@ -468,6 +468,19 @@ func TestSplitWidthExpanded(t *testing.T) {
 	})
 }
 
+func TestLayout_ExpandedUsesWiderSplit(t *testing.T) {
+	t.Parallel()
+
+	m := New([]*task.Task{{ID: "BIT-1"}})
+	m.detailExpanded = true
+
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 24})
+
+	if lw := updated.(model).listWidth; lw != 10 {
+		t.Errorf("listWidth = %d, want 10 (splitWidthExpanded, not splitWidth)", lw)
+	}
+}
+
 func TestUpdate_WindowSizeBuildsRenderer(t *testing.T) {
 	t.Parallel()
 
