@@ -1,7 +1,7 @@
 ---
 id: BIT-20.10
 title: left/right/h/l page the list when expanded, focus-switch when collapsed
-status: doing
+status: done
 phase: 3
 phase_label: Expanded detail pane
 ---

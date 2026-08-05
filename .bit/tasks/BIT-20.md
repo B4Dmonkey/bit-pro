@@ -50,7 +50,7 @@ while expanded.
   with left/right or h/l without ever closing the popup, reviewing a whole column (or the
   whole board) in one sitting.
   Touches: `tui/board.go` (modal key handling, `refreshModal`).
-- [ ] Verse 3 — In list view, an operator expands the details pane to ~90% width with Enter
+- [x] Verse 3 — In list view, an operator expands the details pane to ~90% width with Enter
   for a comfortable read, pages to the next/previous item with left/right/h/l while it's
   expanded, and collapses back to the normal split with Enter again.
   Touches: `tui/model.go` (layout width state, key dispatch by layout mode).
