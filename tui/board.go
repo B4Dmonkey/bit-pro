@@ -82,6 +82,15 @@ func defaultColumn(cols [3][]*task.Task) int {
 	return 0
 }
 
+func firstBarIndex(items []list.Item) int {
+	for i, it := range items {
+		if bi, ok := it.(item); ok && isBar(bi.t.ID) {
+			return i
+		}
+	}
+	return 0
+}
+
 func (m model) boardSelected() *task.Task {
 	it, ok := m.boardCols[m.activeCol].SelectedItem().(item)
 	if !ok {

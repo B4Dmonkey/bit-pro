@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/task"
+	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 )
@@ -160,6 +161,56 @@ func TestDefaultColumn(t *testing.T) {
 
 			if got := defaultColumn(tt.cols); got != tt.want {
 				t.Errorf("defaultColumn(%v) = %d, want %d", tt.cols, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFirstBarIndex(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		items []list.Item
+		want  int
+	}{
+		{
+			name: "bar after its track",
+			items: []list.Item{
+				item{t: &task.Task{ID: "BIT-1"}},
+				item{t: &task.Task{ID: "BIT-1.1"}},
+			},
+			want: 1,
+		},
+		{
+			name: "bar before its track",
+			items: []list.Item{
+				item{t: &task.Task{ID: "BIT-2.1"}},
+				item{t: &task.Task{ID: "BIT-2"}},
+			},
+			want: 0,
+		},
+		{
+			name: "no bars falls back to first row",
+			items: []list.Item{
+				item{t: &task.Task{ID: "BIT-3"}},
+				item{t: &task.Task{ID: "BIT-4"}},
+			},
+			want: 0,
+		},
+		{
+			name:  "empty column",
+			items: []list.Item{},
+			want:  0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := firstBarIndex(tt.items); got != tt.want {
+				t.Errorf("firstBarIndex(%v) = %d, want %d", tt.items, got, tt.want)
 			}
 		})
 	}

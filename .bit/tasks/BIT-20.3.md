@@ -1,7 +1,7 @@
 ---
 id: BIT-20.3
 title: firstBarIndex finds the first bar, falling back to the first row
-status: todo
+status: done
 phase: 1
 phase_label: Kanban-first default
 ---
