@@ -385,6 +385,12 @@ func splitWidth(total int) (listW, detailW int) {
 	return listW, detailW
 }
 
+func splitWidthExpanded(total int) (listW, detailW int) {
+	listW = total * 10 / 100
+	detailW = max(total-listW-1, 0)
+	return listW, detailW
+}
+
 func isBar(id string) bool {
 	return strings.Contains(id, ".")
 }

@@ -410,6 +410,64 @@ func TestSplitWidth(t *testing.T) {
 	})
 }
 
+func TestSplitWidthExpanded(t *testing.T) {
+	t.Parallel()
+
+	t.Run("typical terminal", func(t *testing.T) {
+		t.Parallel()
+
+		listW, detailW := splitWidthExpanded(100)
+
+		if listW != 10 {
+			t.Errorf("splitWidthExpanded(100) listW = %d, want 10", listW)
+		}
+		if detailW != 89 {
+			t.Errorf("splitWidthExpanded(100) detailW = %d, want 89", detailW)
+		}
+	})
+
+	t.Run("scales with width", func(t *testing.T) {
+		t.Parallel()
+
+		listW, detailW := splitWidthExpanded(200)
+
+		if listW != 20 {
+			t.Errorf("splitWidthExpanded(200) listW = %d, want 20", listW)
+		}
+		if detailW != 179 {
+			t.Errorf("splitWidthExpanded(200) detailW = %d, want 179", detailW)
+		}
+	})
+
+	t.Run("detail wider than list", func(t *testing.T) {
+		t.Parallel()
+
+		listW, detailW := splitWidthExpanded(120)
+
+		if detailW <= listW {
+			t.Errorf("splitWidthExpanded(120) detailW = %d, listW = %d, want detailW > listW", detailW, listW)
+		}
+	})
+
+	t.Run("zero and one width", func(t *testing.T) {
+		t.Parallel()
+
+		for _, total := range []int{0, 1} {
+			listW, detailW := splitWidthExpanded(total)
+
+			if listW < 0 {
+				t.Errorf("splitWidthExpanded(%d) listW = %d, want >= 0", total, listW)
+			}
+			if detailW < 0 {
+				t.Errorf("splitWidthExpanded(%d) detailW = %d, want >= 0", total, detailW)
+			}
+			if listW+detailW > total {
+				t.Errorf("splitWidthExpanded(%d) listW+detailW = %d, want <= %d", total, listW+detailW, total)
+			}
+		}
+	})
+}
+
 func TestUpdate_WindowSizeBuildsRenderer(t *testing.T) {
 	t.Parallel()
 

@@ -1,7 +1,7 @@
 ---
 id: BIT-20.7
 title: splitWidthExpanded computes the ~90% detail pane split
-status: todo
+status: done
 phase: 3
 phase_label: Expanded detail pane
 ---
