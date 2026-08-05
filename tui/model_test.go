@@ -698,6 +698,8 @@ func TestUpdate_Focus(t *testing.T) {
 		{"right then left returns to list", []rune{tea.KeyRight, tea.KeyLeft}, false},
 		{"left on list clamps to list", []rune{tea.KeyLeft}, false},
 		{"right twice clamps to detail", []rune{tea.KeyRight, tea.KeyRight}, true},
+		{"h focuses list like left", []rune{tea.KeyRight, 'h'}, false},
+		{"l focuses detail like right", []rune{'l'}, true},
 	}
 
 	for _, tt := range tests {
@@ -873,6 +875,68 @@ func TestUpdate_EnterTogglesDetailBackAndForth(t *testing.T) {
 
 	if got := mdl.(model).detailExpanded; got {
 		t.Errorf("detailExpanded = %v, want false after a second Enter", got)
+	}
+}
+
+func TestUpdate_PagesListWhenExpanded(t *testing.T) {
+	t.Parallel()
+
+	var mdl tea.Model = New([]*task.Task{{ID: "BIT-2"}, {ID: "BIT-1"}})
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+
+	if got := mdl.(model).Index(); got != 1 {
+		t.Errorf("Index() = %d, want 1 after right while expanded", got)
+	}
+}
+
+func TestUpdate_PagesListLeftWhenExpanded(t *testing.T) {
+	t.Parallel()
+
+	m := New([]*task.Task{{ID: "BIT-3"}, {ID: "BIT-2"}, {ID: "BIT-1"}})
+	toList, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	expanded, _ := toList.(model).Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	em := expanded.(model)
+	em.Select(2)
+
+	mdl, _ := em.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+
+	if got := mdl.(model).Index(); got != 1 {
+		t.Errorf("Index() = %d, want 1 after left while expanded", got)
+	}
+}
+
+func TestUpdate_PagingClampsAtListEnds(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		startIdx  int
+		key       tea.KeyPressMsg
+		wantIndex int
+	}{
+		{"left at first item stays", 0, tea.KeyPressMsg{Code: tea.KeyLeft}, 0},
+		{"right at last item stays", 1, tea.KeyPressMsg{Code: tea.KeyRight}, 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			m := New([]*task.Task{{ID: "BIT-2"}, {ID: "BIT-1"}})
+			toList, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+			expanded, _ := toList.(model).Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+			em := expanded.(model)
+			em.Select(tt.startIdx)
+
+			mdl, _ := em.Update(tt.key)
+
+			if got := mdl.(model).Index(); got != tt.wantIndex {
+				t.Errorf("Index() = %d, want %d", got, tt.wantIndex)
+			}
+		})
 	}
 }
 

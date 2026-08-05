@@ -240,15 +240,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "q", "esc", "ctrl+c":
 			return m, tea.Quit
-		}
-		switch msg.Code {
-		case tea.KeyRight:
+		case "right", "l":
+			if m.detailExpanded {
+				m.Select(min(m.Index()+1, len(m.Items())-1))
+				m.refreshDetail()
+				return m, nil
+			}
 			m.detailFocused = true
 			return m, nil
-		case tea.KeyLeft:
+		case "left", "h":
+			if m.detailExpanded {
+				m.Select(max(m.Index()-1, 0))
+				m.refreshDetail()
+				return m, nil
+			}
 			m.detailFocused = false
 			return m, nil
-		case tea.KeyEnter:
+		}
+		if msg.Code == tea.KeyEnter {
 			m.detailExpanded = !m.detailExpanded
 			return m, nil
 		}
