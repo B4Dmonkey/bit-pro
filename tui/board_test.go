@@ -139,7 +139,6 @@ func TestView_BoardColumnCounts(t *testing.T) {
 
 	var mdl tea.Model = New(tasks)
 	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
-	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 
 	view := mdl.(model).View().Content
 	for _, want := range []string{"To Do (4)", "Doing (1)", "Done (2)"} {
@@ -186,7 +185,6 @@ func TestUpdate_BoardActiveColumn(t *testing.T) {
 				{ID: "BIT-2", Status: "doing"},
 				{ID: "BIT-3", Status: "done"},
 			})
-			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 			for _, k := range tt.keys {
 				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: k})
 			}
@@ -224,7 +222,6 @@ func TestUpdate_BoardCardSelection(t *testing.T) {
 				{ID: "BIT-4", Status: "done"},
 			})
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
-			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 			for _, k := range tt.keys {
 				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: k})
 			}
@@ -259,7 +256,7 @@ func TestView_BoardHelp(t *testing.T) {
 				{ID: "BIT-3", Status: "done"},
 			})
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
-			if tt.toBoard {
+			if !tt.toBoard {
 				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 			}
 
@@ -296,7 +293,6 @@ func TestUpdate_BoardEnterOpensModal(t *testing.T) {
 
 			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo", Body: "body"}})
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 			if tt.enter {
 				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 			}
@@ -326,7 +322,6 @@ func TestView_ModalShowsBody(t *testing.T) {
 
 			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo", Title: "T", Body: "MODALBODYTOKEN"}})
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 			if tt.enter {
 				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 			}
@@ -355,7 +350,6 @@ func TestUpdate_ModalCloses(t *testing.T) {
 
 			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo", Body: "body"}})
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 			mdl, cmd := mdl.Update(tt.key)
@@ -426,7 +420,6 @@ func TestUpdate_ModalCapturesInput(t *testing.T) {
 				{ID: "BIT-3", Status: "done", Body: "body"},
 			})
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 			mdl, cmd := mdl.Update(tt.key)
@@ -453,7 +446,6 @@ func TestUpdate_ModalScrollsLongBody(t *testing.T) {
 
 			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo", Title: "T", Body: strings.Repeat("line\n", 500)}})
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 			opened := mdl.(model)
@@ -479,7 +471,6 @@ func TestUpdate_BoardEnterEmptyColumnNoop(t *testing.T) {
 
 	var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "doing", Body: "body"}})
 	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 	if got := mdl.(model).modalOpen; got {
@@ -504,7 +495,6 @@ func TestUpdate_BoardQuits(t *testing.T) {
 			t.Parallel()
 
 			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo"}})
-			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 
 			_, cmd := mdl.Update(tt.key)
 

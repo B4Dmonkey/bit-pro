@@ -184,7 +184,6 @@ func TestUpdate_ReloadPreservesBoardSelection(t *testing.T) {
 		{ID: "BIT-3", Status: "doing"},
 	})
 	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
-	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyRight})
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 
@@ -279,7 +278,8 @@ func TestUpdate_ForwardsNavigationToList(t *testing.T) {
 
 	m := New(tasks)
 
-	updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	toList, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	updated, _ := toList.(model).Update(tea.KeyPressMsg{Code: tea.KeyDown})
 
 	if got := updated.(model).Index(); got != 1 {
 		t.Errorf("after KeyDown, Index() = %d, want 1", got)
@@ -303,6 +303,16 @@ func TestNew_ListHelpDisabled(t *testing.T) {
 
 	if m.ShowHelp() {
 		t.Error("New() left the list's built-in help on, want it disabled")
+	}
+}
+
+func TestNew_DefaultsToBoardMode(t *testing.T) {
+	t.Parallel()
+
+	m := New([]*task.Task{{ID: "BIT-1"}})
+
+	if m.mode != modeBoard {
+		t.Errorf("New() mode = %v, want modeBoard", m.mode)
 	}
 }
 
@@ -429,6 +439,7 @@ func TestView_PaneTitles(t *testing.T) {
 			}
 			var mdl tea.Model = New(tasks)
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 
 			view := mdl.(model).View().Content
 			if !strings.Contains(view, tt.want) {
@@ -446,6 +457,7 @@ func TestView_ListHidesTitleHeading(t *testing.T) {
 
 	var mdl tea.Model = New(nil)
 	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 60, Height: 16})
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 
 	view := mdl.(model).View().Content
 	if strings.Contains(view, "List") {
@@ -462,6 +474,7 @@ func TestView_ListHidesItemCount(t *testing.T) {
 	}
 	var mdl tea.Model = New(tasks)
 	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 60, Height: 16})
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 
 	view := mdl.(model).View().Content
 	if strings.Contains(view, "3 items") {
@@ -474,6 +487,7 @@ func TestView_EmptyListSingleEmptyState(t *testing.T) {
 
 	var mdl tea.Model = New(nil)
 	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 60, Height: 16})
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 
 	view := mdl.(model).View().Content
 	if got := strings.Count(view, "No items"); got != 1 {
@@ -488,8 +502,9 @@ func TestView_HelpBarPresentAndBounded(t *testing.T) {
 	m := New([]*task.Task{{ID: "BIT-1", Body: body}})
 
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	withTab, _ := updated.(model).Update(tea.KeyPressMsg{Code: tea.KeyTab})
 
-	view := updated.(model).View().Content
+	view := withTab.(model).View().Content
 	if !strings.Contains(view, "focus") {
 		t.Errorf("View() missing help text %q", "focus")
 	}
@@ -544,7 +559,8 @@ func TestUpdate_CtrlDScrollsDetail(t *testing.T) {
 	m := New([]*task.Task{{ID: "BIT-1", Body: body}})
 
 	sized, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-	focused, _ := sized.(model).Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	toList, _ := sized.(model).Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	focused, _ := toList.(model).Update(tea.KeyPressMsg{Code: tea.KeyRight})
 	scrolled, _ := focused.(model).Update(tea.KeyPressMsg{Code: 'd', Mod: tea.ModCtrl})
 
 	got := scrolled.(model)
@@ -563,7 +579,8 @@ func TestUpdate_NavigationResetsDetailScroll(t *testing.T) {
 	})
 
 	sized, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-	focused, _ := sized.(model).Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	toList, _ := sized.(model).Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	focused, _ := toList.(model).Update(tea.KeyPressMsg{Code: tea.KeyRight})
 	scrolled, _ := focused.(model).Update(tea.KeyPressMsg{Code: 'd', Mod: tea.ModCtrl})
 	scrolledModel := scrolled.(model)
 	if scrolledModel.viewport.YOffset() == 0 {
@@ -600,6 +617,7 @@ func TestUpdate_Focus(t *testing.T) {
 
 			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Body: "# Hi"}})
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 			for _, k := range tt.keys {
 				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: k})
 			}
@@ -616,8 +634,9 @@ func TestUpdate_RightDoesNotPageList(t *testing.T) {
 
 	m := New([]*task.Task{{ID: "BIT-1"}, {ID: "BIT-2"}, {ID: "BIT-3"}})
 	sized, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	toList, _ := sized.(model).Update(tea.KeyPressMsg{Code: tea.KeyTab})
 
-	moved, _ := sized.(model).Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	moved, _ := toList.(model).Update(tea.KeyPressMsg{Code: tea.KeyRight})
 
 	got := moved.(model)
 	if idx := got.Index(); idx != 0 {
@@ -651,6 +670,7 @@ func TestUpdate_FocusRoutesArrows(t *testing.T) {
 				{ID: "BIT-1", Body: body},
 			})
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 			for _, k := range tt.keys {
 				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: k})
 			}
@@ -721,9 +741,9 @@ func TestUpdate_TabTogglesMode(t *testing.T) {
 		presses int
 		want    viewMode
 	}{
-		{"default is list", 0, modeList},
-		{"one tab to board", 1, modeBoard},
-		{"two tabs back to list", 2, modeList},
+		{"default is board", 0, modeBoard},
+		{"one tab to list", 1, modeList},
+		{"two tabs back to board", 2, modeBoard},
 	}
 
 	for _, tt := range tests {
@@ -760,6 +780,7 @@ func TestUpdate_QuitsFromDetail(t *testing.T) {
 
 			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1"}})
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyRight})
 
 			_, cmd := mdl.Update(tt.key)
@@ -840,7 +861,6 @@ func TestView_ModalTitleInverted(t *testing.T) {
 
 	m := New([]*task.Task{{ID: "BIT-1", Status: "todo", Title: "T", Body: "b"}})
 	mdl, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-	mdl, _ = mdl.(model).Update(tea.KeyPressMsg{Code: tea.KeyTab})
 	mdl, _ = mdl.(model).Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 	view := mdl.(model).View().Content

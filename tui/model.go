@@ -107,7 +107,7 @@ func New(tasks []*task.Task) model {
 	for i, cards := range groupByStatus(tasks) {
 		boardCols[i] = newColumnList(cards)
 	}
-	return model{Model: l, viewport: vp, modalViewport: mvp, help: help.New(), keys: newKeyMap(), boardKeys: newBoardKeyMap(), style: style, boardCols: boardCols, loaded: tasks}
+	return model{Model: l, viewport: vp, modalViewport: mvp, help: help.New(), keys: newKeyMap(), boardKeys: newBoardKeyMap(), style: style, boardCols: boardCols, loaded: tasks, mode: modeBoard}
 }
 
 func sameTasks(a, b []*task.Task) bool {
