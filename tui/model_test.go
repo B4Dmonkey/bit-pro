@@ -940,6 +940,20 @@ func TestUpdate_PagingClampsAtListEnds(t *testing.T) {
 	}
 }
 
+func TestUpdate_EnterRelayoutsPaneWidths(t *testing.T) {
+	t.Parallel()
+
+	var mdl tea.Model = New([]*task.Task{{ID: "BIT-1"}})
+	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 100, Height: 24})
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+	if lw := mdl.(model).listWidth; lw != 10 {
+		t.Errorf("listWidth = %d, want 10 (splitWidthExpanded) after Enter alone, without another resize", lw)
+	}
+}
+
 func TestUpdate_QuitsFromDetail(t *testing.T) {
 	t.Parallel()
 

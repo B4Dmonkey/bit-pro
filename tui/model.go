@@ -213,9 +213,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tick()
 	case tea.WindowSizeMsg:
 		m.winWidth, m.winHeight = msg.Width, msg.Height
-		m.layout()
-		m.renderer = newRenderer(m.style, max(m.detailWidth-2, 1))
-		m.refreshDetail()
+		m.relayout()
 		return m, nil
 	case tea.KeyPressMsg:
 		if m.mode == modeBoard && m.modalOpen {
@@ -259,6 +257,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if msg.Code == tea.KeyEnter {
 			m.detailExpanded = !m.detailExpanded
+			m.relayout()
 			return m, nil
 		}
 	}
@@ -326,6 +325,12 @@ func (m model) helpKeys() help.KeyMap {
 		return m.boardKeys
 	}
 	return m.keys
+}
+
+func (m *model) relayout() {
+	m.layout()
+	m.renderer = newRenderer(m.style, max(m.detailWidth-2, 1))
+	m.refreshDetail()
 }
 
 func (m *model) layout() {
