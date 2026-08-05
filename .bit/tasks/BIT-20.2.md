@@ -1,7 +1,7 @@
 ---
 id: BIT-20.2
 title: defaultColumn picks the first non-empty column
-status: todo
+status: done
 phase: 1
 phase_label: Kanban-first default
 ---

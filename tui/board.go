@@ -73,6 +73,15 @@ func newColumnList(tasks []*task.Task) list.Model {
 	return l
 }
 
+func defaultColumn(cols [3][]*task.Task) int {
+	for i, c := range cols {
+		if len(c) > 0 {
+			return i
+		}
+	}
+	return 0
+}
+
 func (m model) boardSelected() *task.Task {
 	it, ok := m.boardCols[m.activeCol].SelectedItem().(item)
 	if !ok {

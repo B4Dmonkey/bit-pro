@@ -124,6 +124,47 @@ func TestBoardColumns_FromGrouping(t *testing.T) {
 	}
 }
 
+func TestDefaultColumn(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		cols [3][]*task.Task
+		want int
+	}{
+		{
+			name: "doing is the default when populated",
+			cols: [3][]*task.Task{nil, {{ID: "BIT-1"}}, nil},
+			want: 1,
+		},
+		{
+			name: "falls back to to do when doing is empty",
+			cols: [3][]*task.Task{{{ID: "BIT-4"}}, nil, nil},
+			want: 0,
+		},
+		{
+			name: "falls back to done when only done has tasks",
+			cols: [3][]*task.Task{nil, nil, {{ID: "BIT-4"}}},
+			want: 2,
+		},
+		{
+			name: "all empty defaults to zero",
+			cols: [3][]*task.Task{},
+			want: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := defaultColumn(tt.cols); got != tt.want {
+				t.Errorf("defaultColumn(%v) = %d, want %d", tt.cols, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestView_BoardColumnCounts(t *testing.T) {
 	t.Parallel()
 
