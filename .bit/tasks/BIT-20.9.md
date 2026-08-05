@@ -1,7 +1,7 @@
 ---
 id: BIT-20.9
 title: Enter toggles the list view's expanded detail pane
-status: todo
+status: done
 phase: 3
 phase_label: Expanded detail pane
 ---

@@ -851,6 +851,31 @@ func TestUpdate_TabTogglesMode(t *testing.T) {
 	}
 }
 
+func TestUpdate_EnterExpandsDetail(t *testing.T) {
+	t.Parallel()
+
+	var mdl tea.Model = New([]*task.Task{{ID: "BIT-1"}})
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+	if got := mdl.(model).detailExpanded; !got {
+		t.Errorf("detailExpanded = %v, want true after Enter in list mode", got)
+	}
+}
+
+func TestUpdate_EnterTogglesDetailBackAndForth(t *testing.T) {
+	t.Parallel()
+
+	var mdl tea.Model = New([]*task.Task{{ID: "BIT-1"}})
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+	if got := mdl.(model).detailExpanded; got {
+		t.Errorf("detailExpanded = %v, want false after a second Enter", got)
+	}
+}
+
 func TestUpdate_QuitsFromDetail(t *testing.T) {
 	t.Parallel()
 

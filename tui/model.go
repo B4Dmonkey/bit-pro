@@ -248,6 +248,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyLeft:
 			m.detailFocused = false
 			return m, nil
+		case tea.KeyEnter:
+			m.detailExpanded = !m.detailExpanded
+			return m, nil
 		}
 	}
 	var cmd tea.Cmd
