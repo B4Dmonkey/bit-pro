@@ -1,7 +1,7 @@
 ---
 id: BIT-20
 title: 'TUI: Kanban-first default view + task navigation'
-status: doing
+status: done
 ---
 ## Why
 `bp tui` opens in list view and lands on whatever the list's natural top item is, so every
