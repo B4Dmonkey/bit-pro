@@ -16,16 +16,20 @@ later by eye.
 This is worse than an ordinary typo bug because the failure is silent and the artifacts it
 damages are the ones that cannot be reconstructed: a feedback note captures a moment that has
 passed, and a re-minted ID makes two different tasks answer to the same name across commit
-messages, notes, and every prior scope that cited it. It was found by an agent running
-`bp task complete bit-20` against real project state, which is exactly how it will be hit
-again — the skills capture IDs canonically, but a human typing one by hand has no such
-guarantee.
+messages, notes, and every prior scope that cited it.
+
+It was hit for real while completing BIT-20 in this repo: an agent ran `bp task complete
+bit-20`, and the track filed itself as `.bit/completed/bit-20.md` while all ten of its bars
+stayed behind in `.bit/tasks/`. The wrong case came from the agent echoing the lowercase form
+in use in the conversation, which is how IDs normally travel — the skills are this CLI's
+primary caller, not a human at a keyboard, so wrong-case input is the routine path rather than
+a rare slip.
 
 ## Summary
 
-Make a task ID's case irrelevant to correctness. Settle on one canonical form at the point an
-ID enters the CLI, so every downstream lookup, guard, and file write sees the same string the
-task files already use. Then close the two write paths that trusted their caller's spelling —
+Make a task ID's case irrelevant to correctness. Resolve an incoming ID against the tasks that
+actually exist, so every downstream lookup, guard, and file write uses the spelling the task
+file already carries. Then close the two write paths that trusted their caller's spelling —
 the feedback note write and the next-ID scan — so neither can destroy or duplicate a record
 even if a non-canonical ID ever reaches them again.
 
@@ -64,28 +68,32 @@ $ bp task complete BIT-1   → Error: cannot relocate: unfinished bars BIT-1.1  
 $ bp task complete bit-1   →                                                   (exit 0)
 ```
 
-## Risks & unknowns
-
-- **Unknown:** Should a non-canonical ID be **accepted and canonicalised**, or **rejected with
-  a clear error**? Both close the corruption; they differ in what an operator experiences.
-  Accepting is kinder to a human typing an ID by hand and makes the whole class of bug
-  unreachable. Rejecting keeps one spelling of an ID valid, so a genuine typo surfaces loudly
-  at the boundary rather than being quietly interpreted.
-  **Resolve by:** A call from the user — this is a UX choice, not a technical finding, and no
-  amount of code reading settles it.
-  **De-risk before planning?** Yes. It decides what Verse 1's observable behaviour *is*, so a
-  plan written before it is settled would be guessing at its own acceptance criteria.
-
 ## Decisions
 
+- **A wrong-case ID is accepted, not rejected.** `bp task complete bit-20` finds `BIT-20` and
+  does the work. Case carries no meaning in these IDs, so refusing one would spend an error on
+  a difference that isn't ambiguous, and the caller getting it wrong is an agent that retries
+  rather than a human who learns. Genuine typos still fail: an ID matching no existing task is
+  an error either way.
+- **Canonical means the spelling on the task file — never a transform.** There is no rule that
+  produces the right case. `bp init` stores whatever prefix is typed (`cmd/init.go` trims
+  whitespace and nothing else), and a sibling project runs on a lowercase prefix with IDs like
+  `foo-6.1`. Uppercasing would corrupt that project exactly the way lowercasing corrupted this
+  repo. So an incoming ID is matched case-insensitively against the tasks that exist, and the
+  matched file's own ID is what every later step uses.
 - **The root cause is one comparison, not three bugs.** IDs are read canonically from each
   file's YAML frontmatter but compared against the argument as typed, case-sensitively. Every
-  symptom traces back to that mismatch, so the primary fix belongs where an ID enters the CLI,
-  not spread across the three call sites that suffer from it.
-- **The two damaged write paths get fixed independently of the case decision.** A note write
-  that overwrites, and an ID scan that trusts filename case, are defects on their own terms —
-  the CLI documents create-only notes and permanent ID reservation, and delivers neither.
-  Fixing only the boundary would leave both promises still untrue for any other bad input.
+  symptom traces back to that mismatch.
+- **The fix lives in `task/`, not at the CLI boundary.** Seven commands take an ID (`read`,
+  `update`, `complete`, `delete`, `move`, `feedback add`, and `create --parent`) and every one
+  hands it to a `Store` method, so the boundary is seven places and a convention each future
+  command has to remember — and forgetting it fails silently, which is the failure this track
+  exists to kill. `Store` is the one choke point they all pass through, and `Path` is the
+  single function that turns an ID into a filename.
+- **The two damaged write paths get fixed independently of the resolve.** A note write that
+  overwrites, and an ID scan that trusts filename case, are defects on their own terms — the
+  CLI documents create-only notes and permanent ID reservation, and delivers neither. Fixing
+  only the lookup would leave both promises still untrue for any other bad input.
 - **No recovery or repair work is in scope.** The real `.bit/` was probed for wrong-case
   filenames, duplicate IDs, and orphaned bars, and is clean — the one damaged track was
   repaired by hand when the bug was found. Nothing to migrate, so no doctor command.
@@ -96,11 +104,11 @@ $ bp task complete bit-1   →                                                  
 
 ## Verses
 
-- [ ] Verse 1 — An operator who types a task ID in any case gets the CLI's documented
-  behaviour rather than silent corruption: the unfinished-bars guard holds, and any file the
-  command writes lands under the task's canonical name.
-  Touches: the ID argument boundary in `cmd/` and the lookup helpers in `task/store.go`
-  (`children`, `Path`) — where to look to verify.
+- [ ] Verse 1 — An operator who names a task in any case gets the CLI's documented behaviour
+  rather than silent corruption: the unfinished-bars guard holds, and any file the command
+  writes lands under the task's real name.
+  Touches: the lookup and path helpers in `task/store.go` (`Load`, `children`, `Path`) — where
+  to look to verify.
 
 - [ ] Verse 2 — Recording a feedback note can never destroy one already recorded, whatever ID
   reached it. The guarantee the CLI already advertises becomes true, which matters because

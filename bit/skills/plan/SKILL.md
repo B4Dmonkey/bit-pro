@@ -29,11 +29,50 @@ If the user gives you only a "what", push back once to get the "why". Ask: what 
 
 ---
 
+## First: is anything still open?
+
+Before you research anything, before you draft a single bar — in either mode — read the scope's
+`## Risks & unknowns` section. If it has entries, **stop and ask the user whether to plan at
+all.** Name what's open and hand it back; don't pair it with your proposed answers, because an
+answer offered alongside a question invites agreement instead of a decision, and the user ends
+up ratifying your call rather than making their own.
+
+Do this *first*, not after a research pass. Reading the risks and then investigating the
+codebase and its docs before mentioning them isn't diligence — it spends effort an unresolved
+question may throw away, and by the time the question surfaces there's momentum behind an
+answer.
+
+**An empty or absent Risks section is not proof that nothing is open.** It means bit_scope
+didn't find anything, which is a weaker claim. So the gate stays live through drafting: the
+moment writing a bar requires you to settle something the scope didn't, stop *there* — before
+that bar exists — and either hand back to bit_scope or ask. In practice it looks like:
+
+- **A user-facing string the scope never fixed** — a label, a command name, an error message.
+  You need one to write the test's assertion, and choosing it makes the plan the author of a
+  wording call. That's a scope Decision (Trap 1) — hand it back.
+- **A boundary the scope drew loosely** — the Summary names one thing, a Decision implies
+  something wider, and you have to pick which. Ask.
+- **A promised behaviour with no obvious bar** — the verse says it happens, you find it already
+  falls out of other work, and you're deciding it needs no step of its own. Ask.
+
+**An assumption that turns out to be correct is still a violation.** This is the one that's
+easy to argue your way past — you were right, the plan is fine, no harm done. But the harm was
+never a wrong plan; it's that a settled decision and a lucky guess read identically once
+they're written into a bar, so nobody downstream can tell which they're building on. And
+surfacing it *after* the bars exist doesn't undo it — the work is done, the user is reviewing
+instead of deciding, and "an assumption you should check" is a decision you already made.
+
+If a report you're about to write contains "I assumed", "I picked", "I went with", "deliberate
+exclusion", or "flag it if you'd rather" — that's the tell. Each one belonged in a question
+asked before the bar was written.
+
+---
+
 ## Gathering context (new plans)
 
 **Start from the scope track.** The user names it (by ID or title); read its body end to end with `bp task read <track> --body` — the WHY, the verses, the "touches" pointers, the risks, and the References section if one exists. If the scope has a `## References` section, note which reference docs are relevant to which verses before drafting bars — the right ones need to be carried forward into the right bar bodies, not left in the scope where they'll be out of context when bit_do executes the step. The scope hands you the delivery order and the code areas each verse affects — your job is to turn its verses into TDD steps, one bar each under that track.
 
-Default to planning every verse in one pass. Splitting into multiple planning sessions exists to route around a genuine unknown, not as a default posture just because a scope has more than one verse. If the scope is clear and nothing is open, plan it end to end now; don't ask the user to pick a verse to be cautious.
+Once the gate above is clear, default to planning every verse in one pass. Splitting into multiple planning sessions exists to route around a genuine unknown, not as a default posture just because a scope has more than one verse — so don't ask the user to pick a verse to be cautious. That's about *breadth*, and it isn't licence to plan through an open question: nothing here overrides the gate, and a question that surfaces mid-draft still stops you.
 
 ### When the scope has spike verses
 
@@ -227,6 +266,12 @@ When this happens, **hand back to bit_scope** to record the choice as a Decision
 section is exactly for naming, wording, data-shape, and strategy calls, and they double as
 acceptance criteria. Once it's decided, the bar either needs no User-verify or gets a concrete
 one that *observes* the now-settled behavior. Don't ship the launder.
+
+This trap is described from the User-verify seat because that's where a laundered choice is
+easiest to spot, but the choice itself lands wherever you first need the answer — a string in a
+test's assertion, a name in an implementation line, a boundary in a bar's Scope. Those are the
+same violation and get the same hand-back; the User-verify is just the last place it can still
+be caught. The gate at the top of this skill is where it should have been caught first.
 
 A launder caught here *is* a decision the plan didn't make, so it's worth recording as well as
 fixing. Offer that in one line alongside the hand-back — yes or no, and `/bit:feedback` writes the
