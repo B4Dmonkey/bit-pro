@@ -25,6 +25,18 @@ in use in the conversation, which is how IDs normally travel — the skills are 
 primary caller, not a human at a keyboard, so wrong-case input is the routine path rather than
 a rare slip.
 
+## User note
+
+**This track is on hold.** The wrong-case input this scope hardens against comes almost
+entirely from an agent typing an ID it read in conversation — and that path may disappear on
+its own if IDs reach the CLI through tool calling rather than a hand-composed shell command,
+where the ID is passed as a value rather than retyped. If that lands, the fix belongs in how
+the skills call `bp`, not in `bp` itself, and most of the work below stops being worth doing.
+
+Nothing here is being planned or built until that's settled. Resume only once it's clear
+whether tool calling removes the exposure — and if it does, revisit whether any of these
+verses still earns its place.
+
 ## Summary
 
 Make a task ID's case irrelevant to correctness. Resolve an incoming ID against the tasks that
