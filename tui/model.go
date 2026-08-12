@@ -257,6 +257,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if msg.Code == tea.KeyEnter {
 			m.detailExpanded = !m.detailExpanded
+			m.detailFocused = true
 			m.relayout()
 			return m, nil
 		}

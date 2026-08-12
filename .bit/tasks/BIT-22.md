@@ -1,7 +1,7 @@
 ---
 id: BIT-22
 title: Enter moves focus into the expanded detail pane
-status: todo
+status: doing
 ---
 ## Why
 

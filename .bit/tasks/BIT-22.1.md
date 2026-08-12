@@ -1,7 +1,7 @@
 ---
 id: BIT-22.1
 title: Enter hands up/down to the body
-status: todo
+status: done
 phase: 1
 phase_label: Focus
 ---
