@@ -1,7 +1,7 @@
 ---
 id: BIT-22.2
 title: Contradiction forces Enter to hand focus back
-status: todo
+status: done
 phase: 1
 phase_label: Focus
 ---

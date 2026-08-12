@@ -901,6 +901,30 @@ func TestUpdate_EnterFocusesDetailForScrolling(t *testing.T) {
 	}
 }
 
+func TestUpdate_EnterAgainReturnsFocusToList(t *testing.T) {
+	t.Parallel()
+
+	body := strings.Repeat("line\n", 500)
+	var mdl tea.Model = New([]*task.Task{
+		{ID: "BIT-2", Body: body},
+		{ID: "BIT-1", Body: body},
+	})
+	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+
+	got := mdl.(model)
+	if idx := got.Index(); idx != 1 {
+		t.Errorf("Index() = %d, want 1 — down should move the list selection once collapsed", idx)
+	}
+	if off := got.viewport.YOffset(); off != 0 {
+		t.Errorf("viewport.YOffset = %d, want 0 — down should not scroll the body once collapsed", off)
+	}
+}
+
 func TestUpdate_PagesListWhenExpanded(t *testing.T) {
 	t.Parallel()
 

@@ -76,7 +76,7 @@ after
 
 ## Verses
 
-- [ ] Verse 1 — An operator can read a task body that doesn't fit on screen: pressing Enter on
+- [x] Verse 1 — An operator can read a task body that doesn't fit on screen: pressing Enter on
   a task moves into the widened details pane so up/down scroll it and the border shows it as
   active, and pressing Enter again returns to the task list.
   Touches: the list-mode key handling and focus state in `tui/model.go` — where to look to verify.
