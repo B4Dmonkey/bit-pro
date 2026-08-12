@@ -1,7 +1,7 @@
 ---
 id: BIT-22
 title: Enter moves focus into the expanded detail pane
-status: doing
+status: done
 ---
 ## Why
 
@@ -81,6 +81,6 @@ after
   active, and pressing Enter again returns to the task list.
   Touches: the list-mode key handling and focus state in `tui/model.go` — where to look to verify.
 
-- [ ] Verse 2 — The help footer tells the truth about the keys in the expanded state, so an
+- [x] Verse 2 — The help footer tells the truth about the keys in the expanded state, so an
   operator who forgets how to get around reads the bottom of the screen rather than guessing.
   Touches: the list-view key map and help rendering in `tui/model.go` — where to look to verify.

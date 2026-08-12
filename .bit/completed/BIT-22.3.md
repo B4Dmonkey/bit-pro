@@ -1,7 +1,7 @@
 ---
 id: BIT-22.3
 title: Expanded footer labels the arrow keys for paging
-status: todo
+status: done
 phase: 2
 phase_label: Footer
 ---

@@ -602,6 +602,41 @@ func TestView_HelpBarPresentAndBounded(t *testing.T) {
 	}
 }
 
+func TestView_FooterLabelsArrowsForCurrentState(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		expand  bool
+		want    string
+		notWant string
+	}{
+		{"collapsed", false, "focus", "page"},
+		{"expanded", true, "page", "focus"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var mdl tea.Model = New([]*task.Task{{ID: "BIT-2"}, {ID: "BIT-1"}})
+			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+			if tt.expand {
+				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+			}
+
+			view := mdl.(model).View().Content
+			if !strings.Contains(view, tt.want) {
+				t.Errorf("View() missing help text %q", tt.want)
+			}
+			if strings.Contains(view, tt.notWant) {
+				t.Errorf("View() contains help text %q, want it absent", tt.notWant)
+			}
+		})
+	}
+}
+
 func TestUpdate_QuestionTogglesFullHelp(t *testing.T) {
 	t.Parallel()
 

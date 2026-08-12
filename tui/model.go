@@ -325,6 +325,11 @@ func (m model) helpKeys() help.KeyMap {
 	if m.mode == modeBoard {
 		return m.boardKeys
 	}
+	if m.detailExpanded {
+		k := m.keys
+		k.focus.SetHelp("←/→", "page")
+		return k
+	}
 	return m.keys
 }
 
