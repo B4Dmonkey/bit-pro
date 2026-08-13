@@ -59,7 +59,7 @@ the list pane's header becomes a progress fraction — `Tasks (5/10)` instead of
 
 ## Verses
 
-- [ ] Verse 1 — See at a glance which work is in progress: a list row whose status is
+- [x] Verse 1 — See at a glance which work is in progress: a list row whose status is
   `doing` renders `→` where a done row renders `✓`, so an active bar is distinguishable
   from an untouched one without opening anything.
   Touches: the list row renderer (`tui/delegate.go`) — the mark column, gated off the

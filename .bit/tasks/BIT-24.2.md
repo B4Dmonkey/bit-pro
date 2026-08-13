@@ -1,7 +1,7 @@
 ---
 id: BIT-24.2
 title: 'Board cards contradict: the marker is list-only'
-status: todo
+status: done
 phase: 1
 phase_label: In-progress marker
 ---

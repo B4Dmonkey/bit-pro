@@ -117,6 +117,22 @@ func TestDelegate_DoingRowShowsInProgressMarker(t *testing.T) {
 	}
 }
 
+func TestDelegate_BoardCardHasNoInProgressMarker(t *testing.T) {
+	t.Parallel()
+
+	l := list.New([]list.Item{item{t: &task.Task{ID: "BIT-1", Title: "Card", Status: "doing"}}}, delegate{board: true}, 40, 4)
+	var buf bytes.Buffer
+	delegate{board: true}.Render(&buf, l, 0, l.Items()[0])
+
+	got := buf.String()
+	if strings.Contains(got, "→") {
+		t.Errorf("board card = %q, should not have → marker", got)
+	}
+	if !strings.Contains(got, "BIT-1") {
+		t.Errorf("board card = %q, want card text BIT-1", got)
+	}
+}
+
 func TestDelegate_TrackVsBarDistinguishedByWeightNotColor(t *testing.T) {
 	t.Parallel()
 
