@@ -101,6 +101,22 @@ func TestDelegate_UnfinishedRowHasNoMarker(t *testing.T) {
 	}
 }
 
+func TestDelegate_DoingRowShowsInProgressMarker(t *testing.T) {
+	t.Parallel()
+
+	l := list.New([]list.Item{item{t: &task.Task{ID: "BIT-1", Title: "Track", Status: "doing"}}}, delegate{}, 40, 4)
+	var buf bytes.Buffer
+	delegate{}.Render(&buf, l, 0, l.Items()[0])
+
+	got := buf.String()
+	if !strings.Contains(got, "→") {
+		t.Errorf("doing row = %q, want → marker", got)
+	}
+	if strings.Contains(got, "✓") {
+		t.Errorf("doing row = %q, should not have ✓ marker", got)
+	}
+}
+
 func TestDelegate_TrackVsBarDistinguishedByWeightNotColor(t *testing.T) {
 	t.Parallel()
 

@@ -52,8 +52,11 @@ func (d delegate) Render(w io.Writer, m list.Model, index int, listItem list.Ite
 	}
 
 	mark := "  "
-	if t.Status == "done" {
+	switch t.Status {
+	case "done":
 		mark = "✓ "
+	case "doing":
+		mark = "→ "
 	}
 
 	row := cursor + mark + main.Render(indent+t.ID+"  "+t.Title)
