@@ -511,20 +511,26 @@ func TestView_PaneTitles(t *testing.T) {
 
 	tests := []struct {
 		name  string
-		count int
+		total int
+		done  int
 		want  string
 	}{
-		{"many tasks", 29, "Tasks (29)"},
-		{"one task", 1, "Tasks (1)"},
+		{"none done", 7, 0, "Tasks (0/7)"},
+		{"some done", 7, 3, "Tasks (3/7)"},
+		{"all done", 3, 3, "Tasks (3/3)"},
+		{"empty", 0, 0, "Tasks (0/0)"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			tasks := make([]*task.Task, tt.count)
+			tasks := make([]*task.Task, tt.total)
 			for i := range tasks {
 				tasks[i] = &task.Task{ID: "BIT-1"}
+				if i < tt.done {
+					tasks[i].Status = "done"
+				}
 			}
 			var mdl tea.Model = New(tasks)
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})

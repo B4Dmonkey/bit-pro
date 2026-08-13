@@ -1,7 +1,7 @@
 ---
 id: BIT-24.3
 title: The list pane header reads done over total
-status: todo
+status: done
 phase: 2
 phase_label: Progress counter
 ---

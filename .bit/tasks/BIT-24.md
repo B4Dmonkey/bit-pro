@@ -65,7 +65,7 @@ the list pane's header becomes a progress fraction — `Tasks (5/10)` instead of
   Touches: the list row renderer (`tui/delegate.go`) — the mark column, gated off the
   existing board flag so the board view is unaffected.
 
-- [ ] Verse 2 — Read overall progress off the pane header: the list pane's title shows
+- [x] Verse 2 — Read overall progress off the pane header: the list pane's title shows
   done-over-total instead of a bare total, so how far along the work is is visible without
   counting rows.
   Touches: the list pane title (`tui/model.go`, the list-mode branch of `content`).

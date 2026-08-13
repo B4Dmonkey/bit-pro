@@ -373,11 +373,25 @@ func (m model) content() string {
 		}
 		return lipgloss.JoinVertical(lipgloss.Left, board, m.help.View(m.helpKeys()))
 	}
-	listTitle := fmt.Sprintf("Tasks (%d)", len(m.Items()))
+	listTitle := fmt.Sprintf("Tasks (%d/%d)", doneCount(m.Items()), len(m.Items()))
 	listPane := titledBorder(m.Model.View(), listTitle, max(m.listWidth-2, 0), max(m.height-2, 0), !m.detailFocused)
 	detailPane := titledBorder(m.viewport.View(), "Details", max(m.detailWidth-2, 0), max(m.height-2, 0), m.detailFocused)
 	panes := lipgloss.JoinHorizontal(lipgloss.Top, listPane, detailPane)
 	return lipgloss.JoinVertical(lipgloss.Left, panes, m.help.View(m.helpKeys()))
+}
+
+func doneCount(items []list.Item) int {
+	n := 0
+	for _, listItem := range items {
+		it, ok := listItem.(item)
+		if !ok {
+			continue
+		}
+		if it.t.Status == "done" {
+			n++
+		}
+	}
+	return n
 }
 
 func titledBorder(content, title string, width, height int, active bool) string {
