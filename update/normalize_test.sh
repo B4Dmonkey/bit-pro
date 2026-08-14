@@ -77,6 +77,41 @@ EOF
     rm -rf "$root"
 }
 
+test_order_entries_are_uppercased_in_frontmatter_only() {
+    current_test=test_order_entries_are_uppercased_in_frontmatter_only
+
+    local root
+    root="$(mktemp -d)" || fail "could not create temp root"
+    mkdir -p "$root/.bit/tasks"
+    cat >"$root/.bit/tasks/bit-1.md" <<'EOF'
+---
+id: bit-1
+title: seeded track
+status: todo
+order:
+    - bit-1.2
+    - bit-1.1
+---
+dropped bars:
+    - bit-1.9 was dropped
+EOF
+
+    bash "$normalize" "$root" || fail "normalize.sh exited non-zero"
+
+    local path="$root/.bit/tasks/BIT-1.md" contents frontmatter entries
+    [ -f "$path" ] || fail "expected $path to exist"
+    contents="$(cat "$path")"
+    frontmatter="$(awk 'NR > 1 && /^---$/ { exit } NR > 1 { print }' "$path")"
+    entries="$(grep -E '^    - ' <<<"$frontmatter")"
+
+    [ "$entries" = "    - BIT-1.2
+    - BIT-1.1" ] || fail "order entries wrong or reordered: $entries"
+    grep -qxF '    - bit-1.9 was dropped' <<<"$contents" || fail "body list entry changed: $contents"
+
+    rm -rf "$root"
+}
+
 test_task_filenames_are_uppercased
 test_id_frontmatter_is_uppercased_and_nothing_else
+test_order_entries_are_uppercased_in_frontmatter_only
 echo "ok"

@@ -35,11 +35,27 @@ normalize_id_fields() {
     done
 }
 
+normalize_order_entries() {
+    local dir="$1" path tmp
+    for path in "$dir"/*.md; do
+        [ -e "$path" ] || continue
+        tmp="$path.normalize.$$"
+        awk '
+            NR == 1 && $0 == "---" { in_frontmatter = 1; print; next }
+            in_frontmatter && $0 == "---" { in_frontmatter = 0; print; next }
+            in_frontmatter && /^ *- / { print toupper($0); next }
+            { print }
+        ' "$path" >"$tmp"
+        mv "$tmp" "$path"
+    done
+}
+
 main() {
     local root
     for root in "$@"; do
         normalize_task_filenames "$root/.bit/tasks"
         normalize_id_fields "$root/.bit/tasks"
+        normalize_order_entries "$root/.bit/tasks"
     done
 }
 
