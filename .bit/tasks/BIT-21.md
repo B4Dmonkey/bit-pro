@@ -154,7 +154,7 @@ $ head -3 .bit/tasks/BIT-1.1.md              → id: bit-1.1
 
 ## Verses
 
-- [ ] Verse 1 — The operator can point a script at any set of `.bit/` project roots and get
+- [x] Verse 1 — The operator can point a script at any set of `.bit/` project roots and get
   them back fully uppercase and internally consistent, so every project on this machine agrees
   on one spelling. Delivered on its own: after this lands, the existing code is correct for
   every project even before Verse 2 exists.

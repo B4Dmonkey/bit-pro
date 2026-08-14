@@ -1,7 +1,7 @@
 ---
 id: BIT-21.10
 title: README makes the migration runnable by Claude
-status: todo
+status: done
 phase: 1
 phase_label: Migration
 ---
