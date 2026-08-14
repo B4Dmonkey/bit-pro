@@ -1,7 +1,7 @@
 ---
 id: BIT-21.17
 title: The prefix stays canonical on both sides of config.toml
-status: todo
+status: done
 phase: 2
 phase_label: Recurrence
 ---

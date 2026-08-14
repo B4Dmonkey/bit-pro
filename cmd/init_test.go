@@ -42,6 +42,51 @@ func TestInitCmd_CapturesPrefix(t *testing.T) {
 	}
 }
 
+func TestInitCmd_UppercasesTheStoredPrefix(t *testing.T) {
+	tests := []struct {
+		name  string
+		args  []string
+		stdin string
+	}{
+		{name: "from --prefix flag", args: []string{"init", "--prefix", "foo"}},
+		{name: "from interactive prompt", args: []string{"init"}, stdin: "foo\n"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Chdir(t.TempDir())
+
+			if _, err := runWithStdin(t, tt.stdin, tt.args...); err != nil {
+				t.Fatalf("Execute() returned error: %v", err)
+			}
+
+			cfg, err := task.New(".bit").Config()
+			if err != nil {
+				t.Fatalf("reading config: %v", err)
+			}
+			if cfg.Prefix != "FOO" {
+				t.Errorf("cfg.Prefix = %q, want %q", cfg.Prefix, "FOO")
+			}
+
+			data, err := os.ReadFile(filepath.Join(".bit", "config.toml"))
+			if err != nil {
+				t.Fatalf("os.ReadFile(.bit/config.toml) returned error: %v", err)
+			}
+			if !strings.Contains(string(data), `"FOO"`) {
+				t.Errorf("config.toml = %s, want it to contain %q", data, `"FOO"`)
+			}
+
+			out := mustRun(t, "task", "create", "first", "-d", "...")
+			if out != "FOO-1\n" {
+				t.Errorf("task create stdout = %q, want %q", out, "FOO-1\n")
+			}
+			if _, err := os.Stat(filepath.Join(".bit", "tasks", "FOO-1.md")); err != nil {
+				t.Errorf("os.Stat(.bit/tasks/FOO-1.md) returned error: %v", err)
+			}
+		})
+	}
+}
+
 func TestInitCmd_ReuseExistingPrefixOnEnter(t *testing.T) {
 	t.Chdir(t.TempDir())
 

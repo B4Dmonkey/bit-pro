@@ -236,6 +236,28 @@ func TestTaskCreateCmd_LowercaseParentDoesNotDestroyAnExistingBar(t *testing.T) 
 	}
 }
 
+func TestTaskCreateCmd_UppercasesACorruptPrefixOnRead(t *testing.T) {
+	initProject(t, "BIT")
+
+	if err := os.WriteFile(".bit/config.toml", []byte("prefix = \"bit\"\n"), 0o644); err != nil {
+		t.Fatalf("os.WriteFile(.bit/config.toml) error = %v", err)
+	}
+
+	out := mustRun(t, "task", "create", "first", "-d", "...")
+
+	if out != "BIT-1\n" {
+		t.Errorf("minted ID = %q, want %q", out, "BIT-1\n")
+	}
+
+	data, err := os.ReadFile(".bit/tasks/BIT-1.md")
+	if err != nil {
+		t.Fatalf("os.ReadFile(.bit/tasks/BIT-1.md) error = %v", err)
+	}
+	if !strings.Contains(string(data), "id: BIT-1") {
+		t.Errorf("BIT-1.md = %q, want it to contain %q", data, "id: BIT-1")
+	}
+}
+
 func TestTaskCreateCmd_ErrorsWithoutTitle(t *testing.T) {
 	initProject(t, "BIT")
 
