@@ -97,7 +97,7 @@ track ──▶ bars                 track ──▶ bars
   whether or not this project asked for one.
   Touches: `cmd/root.go` (a bit-dir flag / env var), `task/store.go`, `task/config.go` —
   where to look to verify.
-- [ ] Verse 3 — Say "I'm done reviewing this" and see what's ready via the CLI: a new
+- [x] Verse 3 — Say "I'm done reviewing this" and see what's ready via the CLI: a new
   `bp approve` / `bp unapprove` command sets the flag on any record, and `task list` surfaces
   it, so "what can be worked on?" is answerable without opening the TUI.
   Touches: `task/task.go`, a new `cmd/approve.go`, `cmd/task_list.go` — where to look to verify.

@@ -37,6 +37,15 @@ func newTaskUpdateCmd() *cobra.Command {
 				t.PhaseLabel = phaseLabel
 			}
 
+			anyChanged := cmd.Flags().Changed("title") ||
+				cmd.Flags().Changed("description") ||
+				cmd.Flags().Changed("status") ||
+				cmd.Flags().Changed("phase") ||
+				cmd.Flags().Changed("phase-label")
+			if t.Approved && anyChanged {
+				t.Approved = false
+			}
+
 			return s.Save(t)
 		},
 	}

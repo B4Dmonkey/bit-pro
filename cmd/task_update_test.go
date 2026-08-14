@@ -104,3 +104,51 @@ func TestTaskUpdateCmd_ErrorsOnUnknownID(t *testing.T) {
 		t.Fatal("Execute() returned nil error, want non-nil for unknown ID")
 	}
 }
+
+func TestTaskUpdateCmd_RevokesApprovalOnTitleChange(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Old title", "...")
+	mustRun(t, "approve", "BIT-1")
+
+	mustRun(t, "task", "update", "BIT-1", "--title", "New title")
+
+	got, err := task.New(".bit").Load("BIT-1")
+	if err != nil {
+		t.Fatalf("loading BIT-1: %v", err)
+	}
+	if got.Approved {
+		t.Error("expected Approved = false after title change, got true")
+	}
+}
+
+func TestTaskUpdateCmd_NoOpPreservesApproval(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Old title", "...")
+	mustRun(t, "approve", "BIT-1")
+
+	mustRun(t, "task", "update", "BIT-1")
+
+	got, err := task.New(".bit").Load("BIT-1")
+	if err != nil {
+		t.Fatalf("loading BIT-1: %v", err)
+	}
+	if !got.Approved {
+		t.Error("expected Approved = true after no-op update, got false")
+	}
+}
+
+func TestTaskUpdateCmd_RevokesApprovalOnBodyChange(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Old title", "Old body.")
+	mustRun(t, "approve", "BIT-1")
+
+	mustRun(t, "task", "update", "BIT-1", "--description", "New body.")
+
+	got, err := task.New(".bit").Load("BIT-1")
+	if err != nil {
+		t.Fatalf("loading BIT-1: %v", err)
+	}
+	if got.Approved {
+		t.Error("expected Approved = false after description change, got true")
+	}
+}
