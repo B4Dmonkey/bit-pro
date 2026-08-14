@@ -137,9 +137,14 @@ $ head -3 .bit/tasks/BIT-1.1.md              → id: bit-1.1
 - **The fix lives in `task/`, not at the CLI boundary.** Seven commands take an ID and every
   one hands it to a `Store` method. `Store` is the one choke point they all pass through, and
   `Path` is the single function that turns an ID into a filename — normalizing there covers
-  every command, including ones not yet written. Confirmed while planning: every ID, prefix and
-  track argument in `cmd/` and `tui/` reaches disk through a `task.Store` method, so `cmd/`
-  needs no ID handling of its own.
+  every command, including ones not yet written. The corollary is the part worth stating, because
+  planning first got it wrong: a command has to *go through* `Store` rather than filter
+  `List()` output itself. Measured — `bp task list --parent` compared the raw flag value
+  against `t.ID` inside `cmd/task_list.go`, never reaching disk and so never reaching a
+  normalizing path, and so returned zero bars with exit 0 for `--parent bit-21`. It is the
+  only such filter in `cmd/` and `tui/`, and it closes by exporting a `Store.Children(parent)`
+  wrapper over the private `children` — which already normalizes — not by adding ID handling
+  to `cmd/`.
 
 - **Normalization is worth building even though Claude drives the CLI.** The original hold on
   this track asked whether IDs arriving via tool calling rather than hand-composed shell
