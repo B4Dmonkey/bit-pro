@@ -1,7 +1,7 @@
 ---
 id: BIT-21.11
 title: Lowercase track no longer bypasses the unfinished-bars guard
-status: todo
+status: done
 phase: 2
 phase_label: Recurrence
 ---
