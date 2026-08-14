@@ -1,7 +1,7 @@
 ---
 id: BIT-21.7
 title: Re-running on a normalized project changes nothing
-status: todo
+status: done
 phase: 1
 phase_label: Migration
 ---

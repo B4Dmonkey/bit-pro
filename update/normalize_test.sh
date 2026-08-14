@@ -22,6 +22,36 @@ body prose mentioning $id
 EOF
 }
 
+seed_project() {
+    local root="$1" p="$2"
+    mkdir -p "$root/.bit/tasks" "$root/.bit/completed" "$root/.bit/archive/tasks" "$root/.bit/feedback"
+    cat >"$root/.bit/tasks/$p-1.md" <<EOF
+---
+id: $p-1
+title: seeded track
+status: doing
+order:
+    - $p-1.1
+---
+body prose mentioning $p-1.1
+EOF
+    seed_task "$root/.bit/tasks/$p-1.1.md" "$p-1.1"
+    seed_task "$root/.bit/completed/$p-2.md" "$p-2"
+    seed_task "$root/.bit/archive/tasks/$p-3.md" "$p-3"
+    printf 'FIRST NOTE\n' >"$root/.bit/feedback/$p-1-001.md"
+    cat >"$root/.bit/config.toml" <<EOF
+# bit-pro project config
+prefix = "$p"
+EOF
+}
+
+snapshot_tree() {
+    local root="$1" path
+    find "$root/.bit" -type f | sort | while read -r path; do
+        printf '%s  %s\n' "${path#"$root"/}" "$(cksum <"$path")"
+    done
+}
+
 test_task_filenames_are_uppercased() {
     current_test=test_task_filenames_are_uppercased
 
@@ -194,10 +224,56 @@ EOF
     rm -rf "$root"
 }
 
+test_second_run_changes_nothing() {
+    current_test=test_second_run_changes_nothing
+
+    local root
+    root="$(mktemp -d)" || fail "could not create temp root"
+    seed_project "$root" bit
+
+    bash "$normalize" "$root" || fail "first normalize.sh run exited non-zero"
+    local first second
+    first="$(snapshot_tree "$root")"
+
+    bash "$normalize" "$root" || fail "second normalize.sh run exited non-zero"
+    second="$(snapshot_tree "$root")"
+
+    [ "$first" = "$second" ] || fail "second run changed the tree:
+after one run:
+$first
+after two runs:
+$second"
+
+    rm -rf "$root"
+}
+
+test_already_uppercase_project_is_untouched() {
+    current_test=test_already_uppercase_project_is_untouched
+
+    local root
+    root="$(mktemp -d)" || fail "could not create temp root"
+    seed_project "$root" BIT
+
+    local before after
+    before="$(snapshot_tree "$root")"
+    bash "$normalize" "$root" || fail "normalize.sh exited non-zero"
+    after="$(snapshot_tree "$root")"
+
+    [ "$before" = "$after" ] || fail "uppercase project was changed:
+before:
+$before
+after:
+$after"
+
+    rm -rf "$root"
+}
+
 test_task_filenames_are_uppercased
 test_id_frontmatter_is_uppercased_and_nothing_else
 test_order_entries_are_uppercased_in_frontmatter_only
 test_completed_and_archived_tasks_are_normalized
 test_feedback_note_filenames_are_uppercased_contents_intact
 test_config_prefix_is_uppercased
+test_second_run_changes_nothing
+test_already_uppercase_project_is_untouched
 echo "ok"
