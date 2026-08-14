@@ -21,29 +21,19 @@ messages, notes, and every prior scope that cited it.
 It was hit for real while completing BIT-20 in this repo: an agent ran `bp task complete
 bit-20`, and the track filed itself as `.bit/completed/bit-20.md` while all ten of its bars
 stayed behind in `.bit/tasks/`. The wrong case came from the agent echoing the lowercase form
-in use in the conversation, which is how IDs normally travel — the skills are this CLI's
-primary caller, not a human at a keyboard, so wrong-case input is the routine path rather than
-a rare slip.
+in use in the conversation, which is how IDs normally travel.
 
-## User note
-
-**This track is on hold.** The wrong-case input this scope hardens against comes almost
-entirely from an agent typing an ID it read in conversation — and that path may disappear on
-its own if IDs reach the CLI through tool calling rather than a hand-composed shell command,
-where the ID is passed as a value rather than retyped. If that lands, the fix belongs in how
-the skills call `bp`, not in `bp` itself, and most of the work below stops being worth doing.
-
-Nothing here is being planned or built until that's settled. Resume only once it's clear
-whether tool calling removes the exposure — and if it does, revisit whether any of these
-verses still earns its place.
+A fourth symptom was measured while planning this track, and it is the most destructive of
+them: `bp task create --parent bit-1` overwrote the existing bar `BIT-1.1`, leaving the file
+under its original name with a different task's contents inside it. The bar was not moved or
+renamed — it was destroyed, exit code 0, no output.
 
 ## Summary
 
-Make a task ID's case irrelevant to correctness. Resolve an incoming ID against the tasks that
-actually exist, so every downstream lookup, guard, and file write uses the spelling the task
-file already carries. Then close the two write paths that trusted their caller's spelling —
-the feedback note write and the next-ID scan — so neither can destroy or duplicate a record
-even if a non-canonical ID ever reaches them again.
+Make uppercase the one spelling a task ID ever has. Normalize the existing projects on disk
+once, then normalize at every boundary the CLI reads from — the ID a caller passes, the ID
+stored in a task's frontmatter, and the prefix in `config.toml` — so no later input, hand-edit,
+or freshly-initialised project can put a lowercase ID back into circulation.
 
 ## Visual aid
 
@@ -67,10 +57,6 @@ bp task complete bit-20
   │                      bit-20.md as BIT-20 → hands BIT-20 to   │
   │                      the next new task                       │
   └─────────────────────────────────────────────────────────────┘
-        │
-        ▼
-  two tasks answer to BIT-20 · the old track's orphaned bars and
-  feedback notes silently re-attach to the unrelated new one
 ```
 
 Observed, not theorised — same unfinished bar, only the argument's case differs:
@@ -80,54 +66,106 @@ $ bp task complete BIT-1   → Error: cannot relocate: unfinished bars BIT-1.1  
 $ bp task complete bit-1   →                                                   (exit 0)
 ```
 
+And the fourth symptom, measured the same way. A case-insensitive filesystem resolves the
+wrong-case write onto the existing file and keeps that file's original name, so the damage
+leaves no trace in a directory listing:
+
+```
+$ bp task create "sneaky" --parent bit-1     → bit-1.1     (exit 0)
+$ ls .bit/tasks/                             → BIT-1.md  BIT-1.1.md
+$ head -3 .bit/tasks/BIT-1.1.md              → id: bit-1.1
+                                                title: sneaky
+```
+
 ## Decisions
+
+- **Uppercase is the canonical spelling, and it is a transform, not a lookup.** Every ID is
+  uppercase everywhere it is stored: filename, `id:` frontmatter, `order:` entries, and the
+  `config.toml` prefix. A caller may type any case; the tool uppercases it and proceeds. This
+  reverses an earlier decision that canonical meant "whatever spelling the file already
+  carries" — a transform is simpler, has no ambiguity to resolve, and needs no directory scan.
+
+- **Uppercase over lowercase, knowing which project pays.** Measured: this repo and the
+  marketplace clone are uppercase; the `evus` client project is lowercase (105 files, zero
+  uppercase `id:` fields). Lowercase would have left `evus` untouched and migrated bit-pro;
+  uppercase does the reverse. Uppercase was chosen deliberately with that cost accepted, since
+  the operator runs all three projects and the migration is a one-time task.
+
+- **Normalize on read as well as on write.** Writing uppercase is not enough on its own — a
+  hand-edited `config.toml` or task file would put a lowercase ID straight back into
+  circulation. So the prefix is uppercased both when `init` stores it and when it is read
+  back, and IDs are uppercased on the way in rather than trusted.
+
+- **`bp init` normalizes the prefix.** A user typing `foo` gets `FOO` stored. Without this, a
+  project created after the migration would be born lowercase and reproduce the bug in a
+  project no migration script ever saw.
+
+- **Migration is a one-time operator task, not a product feature.** A committed `update/`
+  directory holds a bash script plus instructions for Claude; the operator names the
+  directories to normalize and runs it. No `doctor` command, no auto-repair on startup, no
+  detection of un-migrated projects — the operator is the only person running this tool and
+  knows which three directories exist.
+
+- **The migration covers five ID carriers, not four.** Filename, `id:` frontmatter, `order:`
+  lists, the `config.toml` prefix, and — added after measurement — **feedback note filenames**
+  (`.bit/feedback/<TRACK>-NNN.md`). The fifth was nearly missed: with the first four migrated
+  and `feedback/` left alone, `bp feedback add BIT-1` was observed overwriting the contents of
+  an existing `bit-1-001.md` while leaving its filename untouched, destroying the note. A
+  four-carrier migration would therefore have *created* the data-loss condition this track
+  exists to prevent. Body prose and git commit messages that cite `BIT-11.4` are deliberately
+  left alone: nothing in the code parses them, so a stale citation is cosmetic.
+
+- **Case-only renames go through `git mv --force`.** Measured: a plain two-step `mv`
+  (`bit-1.md` → tmp → `BIT-1.md`) leaves `git status --porcelain` completely empty on a
+  case-insensitive filesystem — git never sees the rename, so the change cannot be committed or
+  reviewed. `git mv --force` reports `R  bit-1.md -> BIT-1.md`. The script uses it wherever the
+  target is a git working tree.
+
+- **The migration script is invoked on project roots, and is itself tested in bash.**
+  `update/normalize.sh <project-dir>...` takes the directories that *contain* `.bit/`, not the
+  `.bit/` paths themselves, so the operator never types the implementation detail; a directory
+  with no `.bit/` is an error rather than a silent skip. `update/README.md` holds the
+  Claude-facing instructions and is read on demand rather than auto-loaded. `update/normalize_test.sh`
+  is the harness — bash, not Go, keeping the one-time migration self-contained and uncoupled
+  from the product's test suite.
+
+- **Migration lands before the code change.** Once every project is uppercase, the *existing*
+  case-sensitive code is already correct — so the migration leaves every project working
+  whether or not the code change has shipped. The code change is then purely about preventing
+  recurrence.
+
+- **The fix lives in `task/`, not at the CLI boundary.** Seven commands take an ID and every
+  one hands it to a `Store` method. `Store` is the one choke point they all pass through, and
+  `Path` is the single function that turns an ID into a filename — normalizing there covers
+  every command, including ones not yet written. Confirmed while planning: every ID, prefix and
+  track argument in `cmd/` and `tui/` reaches disk through a `task.Store` method, so `cmd/`
+  needs no ID handling of its own.
+
+- **Normalization is worth building even though Claude drives the CLI.** The original hold on
+  this track asked whether IDs arriving via tool calling rather than hand-composed shell
+  commands would remove the exposure. Settled: normalize anyway. It is a few lines, and it
+  covers the case the tool-calling argument does not — a human hand-editing `.bit/` or typing
+  a command directly.
 
 - **A wrong-case ID is accepted, not rejected.** `bp task complete bit-20` finds `BIT-20` and
   does the work. Case carries no meaning in these IDs, so refusing one would spend an error on
-  a difference that isn't ambiguous, and the caller getting it wrong is an agent that retries
-  rather than a human who learns. Genuine typos still fail: an ID matching no existing task is
-  an error either way.
-- **Canonical means the spelling on the task file — never a transform.** There is no rule that
-  produces the right case. `bp init` stores whatever prefix is typed (`cmd/init.go` trims
-  whitespace and nothing else), and a sibling project runs on a lowercase prefix with IDs like
-  `foo-6.1`. Uppercasing would corrupt that project exactly the way lowercasing corrupted this
-  repo. So an incoming ID is matched case-insensitively against the tasks that exist, and the
-  matched file's own ID is what every later step uses.
-- **The root cause is one comparison, not three bugs.** IDs are read canonically from each
-  file's YAML frontmatter but compared against the argument as typed, case-sensitively. Every
-  symptom traces back to that mismatch.
-- **The fix lives in `task/`, not at the CLI boundary.** Seven commands take an ID (`read`,
-  `update`, `complete`, `delete`, `move`, `feedback add`, and `create --parent`) and every one
-  hands it to a `Store` method, so the boundary is seven places and a convention each future
-  command has to remember — and forgetting it fails silently, which is the failure this track
-  exists to kill. `Store` is the one choke point they all pass through, and `Path` is the
-  single function that turns an ID into a filename.
-- **The two damaged write paths get fixed independently of the resolve.** A note write that
-  overwrites, and an ID scan that trusts filename case, are defects on their own terms — the
-  CLI documents create-only notes and permanent ID reservation, and delivers neither. Fixing
-  only the lookup would leave both promises still untrue for any other bad input.
-- **No recovery or repair work is in scope.** The real `.bit/` was probed for wrong-case
-  filenames, duplicate IDs, and orphaned bars, and is clean — the one damaged track was
-  repaired by hand when the bug was found. Nothing to migrate, so no doctor command.
-- **Case-insensitive filesystems are the dangerous environment, and the target one.** macOS
-  and Windows silently merge `bit-1.md` and `BIT-1.md` into one file, which is what turns the
-  bug into data loss. On Linux the same command fails differently. The fix must be correct on
-  both, and the tests must not assume either.
+  a difference that is not ambiguous. Genuine typos still fail: an ID matching no existing task
+  is an error either way.
 
 ## Verses
 
-- [ ] Verse 1 — An operator who names a task in any case gets the CLI's documented behaviour
-  rather than silent corruption: the unfinished-bars guard holds, and any file the command
-  writes lands under the task's real name.
-  Touches: the lookup and path helpers in `task/store.go` (`Load`, `children`, `Path`) — where
-  to look to verify.
+- [ ] Verse 1 — The operator can point a script at any set of `.bit/` project roots and get
+  them back fully uppercase and internally consistent, so every project on this machine agrees
+  on one spelling. Delivered on its own: after this lands, the existing code is correct for
+  every project even before Verse 2 exists.
+  Touches: a new `update/` directory at the repo root — `normalize.sh`, its bash harness
+  `normalize_test.sh`, and `README.md` for Claude — where to look to verify.
 
-- [ ] Verse 2 — Recording a feedback note can never destroy one already recorded, whatever ID
-  reached it. The guarantee the CLI already advertises becomes true, which matters because
-  capture fires right after something has gone wrong and the note is unreproducible.
-  Touches: the note write in `task/` (`AddNote`) and its sequence numbering.
-
-- [ ] Verse 3 — An ID that has been reserved by completing or archiving a task can never be
-  handed to a new one, so a task's name stays a stable reference for commit messages, feedback
-  notes, and older scopes that cite it.
-  Touches: the next-ID scan in `task/` (`NextID` / `NextChildID`).
+- [ ] Verse 2 — A wrong-case ID can no longer put lowercase state back into a normalized
+  project, whoever or whatever typed it: IDs are uppercased on the way in, the `config.toml`
+  prefix is uppercased both when stored and when read, and a newly initialised project is born
+  uppercase. The four symptoms above stop being reachable and the guarantees in `bp
+  instructions` become true again.
+  Touches: the ID and path helpers in `task/store.go` (`Path`, `Load`, `Save`, `children`,
+  `NextID` / `NextChildID`, the order helpers), the note write in `task/feedback.go`, the
+  prefix in `task/config.go`, and `cmd/init.go` — where to look to verify.
