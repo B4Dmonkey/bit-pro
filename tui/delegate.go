@@ -40,9 +40,13 @@ func (d delegate) Render(w io.Writer, m list.Model, index int, listItem list.Ite
 		main = barStyle
 	}
 	if selected {
-		main = selectedStyle
 		if d.board {
 			main = selectedBoardStyle
+		} else {
+			main = main.Bold(true)
+			if !t.Approved {
+				main = main.Foreground(lipgloss.Color("3"))
+			}
 		}
 	} else if !t.Approved {
 		main = main.Foreground(lipgloss.Color("3"))

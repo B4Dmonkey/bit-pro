@@ -1,7 +1,7 @@
 ---
 id: BIT-23
 title: 'Automation rails: human steps, canonical .bit/, runnable checks, approval'
-status: doing
+status: done
 ---
 ## Why
 
@@ -109,7 +109,7 @@ track ──▶ bars                 track ──▶ bars
   filtered out of the kanban view so the board answers "what is ready to work on" rather than
   "what exists." They remain visible in the list view.
   Touches: `tui/` — where to look to verify.
-- [ ] Verse 6 — bit:do knows how to handle the approved field: skill-creator updates the bit:do
+- [x] Verse 6 — bit:do knows how to handle the approved field: skill-creator updates the bit:do
   skill so it reads `approved` from each bar and gates on it before starting work. Planning
   this verse means invoking the skill-creator skill.
   Touches: `bit/skills/do`, skill-creator — where to look to verify.

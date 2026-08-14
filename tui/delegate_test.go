@@ -169,7 +169,38 @@ func TestDelegate_ApprovedItemDoesNotRenderYellow(t *testing.T) {
 	}
 }
 
-func TestDelegate_SelectedUnapprovedItemUsesSelectedStyle(t *testing.T) {
+func TestDelegate_SelectedUnapprovedItemKeepsYellowText(t *testing.T) {
+	t.Parallel()
+
+	l := list.New([]list.Item{item{t: &task.Task{ID: "BIT-1", Title: "T", Approved: false}}}, delegate{}, 40, 4)
+
+	var buf bytes.Buffer
+	delegate{}.Render(&buf, l, 0, l.Items()[0])
+
+	got := buf.String()
+	if !strings.Contains(got, "33m") {
+		t.Errorf("selected unapproved row = %q, want terminal yellow SGR 33m (approval color survives focus)", got)
+	}
+}
+
+func TestDelegate_SelectedApprovedItemCursorStaysGreen(t *testing.T) {
+	t.Parallel()
+
+	l := list.New([]list.Item{item{t: &task.Task{ID: "BIT-1", Title: "T", Approved: true}}}, delegate{}, 40, 4)
+
+	var buf bytes.Buffer
+	delegate{}.Render(&buf, l, 0, l.Items()[0])
+
+	got := buf.String()
+	if !strings.Contains(got, "32m") {
+		t.Errorf("selected approved row = %q, want terminal green SGR 32m (cursor)", got)
+	}
+	if strings.Contains(got, "33m") {
+		t.Errorf("selected approved row = %q, should not contain terminal yellow SGR 33m", got)
+	}
+}
+
+func TestDelegate_SelectedUnapprovedItemCursorStaysGreen(t *testing.T) {
 	t.Parallel()
 
 	l := list.New([]list.Item{item{t: &task.Task{ID: "BIT-1", Title: "Track", Approved: false}}}, delegate{}, 40, 4)
@@ -179,10 +210,7 @@ func TestDelegate_SelectedUnapprovedItemUsesSelectedStyle(t *testing.T) {
 
 	got := buf.String()
 	if !strings.Contains(got, "32m") {
-		t.Errorf("selected unapproved row = %q, want terminal green SGR 32m", got)
-	}
-	if strings.Contains(got, "33m") {
-		t.Errorf("selected unapproved row = %q, should not contain terminal yellow SGR 33m", got)
+		t.Errorf("selected unapproved row = %q, want terminal green SGR 32m (cursor)", got)
 	}
 }
 

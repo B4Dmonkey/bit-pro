@@ -1,7 +1,8 @@
 ---
 id: BIT-23.10
 title: bit:do gates on approved before starting a bar
-status: doing
+status: done
+approved: true
 phase: 6
 phase_label: Skill update
 ---
