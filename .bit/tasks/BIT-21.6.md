@@ -1,7 +1,7 @@
 ---
 id: BIT-21.6
 title: Config prefix flips
-status: todo
+status: done
 phase: 1
 phase_label: Migration
 ---

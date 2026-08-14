@@ -64,6 +64,14 @@ normalize_feedback_dir() {
     normalize_md_filenames "$dir"
 }
 
+normalize_config_prefix() {
+    local file="$1" prefix
+    [ -f "$file" ] || return 0
+    prefix="$(sed -n '/^prefix = "/{s/^prefix = "\(.*\)"$/\1/p;q;}' "$file")"
+    [ -n "$prefix" ] || return 0
+    sed -i '' "s/^prefix = \".*\"\$/prefix = \"$(uppercase "$prefix")\"/" "$file"
+}
+
 main() {
     local root
     for root in "$@"; do
@@ -71,6 +79,7 @@ main() {
         normalize_task_dir "$root/.bit/completed"
         normalize_task_dir "$root/.bit/archive/tasks"
         normalize_feedback_dir "$root/.bit/feedback"
+        normalize_config_prefix "$root/.bit/config.toml"
     done
 }
 

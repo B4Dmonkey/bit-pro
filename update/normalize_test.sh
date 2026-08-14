@@ -172,9 +172,32 @@ test_feedback_note_filenames_are_uppercased_contents_intact() {
     rm -rf "$root"
 }
 
+test_config_prefix_is_uppercased() {
+    current_test=test_config_prefix_is_uppercased
+
+    local root
+    root="$(mktemp -d)" || fail "could not create temp root"
+    mkdir -p "$root/.bit"
+    cat >"$root/.bit/config.toml" <<'EOF'
+# bit-pro project config
+prefix = "bit"
+EOF
+
+    bash "$normalize" "$root" || fail "normalize.sh exited non-zero"
+
+    local contents
+    contents="$(cat "$root/.bit/config.toml")"
+
+    grep -qxF 'prefix = "BIT"' <<<"$contents" || fail "prefix not uppercased: $contents"
+    grep -qxF '# bit-pro project config' <<<"$contents" || fail "comment line changed: $contents"
+
+    rm -rf "$root"
+}
+
 test_task_filenames_are_uppercased
 test_id_frontmatter_is_uppercased_and_nothing_else
 test_order_entries_are_uppercased_in_frontmatter_only
 test_completed_and_archived_tasks_are_normalized
 test_feedback_note_filenames_are_uppercased_contents_intact
+test_config_prefix_is_uppercased
 echo "ok"
