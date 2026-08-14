@@ -37,10 +37,12 @@ func newRootCmd(run claude.Runner) *cobra.Command {
 		},
 	}
 	rootCmd.PersistentFlags().StringVar(&bitDirFlag, "bit-dir", "", "canonical .bit directory (overrides BIT_DIR)")
+	rootCmd.AddCommand(newApproveCmd())
 	rootCmd.AddCommand(newFeedbackCmd())
 	rootCmd.AddCommand(newInitCmd(run))
 	rootCmd.AddCommand(newInstructionsCmd())
 	rootCmd.AddCommand(newTaskCmd())
 	rootCmd.AddCommand(newTUICmd())
+	rootCmd.AddCommand(newUnapproveCmd())
 	return rootCmd
 }

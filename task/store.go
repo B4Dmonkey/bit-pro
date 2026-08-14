@@ -166,6 +166,15 @@ func (s *Store) Save(t *Task) error {
 	return nil
 }
 
+func (s *Store) SetApproved(id string, approved bool) error {
+	t, err := s.Load(id)
+	if err != nil {
+		return err
+	}
+	t.Approved = approved
+	return s.Save(t)
+}
+
 func (s *Store) Move(id, anchor string, before bool) error {
 	id, anchor = normalizeID(id), normalizeID(anchor)
 	if id == anchor {

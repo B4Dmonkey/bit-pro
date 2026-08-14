@@ -14,6 +14,7 @@ type Task struct {
 	ID         string   `yaml:"id"`
 	Title      string   `yaml:"title"`
 	Status     string   `yaml:"status"`
+	Approved   bool     `yaml:"approved,omitempty"`
 	Phase      int      `yaml:"phase,omitempty"`
 	PhaseLabel string   `yaml:"phase_label,omitempty"`
 	Order      []string `yaml:"order,omitempty"`
