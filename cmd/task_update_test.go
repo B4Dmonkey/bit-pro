@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -68,6 +69,31 @@ func TestTaskUpdateCmd_ChangesPhase(t *testing.T) {
 	want := "BIT-1.1\ttodo\tBar\tphase 3 — Update"
 	if firstLine != want {
 		t.Errorf("first line = %q, want %q", firstLine, want)
+	}
+}
+
+func TestTaskUpdateCmd_RewritesACorruptIDToCanonicalCase(t *testing.T) {
+	initProject(t, "BIT")
+	writeRawTask(t, ".bit/tasks/BIT-1.md", "bit-1", "Corrupt frontmatter", "todo")
+
+	mustRun(t, "task", "update", "BIT-1", "-s", "doing")
+
+	data, err := os.ReadFile(".bit/tasks/BIT-1.md")
+	if err != nil {
+		t.Fatalf("os.ReadFile(.bit/tasks/BIT-1.md) error = %v", err)
+	}
+	got := string(data)
+	for _, want := range []string{"id: BIT-1\n", "status: doing\n"} {
+		if !strings.Contains(got, want) {
+			t.Errorf(".bit/tasks/BIT-1.md = %q, want it to contain %q", got, want)
+		}
+	}
+	entries, err := os.ReadDir(".bit/tasks")
+	if err != nil {
+		t.Fatalf("os.ReadDir(.bit/tasks) error = %v", err)
+	}
+	if len(entries) != 1 {
+		t.Errorf("os.ReadDir(.bit/tasks) returned %d entries, want 1", len(entries))
 	}
 }
 

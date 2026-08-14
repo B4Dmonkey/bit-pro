@@ -20,9 +20,9 @@ func TestStorePath_ContainsUntrustedID(t *testing.T) {
 	}{
 		{name: "plain id", id: "BIT-1", want: ".bit/tasks/BIT-1.md"},
 		{name: "traversal cannot escape the tasks dir", id: "../../README", want: ".bit/tasks/README.md"},
-		{name: "deep traversal cannot escape", id: "../../../../etc/passwd", want: ".bit/tasks/etc/passwd.md"},
-		{name: "absolute path cannot escape", id: "/etc/passwd", want: ".bit/tasks/etc/passwd.md"},
-		{name: "illegal characters are stripped", id: "a:b*c", want: ".bit/tasks/abc.md"},
+		{name: "deep traversal cannot escape", id: "../../../../etc/passwd", want: ".bit/tasks/ETC/PASSWD.md"},
+		{name: "absolute path cannot escape", id: "/etc/passwd", want: ".bit/tasks/ETC/PASSWD.md"},
+		{name: "illegal characters are stripped", id: "a:b*c", want: ".bit/tasks/ABC.md"},
 	}
 
 	for _, tt := range tests {
@@ -169,8 +169,8 @@ func TestStoreRelocate_ContainsUntrustedID(t *testing.T) {
 	}{
 		{name: "plain id", id: "BIT-1", want: ".bit/archive/tasks/BIT-1.md"},
 		{name: "traversal cannot escape the archive dir", id: "../../README", want: ".bit/archive/tasks/README.md"},
-		{name: "absolute path cannot escape", id: "/etc/passwd", want: ".bit/archive/tasks/etc/passwd.md"},
-		{name: "illegal characters are stripped", id: "a:b*c", want: ".bit/archive/tasks/abc.md"},
+		{name: "absolute path cannot escape", id: "/etc/passwd", want: ".bit/archive/tasks/ETC/PASSWD.md"},
+		{name: "illegal characters are stripped", id: "a:b*c", want: ".bit/archive/tasks/ABC.md"},
 	}
 
 	for _, tt := range tests {

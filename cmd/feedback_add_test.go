@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -61,6 +62,40 @@ func TestFeedbackAddCmd_SecondNoteGetsNextSequence(t *testing.T) {
 	}
 	if string(first) != firstNote {
 		t.Errorf("first note = %q, want %q", first, firstNote)
+	}
+}
+
+func TestFeedbackAddCmd_LowercaseTrackDoesNotOverwriteAnExistingNote(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Ship the bit plugin", "## Why\n\nThe skills only exist in this repo.\n")
+
+	mustRun(t, "feedback", "add", "BIT-1", "-d", firstNote)
+	out := mustRun(t, "feedback", "add", "bit-1", "-d", secondNote)
+
+	if want := ".bit/feedback/BIT-1-002.md\n"; out != want {
+		t.Errorf("lowercase feedback add stdout = %q, want %q", out, want)
+	}
+
+	first, err := os.ReadFile(".bit/feedback/BIT-1-001.md")
+	if err != nil {
+		t.Fatalf("reading first note: %v", err)
+	}
+	if string(first) != firstNote {
+		t.Errorf("first note = %q, want %q", first, firstNote)
+	}
+
+	entries, err := os.ReadDir(".bit/feedback")
+	if err != nil {
+		t.Fatalf("reading feedback dir: %v", err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("feedback dir holds %d files, want 2", len(entries))
+	}
+	for _, entry := range entries {
+		stem := strings.TrimSuffix(entry.Name(), ".md")
+		if stem != strings.ToUpper(stem) {
+			t.Errorf("note filename = %q, want its track ID uppercase", entry.Name())
+		}
 	}
 }
 

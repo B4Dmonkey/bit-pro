@@ -34,7 +34,7 @@ func (s *Store) tasksDir() string {
 }
 
 func (s *Store) Path(id string) string {
-	return pathologize.Join(s.tasksDir(), id+".md")
+	return pathologize.Join(s.tasksDir(), normalizeID(id)+".md")
 }
 
 func (s *Store) archiveTasksDir() string {
@@ -42,7 +42,7 @@ func (s *Store) archiveTasksDir() string {
 }
 
 func (s *Store) archivePath(id string) string {
-	return pathologize.Join(s.archiveTasksDir(), id+".md")
+	return pathologize.Join(s.archiveTasksDir(), normalizeID(id)+".md")
 }
 
 func (s *Store) completedDir() string {
@@ -50,20 +50,29 @@ func (s *Store) completedDir() string {
 }
 
 func (s *Store) completedPath(id string) string {
-	return pathologize.Join(s.completedDir(), id+".md")
+	return pathologize.Join(s.completedDir(), normalizeID(id)+".md")
 }
 
 func (s *Store) relocateInto(dir, id string) error {
 	if err := os.MkdirAll(dir, dirMode); err != nil {
 		return fmt.Errorf("creating %s: %w", dir, err)
 	}
-	if err := os.Rename(s.Path(id), pathologize.Join(dir, id+".md")); err != nil {
+	if err := os.Rename(s.Path(id), pathologize.Join(dir, normalizeID(id)+".md")); err != nil {
 		return fmt.Errorf("relocating task %s: %w", id, err)
 	}
 	return nil
 }
 
+func normalizeID(id string) string {
+	return strings.ToUpper(id)
+}
+
+func (s *Store) Children(parent string) ([]*Task, error) {
+	return s.children(parent)
+}
+
 func (s *Store) children(parent string) ([]*Task, error) {
+	parent = normalizeID(parent)
 	tasks, err := s.List()
 	if err != nil {
 		return nil, err
@@ -158,6 +167,7 @@ func (s *Store) Save(t *Task) error {
 }
 
 func (s *Store) Move(id, anchor string, before bool) error {
+	id, anchor = normalizeID(id), normalizeID(anchor)
 	if id == anchor {
 		return fmt.Errorf("cannot move %s relative to itself", id)
 	}
@@ -185,7 +195,7 @@ func (s *Store) Move(id, anchor string, before bool) error {
 // order — an unknown or cross-track anchor is refused rather than silently
 // appended, which keeps the list ⇄ files bijection intact.
 func (s *Store) InsertAfter(parent, id, anchor string) error {
-	return s.insertInOrder(parent, id, anchor, false)
+	return s.insertInOrder(normalizeID(parent), normalizeID(id), normalizeID(anchor), false)
 }
 
 // insertInOrder is the shared splice: it materializes a legacy parent's order,
@@ -222,6 +232,7 @@ func (s *Store) insertInOrder(parent, id, anchor string, before bool) error {
 // Order there would be premature. Only a present, reordered manifest is
 // extended, keeping the list ⇄ files bijection intact.
 func (s *Store) AppendToOrder(parent, id string) error {
+	parent, id = normalizeID(parent), normalizeID(id)
 	track, err := s.Load(parent)
 	if err != nil {
 		return err
@@ -362,6 +373,7 @@ func idParts(id string) (track, bar int, ok bool) {
 }
 
 func (s *Store) NextChildID(parent string) (string, error) {
+	parent = normalizeID(parent)
 	if _, err := os.Stat(s.Path(parent)); err != nil {
 		return "", fmt.Errorf("parent %s does not exist: %w", parent, err)
 	}

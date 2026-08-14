@@ -39,6 +39,7 @@ func (s *Store) trackExists(track string) bool {
 }
 
 func (s *Store) AddNote(track, body string) (string, error) {
+	track = normalizeID(track)
 	if !s.trackExists(track) {
 		return "", fmt.Errorf("track %s does not exist", track)
 	}

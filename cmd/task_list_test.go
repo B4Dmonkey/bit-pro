@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -71,6 +72,39 @@ func TestTaskListCmd_FiltersToParentBars(t *testing.T) {
 	out := mustRun(t, "task", "list", "--parent", "BIT-1")
 
 	want := "BIT-1.1\ttodo\tOne.1\t\nBIT-1.2\ttodo\tOne.2\t\n"
+	if out != want {
+		t.Errorf("output = %q, want %q", out, want)
+	}
+}
+
+func TestTaskListCmd_LowercaseParentStillListsTheBars(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Track", "...")
+	mustRun(t, "task", "create", "Bar one", "-d", "...", "--parent", "BIT-1")
+	mustRun(t, "task", "create", "Bar two", "-d", "...", "--parent", "BIT-1")
+
+	out := mustRun(t, "task", "list", "--parent", "bit-1")
+
+	want := "BIT-1.1\ttodo\tBar one\t\nBIT-1.2\ttodo\tBar two\t\n"
+	if out != want {
+		t.Errorf("output = %q, want %q", out, want)
+	}
+}
+
+func TestTaskListCmd_HandEditedLowercaseOrderStillRanksBars(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Track", "...")
+	mustRun(t, "task", "create", "Bar one", "-d", "...", "--parent", "BIT-1")
+	mustRun(t, "task", "create", "Bar two", "-d", "...", "--parent", "BIT-1")
+
+	track := "---\nid: BIT-1\ntitle: Track\nstatus: todo\norder:\n    - bit-1.2\n    - bit-1.1\n---\nHand-edited.\n"
+	if err := os.WriteFile(".bit/tasks/BIT-1.md", []byte(track), 0o644); err != nil {
+		t.Fatalf("os.WriteFile(.bit/tasks/BIT-1.md) error = %v", err)
+	}
+
+	out := mustRun(t, "task", "list", "--parent", "BIT-1")
+
+	want := "BIT-1.2\ttodo\tBar two\t\nBIT-1.1\ttodo\tBar one\t\n"
 	if out != want {
 		t.Errorf("output = %q, want %q", out, want)
 	}

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/spf13/cobra"
@@ -16,16 +15,21 @@ func newTaskListCmd() *cobra.Command {
 		Short: "List all tasks",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			tasks, err := task.New(bitDir).List()
+			store := task.New(bitDir)
+
+			var tasks []*task.Task
+			var err error
+			if parent == "" {
+				tasks, err = store.List()
+			} else {
+				tasks, err = store.Children(parent)
+			}
 			if err != nil {
 				return err
 			}
 
 			out := cmd.OutOrStdout()
 			for _, t := range tasks {
-				if parent != "" && !strings.HasPrefix(t.ID, parent+".") {
-					continue
-				}
 				phase := ""
 				if t.Phase != 0 {
 					phase = fmt.Sprintf("phase %d — %s", t.Phase, t.PhaseLabel)
