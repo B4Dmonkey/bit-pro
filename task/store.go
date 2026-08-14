@@ -163,6 +163,7 @@ func (s *Store) Save(t *Task) error {
 }
 
 func (s *Store) Move(id, anchor string, before bool) error {
+	id, anchor = normalizeID(id), normalizeID(anchor)
 	if id == anchor {
 		return fmt.Errorf("cannot move %s relative to itself", id)
 	}
@@ -190,7 +191,7 @@ func (s *Store) Move(id, anchor string, before bool) error {
 // order — an unknown or cross-track anchor is refused rather than silently
 // appended, which keeps the list ⇄ files bijection intact.
 func (s *Store) InsertAfter(parent, id, anchor string) error {
-	return s.insertInOrder(parent, id, anchor, false)
+	return s.insertInOrder(normalizeID(parent), normalizeID(id), normalizeID(anchor), false)
 }
 
 // insertInOrder is the shared splice: it materializes a legacy parent's order,
@@ -227,6 +228,7 @@ func (s *Store) insertInOrder(parent, id, anchor string, before bool) error {
 // Order there would be premature. Only a present, reordered manifest is
 // extended, keeping the list ⇄ files bijection intact.
 func (s *Store) AppendToOrder(parent, id string) error {
+	parent, id = normalizeID(parent), normalizeID(id)
 	track, err := s.Load(parent)
 	if err != nil {
 		return err
@@ -367,6 +369,7 @@ func idParts(id string) (track, bar int, ok bool) {
 }
 
 func (s *Store) NextChildID(parent string) (string, error) {
+	parent = normalizeID(parent)
 	if _, err := os.Stat(s.Path(parent)); err != nil {
 		return "", fmt.Errorf("parent %s does not exist: %w", parent, err)
 	}

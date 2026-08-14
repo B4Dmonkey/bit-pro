@@ -1,7 +1,7 @@
 ---
 id: BIT-21.13
 title: Lowercase parent no longer destroys an existing bar
-status: todo
+status: done
 phase: 2
 phase_label: Recurrence
 ---

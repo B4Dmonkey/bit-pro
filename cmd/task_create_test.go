@@ -193,6 +193,49 @@ func TestTaskCreate_AfterRejectsUnknownAnchor(t *testing.T) {
 	}
 }
 
+func TestTaskCreateCmd_LowercaseParentDoesNotDestroyAnExistingBar(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Track", "...")
+	mustRun(t, "task", "create", "First bar", "-d", "ORIGINAL BAR ONE", "--parent", "BIT-1")
+
+	out := mustRun(t, "task", "create", "sneaky", "-d", "...", "--parent", "bit-1")
+
+	if out != "BIT-1.2\n" {
+		t.Errorf("minted ID = %q, want %q", out, "BIT-1.2\n")
+	}
+
+	minted, err := os.ReadFile(".bit/tasks/BIT-1.2.md")
+	if err != nil {
+		t.Fatalf("os.ReadFile(.bit/tasks/BIT-1.2.md) error = %v", err)
+	}
+	if !strings.Contains(string(minted), "id: BIT-1.2") {
+		t.Errorf("BIT-1.2.md = %q, want it to contain %q", minted, "id: BIT-1.2")
+	}
+
+	survivor, err := os.ReadFile(".bit/tasks/BIT-1.1.md")
+	if err != nil {
+		t.Fatalf("os.ReadFile(.bit/tasks/BIT-1.1.md) error = %v", err)
+	}
+	if !strings.Contains(string(survivor), "ORIGINAL BAR ONE") {
+		t.Errorf("BIT-1.1.md = %q, want it to still contain %q", survivor, "ORIGINAL BAR ONE")
+	}
+	if !strings.Contains(string(survivor), "title: First bar") {
+		t.Errorf("BIT-1.1.md = %q, want it to still contain %q", survivor, "title: First bar")
+	}
+
+	entries, err := os.ReadDir(".bit/tasks")
+	if err != nil {
+		t.Fatalf("os.ReadDir(.bit/tasks) error = %v", err)
+	}
+	if len(entries) != 3 {
+		var names []string
+		for _, e := range entries {
+			names = append(names, e.Name())
+		}
+		t.Errorf("os.ReadDir(.bit/tasks) names = %v, want 3 entries", names)
+	}
+}
+
 func TestTaskCreateCmd_ErrorsWithoutTitle(t *testing.T) {
 	initProject(t, "BIT")
 
