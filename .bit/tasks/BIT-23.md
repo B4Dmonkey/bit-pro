@@ -109,7 +109,7 @@ Why the check has to be runnable by `bp`, not reported by the agent:
 
 ## Verses
 
-- [ ] Verse 1 — Task state stays put no matter where `bp` runs from: a `bp` invocation inside
+- [x] Verse 1 — Task state stays put no matter where `bp` runs from: a `bp` invocation inside
   a worktree writes to the canonical `.bit/` in the main checkout rather than the branch's
   copy, so work on a branch never drags task state into its code commits. Needed before
   anything is dispatched, because a background session's working directory is a worktree
