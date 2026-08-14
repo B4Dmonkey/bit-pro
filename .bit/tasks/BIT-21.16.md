@@ -1,7 +1,7 @@
 ---
 id: BIT-21.16
 title: A wrong-case track no longer overwrites a feedback note
-status: todo
+status: done
 phase: 2
 phase_label: Recurrence
 ---
