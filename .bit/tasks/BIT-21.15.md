@@ -1,7 +1,7 @@
 ---
 id: BIT-21.15
 title: Hand-edited order entries still rank bars
-status: todo
+status: done
 phase: 2
 phase_label: Recurrence
 ---

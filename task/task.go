@@ -37,6 +37,9 @@ func Parse(data []byte) (*Task, error) {
 		return nil, fmt.Errorf("parsing task frontmatter: %w", err)
 	}
 	t.ID = normalizeID(t.ID)
+	for i, id := range t.Order {
+		t.Order[i] = normalizeID(id)
+	}
 	t.Body = rest[idx+len("\n"+delim+"\n"):]
 	return &t, nil
 }
