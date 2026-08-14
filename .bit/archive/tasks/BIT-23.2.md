@@ -1,7 +1,7 @@
 ---
 id: BIT-23.2
 title: bp check <ID> executes the declared check command
-status: todo
+status: done
 phase: 2
 phase_label: Runnable checks
 ---

@@ -1,7 +1,7 @@
 ---
 id: BIT-23
 title: 'Automation rails: human steps, canonical .bit/, runnable checks, approval'
-status: todo
+status: doing
 ---
 ## Why
 
@@ -22,10 +22,9 @@ watching a recorded pipeline run by hand before anything runs it unattended.
 ## Summary
 
 Add the vocabulary and the plumbing an automated runner would need, and ship each piece as
-something usable by hand. A bar gains a **declared check** that `bp` can run. A track and
-its bars gain an **approval** flag — a mandatory gate: work may not proceed until each record
-is approved. Any `bp` invocation, from any worktree, writes to the canonical `.bit/`. The
-board shows only what is approved and ready.
+something usable by hand. A track and its bars gain an **approval** flag — a mandatory gate:
+work may not proceed until each record is approved. Any `bp` invocation, from any worktree,
+writes to the canonical `.bit/`. The board shows only what is approved and ready.
 
 No daemon here — that is the `orca` track. This is the manual pipeline with rails installed.
 
@@ -37,18 +36,6 @@ today                          after this track
 track ──▶ bars                 track ──▶ bars
   status: todo|doing|done        status:   todo|doing|done
                                  approved: bool      ← must be set before work proceeds
-                                 check:    <cmd>     ← what proves it done; `bp` runs it
-```
-
-Why the check has to be runnable by `bp`, not reported by the agent:
-
-```
-  dispatch ──▶ claude --bg ──▶ (no stdout contract, session is detached)
-                                       │
-                                       ▼
-                            the model's claim "it passed"   ← not trustworthy
-                                       │
-  bp check <BAR> ──▶ runs the declared command ──▶ verdict  ← the only trustworthy one
 ```
 
 ## Decisions
@@ -56,7 +43,7 @@ Why the check has to be runnable by `bp`, not reported by the agent:
 - **New fields land in YAML frontmatter, not JSON — for now.** Frontmatter is the cheap path
   and keeps every skill working unchanged. The move to JSON-backed state happens when
   something actually needs it — machine writes at a volume or concurrency frontmatter can't
-  take — rather than pre-emptively. The cost of being wrong is migrating three fields, which
+  take — rather than pre-emptively. The cost of being wrong is migrating two fields, which
   is small enough to accept in exchange for not blocking this track on a format decision.
 - **Editing an approved track or bar revokes its approval.** Settled as a safety requirement
   rather than a preference, because the dispatch design approves a batch of bars up front and
@@ -71,12 +58,6 @@ Why the check has to be runnable by `bp`, not reported by the agent:
   work may proceed. No special-casing beyond one flag per record.
 - **Approval does not become a status value.** `status` stays `todo|doing|done`, so the board
   columns and all seven skills keep working unchanged.
-- **`bp` runs the declared check; it does not merely record it.** Settled by the choice of
-  background sessions as the automation substrate: `--bg` and `-p` are mutually exclusive, so
-  a dispatched session returns no structured verdict, and the only alternative source of
-  truth is the model's own claim that the bar passed. That claim cannot be trusted, so the
-  verdict has to come from `bp` executing the declared command itself. This is what makes the
-  check verse load-bearing rather than a convenience.
 - **`bp` does not create worktrees — Claude Code already does, and `bp` must survive that.**
   Measured 2026-08-13 on Claude Code 2.1.231, not assumed: a `--bg` session that edits files
   in a git repo auto-creates its own worktree with **no `-w` flag given**, at
@@ -116,12 +97,6 @@ Why the check has to be runnable by `bp`, not reported by the agent:
   whether or not this project asked for one.
   Touches: `cmd/root.go` (a bit-dir flag / env var), `task/store.go`, `task/config.go` —
   where to look to verify.
-- [ ] Verse 2 — A bar states what proves it done, and that proof can be run: the verification
-  is recorded on the bar as a runnable command, and `bp` executes it and reports the verdict,
-  so bit_check follows a written criterion instead of improvising one and a later daemon has a
-  source of truth that isn't the model's own say-so.
-  Touches: `task/task.go`, `cmd/task_create.go`, `cmd/task_update.go`, a new `cmd/` command,
-  `bit/skills/check` — where to look to verify.
 - [ ] Verse 3 — Say "I'm done reviewing this" and see what's ready via the CLI: a new
   `bp approve` / `bp unapprove` command sets the flag on any record, and `task list` surfaces
   it, so "what can be worked on?" is answerable without opening the TUI.
@@ -134,9 +109,9 @@ Why the check has to be runnable by `bp`, not reported by the agent:
   filtered out of the kanban view so the board answers "what is ready to work on" rather than
   "what exists." They remain visible in the list view.
   Touches: `tui/` — where to look to verify.
-- [ ] Verse 6 — bit:do knows how to handle the new fields: skill-creator updates the bit:do
-  skill so it reads `check` and `approved` from each bar — following the declared check
-  criterion instead of improvising. Planning this verse means invoking the skill-creator skill.
+- [ ] Verse 6 — bit:do knows how to handle the approved field: skill-creator updates the bit:do
+  skill so it reads `approved` from each bar and gates on it before starting work. Planning
+  this verse means invoking the skill-creator skill.
   Touches: `bit/skills/do`, skill-creator — where to look to verify.
 
 ## References
@@ -147,9 +122,6 @@ Why the check has to be runnable by `bp`, not reported by the agent:
   the readiness-and-claim model. Informs Verse 3.
 - https://github.com/gastownhall/gastown — daemon-and-worktree orchestration above a tracker.
   Informs Verse 1, and marks the boundary of what this track deliberately excludes.
-- https://steve-yegge.medium.com/welcome-to-gas-town-4f25ee16dd04 — the author's own account
-  of the throughput-over-correctness tradeoff, and of acceptance criteria as the thing that
-  makes agent work durable. Informs Verse 2.
 - https://github.com/awslabs/aidlc-workflows — phase gates requiring explicit human approval.
   Informs Verse 3.
 - https://code.claude.com/docs/en/headless — headless invocation, structured output, and
