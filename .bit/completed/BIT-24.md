@@ -1,7 +1,7 @@
 ---
 id: BIT-24
 title: 'List view: in-progress marker and done/total counter'
-status: doing
+status: done
 ---
 ## Why
 

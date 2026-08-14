@@ -6,13 +6,13 @@ status: todo
 ## Why
 
 Every decision that would let work run unattended currently lives in the user's head or in
-skill prose, not in `.bit/`. Nothing on disk answers "has a human blessed this plan?", "is
-this step mine or the agent's?", or "what proves this step is done?" — so the loop can only
-be driven by a human watching it, one step at a time.
+skill prose, not in `.bit/`. Nothing on disk answers "has a human blessed this plan?", or
+"what proves this step is done?" — so the loop can only be driven by a human watching it,
+one step at a time.
 
 That has a cost today, before any automation exists. A large track queued in another repo
-needs its own branch and has manual before/after testing steps in the middle of it. Running
-that means remembering which steps the agent must not touch — and any `bp` run from inside a
+needs its own branch and has before/after testing steps in the middle of it. Running
+that means remembering which steps are ready to work on — and any `bp` run from inside a
 worktree lands task state on the branch, tangled into the code commits.
 
 Writing that state down makes the manual loop better immediately, and it is the whole
@@ -22,9 +22,10 @@ watching a recorded pipeline run by hand before anything runs it unattended.
 ## Summary
 
 Add the vocabulary and the plumbing an automated runner would need, and ship each piece as
-something usable by hand. A bar gains a **performer** (agent or human) and a **declared
-check** that `bp` can run. A track gains an **approval** flag. Any `bp` invocation, from any
-worktree, writes to the canonical `.bit/`. Task state becomes readable as JSON.
+something usable by hand. A bar gains a **declared check** that `bp` can run. A track and
+its bars gain an **approval** flag — a mandatory gate: work may not proceed until each record
+is approved. Any `bp` invocation, from any worktree, writes to the canonical `.bit/`. The
+board shows only what is approved and ready.
 
 No daemon here — that is the `orca` track. This is the manual pipeline with rails installed.
 
@@ -34,11 +35,9 @@ No daemon here — that is the `orca` track. This is the manual pipeline with ra
 today                          after this track
 ─────                          ────────────────
 track ──▶ bars                 track ──▶ bars
-  status: todo|doing|done        status:    todo|doing|done
-                                 approved:  bool          ← "I'm done reviewing this"
-                                 performer: agent|human   ← who does the work
-                                 check:     cmd | human   ← what proves it done, and
-                                                            `bp` can run it
+  status: todo|doing|done        status:   todo|doing|done
+                                 approved: bool      ← must be set before work proceeds
+                                 check:    <cmd>     ← what proves it done; `bp` runs it
 ```
 
 Why the check has to be runnable by `bp`, not reported by the agent:
@@ -70,9 +69,6 @@ Why the check has to be runnable by `bp`, not reported by the agent:
 - **Approval is per-record, and the two gates fall out of that.** A track approved means the
   scope is blessed and planning may proceed; all bars approved means the plan is blessed and
   work may proceed. No special-casing beyond one flag per record.
-- **Performer and check are separate axes.** Who does the work (agent or human) is a
-  different question from what verifies it (a command or a human sign-off). A human-performed
-  step is the mechanism for manual testing bars.
 - **Approval does not become a status value.** `status` stays `todo|doing|done`, so the board
   columns and all seven skills keep working unchanged.
 - **`bp` runs the declared check; it does not merely record it.** Settled by the choice of
@@ -103,48 +99,60 @@ Why the check has to be runnable by `bp`, not reported by the agent:
   id belongs with the thing that dispatches. It is not usable by hand, which is this track's
   admission test, so it moves to the `orca` track.
 - **Only the user pushes.** Nothing added here may push to a remote.
+- **Space toggles approval in the TUI.** Space is unbound in both the list view and the board
+  view; it reads as "stamp it" and is the standard toggle key in terminal UIs. No other key
+  was a better fit.
+- **Unapproved items appear in yellow; approved items stay white.** Yellow is a visible
+  warning-level signal without being alarming — it communicates "needs a look" at a glance.
+  Approved items keep the current color so approval is the zero-friction state.
+- **The board's todo column shows only approved items.** Unapproved todos are hidden from the
+  kanban view — the board answers "what is ready to work on," not "what exists." They remain
+  visible in the list view.
 
 ## Verses
 
-- [ ] Verse 1 — A plan can contain steps the agent must not do: a bar records who performs it
-  and carries instructions for the human, and bit_do stops and hands off instead of
-  implementing it. Unblocks the manual before/after testing on the queued track.
-  Touches: `task/task.go` (frontmatter), `cmd/task_create.go`, `cmd/task_update.go`,
-  `bit/skills/do` — where to look to verify.
-- [ ] Verse 2 — Task state stays put no matter where `bp` runs from: a `bp` invocation inside
+- [ ] Verse 1 — Task state stays put no matter where `bp` runs from: a `bp` invocation inside
   a worktree writes to the canonical `.bit/` in the main checkout rather than the branch's
   copy, so work on a branch never drags task state into its code commits. Needed before
   anything is dispatched, because a background session's working directory is a worktree
   whether or not this project asked for one.
   Touches: `cmd/root.go` (a bit-dir flag / env var), `task/store.go`, `task/config.go` —
   where to look to verify.
-- [ ] Verse 3 — A bar states what proves it done, and that proof can be run: the verification
-  is recorded on the bar as a command or a human sign-off, and `bp` executes the command and
-  reports the verdict, so bit_check follows a written criterion instead of improvising one and
-  a later daemon has a source of truth that isn't the model's own say-so.
+- [ ] Verse 2 — A bar states what proves it done, and that proof can be run: the verification
+  is recorded on the bar as a runnable command, and `bp` executes it and reports the verdict,
+  so bit_check follows a written criterion instead of improvising one and a later daemon has a
+  source of truth that isn't the model's own say-so.
   Touches: `task/task.go`, `cmd/task_create.go`, `cmd/task_update.go`, a new `cmd/` command,
   `bit/skills/check` — where to look to verify.
-- [ ] Verse 4 — Say "I'm done reviewing this" and see what's ready: approval is settable and
-  visible in `task list` and the TUI, so "what can be worked on?" is answerable from the
-  board instead of from memory.
-  Touches: `task/task.go`, a new `cmd/` command, `cmd/task_list.go`, `tui/` — where to look
-  to verify.
-- [ ] Verse 5 — Query task state from a script: `--json` on read and list, so anything
-  outside the skills can consume `.bit/` without parsing markdown.
-  Touches: `cmd/task_read.go`, `cmd/task_list.go` — where to look to verify.
+- [ ] Verse 3 — Say "I'm done reviewing this" and see what's ready via the CLI: a new
+  `bp approve` / `bp unapprove` command sets the flag on any record, and `task list` surfaces
+  it, so "what can be worked on?" is answerable without opening the TUI.
+  Touches: `task/task.go`, a new `cmd/approve.go`, `cmd/task_list.go` — where to look to verify.
+- [ ] Verse 4 — The TUI shows approval state and lets you toggle it without leaving the board:
+  unapproved items appear in yellow, approved items in the current white, and pressing space
+  toggles the flag on the focused item.
+  Touches: `tui/` — where to look to verify.
+- [ ] Verse 5 — The board's todo column shows only approved items: unapproved todos are
+  filtered out of the kanban view so the board answers "what is ready to work on" rather than
+  "what exists." They remain visible in the list view.
+  Touches: `tui/` — where to look to verify.
+- [ ] Verse 6 — bit:do knows how to handle the new fields: skill-creator updates the bit:do
+  skill so it reads `check` and `approved` from each bar — following the declared check
+  criterion instead of improvising. Planning this verse means invoking the skill-creator skill.
+  Touches: `bit/skills/do`, skill-creator — where to look to verify.
 
 ## References
 
 - `automation-notes.md` — the working design notes this track came out of, including the
   measured headless facts and the two daemon substrate options. Informs every verse.
 - https://github.com/gastownhall/beads — graph-backed issue tracker for agents; the source of
-  the readiness-and-claim model. Informs Verse 4.
+  the readiness-and-claim model. Informs Verse 3.
 - https://github.com/gastownhall/gastown — daemon-and-worktree orchestration above a tracker.
-  Informs Verse 2, and marks the boundary of what this track deliberately excludes.
+  Informs Verse 1, and marks the boundary of what this track deliberately excludes.
 - https://steve-yegge.medium.com/welcome-to-gas-town-4f25ee16dd04 — the author's own account
   of the throughput-over-correctness tradeoff, and of acceptance criteria as the thing that
-  makes agent work durable. Informs Verse 3 and the one-track-at-a-time decision.
+  makes agent work durable. Informs Verse 2 and the one-track-at-a-time decision.
 - https://github.com/awslabs/aidlc-workflows — phase gates requiring explicit human approval.
-  Informs Verse 4.
+  Informs Verse 3.
 - https://code.claude.com/docs/en/headless — headless invocation, structured output, and
   session resume. Background for the `orca` track, not this one.
