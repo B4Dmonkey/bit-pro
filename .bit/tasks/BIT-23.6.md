@@ -23,7 +23,7 @@ Approval revocation is a safety property, not a preference. Bars are approved in
    - [ ] Confirm fails: current `task update` does not touch the Approved field; it remains true after the edit
 
 2. **Implement (GREEN):**
-   - [ ] In `newTaskUpdateCmd().RunE`, after all `Changed` checks, compute `anyChanged := cmd.Flags().Changed("title") || cmd.Flags().Changed("description") || cmd.Flags().Changed("status") || cmd.Flags().Changed("phase") || cmd.Flags().Changed("phase-label") || cmd.Flags().Changed("check")`
+   - [ ] In `newTaskUpdateCmd().RunE`, after all `Changed` checks, compute `anyChanged := cmd.Flags().Changed("title") || cmd.Flags().Changed("description") || cmd.Flags().Changed("status") || cmd.Flags().Changed("phase") || cmd.Flags().Changed("phase-label")`
    - [ ] If `t.Approved && anyChanged`, set `t.Approved = false`
 
 3. **More tests (RED → GREEN):**
