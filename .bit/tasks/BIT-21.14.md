@@ -1,7 +1,7 @@
 ---
 id: BIT-21.14
 title: A hand-edited lowercase id is normalized on read
-status: todo
+status: done
 phase: 2
 phase_label: Recurrence
 ---

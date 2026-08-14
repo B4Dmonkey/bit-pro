@@ -36,6 +36,7 @@ func Parse(data []byte) (*Task, error) {
 	if err := yaml.Unmarshal([]byte(rest[:idx+1]), &t); err != nil {
 		return nil, fmt.Errorf("parsing task frontmatter: %w", err)
 	}
+	t.ID = normalizeID(t.ID)
 	t.Body = rest[idx+len("\n"+delim+"\n"):]
 	return &t, nil
 }

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -87,6 +88,41 @@ func TestTaskCompleteCmd_LowercaseTrackFilesUppercaseFilenames(t *testing.T) {
 	}
 	if len(left) != 0 {
 		t.Errorf("os.ReadDir(.bit/tasks) left %d entries behind, want none", len(left))
+	}
+}
+
+func TestTaskCompleteCmd_HandEditedLowercaseIDStillHitsTheGuard(t *testing.T) {
+	initProject(t, "BIT")
+	writeRawTask(t, ".bit/tasks/BIT-1.md", "bit-1", "Guard the unfinished bars", "todo")
+	writeRawTask(t, ".bit/tasks/BIT-1.1.md", "bit-1.1", "Unfinished bar", "todo")
+
+	_, err := run(t, "task", "complete", "BIT-1")
+
+	if err == nil {
+		t.Fatal("bp task complete BIT-1 error = nil, want the unfinished-bars guard to fire")
+	}
+	if !strings.Contains(err.Error(), "unfinished bars BIT-1.1") {
+		t.Errorf("bp task complete BIT-1 error = %q, want it to name unfinished bars BIT-1.1", err)
+	}
+	if _, err := os.Stat(".bit/completed"); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("os.Stat(.bit/completed) error = %v, want fs.ErrNotExist", err)
+	}
+	for _, id := range []string{"BIT-1", "BIT-1.1"} {
+		if _, err := os.Stat(".bit/tasks/" + id + ".md"); err != nil {
+			t.Errorf("os.Stat(.bit/tasks/%s.md) error = %v, want the task left where it was", id, err)
+		}
+	}
+}
+
+func writeRawTask(t *testing.T, path, id, title, status string) {
+	t.Helper()
+
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("os.MkdirAll(%s) error = %v", filepath.Dir(path), err)
+	}
+	body := "---\nid: " + id + "\ntitle: " + title + "\nstatus: " + status + "\n---\nHand-written.\n"
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatalf("os.WriteFile(%s) error = %v", path, err)
 	}
 }
 
