@@ -91,8 +91,6 @@ Why the check has to be runnable by `bp`, not reported by the agent:
   the worktree; `claude rm <id>` removes the worktree *and* its branch. That is a complete
   lifecycle, so this project neither places nor reaps worktrees. This retires the earlier open
   question about where they live and who removes them.
-- **One track at a time.** Concurrent tracks, merge queues, and worker supervision are out of
-  scope — a correct pipeline first.
 - **No daemon in this track.** Everything here is a command a human runs. The daemon is the
   `orca` track and it schedules these same commands.
 - **Session identity is not this track's problem.** Recording a dispatched session's name and
@@ -151,7 +149,7 @@ Why the check has to be runnable by `bp`, not reported by the agent:
   Informs Verse 1, and marks the boundary of what this track deliberately excludes.
 - https://steve-yegge.medium.com/welcome-to-gas-town-4f25ee16dd04 — the author's own account
   of the throughput-over-correctness tradeoff, and of acceptance criteria as the thing that
-  makes agent work durable. Informs Verse 2 and the one-track-at-a-time decision.
+  makes agent work durable. Informs Verse 2.
 - https://github.com/awslabs/aidlc-workflows — phase gates requiring explicit human approval.
   Informs Verse 3.
 - https://code.claude.com/docs/en/headless — headless invocation, structured output, and
