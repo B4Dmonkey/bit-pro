@@ -105,7 +105,7 @@ track ──▶ bars                 track ──▶ bars
   unapproved items appear in yellow, approved items in the current white, and pressing space
   toggles the flag on the focused item.
   Touches: `tui/` — where to look to verify.
-- [ ] Verse 5 — The board's todo column shows only approved items: unapproved todos are
+- [x] Verse 5 — The board's todo column shows only approved items: unapproved todos are
   filtered out of the kanban view so the board answers "what is ready to work on" rather than
   "what exists." They remain visible in the list view.
   Touches: `tui/` — where to look to verify.

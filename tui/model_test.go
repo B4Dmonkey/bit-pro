@@ -55,12 +55,12 @@ func TestUpdate_ReloadedMsgRebuildsList(t *testing.T) {
 func TestUpdate_ReloadedMsgRebuildsBoard(t *testing.T) {
 	t.Parallel()
 
-	var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo"}})
+	var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo", Approved: true}})
 	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 
 	mdl, _ = mdl.Update(reloadedMsg{tasks: []*task.Task{
-		{ID: "BIT-1", Status: "todo"},
-		{ID: "BIT-2", Status: "todo"},
+		{ID: "BIT-1", Status: "todo", Approved: true},
+		{ID: "BIT-2", Status: "todo", Approved: true},
 	}})
 
 	if got := len(mdl.(model).boardCols[0].Items()); got != 2 {
@@ -1139,7 +1139,7 @@ func TestTitledBorder_ActiveTitleNotFramed(t *testing.T) {
 func TestView_ModalTitleInverted(t *testing.T) {
 	t.Parallel()
 
-	m := New([]*task.Task{{ID: "BIT-1", Status: "todo", Title: "T", Body: "b"}})
+	m := New([]*task.Task{{ID: "BIT-1", Status: "todo", Approved: true, Title: "T", Body: "b"}})
 	mdl, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	mdl, _ = mdl.(model).Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
@@ -1188,7 +1188,7 @@ func TestUpdate_SpaceTogglesApprovalInBoardMode(t *testing.T) {
 		id       string
 		approved bool
 	}
-	m := New([]*task.Task{{ID: "BIT-1", Status: "todo", Approved: false}}).
+	m := New([]*task.Task{{ID: "BIT-1", Status: "doing", Approved: false}}).
 		WithApprove(func(id string, a bool) error {
 			called = append(called, struct {
 				id       string

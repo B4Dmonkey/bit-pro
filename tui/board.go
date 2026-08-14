@@ -53,6 +53,9 @@ func groupByStatus(tasks []*task.Task) [3][]*task.Task {
 	for _, t := range tasks {
 		for i, col := range boardColumns {
 			if t.Status == col.status {
+				if col.status == "todo" && !t.Approved {
+					break
+				}
 				cols[i] = append(cols[i], t)
 				break
 			}
