@@ -1,7 +1,7 @@
 ---
 id: BIT-21.5
 title: Feedback filenames flip without losing note contents
-status: todo
+status: done
 phase: 1
 phase_label: Migration
 ---

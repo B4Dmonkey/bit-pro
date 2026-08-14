@@ -15,7 +15,7 @@ rename_case_only() {
     mv "$tmp" "$dst"
 }
 
-normalize_task_filenames() {
+normalize_md_filenames() {
     local dir="$1" path base stem
     for path in "$dir"/*.md; do
         [ -e "$path" ] || continue
@@ -53,9 +53,15 @@ normalize_order_entries() {
 normalize_task_dir() {
     local dir="$1"
     [ -d "$dir" ] || return 0
-    normalize_task_filenames "$dir"
+    normalize_md_filenames "$dir"
     normalize_id_fields "$dir"
     normalize_order_entries "$dir"
+}
+
+normalize_feedback_dir() {
+    local dir="$1"
+    [ -d "$dir" ] || return 0
+    normalize_md_filenames "$dir"
 }
 
 main() {
@@ -64,6 +70,7 @@ main() {
         normalize_task_dir "$root/.bit/tasks"
         normalize_task_dir "$root/.bit/completed"
         normalize_task_dir "$root/.bit/archive/tasks"
+        normalize_feedback_dir "$root/.bit/feedback"
     done
 }
 

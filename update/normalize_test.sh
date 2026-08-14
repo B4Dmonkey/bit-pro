@@ -142,8 +142,39 @@ test_completed_and_archived_tasks_are_normalized() {
     rm -rf "$root"
 }
 
+test_feedback_note_filenames_are_uppercased_contents_intact() {
+    current_test=test_feedback_note_filenames_are_uppercased_contents_intact
+
+    local root
+    root="$(mktemp -d)" || fail "could not create temp root"
+    mkdir -p "$root/.bit/feedback"
+    printf 'FIRST NOTE\n' >"$root/.bit/feedback/bit-1-001.md"
+    printf 'SECOND NOTE\n' >"$root/.bit/feedback/bit-1-002.md"
+
+    bash "$normalize" "$root" || fail "normalize.sh exited non-zero"
+
+    local listing
+    listing="$(ls -1 "$root/.bit/feedback")"
+
+    grep -qxF 'BIT-1-001.md' <<<"$listing" || fail "expected entry BIT-1-001.md, got: $listing"
+    grep -qxF 'BIT-1-002.md' <<<"$listing" || fail "expected entry BIT-1-002.md, got: $listing"
+
+    local count
+    count="$(grep -c . <<<"$listing")"
+    [ "$count" -eq 2 ] || fail "expected 2 files, got $count: $listing"
+
+    local first second
+    first="$(cat "$root/.bit/feedback/BIT-1-001.md")"
+    second="$(cat "$root/.bit/feedback/BIT-1-002.md")"
+    [ "$first" = "FIRST NOTE" ] || fail "first note contents changed: $first"
+    [ "$second" = "SECOND NOTE" ] || fail "second note contents changed: $second"
+
+    rm -rf "$root"
+}
+
 test_task_filenames_are_uppercased
 test_id_frontmatter_is_uppercased_and_nothing_else
 test_order_entries_are_uppercased_in_frontmatter_only
 test_completed_and_archived_tasks_are_normalized
+test_feedback_note_filenames_are_uppercased_contents_intact
 echo "ok"
