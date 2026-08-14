@@ -166,7 +166,7 @@ $ head -3 .bit/tasks/BIT-1.1.md              → id: bit-1.1
   Touches: a new `update/` directory at the repo root — `normalize.sh`, its bash harness
   `normalize_test.sh`, and `README.md` for Claude — where to look to verify.
 
-- [ ] Verse 2 — A wrong-case ID can no longer put lowercase state back into a normalized
+- [x] Verse 2 — A wrong-case ID can no longer put lowercase state back into a normalized
   project, whoever or whatever typed it: IDs are uppercased on the way in, the `config.toml`
   prefix is uppercased both when stored and when read, and a newly initialised project is born
   uppercase. The four symptoms above stop being reachable and the guarantees in `bp

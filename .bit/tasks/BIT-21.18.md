@@ -1,7 +1,7 @@
 ---
 id: BIT-21.18
 title: A lowercase --parent no longer hides a track's bars
-status: todo
+status: done
 phase: 2
 phase_label: Recurrence
 ---

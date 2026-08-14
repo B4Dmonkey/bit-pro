@@ -77,6 +77,20 @@ func TestTaskListCmd_FiltersToParentBars(t *testing.T) {
 	}
 }
 
+func TestTaskListCmd_LowercaseParentStillListsTheBars(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Track", "...")
+	mustRun(t, "task", "create", "Bar one", "-d", "...", "--parent", "BIT-1")
+	mustRun(t, "task", "create", "Bar two", "-d", "...", "--parent", "BIT-1")
+
+	out := mustRun(t, "task", "list", "--parent", "bit-1")
+
+	want := "BIT-1.1\ttodo\tBar one\t\nBIT-1.2\ttodo\tBar two\t\n"
+	if out != want {
+		t.Errorf("output = %q, want %q", out, want)
+	}
+}
+
 func TestTaskListCmd_HandEditedLowercaseOrderStillRanksBars(t *testing.T) {
 	initProject(t, "BIT")
 	createTask(t, "Track", "...")

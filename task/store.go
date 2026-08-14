@@ -67,6 +67,10 @@ func normalizeID(id string) string {
 	return strings.ToUpper(id)
 }
 
+func (s *Store) Children(parent string) ([]*Task, error) {
+	return s.children(parent)
+}
+
 func (s *Store) children(parent string) ([]*Task, error) {
 	parent = normalizeID(parent)
 	tasks, err := s.List()
