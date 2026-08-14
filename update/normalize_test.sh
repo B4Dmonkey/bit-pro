@@ -49,5 +49,34 @@ test_task_filenames_are_uppercased() {
     rm -rf "$root"
 }
 
+test_id_frontmatter_is_uppercased_and_nothing_else() {
+    current_test=test_id_frontmatter_is_uppercased_and_nothing_else
+
+    local root
+    root="$(mktemp -d)" || fail "could not create temp root"
+    mkdir -p "$root/.bit/tasks"
+    cat >"$root/.bit/tasks/bit-1.md" <<'EOF'
+---
+id: bit-1
+title: bit rot in the ingest step
+status: todo
+---
+follow-on work tracked at bit-1.2
+EOF
+
+    bash "$normalize" "$root" || fail "normalize.sh exited non-zero"
+
+    local path="$root/.bit/tasks/BIT-1.md" contents
+    [ -f "$path" ] || fail "expected $path to exist"
+    contents="$(cat "$path")"
+
+    grep -qxF 'id: BIT-1' <<<"$contents" || fail "id was not uppercased: $contents"
+    grep -qxF 'title: bit rot in the ingest step' <<<"$contents" || fail "title line changed: $contents"
+    grep -qxF 'follow-on work tracked at bit-1.2' <<<"$contents" || fail "body prose changed: $contents"
+
+    rm -rf "$root"
+}
+
 test_task_filenames_are_uppercased
+test_id_frontmatter_is_uppercased_and_nothing_else
 echo "ok"

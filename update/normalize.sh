@@ -25,10 +25,21 @@ normalize_task_filenames() {
     done
 }
 
+normalize_id_fields() {
+    local dir="$1" path id
+    for path in "$dir"/*.md; do
+        [ -e "$path" ] || continue
+        id="$(sed -n '/^id: /{s/^id: //p;q;}' "$path")"
+        [ -n "$id" ] || continue
+        sed -i '' "s/^id: .*/id: $(uppercase "$id")/" "$path"
+    done
+}
+
 main() {
     local root
     for root in "$@"; do
         normalize_task_filenames "$root/.bit/tasks"
+        normalize_id_fields "$root/.bit/tasks"
     done
 }
 
