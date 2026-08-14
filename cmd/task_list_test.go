@@ -15,7 +15,7 @@ func TestTaskListCmd_ShowsNewestFirst(t *testing.T) {
 
 	out := mustRun(t, "task", "list")
 
-	want := "BIT-2\ttodo\tSecond\t\nBIT-1\ttodo\tFirst\t\n"
+	want := "BIT-2\ttodo\tSecond\t\t\nBIT-1\ttodo\tFirst\t\t\n"
 	if out != want {
 		t.Errorf("output = %q, want %q", out, want)
 	}
@@ -71,7 +71,7 @@ func TestTaskListCmd_FiltersToParentBars(t *testing.T) {
 
 	out := mustRun(t, "task", "list", "--parent", "BIT-1")
 
-	want := "BIT-1.1\ttodo\tOne.1\t\nBIT-1.2\ttodo\tOne.2\t\n"
+	want := "BIT-1.1\ttodo\tOne.1\t\t\nBIT-1.2\ttodo\tOne.2\t\t\n"
 	if out != want {
 		t.Errorf("output = %q, want %q", out, want)
 	}
@@ -85,7 +85,7 @@ func TestTaskListCmd_LowercaseParentStillListsTheBars(t *testing.T) {
 
 	out := mustRun(t, "task", "list", "--parent", "bit-1")
 
-	want := "BIT-1.1\ttodo\tBar one\t\nBIT-1.2\ttodo\tBar two\t\n"
+	want := "BIT-1.1\ttodo\tBar one\t\t\nBIT-1.2\ttodo\tBar two\t\t\n"
 	if out != want {
 		t.Errorf("output = %q, want %q", out, want)
 	}
@@ -104,7 +104,7 @@ func TestTaskListCmd_HandEditedLowercaseOrderStillRanksBars(t *testing.T) {
 
 	out := mustRun(t, "task", "list", "--parent", "BIT-1")
 
-	want := "BIT-1.2\ttodo\tBar two\t\nBIT-1.1\ttodo\tBar one\t\n"
+	want := "BIT-1.2\ttodo\tBar two\t\t\nBIT-1.1\ttodo\tBar one\t\t\n"
 	if out != want {
 		t.Errorf("output = %q, want %q", out, want)
 	}
@@ -131,9 +131,9 @@ func TestTaskListCmd_ShowsPhaseOnBars(t *testing.T) {
 
 	out := mustRun(t, "task", "list")
 
-	want := "BIT-1\ttodo\tTrack\t\n" +
-		"BIT-1.1\ttodo\tBar one\tphase 1 — First\n" +
-		"BIT-1.2\ttodo\tBar two\tphase 2 — Second\n"
+	want := "BIT-1\ttodo\tTrack\t\t\n" +
+		"BIT-1.1\ttodo\tBar one\t\tphase 1 — First\n" +
+		"BIT-1.2\ttodo\tBar two\t\tphase 2 — Second\n"
 	if out != want {
 		t.Errorf("output = %q, want %q", out, want)
 	}
@@ -146,5 +146,30 @@ func TestTaskListCmd_EmptyWhenNoTasks(t *testing.T) {
 
 	if out != "" {
 		t.Errorf("output = %q, want empty output when no tasks exist", out)
+	}
+}
+
+func TestTaskListCmd_ShowsApprovedMarker(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Track", "...")
+	mustRun(t, "approve", "BIT-1")
+
+	out := mustRun(t, "task", "list")
+
+	want := "BIT-1\ttodo\tTrack\tapproved\t\n"
+	if out != want {
+		t.Errorf("output = %q, want %q", out, want)
+	}
+}
+
+func TestTaskListCmd_UnapprovedShowsEmptyField(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Track", "...")
+
+	out := mustRun(t, "task", "list")
+
+	want := "BIT-1\ttodo\tTrack\t\t\n"
+	if out != want {
+		t.Errorf("output = %q, want %q", out, want)
 	}
 }

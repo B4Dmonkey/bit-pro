@@ -1,7 +1,7 @@
 ---
 id: BIT-23.5
 title: bp task list shows approved state
-status: todo
+status: done
 phase: 3
 phase_label: Approval
 ---
