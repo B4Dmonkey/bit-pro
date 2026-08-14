@@ -268,6 +268,47 @@ $after"
     rm -rf "$root"
 }
 
+test_directory_without_bit_is_an_error() {
+    current_test=test_directory_without_bit_is_an_error
+
+    local root empty
+    root="$(mktemp -d)" || fail "could not create temp root"
+    empty="$(mktemp -d)" || fail "could not create temp root"
+    seed_project "$root" bit
+
+    local before after status stderr
+    before="$(snapshot_tree "$root")"
+
+    stderr="$(bash "$normalize" "$empty" 2>&1 >/dev/null)"
+    status=$?
+    [ "$status" -ne 0 ] || fail "expected non-zero exit for a root without .bit/"
+    grep -qF "$empty" <<<"$stderr" || fail "stderr does not name the offending directory: $stderr"
+
+    stderr="$(bash "$normalize" "$root" "$empty" 2>&1 >/dev/null)"
+    status=$?
+    [ "$status" -ne 0 ] || fail "expected non-zero exit when one root of several lacks .bit/"
+    grep -qF "$empty" <<<"$stderr" || fail "stderr does not name the offending directory: $stderr"
+
+    after="$(snapshot_tree "$root")"
+    [ "$before" = "$after" ] || fail "valid project was modified before validation failed:
+before:
+$before
+after:
+$after"
+
+    rm -rf "$root" "$empty"
+}
+
+test_no_arguments_is_an_error() {
+    current_test=test_no_arguments_is_an_error
+
+    local status stderr
+    stderr="$(bash "$normalize" 2>&1 >/dev/null)"
+    status=$?
+    [ "$status" -ne 0 ] || fail "expected non-zero exit with no arguments"
+    grep -qF '<project-dir>...' <<<"$stderr" || fail "stderr does not show a usage line: $stderr"
+}
+
 test_task_filenames_are_uppercased
 test_id_frontmatter_is_uppercased_and_nothing_else
 test_order_entries_are_uppercased_in_frontmatter_only
@@ -276,4 +317,6 @@ test_feedback_note_filenames_are_uppercased_contents_intact
 test_config_prefix_is_uppercased
 test_second_run_changes_nothing
 test_already_uppercase_project_is_untouched
+test_directory_without_bit_is_an_error
+test_no_arguments_is_an_error
 echo "ok"

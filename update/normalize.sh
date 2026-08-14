@@ -72,7 +72,24 @@ normalize_config_prefix() {
     sed -i '' "s/^prefix = \".*\"\$/prefix = \"$(uppercase "$prefix")\"/" "$file"
 }
 
+validate_roots() {
+    local root invalid=0
+    if [ "$#" -eq 0 ]; then
+        echo "usage: normalize.sh <project-dir>..." >&2
+        return 1
+    fi
+    for root in "$@"; do
+        if [ ! -d "$root/.bit" ]; then
+            echo "normalize.sh: $root: not a bit project (no .bit directory)" >&2
+            invalid=1
+        fi
+    done
+    return "$invalid"
+}
+
 main() {
+    validate_roots "$@" || exit 1
+
     local root
     for root in "$@"; do
         normalize_task_dir "$root/.bit/tasks"

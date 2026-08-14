@@ -1,7 +1,7 @@
 ---
 id: BIT-21.8
 title: A root without .bit/ is an error, not a silent skip
-status: todo
+status: done
 phase: 1
 phase_label: Migration
 ---
