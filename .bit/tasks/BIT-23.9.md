@@ -2,6 +2,7 @@
 id: BIT-23.9
 title: Board todo column shows only approved items
 status: todo
+approved: true
 phase: 5
 phase_label: Board filter
 ---

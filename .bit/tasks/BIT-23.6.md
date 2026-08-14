@@ -2,6 +2,7 @@
 id: BIT-23.6
 title: Editing an approved task revokes its approval
 status: done
+approved: true
 phase: 3
 phase_label: Approval
 ---

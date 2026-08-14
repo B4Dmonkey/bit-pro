@@ -1,7 +1,8 @@
 ---
 id: BIT-23.7
 title: Unapproved items render yellow in the TUI
-status: todo
+status: done
+approved: true
 phase: 4
 phase_label: TUI approval display
 ---

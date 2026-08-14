@@ -2,6 +2,7 @@
 id: BIT-23.1
 title: BIT_DIR env var routes all commands to canonical .bit/
 status: done
+approved: true
 phase: 1
 phase_label: Worktree routing
 ---

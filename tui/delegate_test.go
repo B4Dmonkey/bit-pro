@@ -133,12 +133,65 @@ func TestDelegate_BoardCardHasNoInProgressMarker(t *testing.T) {
 	}
 }
 
+func TestDelegate_UnapprovedItemRendersYellow(t *testing.T) {
+	t.Parallel()
+
+	l := list.New([]list.Item{
+		item{t: &task.Task{ID: "BIT-1", Title: "Track", Approved: false}},
+		item{t: &task.Task{ID: "BIT-1.1", Title: "Bar", Approved: true}},
+	}, delegate{}, 40, 6)
+	l.Select(1)
+
+	var buf bytes.Buffer
+	delegate{}.Render(&buf, l, 0, l.Items()[0])
+
+	got := buf.String()
+	if !strings.Contains(got, "33m") {
+		t.Errorf("unapproved unselected row = %q, want terminal yellow SGR 33m", got)
+	}
+}
+
+func TestDelegate_ApprovedItemDoesNotRenderYellow(t *testing.T) {
+	t.Parallel()
+
+	l := list.New([]list.Item{
+		item{t: &task.Task{ID: "BIT-1", Title: "Track", Approved: true}},
+		item{t: &task.Task{ID: "BIT-1.1", Title: "Bar", Approved: true}},
+	}, delegate{}, 40, 6)
+	l.Select(1)
+
+	var buf bytes.Buffer
+	delegate{}.Render(&buf, l, 0, l.Items()[0])
+
+	got := buf.String()
+	if strings.Contains(got, "33m") {
+		t.Errorf("approved unselected row = %q, should not contain terminal yellow SGR 33m", got)
+	}
+}
+
+func TestDelegate_SelectedUnapprovedItemUsesSelectedStyle(t *testing.T) {
+	t.Parallel()
+
+	l := list.New([]list.Item{item{t: &task.Task{ID: "BIT-1", Title: "Track", Approved: false}}}, delegate{}, 40, 4)
+
+	var buf bytes.Buffer
+	delegate{}.Render(&buf, l, 0, l.Items()[0])
+
+	got := buf.String()
+	if !strings.Contains(got, "32m") {
+		t.Errorf("selected unapproved row = %q, want terminal green SGR 32m", got)
+	}
+	if strings.Contains(got, "33m") {
+		t.Errorf("selected unapproved row = %q, should not contain terminal yellow SGR 33m", got)
+	}
+}
+
 func TestDelegate_TrackVsBarDistinguishedByWeightNotColor(t *testing.T) {
 	t.Parallel()
 
 	l := list.New([]list.Item{
-		item{t: &task.Task{ID: "BIT-1", Title: "Track"}},
-		item{t: &task.Task{ID: "BIT-1.1", Title: "Bar"}},
+		item{t: &task.Task{ID: "BIT-1", Title: "Track", Approved: true}},
+		item{t: &task.Task{ID: "BIT-1.1", Title: "Bar", Approved: true}},
 	}, delegate{}, 40, 6)
 
 	l.Select(1)

@@ -101,7 +101,7 @@ track ──▶ bars                 track ──▶ bars
   `bp approve` / `bp unapprove` command sets the flag on any record, and `task list` surfaces
   it, so "what can be worked on?" is answerable without opening the TUI.
   Touches: `task/task.go`, a new `cmd/approve.go`, `cmd/task_list.go` — where to look to verify.
-- [ ] Verse 4 — The TUI shows approval state and lets you toggle it without leaving the board:
+- [x] Verse 4 — The TUI shows approval state and lets you toggle it without leaving the board:
   unapproved items appear in yellow, approved items in the current white, and pressing space
   toggles the flag on the focused item.
   Touches: `tui/` — where to look to verify.

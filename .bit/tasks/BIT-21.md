@@ -2,6 +2,7 @@
 id: BIT-21
 title: Task IDs are case-sensitive, silently corrupting .bit/ state
 status: doing
+approved: true
 ---
 ## Why
 

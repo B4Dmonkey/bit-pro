@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	trackStyle    = lipgloss.NewStyle().Bold(true)
-	barStyle      = lipgloss.NewStyle()
+	trackStyle         = lipgloss.NewStyle().Bold(true)
+	barStyle           = lipgloss.NewStyle()
 	verseStyle         = lipgloss.NewStyle().Faint(true).Italic(true)
 	selectedStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Bold(true)
 	selectedBoardStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Reverse(true)
@@ -44,6 +44,8 @@ func (d delegate) Render(w io.Writer, m list.Model, index int, listItem list.Ite
 		if d.board {
 			main = selectedBoardStyle
 		}
+	} else if !t.Approved {
+		main = main.Foreground(lipgloss.Color("3"))
 	}
 
 	cursor := "  "

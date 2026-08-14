@@ -17,7 +17,9 @@ func newTUICmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return tui.Run(tui.New(tasks).WithReload(s.List))
+			return tui.Run(tui.New(tasks).
+				WithReload(s.List).
+				WithApprove(func(id string, approved bool) error { return s.SetApproved(id, approved) }))
 		},
 	}
 }

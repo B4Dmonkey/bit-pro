@@ -82,6 +82,7 @@ type model struct {
 	style          string
 	renderer       *glamour.TermRenderer
 	reload         func() ([]*task.Task, error)
+	approve        func(id string, approved bool) error
 	loaded         []*task.Task
 	detailFocused  bool
 	modalOpen      bool
@@ -121,7 +122,8 @@ func sameTasks(a, b []*task.Task) bool {
 			x.Title == y.Title &&
 			x.Body == y.Body &&
 			x.Phase == y.Phase &&
-			x.PhaseLabel == y.PhaseLabel
+			x.PhaseLabel == y.PhaseLabel &&
+			x.Approved == y.Approved
 	})
 }
 
@@ -133,6 +135,11 @@ func tick() tea.Cmd {
 
 func (m model) WithReload(r func() ([]*task.Task, error)) model {
 	m.reload = r
+	return m
+}
+
+func (m model) WithApprove(f func(id string, approved bool) error) model {
+	m.approve = f
 	return m
 }
 
@@ -259,6 +266,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.detailExpanded = !m.detailExpanded
 			m.detailFocused = m.detailExpanded
 			m.relayout()
+			return m, nil
+		}
+		if msg.Code == ' ' {
+			if m.approve != nil {
+				if t := m.selected(); t != nil {
+					_ = m.approve(t.ID, !t.Approved)
+					return m, m.reloadCmd()
+				}
+			}
 			return m, nil
 		}
 	}

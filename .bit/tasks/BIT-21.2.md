@@ -2,6 +2,7 @@
 id: BIT-21.2
 title: Frontmatter id flips, title and prose do not
 status: done
+approved: true
 phase: 1
 phase_label: Migration
 ---
