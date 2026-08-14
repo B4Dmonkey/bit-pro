@@ -2,6 +2,7 @@
 id: BIT-21.3
 title: Order entries flip inside the frontmatter only
 status: done
+approved: true
 phase: 1
 phase_label: Migration
 ---

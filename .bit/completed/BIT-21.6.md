@@ -2,6 +2,7 @@
 id: BIT-21.6
 title: Config prefix flips
 status: done
+approved: true
 phase: 1
 phase_label: Migration
 ---

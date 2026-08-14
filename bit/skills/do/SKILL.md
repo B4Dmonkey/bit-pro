@@ -30,6 +30,12 @@ The track body (`bp task read <TRACK> --body`) carries the scope's WHY, and it's
 
 Briefly restate: the bar's ID and name, the verse it serves, its scope files, and its checklist. This confirms you and the user are aligned on what's about to happen — and at what altitude — before any code changes.
 
+**Approval gate:** Before moving forward, check whether the bar is approved. The `bp task list --parent <TRACK>` output includes an `approved` column (column 4, between the title and the phase label) when the flag is set; the column is empty when it isn't. If it's empty, stop and tell the user:
+
+> "BIT-X.N is not approved — approve it first with `bp approve BIT-X.N`, or in the TUI."
+
+Don't mark the bar `doing` or touch any code until the gate is cleared. A bar whose approval was revoked by an edit is just as blocked as one that was never approved — the column either shows `approved` or it doesn't.
+
 ### 2. Mark the bar in progress, load its checklist
 
 Move the bar to `doing` (`bp task update <bar> -s doing`) and roll the track up: if the track isn't already `doing`, set it (`bp task update <track> -s doing`). Now the board reflects that this step is active.

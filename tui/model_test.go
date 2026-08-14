@@ -55,12 +55,12 @@ func TestUpdate_ReloadedMsgRebuildsList(t *testing.T) {
 func TestUpdate_ReloadedMsgRebuildsBoard(t *testing.T) {
 	t.Parallel()
 
-	var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo"}})
+	var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo", Approved: true}})
 	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 
 	mdl, _ = mdl.Update(reloadedMsg{tasks: []*task.Task{
-		{ID: "BIT-1", Status: "todo"},
-		{ID: "BIT-2", Status: "todo"},
+		{ID: "BIT-1", Status: "todo", Approved: true},
+		{ID: "BIT-2", Status: "todo", Approved: true},
 	}})
 
 	if got := len(mdl.(model).boardCols[0].Items()); got != 2 {
@@ -1139,7 +1139,7 @@ func TestTitledBorder_ActiveTitleNotFramed(t *testing.T) {
 func TestView_ModalTitleInverted(t *testing.T) {
 	t.Parallel()
 
-	m := New([]*task.Task{{ID: "BIT-1", Status: "todo", Title: "T", Body: "b"}})
+	m := New([]*task.Task{{ID: "BIT-1", Status: "todo", Approved: true, Title: "T", Body: "b"}})
 	mdl, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	mdl, _ = mdl.(model).Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
@@ -1149,5 +1149,101 @@ func TestView_ModalTitleInverted(t *testing.T) {
 	}
 	if !strings.Contains(view, "\x1b[32m") {
 		t.Errorf("modal view = %q, want green border SGR \\x1b[32m", view)
+	}
+}
+
+func TestUpdate_SpaceTogglesApprovalInListMode(t *testing.T) {
+	t.Parallel()
+
+	var called []struct {
+		id       string
+		approved bool
+	}
+	m := New([]*task.Task{{ID: "BIT-1", Status: "todo", Approved: false}}).
+		WithApprove(func(id string, a bool) error {
+			called = append(called, struct {
+				id       string
+				approved bool
+			}{id, a})
+			return nil
+		})
+	mdl, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	_, _ = mdl.(model).Update(tea.KeyPressMsg{Code: ' '})
+
+	if len(called) != 1 {
+		t.Fatalf("approve called %d times, want 1", len(called))
+	}
+	if called[0].id != "BIT-1" {
+		t.Errorf("approve id = %q, want %q", called[0].id, "BIT-1")
+	}
+	if !called[0].approved {
+		t.Errorf("approve approved = false, want true (invert of Approved:false)")
+	}
+}
+
+func TestUpdate_SpaceTogglesApprovalInBoardMode(t *testing.T) {
+	t.Parallel()
+
+	var called []struct {
+		id       string
+		approved bool
+	}
+	m := New([]*task.Task{{ID: "BIT-1", Status: "doing", Approved: false}}).
+		WithApprove(func(id string, a bool) error {
+			called = append(called, struct {
+				id       string
+				approved bool
+			}{id, a})
+			return nil
+		})
+	_, _ = m.Update(tea.KeyPressMsg{Code: ' '})
+
+	if len(called) != 1 {
+		t.Fatalf("approve called %d times, want 1", len(called))
+	}
+	if called[0].id != "BIT-1" {
+		t.Errorf("approve id = %q, want %q", called[0].id, "BIT-1")
+	}
+}
+
+func TestUpdate_SpaceOnApprovedItemSendsUnapproved(t *testing.T) {
+	t.Parallel()
+
+	var called []struct {
+		id       string
+		approved bool
+	}
+	m := New([]*task.Task{{ID: "BIT-1", Status: "todo", Approved: true}}).
+		WithApprove(func(id string, a bool) error {
+			called = append(called, struct {
+				id       string
+				approved bool
+			}{id, a})
+			return nil
+		})
+	_, _ = m.Update(tea.KeyPressMsg{Code: ' '})
+
+	if len(called) != 1 {
+		t.Fatalf("approve called %d times, want 1", len(called))
+	}
+	if called[0].approved {
+		t.Errorf("approve approved = true, want false (invert of Approved:true)")
+	}
+}
+
+func TestUpdate_SpaceWithNoCallbackIsNoop(t *testing.T) {
+	t.Parallel()
+
+	tasks := []*task.Task{{ID: "BIT-1", Status: "todo", Approved: false}}
+	m := New(tasks)
+
+	updated, _ := m.Update(tea.KeyPressMsg{Code: ' '})
+
+	got := updated.(model)
+	if got.selected() == nil {
+		t.Fatal("selected() = nil after space noop, want unchanged model")
+	}
+	if got.selected().ID != "BIT-1" {
+		t.Errorf("selected().ID = %q after space noop, want %q", got.selected().ID, "BIT-1")
 	}
 }

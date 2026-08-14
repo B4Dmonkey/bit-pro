@@ -1,7 +1,8 @@
 ---
 id: BIT-23.4
 title: Approved field; bp approve and bp unapprove set and clear it
-status: todo
+status: done
+approved: true
 phase: 3
 phase_label: Approval
 ---

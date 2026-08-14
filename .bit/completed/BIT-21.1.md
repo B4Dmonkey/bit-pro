@@ -2,6 +2,7 @@
 id: BIT-21.1
 title: Uppercase task filenames under tasks/
 status: done
+approved: true
 phase: 1
 phase_label: Migration
 ---

@@ -15,7 +15,7 @@ func TestGroupByStatus(t *testing.T) {
 	t.Parallel()
 
 	tasks := []*task.Task{
-		{ID: "BIT-4", Status: "todo"},
+		{ID: "BIT-4", Status: "todo", Approved: true},
 		{ID: "BIT-2.1", Status: "doing"},
 		{ID: "BIT-4.1", Status: "done"},
 		{ID: "BIT-4.2", Status: "done"},
@@ -61,9 +61,9 @@ func TestGroupByStatus_PreservesOrderWithinColumn(t *testing.T) {
 		{
 			name: "todo column keeps non-ID incoming order",
 			tasks: []*task.Task{
-				{ID: "BIT-1.2", Status: "todo"},
-				{ID: "BIT-1.1", Status: "todo"},
-				{ID: "BIT-1.3", Status: "todo"},
+				{ID: "BIT-1.2", Status: "todo", Approved: true},
+				{ID: "BIT-1.1", Status: "todo", Approved: true},
+				{ID: "BIT-1.3", Status: "todo", Approved: true},
 			},
 			column: 0,
 			want:   []string{"BIT-1.2", "BIT-1.1", "BIT-1.3"},
@@ -101,7 +101,7 @@ func TestBoardColumns_FromGrouping(t *testing.T) {
 	t.Parallel()
 
 	tasks := []*task.Task{
-		{ID: "BIT-4", Status: "todo"},
+		{ID: "BIT-4", Status: "todo", Approved: true},
 		{ID: "BIT-2.1", Status: "doing"},
 		{ID: "BIT-4.1", Status: "done"},
 		{ID: "BIT-4.2", Status: "done"},
@@ -287,10 +287,10 @@ func TestView_BoardColumnCounts(t *testing.T) {
 	t.Parallel()
 
 	tasks := []*task.Task{
-		{ID: "BIT-1", Status: "todo"},
-		{ID: "BIT-2", Status: "todo"},
-		{ID: "BIT-3", Status: "todo"},
-		{ID: "BIT-4", Status: "todo"},
+		{ID: "BIT-1", Status: "todo", Approved: true},
+		{ID: "BIT-2", Status: "todo", Approved: true},
+		{ID: "BIT-3", Status: "todo", Approved: true},
+		{ID: "BIT-4", Status: "todo", Approved: true},
 		{ID: "BIT-5", Status: "doing"},
 		{ID: "BIT-6", Status: "done"},
 		{ID: "BIT-7", Status: "done"},
@@ -340,7 +340,7 @@ func TestUpdate_BoardActiveColumn(t *testing.T) {
 			t.Parallel()
 
 			var mdl tea.Model = New([]*task.Task{
-				{ID: "BIT-1", Status: "todo"},
+				{ID: "BIT-1", Status: "todo", Approved: true},
 				{ID: "BIT-3", Status: "done"},
 			})
 			for _, k := range tt.keys {
@@ -449,7 +449,7 @@ func TestUpdate_BoardEnterOpensModal(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo", Body: "body"}})
+			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo", Approved: true, Body: "body"}})
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 			if tt.enter {
 				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -478,7 +478,7 @@ func TestView_ModalShowsBody(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo", Title: "T", Body: "MODALBODYTOKEN"}})
+			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo", Approved: true, Title: "T", Body: "MODALBODYTOKEN"}})
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 			if tt.enter {
 				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -506,7 +506,7 @@ func TestUpdate_ModalCloses(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo", Body: "body"}})
+			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo", Approved: true, Body: "body"}})
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
@@ -602,7 +602,7 @@ func TestUpdate_ModalScrollsLongBody(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo", Title: "T", Body: strings.Repeat("line\n", 500)}})
+			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo", Approved: true, Title: "T", Body: strings.Repeat("line\n", 500)}})
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
@@ -664,7 +664,7 @@ func TestUpdate_ModalPagesAcrossColumns(t *testing.T) {
 	t.Parallel()
 
 	var mdl tea.Model = New([]*task.Task{
-		{ID: "BIT-2", Status: "todo"},
+		{ID: "BIT-2", Status: "todo", Approved: true},
 		{ID: "BIT-1", Status: "doing"},
 		{ID: "BIT-1.1", Status: "doing"},
 	})
@@ -698,7 +698,7 @@ func TestUpdate_ModalPagingClampsAtEnds(t *testing.T) {
 	t.Parallel()
 
 	var mdl tea.Model = New([]*task.Task{
-		{ID: "BIT-2", Status: "todo"},
+		{ID: "BIT-2", Status: "todo", Approved: true},
 		{ID: "BIT-1", Status: "doing"},
 		{ID: "BIT-1.1", Status: "doing"},
 	})
@@ -758,6 +758,43 @@ func TestUpdate_BoardEnterEmptyColumnNoop(t *testing.T) {
 
 	if got := mdl.(model).modalOpen; got {
 		t.Errorf("modalOpen = %v, want false", got)
+	}
+}
+
+func TestGroupByStatus_UnapprovedTodosVisibleInListNotBoard(t *testing.T) {
+	t.Parallel()
+
+	m := New([]*task.Task{{ID: "BIT-1", Status: "todo", Approved: false}})
+
+	if got := len(m.Items()); got != 1 {
+		t.Errorf("list Items() = %d, want 1 (unapproved todo still in list)", got)
+	}
+	if got := len(m.boardCols[0].Items()); got != 0 {
+		t.Errorf("board todo column = %d items, want 0 (unapproved todo filtered from board)", got)
+	}
+}
+
+func TestGroupByStatus_UnapprovedTodoIsHiddenFromBoard(t *testing.T) {
+	t.Parallel()
+
+	tasks := []*task.Task{{ID: "BIT-1", Status: "todo", Approved: false}}
+
+	cols := groupByStatus(tasks)
+
+	if got := len(cols[0]); got != 0 {
+		t.Errorf("todo column has %d tasks, want 0 (unapproved todo must be hidden)", got)
+	}
+}
+
+func TestGroupByStatus_ApprovedTodoAppearsInBoard(t *testing.T) {
+	t.Parallel()
+
+	tasks := []*task.Task{{ID: "BIT-1", Status: "todo", Approved: true}}
+
+	cols := groupByStatus(tasks)
+
+	if got := len(cols[0]); got != 1 {
+		t.Errorf("todo column has %d tasks, want 1 (approved todo must appear)", got)
 	}
 }
 

@@ -53,6 +53,9 @@ func groupByStatus(tasks []*task.Task) [3][]*task.Task {
 	for _, t := range tasks {
 		for i, col := range boardColumns {
 			if t.Status == col.status {
+				if col.status == "todo" && !t.Approved {
+					break
+				}
 				cols[i] = append(cols[i], t)
 				break
 			}
@@ -162,6 +165,15 @@ func (m model) updateBoard(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if m.boardSelected() != nil {
 			m.modalOpen = true
 			m.refreshModal()
+		}
+		return m, nil
+	}
+	if msg.Code == ' ' {
+		if m.approve != nil {
+			if t := m.boardSelected(); t != nil {
+				_ = m.approve(t.ID, !t.Approved)
+				return m, m.reloadCmd()
+			}
 		}
 		return m, nil
 	}
