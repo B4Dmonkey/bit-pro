@@ -1,7 +1,7 @@
 ---
 id: BIT-21.4
 title: Contradiction forces all three task directories
-status: todo
+status: done
 phase: 1
 phase_label: Migration
 ---

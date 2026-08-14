@@ -50,12 +50,20 @@ normalize_order_entries() {
     done
 }
 
+normalize_task_dir() {
+    local dir="$1"
+    [ -d "$dir" ] || return 0
+    normalize_task_filenames "$dir"
+    normalize_id_fields "$dir"
+    normalize_order_entries "$dir"
+}
+
 main() {
     local root
     for root in "$@"; do
-        normalize_task_filenames "$root/.bit/tasks"
-        normalize_id_fields "$root/.bit/tasks"
-        normalize_order_entries "$root/.bit/tasks"
+        normalize_task_dir "$root/.bit/tasks"
+        normalize_task_dir "$root/.bit/completed"
+        normalize_task_dir "$root/.bit/archive/tasks"
     done
 }
 

@@ -111,7 +111,39 @@ EOF
     rm -rf "$root"
 }
 
+test_completed_and_archived_tasks_are_normalized() {
+    current_test=test_completed_and_archived_tasks_are_normalized
+
+    local root
+    root="$(mktemp -d)" || fail "could not create temp root"
+    mkdir -p "$root/.bit/tasks" "$root/.bit/completed" "$root/.bit/archive/tasks"
+    seed_task "$root/.bit/tasks/bit-1.md" "bit-1"
+    seed_task "$root/.bit/completed/bit-2.md" "bit-2"
+    seed_task "$root/.bit/archive/tasks/bit-3.md" "bit-3"
+
+    bash "$normalize" "$root" || fail "normalize.sh exited non-zero"
+
+    local path
+    for path in "$root/.bit/tasks/BIT-1.md" "$root/.bit/completed/BIT-2.md" "$root/.bit/archive/tasks/BIT-3.md"; do
+        [ -f "$path" ] || fail "expected $path to exist"
+    done
+
+    grep -qxF 'id: BIT-1' "$root/.bit/tasks/BIT-1.md" || fail "tasks/ id not uppercased"
+    grep -qxF 'id: BIT-2' "$root/.bit/completed/BIT-2.md" || fail "completed/ id not uppercased"
+    grep -qxF 'id: BIT-3' "$root/.bit/archive/tasks/BIT-3.md" || fail "archive/tasks/ id not uppercased"
+
+    local remaining
+    remaining="$(find "$root/.bit" -name '*.md' -print | while read -r path; do
+        stem="$(basename "$path" .md)"
+        case "$stem" in *[a-z]*) echo "$stem" ;; esac
+    done)"
+    [ -z "$remaining" ] || fail "lowercase task filenames remain: $remaining"
+
+    rm -rf "$root"
+}
+
 test_task_filenames_are_uppercased
 test_id_frontmatter_is_uppercased_and_nothing_else
 test_order_entries_are_uppercased_in_frontmatter_only
+test_completed_and_archived_tasks_are_normalized
 echo "ok"
