@@ -45,6 +45,14 @@ prefix = "$p"
 EOF
 }
 
+seed_git_project() {
+    local root="$1" p="$2"
+    seed_project "$root" "$p"
+    git -C "$root" init -q || return 1
+    git -C "$root" add -A || return 1
+    git -C "$root" -c user.email=test@example.com -c user.name=test commit -qm seed || return 1
+}
+
 snapshot_tree() {
     local root="$1" path
     find "$root/.bit" -type f | sort | while read -r path; do
@@ -309,6 +317,54 @@ test_no_arguments_is_an_error() {
     grep -qF '<project-dir>...' <<<"$stderr" || fail "stderr does not show a usage line: $stderr"
 }
 
+test_renames_are_visible_to_git() {
+    current_test=test_renames_are_visible_to_git
+
+    local root
+    root="$(mktemp -d)" || fail "could not create temp root"
+    seed_git_project "$root" bit || fail "could not seed a git-backed fixture"
+
+    bash "$normalize" "$root" || fail "normalize.sh exited non-zero"
+
+    local porcelain
+    porcelain="$(git -C "$root" status --porcelain)"
+
+    [ -n "$porcelain" ] || fail "git status --porcelain is empty: the renames are invisible to git"
+    grep -qE '^R[ M] \.bit/tasks/bit-1\.md -> \.bit/tasks/BIT-1\.md$' <<<"$porcelain" ||
+        fail "no staged rename for the track file: $porcelain"
+    grep -qE '^R[ M] \.bit/feedback/bit-1-001\.md -> \.bit/feedback/BIT-1-001\.md$' <<<"$porcelain" ||
+        fail "no staged rename for the feedback note: $porcelain"
+
+    rm -rf "$root"
+}
+
+test_non_git_project_still_migrates() {
+    current_test=test_non_git_project_still_migrates
+
+    local root
+    root="$(mktemp -d)" || fail "could not create temp root"
+    seed_project "$root" bit
+    [ ! -e "$root/.git" ] || fail "fixture is unexpectedly a git repository"
+
+    bash "$normalize" "$root" || fail "normalize.sh exited non-zero"
+
+    local path
+    for path in \
+        "$root/.bit/tasks/BIT-1.md" \
+        "$root/.bit/tasks/BIT-1.1.md" \
+        "$root/.bit/completed/BIT-2.md" \
+        "$root/.bit/archive/tasks/BIT-3.md" \
+        "$root/.bit/feedback/BIT-1-001.md"; do
+        [ -f "$path" ] || fail "expected $path to exist"
+    done
+
+    grep -qxF 'id: BIT-1' "$root/.bit/tasks/BIT-1.md" || fail "id field not uppercased"
+    grep -qxF '    - BIT-1.1' "$root/.bit/tasks/BIT-1.md" || fail "order entry not uppercased"
+    grep -qxF 'prefix = "BIT"' "$root/.bit/config.toml" || fail "config prefix not uppercased"
+
+    rm -rf "$root"
+}
+
 test_task_filenames_are_uppercased
 test_id_frontmatter_is_uppercased_and_nothing_else
 test_order_entries_are_uppercased_in_frontmatter_only
@@ -319,4 +375,6 @@ test_second_run_changes_nothing
 test_already_uppercase_project_is_untouched
 test_directory_without_bit_is_an_error
 test_no_arguments_is_an_error
+test_renames_are_visible_to_git
+test_non_git_project_still_migrates
 echo "ok"

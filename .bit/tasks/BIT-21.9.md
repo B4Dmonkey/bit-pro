@@ -1,7 +1,7 @@
 ---
 id: BIT-21.9
 title: Case-only renames become visible to git
-status: todo
+status: done
 phase: 1
 phase_label: Migration
 ---

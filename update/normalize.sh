@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+git_root=
+
 uppercase() {
     printf '%s' "$1" | tr '[:lower:]' '[:upper:]'
 }
@@ -8,6 +10,10 @@ uppercase() {
 rename_case_only() {
     local src="$1" dst="$2"
     if [ "$src" = "$dst" ]; then
+        return 0
+    fi
+    if [ -n "$git_root" ]; then
+        git -C "$git_root" mv --force "${src#"$git_root"/}" "${dst#"$git_root"/}"
         return 0
     fi
     local tmp="$src.normalize.$$"
@@ -92,6 +98,11 @@ main() {
 
     local root
     for root in "$@"; do
+        if git -C "$root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+            git_root="$root"
+        else
+            git_root=
+        fi
         normalize_task_dir "$root/.bit/tasks"
         normalize_task_dir "$root/.bit/completed"
         normalize_task_dir "$root/.bit/archive/tasks"
