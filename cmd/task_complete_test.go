@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -52,6 +53,40 @@ func TestTaskCompleteCmd_LowercaseTrackStillHitsTheGuard(t *testing.T) {
 		if _, err := os.Stat(".bit/completed/" + id + ".md"); !errors.Is(err, fs.ErrNotExist) {
 			t.Errorf("os.Stat(.bit/completed/%s.md) error = %v, want fs.ErrNotExist", id, err)
 		}
+	}
+}
+
+func TestTaskCompleteCmd_LowercaseTrackFilesUppercaseFilenames(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "File work under one name", "## Why\n\nThe write path follows identity, not spelling.\n")
+	mustRun(t, "task", "create", "First bar", "--parent", "BIT-1", "--description", "Done work.")
+	mustRun(t, "task", "create", "Second bar", "--parent", "BIT-1", "--description", "Done work.")
+	for _, id := range []string{"BIT-1.1", "BIT-1.2", "BIT-1"} {
+		mustRun(t, "task", "update", id, "-s", "done")
+	}
+
+	mustRun(t, "task", "complete", "bit-1")
+
+	entries, err := os.ReadDir(".bit/completed")
+	if err != nil {
+		t.Fatalf("os.ReadDir(.bit/completed) error = %v", err)
+	}
+	names := make([]string, 0, len(entries))
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	slices.Sort(names)
+	want := []string{"BIT-1.1.md", "BIT-1.2.md", "BIT-1.md"}
+	if !slices.Equal(names, want) {
+		t.Errorf("os.ReadDir(.bit/completed) names = %v, want %v", names, want)
+	}
+
+	left, err := os.ReadDir(".bit/tasks")
+	if err != nil {
+		t.Fatalf("os.ReadDir(.bit/tasks) error = %v", err)
+	}
+	if len(left) != 0 {
+		t.Errorf("os.ReadDir(.bit/tasks) left %d entries behind, want none", len(left))
 	}
 }
 

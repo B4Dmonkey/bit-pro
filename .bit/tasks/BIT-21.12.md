@@ -1,7 +1,7 @@
 ---
 id: BIT-21.12
 title: Contradiction forces uppercase filenames on the write path
-status: todo
+status: done
 phase: 2
 phase_label: Recurrence
 ---

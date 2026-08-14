@@ -34,7 +34,7 @@ func (s *Store) tasksDir() string {
 }
 
 func (s *Store) Path(id string) string {
-	return pathologize.Join(s.tasksDir(), id+".md")
+	return pathologize.Join(s.tasksDir(), normalizeID(id)+".md")
 }
 
 func (s *Store) archiveTasksDir() string {
@@ -42,7 +42,7 @@ func (s *Store) archiveTasksDir() string {
 }
 
 func (s *Store) archivePath(id string) string {
-	return pathologize.Join(s.archiveTasksDir(), id+".md")
+	return pathologize.Join(s.archiveTasksDir(), normalizeID(id)+".md")
 }
 
 func (s *Store) completedDir() string {
@@ -50,14 +50,14 @@ func (s *Store) completedDir() string {
 }
 
 func (s *Store) completedPath(id string) string {
-	return pathologize.Join(s.completedDir(), id+".md")
+	return pathologize.Join(s.completedDir(), normalizeID(id)+".md")
 }
 
 func (s *Store) relocateInto(dir, id string) error {
 	if err := os.MkdirAll(dir, dirMode); err != nil {
 		return fmt.Errorf("creating %s: %w", dir, err)
 	}
-	if err := os.Rename(s.Path(id), pathologize.Join(dir, id+".md")); err != nil {
+	if err := os.Rename(s.Path(id), pathologize.Join(dir, normalizeID(id)+".md")); err != nil {
 		return fmt.Errorf("relocating task %s: %w", id, err)
 	}
 	return nil
