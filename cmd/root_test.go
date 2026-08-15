@@ -67,6 +67,29 @@ func TestBitDir_InsideClaudeWorktreeResolvesToMainCheckout(t *testing.T) {
 	}
 }
 
+func TestBitDir_NestedWorktreeResolvesToOutermostCheckout(t *testing.T) {
+	root := initProject(t, "BIT")
+	createTask(t, "Track", "...")
+
+	outer := filepath.Join(root, ".claude", "worktrees", "outer")
+	if err := os.MkdirAll(filepath.Join(outer, ".bit"), 0o755); err != nil {
+		t.Fatalf("MkdirAll(%q) returned error: %v", outer, err)
+	}
+
+	nested := filepath.Join(outer, ".claude", "worktrees", "inner")
+	if err := os.MkdirAll(filepath.Join(nested, ".bit"), 0o755); err != nil {
+		t.Fatalf("MkdirAll(%q) returned error: %v", nested, err)
+	}
+
+	t.Chdir(nested)
+
+	out := mustRun(t, "task", "list")
+
+	if !strings.Contains(out, "BIT-1") {
+		t.Errorf("output = %q, want output to contain BIT-1 from the outermost checkout's .bit", out)
+	}
+}
+
 func TestRootCmd_RuntimeErrorOmitsUsage(t *testing.T) {
 	initProject(t, "BIT")
 
