@@ -36,8 +36,6 @@ func NewRootCmd() *cobra.Command {
 }
 
 func newRootCmd(run claude.Runner) *cobra.Command {
-	var bitDirFlag string
-
 	rootCmd := &cobra.Command{
 		Use:           "bp",
 		Short:         "bp is a project-management CLI for LLM-driven development workflows",
@@ -50,16 +48,9 @@ func newRootCmd(run claude.Runner) *cobra.Command {
 				bitDir = canonicalBitDir(wd)
 			}
 
-			if bitDirFlag != "" {
-				bitDir = bitDirFlag
-			} else if v := os.Getenv("BIT_DIR"); v != "" {
-				bitDir = v
-			}
-
 			return nil
 		},
 	}
-	rootCmd.PersistentFlags().StringVar(&bitDirFlag, "bit-dir", "", "canonical .bit directory (overrides BIT_DIR)")
 	rootCmd.AddCommand(newApproveCmd())
 	rootCmd.AddCommand(newFeedbackCmd())
 	rootCmd.AddCommand(newInitCmd(run))
