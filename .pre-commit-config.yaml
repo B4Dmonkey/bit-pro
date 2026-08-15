@@ -1,0 +1,26 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: check-yaml
+
+  - repo: local
+    hooks:
+      - id: go-fmt
+        name: go fmt
+        entry: just fmt
+        language: system
+        pass_filenames: false
+
+      - id: go-lint
+        name: go lint
+        entry: just lint
+        language: system
+        pass_filenames: false
+
+      - id: go-test
+        name: go test
+        entry: just test
+        language: system
+        pass_filenames: false

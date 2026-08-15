@@ -2,9 +2,11 @@ package cmd
 
 import "github.com/spf13/cobra"
 
+const taskCmdUse = "task"
+
 func newTaskCmd() *cobra.Command {
 	taskCmd := &cobra.Command{
-		Use:   "task",
+		Use:   taskCmdUse,
 		Short: "Manage tasks",
 	}
 	taskCmd.AddCommand(newTaskCreateCmd())
@@ -14,5 +16,6 @@ func newTaskCmd() *cobra.Command {
 	taskCmd.AddCommand(newTaskMoveCmd())
 	taskCmd.AddCommand(newTaskCompleteCmd())
 	taskCmd.AddCommand(newTaskDeleteCmd())
+
 	return taskCmd
 }

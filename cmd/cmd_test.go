@@ -30,6 +30,7 @@ func runWithRunner(t *testing.T, run claude.Runner, stdin string, args ...string
 	root.SetArgs(args)
 
 	err := root.Execute()
+
 	return out.String(), err
 }
 
@@ -40,6 +41,7 @@ func mustRun(t *testing.T, args ...string) string {
 	if err != nil {
 		t.Fatalf("bp %s returned error: %v", strings.Join(args, " "), err)
 	}
+
 	return out
 }
 
@@ -49,6 +51,7 @@ func initProject(t *testing.T, prefix string) string {
 	dir := t.TempDir()
 	t.Chdir(dir)
 	mustRun(t, "init", "--prefix", prefix)
+
 	return dir
 }
 

@@ -13,10 +13,12 @@ func newTUICmd() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			s := task.New(bitDir)
+
 			tasks, err := s.List()
 			if err != nil {
 				return err
 			}
+
 			return tui.Run(tui.New(tasks).
 				WithReload(s.List).
 				WithApprove(func(id string, approved bool) error { return s.SetApproved(id, approved) }))

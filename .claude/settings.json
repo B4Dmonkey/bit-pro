@@ -15,5 +15,30 @@
         "repo": "B4Dmonkey/bit-pro"
       }
     }
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/post-edit-go.sh",
+            "statusMessage": "Running Go fmt+lint..."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/stop-go.sh",
+            "statusMessage": "Running Go tests (Go files changed)..."
+          }
+        ]
+      }
+    ]
   }
 }

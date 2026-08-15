@@ -8,6 +8,15 @@ import (
 	"testing"
 )
 
+const (
+	claudeBin    = "claude"
+	scopeFlag    = "--scope"
+	pluginSubCmd = "plugin"
+	bitProPlugin = "bit@bit-pro"
+	updateSubCmd = "update"
+	projectScope = "project"
+)
+
 type recorder struct {
 	calls [][]string
 	errs  map[int]error
@@ -30,8 +39,8 @@ func TestSyncPlugin_RefreshesThenUpdates(t *testing.T) {
 	}
 
 	want := [][]string{
-		{"claude", "plugin", "marketplace", "update", "bit-pro"},
-		{"claude", "plugin", "update", "bit@bit-pro", "--scope", "project"},
+		{claudeBin, pluginSubCmd, "marketplace", updateSubCmd, "bit-pro"},
+		{claudeBin, pluginSubCmd, updateSubCmd, bitProPlugin, scopeFlag, projectScope},
 	}
 	if !slices.EqualFunc(rec.calls, want, slices.Equal) {
 		t.Errorf("calls = %v, want %v", rec.calls, want)
@@ -52,6 +61,7 @@ func TestSyncPlugin_ReportsWhenInstallAlsoFails(t *testing.T) {
 	if !strings.Contains(err.Error(), "marketplace bit-pro is unreachable") {
 		t.Errorf("err = %v, want it to carry the install failure", err)
 	}
+
 	if strings.Contains(err.Error(), "is not installed") {
 		t.Errorf("err = %v, want it not to carry the swallowed update failure", err)
 	}
@@ -78,9 +88,9 @@ func TestSyncPlugin_FallsBackToInstall(t *testing.T) {
 	}
 
 	want := [][]string{
-		{"claude", "plugin", "marketplace", "update", "bit-pro"},
-		{"claude", "plugin", "update", "bit@bit-pro", "--scope", "project"},
-		{"claude", "plugin", "install", "bit@bit-pro", "--scope", "project"},
+		{claudeBin, pluginSubCmd, "marketplace", updateSubCmd, "bit-pro"},
+		{claudeBin, pluginSubCmd, updateSubCmd, bitProPlugin, scopeFlag, projectScope},
+		{claudeBin, pluginSubCmd, "install", bitProPlugin, scopeFlag, projectScope},
 	}
 	if !slices.EqualFunc(rec.calls, want, slices.Equal) {
 		t.Errorf("calls = %v, want %v", rec.calls, want)

@@ -19,8 +19,8 @@ func TestInitCmd_CapturesPrefix(t *testing.T) {
 		args  []string
 		stdin string
 	}{
-		{name: "from --prefix flag", args: []string{"init", "--prefix", "BIT"}},
-		{name: "from interactive prompt", args: []string{"init"}, stdin: "BIT\n"},
+		{name: "from --prefix flag", args: []string{initCmdUse, prefixFlag, testPrefix}},
+		{name: "from interactive prompt", args: []string{initCmdUse}, stdin: "BIT\n"},
 	}
 
 	for _, tt := range tests {
@@ -35,8 +35,9 @@ func TestInitCmd_CapturesPrefix(t *testing.T) {
 			if err != nil {
 				t.Fatalf("reading config: %v", err)
 			}
-			if cfg.Prefix != "BIT" {
-				t.Errorf("cfg.Prefix = %q, want %q", cfg.Prefix, "BIT")
+
+			if cfg.Prefix != testPrefix {
+				t.Errorf("cfg.Prefix = %q, want %q", cfg.Prefix, testPrefix)
 			}
 		})
 	}
@@ -48,8 +49,8 @@ func TestInitCmd_UppercasesTheStoredPrefix(t *testing.T) {
 		args  []string
 		stdin string
 	}{
-		{name: "from --prefix flag", args: []string{"init", "--prefix", "foo"}},
-		{name: "from interactive prompt", args: []string{"init"}, stdin: "foo\n"},
+		{name: "from --prefix flag", args: []string{initCmdUse, prefixFlag, "foo"}},
+		{name: "from interactive prompt", args: []string{initCmdUse}, stdin: "foo\n"},
 	}
 
 	for _, tt := range tests {
@@ -64,6 +65,7 @@ func TestInitCmd_UppercasesTheStoredPrefix(t *testing.T) {
 			if err != nil {
 				t.Fatalf("reading config: %v", err)
 			}
+
 			if cfg.Prefix != "FOO" {
 				t.Errorf("cfg.Prefix = %q, want %q", cfg.Prefix, "FOO")
 			}
@@ -72,6 +74,7 @@ func TestInitCmd_UppercasesTheStoredPrefix(t *testing.T) {
 			if err != nil {
 				t.Fatalf("os.ReadFile(.bit/config.toml) returned error: %v", err)
 			}
+
 			if !strings.Contains(string(data), `"FOO"`) {
 				t.Errorf("config.toml = %s, want it to contain %q", data, `"FOO"`)
 			}
@@ -80,6 +83,7 @@ func TestInitCmd_UppercasesTheStoredPrefix(t *testing.T) {
 			if out != "FOO-1\n" {
 				t.Errorf("task create stdout = %q, want %q", out, "FOO-1\n")
 			}
+
 			if _, err := os.Stat(filepath.Join(".bit", "tasks", "FOO-1.md")); err != nil {
 				t.Errorf("os.Stat(.bit/tasks/FOO-1.md) returned error: %v", err)
 			}
@@ -90,9 +94,9 @@ func TestInitCmd_UppercasesTheStoredPrefix(t *testing.T) {
 func TestInitCmd_ReuseExistingPrefixOnEnter(t *testing.T) {
 	t.Chdir(t.TempDir())
 
-	mustRun(t, "init", "--prefix", "BIT")
+	mustRun(t, initCmdUse, prefixFlag, testPrefix)
 
-	if _, err := runWithStdin(t, "\n", "init"); err != nil {
+	if _, err := runWithStdin(t, "\n", initCmdUse); err != nil {
 		t.Fatalf("Execute() returned error: %v", err)
 	}
 
@@ -100,8 +104,9 @@ func TestInitCmd_ReuseExistingPrefixOnEnter(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reading config: %v", err)
 	}
-	if cfg.Prefix != "BIT" {
-		t.Errorf("cfg.Prefix = %q, want %q", cfg.Prefix, "BIT")
+
+	if cfg.Prefix != testPrefix {
+		t.Errorf("cfg.Prefix = %q, want %q", cfg.Prefix, testPrefix)
 	}
 }
 
@@ -121,14 +126,15 @@ func TestInitCmd_PromptShowsExistingPrefix(t *testing.T) {
 			t.Chdir(t.TempDir())
 
 			if tt.seed {
-				mustRun(t, "init", "--prefix", "BIT")
+				mustRun(t, initCmdUse, prefixFlag, testPrefix)
 			}
 
-			out, _ := runWithStdin(t, "BIT\n", "init")
+			out, _ := runWithStdin(t, "BIT\n", initCmdUse)
 
 			if !strings.Contains(out, tt.wantShown) {
 				t.Errorf("prompt = %q, want it to contain %q", out, tt.wantShown)
 			}
+
 			if !tt.wantParen && strings.Contains(out, "(") {
 				t.Errorf("prompt = %q, want no %q", out, "(")
 			}
@@ -139,7 +145,7 @@ func TestInitCmd_PromptShowsExistingPrefix(t *testing.T) {
 func TestInitCmd_WritesNoSkills(t *testing.T) {
 	t.Chdir(t.TempDir())
 
-	mustRun(t, "init", "--prefix", "BIT")
+	mustRun(t, initCmdUse, prefixFlag, testPrefix)
 
 	for _, rel := range []string{".claude/skills", ".claude/bit-cli.md"} {
 		if _, err := os.Stat(rel); !errors.Is(err, fs.ErrNotExist) {
@@ -155,12 +161,13 @@ func TestInitCmd_WritesNoSkills(t *testing.T) {
 func TestInitCmd_WritesPluginWiring(t *testing.T) {
 	t.Chdir(t.TempDir())
 
-	mustRun(t, "init", "--prefix", "BIT")
+	mustRun(t, initCmdUse, prefixFlag, testPrefix)
 
 	data, err := os.ReadFile(filepath.Join(".claude", "settings.json"))
 	if err != nil {
 		t.Fatalf("os.ReadFile(.claude/settings.json) returned error: %v", err)
 	}
+
 	if !strings.Contains(string(data), "bit@bit-pro") {
 		t.Errorf("settings.json = %s, want it to contain %q", data, "bit@bit-pro")
 	}
@@ -170,18 +177,19 @@ func TestInitCmd_SyncsThePlugin(t *testing.T) {
 	t.Chdir(t.TempDir())
 
 	var calls [][]string
+
 	run := func(_ context.Context, name string, args ...string) error {
 		calls = append(calls, append([]string{name}, args...))
 		return nil
 	}
 
-	if _, err := runWithRunner(t, run, "", "init", "--prefix", "BIT"); err != nil {
+	if _, err := runWithRunner(t, run, "", initCmdUse, prefixFlag, testPrefix); err != nil {
 		t.Fatalf("Execute() returned error: %v", err)
 	}
 
 	want := [][]string{
-		{"claude", "plugin", "marketplace", "update", "bit-pro"},
-		{"claude", "plugin", "update", "bit@bit-pro", "--scope", "project"},
+		{"claude", "plugin", "marketplace", updateCmd, "bit-pro"},
+		{"claude", "plugin", updateCmd, "bit@bit-pro", "--scope", "project"},
 	}
 	if !slices.EqualFunc(calls, want, slices.Equal) {
 		t.Errorf("calls = %v, want %v", calls, want)
@@ -194,8 +202,8 @@ func TestInitCmd_RejectsBadInvocations(t *testing.T) {
 		args  []string
 		stdin string
 	}{
-		{name: "empty prefix at the prompt", args: []string{"init"}, stdin: "\n"},
-		{name: "extra positional args", args: []string{"init", "garbage", "--prefix", "BIT"}},
+		{name: "empty prefix at the prompt", args: []string{initCmdUse}, stdin: "\n"},
+		{name: "extra positional args", args: []string{initCmdUse, "garbage", prefixFlag, testPrefix}},
 	}
 
 	for _, tt := range tests {
@@ -228,13 +236,14 @@ func TestInitCmd_IsIdempotent(t *testing.T) {
 			t.Chdir(dir)
 
 			for range tt.runs {
-				mustRun(t, "init", "--prefix", "BIT")
+				mustRun(t, initCmdUse, prefixFlag, testPrefix)
 			}
 
 			info, err := os.Stat(filepath.Join(dir, ".bit"))
 			if err != nil {
 				t.Fatalf("os.Stat(.bit) returned error: %v", err)
 			}
+
 			if !info.IsDir() {
 				t.Error(".bit exists but is not a directory")
 			}

@@ -57,9 +57,11 @@ func (s *Store) relocateInto(dir, id string) error {
 	if err := os.MkdirAll(dir, dirMode); err != nil {
 		return fmt.Errorf("creating %s: %w", dir, err)
 	}
+
 	if err := os.Rename(s.Path(id), pathologize.Join(dir, normalizeID(id)+".md")); err != nil {
 		return fmt.Errorf("relocating task %s: %w", id, err)
 	}
+
 	return nil
 }
 
@@ -73,16 +75,20 @@ func (s *Store) Children(parent string) ([]*Task, error) {
 
 func (s *Store) children(parent string) ([]*Task, error) {
 	parent = normalizeID(parent)
+
 	tasks, err := s.List()
 	if err != nil {
 		return nil, err
 	}
+
 	var kids []*Task
+
 	for _, t := range tasks {
 		if p, ok := barParent(t.ID); ok && p == parent {
 			kids = append(kids, t)
 		}
 	}
+
 	return kids, nil
 }
 
@@ -107,28 +113,35 @@ func (s *Store) relocateTree(dir, id string, force bool) error {
 	if err != nil {
 		return err
 	}
+
 	if !force {
 		var unfinished []string
+
 		for _, kid := range kids {
-			if kid.Status != "done" {
+			if kid.Status != StatusDone {
 				unfinished = append(unfinished, kid.ID)
 			}
 		}
+
 		if len(unfinished) > 0 {
 			return &UnfinishedBarsError{Bars: unfinished}
 		}
 	}
+
 	for _, kid := range kids {
 		if err := s.relocateInto(dir, kid.ID); err != nil {
 			return err
 		}
 	}
+
 	if err := s.relocateInto(dir, id); err != nil {
 		return err
 	}
+
 	if parent, ok := barParent(id); ok {
 		return s.removeFromOrder(parent, id)
 	}
+
 	return nil
 }
 
@@ -137,10 +150,13 @@ func (s *Store) removeFromOrder(parent, id string) error {
 	if err != nil {
 		return err
 	}
+
 	if len(track.Order) == 0 {
 		return nil
 	}
+
 	track.Order = slices.DeleteFunc(track.Order, func(x string) bool { return x == id })
+
 	return s.Save(track)
 }
 
@@ -149,6 +165,7 @@ func (s *Store) Load(id string) (*Task, error) {
 	if err != nil {
 		return nil, fmt.Errorf("loading task %s: %w", id, err)
 	}
+
 	return Parse(data)
 }
 
@@ -157,12 +174,15 @@ func (s *Store) Save(t *Task) error {
 	if err != nil {
 		return err
 	}
+
 	if err := os.MkdirAll(s.tasksDir(), dirMode); err != nil {
 		return fmt.Errorf("creating %s: %w", s.tasksDir(), err)
 	}
+
 	if err := os.WriteFile(s.Path(t.ID), data, fileMode); err != nil {
 		return fmt.Errorf("writing task %s: %w", t.ID, err)
 	}
+
 	return nil
 }
 
@@ -171,7 +191,9 @@ func (s *Store) SetApproved(id string, approved bool) error {
 	if err != nil {
 		return err
 	}
+
 	t.Approved = approved
+
 	return s.Save(t)
 }
 
@@ -180,20 +202,25 @@ func (s *Store) Move(id, anchor string, before bool) error {
 	if id == anchor {
 		return fmt.Errorf("cannot move %s relative to itself", id)
 	}
+
 	parent, ok := barParent(id)
 	if !ok {
 		return fmt.Errorf("%s is not a bar", id)
 	}
+
 	aParent, ok := barParent(anchor)
 	if !ok || aParent != parent {
 		return fmt.Errorf("anchor %s is not a sibling of %s", anchor, id)
 	}
+
 	if _, err := s.Load(id); err != nil {
 		return err
 	}
+
 	if _, err := s.Load(anchor); err != nil {
 		return err
 	}
+
 	return s.insertInOrder(parent, id, anchor, before)
 }
 
@@ -216,6 +243,7 @@ func (s *Store) insertInOrder(parent, id, anchor string, before bool) error {
 	if err != nil {
 		return err
 	}
+
 	order := track.Order
 	if len(order) == 0 {
 		order, err = s.materializeOrder(parent)
@@ -223,15 +251,20 @@ func (s *Store) insertInOrder(parent, id, anchor string, before bool) error {
 			return err
 		}
 	}
+
 	order = slices.DeleteFunc(order, func(x string) bool { return x == id })
+
 	at := slices.Index(order, anchor)
 	if at == -1 {
 		return fmt.Errorf("anchor %s is not in %s's order", anchor, parent)
 	}
+
 	if !before {
 		at++
 	}
+
 	track.Order = slices.Insert(order, at, id)
+
 	return s.Save(track)
 }
 
@@ -242,14 +275,18 @@ func (s *Store) insertInOrder(parent, id, anchor string, before bool) error {
 // extended, keeping the list ⇄ files bijection intact.
 func (s *Store) AppendToOrder(parent, id string) error {
 	parent, id = normalizeID(parent), normalizeID(id)
+
 	track, err := s.Load(parent)
 	if err != nil {
 		return err
 	}
+
 	if len(track.Order) == 0 {
 		return nil
 	}
+
 	track.Order = append(track.Order, id)
+
 	return s.Save(track)
 }
 
@@ -258,12 +295,15 @@ func (s *Store) materializeOrder(parent string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	var order []string
+
 	for _, t := range tasks {
 		if p, ok := barParent(t.ID); ok && p == parent {
 			order = append(order, t.ID)
 		}
 	}
+
 	return order, nil
 }
 
@@ -279,19 +319,24 @@ func (s *Store) List() ([]*Task, error) {
 		if err != nil {
 			return nil, fmt.Errorf("reading %s: %w", path, err)
 		}
+
 		t, err := Parse(data)
 		if err != nil {
 			return nil, fmt.Errorf("parsing %s: %w", path, err)
 		}
+
 		tasks = append(tasks, t)
 	}
+
 	pos := orderPositions(tasks)
 	slices.SortFunc(tasks, func(a, b *Task) int {
 		if cmp, ok := compareByOrder(pos, a.ID, b.ID); ok {
 			return cmp
 		}
+
 		return compareIDs(a.ID, b.ID)
 	})
+
 	return tasks, nil
 }
 
@@ -299,16 +344,20 @@ func (s *Store) List() ([]*Task, error) {
 // position map, so List's comparator can look up a bar's rank in O(1).
 func orderPositions(tasks []*Task) map[string]map[string]int {
 	pos := make(map[string]map[string]int)
+
 	for _, t := range tasks {
 		if len(t.Order) == 0 {
 			continue
 		}
+
 		idx := make(map[string]int, len(t.Order))
 		for i, id := range t.Order {
 			idx[id] = i
 		}
+
 		pos[t.ID] = idx
 	}
+
 	return pos
 }
 
@@ -317,19 +366,26 @@ func orderPositions(tasks []*Task) map[string]map[string]int {
 // other pairing (tracks, cross-track, unlisted bars) falls through to compareIDs.
 func compareByOrder(pos map[string]map[string]int, a, b string) (int, bool) {
 	pa, aOK := barParent(a)
+
 	pb, bOK := barParent(b)
+
 	if !aOK || !bOK || pa != pb {
 		return 0, false
 	}
+
 	idx, ok := pos[pa]
 	if !ok {
 		return 0, false
 	}
+
 	ia, aOK := idx[a]
+
 	ib, bOK := idx[b]
+
 	if !aOK || !bOK {
 		return 0, false
 	}
+
 	return ia - ib, true
 }
 
@@ -338,6 +394,7 @@ func barParent(id string) (string, bool) {
 	if i == -1 {
 		return "", false
 	}
+
 	return id[:i], true
 }
 
@@ -348,12 +405,15 @@ func barParent(id string) (string, bool) {
 // file and sorts last.
 func compareIDs(a, b string) int {
 	at, ab, aOK := idParts(a)
+
 	bt, bb, bOK := idParts(b)
+
 	switch {
 	case aOK && bOK:
 		if at != bt {
 			return bt - at
 		}
+
 		return ab - bb
 	case aOK:
 		return -1
@@ -367,17 +427,21 @@ func compareIDs(a, b string) int {
 func idParts(id string) (track, bar int, ok bool) {
 	suffix := id[strings.LastIndex(id, "-")+1:]
 	trackStr, barStr, hasBar := strings.Cut(suffix, ".")
+
 	track, err := strconv.Atoi(trackStr)
 	if err != nil {
 		return 0, 0, false
 	}
+
 	if !hasBar {
 		return track, 0, true
 	}
+
 	bar, err = strconv.Atoi(barStr)
 	if err != nil {
 		return 0, 0, false
 	}
+
 	return track, bar, true
 }
 
@@ -389,32 +453,39 @@ func (s *Store) NextChildID(parent string) (string, error) {
 
 	glob := parent + ".*.md"
 	re := regexp.MustCompile(`^` + regexp.QuoteMeta(parent) + `\.(\d+)\.md$`)
+
 	highest, err := s.highestReserved(glob, re, "child IDs")
 	if err != nil {
 		return "", err
 	}
+
 	return fmt.Sprintf("%s.%d", parent, highest+1), nil
 }
 
 func (s *Store) NextID(prefix string) (string, error) {
 	glob := prefix + "-*.md"
 	re := regexp.MustCompile(`^` + regexp.QuoteMeta(prefix) + `-(\d+)\.md$`)
+
 	highest, err := s.highestReserved(glob, re, "task IDs")
 	if err != nil {
 		return "", err
 	}
+
 	return fmt.Sprintf("%s-%d", prefix, highest+1), nil
 }
 
 func (s *Store) highestReserved(glob string, re *regexp.Regexp, what string) (int, error) {
 	highest := 0
+
 	for _, dir := range []string{s.tasksDir(), s.completedDir(), s.archiveTasksDir()} {
 		n, err := highestSuffix(dir, glob, re)
 		if err != nil {
 			return 0, fmt.Errorf("scanning %s for existing %s: %w", dir, what, err)
 		}
+
 		highest = max(highest, n)
 	}
+
 	return highest, nil
 }
 
@@ -423,17 +494,22 @@ func highestSuffix(dir, glob string, re *regexp.Regexp) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+
 	highest := 0
+
 	for _, m := range matches {
 		sub := re.FindStringSubmatch(filepath.Base(m))
 		if sub == nil {
 			continue
 		}
+
 		n, err := strconv.Atoi(sub[1])
 		if err != nil {
 			continue
 		}
+
 		highest = max(highest, n)
 	}
+
 	return highest, nil
 }

@@ -19,10 +19,13 @@ func newFeedbackAddCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
 			_, err = fmt.Fprintln(cmd.OutOrStdout(), path)
+
 			return err
 		},
 	}
 	cmd.Flags().StringVarP(&description, "description", "d", "", "note body content")
+
 	return cmd
 }

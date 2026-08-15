@@ -23,6 +23,7 @@ func TestTaskListCmd_ShowsNewestFirst(t *testing.T) {
 
 func TestTaskListCmd_OrdersNumericallyNotLexically(t *testing.T) {
 	initProject(t, "BIT")
+
 	for i := 1; i <= 10; i++ {
 		createTask(t, fmt.Sprintf("T%d", i), "...")
 	}
@@ -55,7 +56,7 @@ func TestTaskListCmd_GroupsBarsUnderTheirTrack(t *testing.T) {
 		ids = append(ids, strings.Split(line, "\t")[0])
 	}
 
-	want := []string{"BIT-2", "BIT-2.1", "BIT-1", "BIT-1.1", "BIT-1.2"}
+	want := []string{"BIT-2", "BIT-2.1", "BIT-1", firstBarID, secondBarID}
 	if !slices.Equal(ids, want) {
 		t.Errorf("ID order = %v, want %v", ids, want)
 	}
@@ -71,7 +72,7 @@ func TestTaskListCmd_FiltersToParentBars(t *testing.T) {
 
 	out := mustRun(t, "task", "list", "--parent", "BIT-1")
 
-	want := "BIT-1.1\ttodo\tOne.1\t\t\nBIT-1.2\ttodo\tOne.2\t\t\n"
+	want := firstBarID + "\ttodo\tOne.1\t\t\nBIT-1.2\ttodo\tOne.2\t\t\n"
 	if out != want {
 		t.Errorf("output = %q, want %q", out, want)
 	}
@@ -85,7 +86,7 @@ func TestTaskListCmd_LowercaseParentStillListsTheBars(t *testing.T) {
 
 	out := mustRun(t, "task", "list", "--parent", "bit-1")
 
-	want := "BIT-1.1\ttodo\tBar one\t\t\nBIT-1.2\ttodo\tBar two\t\t\n"
+	want := firstBarID + "\ttodo\tBar one\t\t\nBIT-1.2\ttodo\tBar two\t\t\n"
 	if out != want {
 		t.Errorf("output = %q, want %q", out, want)
 	}
@@ -98,13 +99,13 @@ func TestTaskListCmd_HandEditedLowercaseOrderStillRanksBars(t *testing.T) {
 	mustRun(t, "task", "create", "Bar two", "-d", "...", "--parent", "BIT-1")
 
 	track := "---\nid: BIT-1\ntitle: Track\nstatus: todo\norder:\n    - bit-1.2\n    - bit-1.1\n---\nHand-edited.\n"
-	if err := os.WriteFile(".bit/tasks/BIT-1.md", []byte(track), 0o644); err != nil {
+	if err := os.WriteFile(".bit/tasks/BIT-1.md", []byte(track), 0o600); err != nil {
 		t.Fatalf("os.WriteFile(.bit/tasks/BIT-1.md) error = %v", err)
 	}
 
 	out := mustRun(t, "task", "list", "--parent", "BIT-1")
 
-	want := "BIT-1.2\ttodo\tBar two\t\t\nBIT-1.1\ttodo\tBar one\t\t\n"
+	want := "BIT-1.2\ttodo\tBar two\t\t\n" + firstBarID + "\ttodo\tBar one\t\t\n"
 	if out != want {
 		t.Errorf("output = %q, want %q", out, want)
 	}

@@ -10,9 +10,9 @@ func TestTaskBytes_WritesFrontmatterThenBody(t *testing.T) {
 	t.Parallel()
 
 	tk := &Task{
-		ID:     "BIT-1",
+		ID:     tid1,
 		Title:  "Set up init wizard",
-		Status: "todo",
+		Status: StatusTodo,
 		Body:   "Add flags for prefix capture.",
 	}
 
@@ -34,10 +34,13 @@ func TestParse_RoundTripsThroughBytes(t *testing.T) {
 		name string
 		task Task
 	}{
-		{name: "single line body", task: Task{ID: "BIT-1", Title: "One", Status: "todo", Body: "Body."}},
-		{name: "multi line body", task: Task{ID: "BIT-2", Title: "Two", Status: "doing", Body: "Line one.\nLine two.\n"}},
-		{name: "empty body", task: Task{ID: "BIT-3", Title: "Three", Status: "done", Body: ""}},
-		{name: "body containing a delimiter", task: Task{ID: "BIT-4", Title: "Four", Status: "todo", Body: "before\n---\nafter"}},
+		{name: "single line body", task: Task{ID: tid1, Title: "One", Status: StatusTodo, Body: "Body."}},
+		{name: "multi line body", task: Task{ID: tid2, Title: "Two", Status: StatusDoing, Body: "Line one.\nLine two.\n"}},
+		{name: "empty body", task: Task{ID: tid3, Title: "Three", Status: StatusDone, Body: ""}},
+		{
+			name: "body containing a delimiter",
+			task: Task{ID: tid4, Title: "Four", Status: StatusTodo, Body: "before\n---\nafter"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -53,6 +56,7 @@ func TestParse_RoundTripsThroughBytes(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Parse() returned error: %v", err)
 			}
+
 			if !reflect.DeepEqual(*got, tt.task) {
 				t.Errorf("Parse(Bytes()) = %+v, want %+v", *got, tt.task)
 			}
@@ -82,6 +86,7 @@ func TestParse_Errors(t *testing.T) {
 			if err == nil {
 				t.Fatalf("Parse(%q) returned nil error, want %q", tt.data, tt.wantErr)
 			}
+
 			if !strings.Contains(err.Error(), tt.wantErr) {
 				t.Errorf("Parse(%q) error = %q, want it to contain %q", tt.data, err, tt.wantErr)
 			}

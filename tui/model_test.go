@@ -5,18 +5,18 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/B4Dmonkey/bit-pro/task"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/B4Dmonkey/bit-pro/task"
 )
 
 func TestNew_PreservesStoreOrder(t *testing.T) {
 	t.Parallel()
 
 	tasks := []*task.Task{
-		{ID: "BIT-2"},
-		{ID: "BIT-2.1"},
-		{ID: "BIT-1"},
+		{ID: ttid2},
+		{ID: ttid2_1},
+		{ID: ttid1},
 	}
 
 	m := New(tasks)
@@ -25,6 +25,7 @@ func TestNew_PreservesStoreOrder(t *testing.T) {
 	if len(items) != len(tasks) {
 		t.Fatalf("New produced %d items, want %d", len(items), len(tasks))
 	}
+
 	for i, it := range items {
 		got := it.(item).t.ID
 		if got != tasks[i].ID {
@@ -36,31 +37,34 @@ func TestNew_PreservesStoreOrder(t *testing.T) {
 func TestUpdate_ReloadedMsgRebuildsList(t *testing.T) {
 	t.Parallel()
 
-	m := New([]*task.Task{{ID: "BIT-1"}})
+	m := New([]*task.Task{{ID: ttid1}})
 
-	updated, _ := m.Update(reloadedMsg{tasks: []*task.Task{{ID: "BIT-1"}, {ID: "BIT-2"}}})
+	updated, _ := m.Update(reloadedMsg{tasks: []*task.Task{{ID: ttid1}, {ID: ttid2}}})
 
 	items := updated.(model).Items()
 	if len(items) != 2 {
 		t.Fatalf("after reloadedMsg, len(Items()) = %d, want 2", len(items))
 	}
-	if got := items[0].(item).t.ID; got != "BIT-1" {
-		t.Errorf("items[0].ID = %q, want %q", got, "BIT-1")
+
+	if got := items[0].(item).t.ID; got != ttid1 {
+		t.Errorf("items[0].ID = %q, want %q", got, ttid1)
 	}
-	if got := items[1].(item).t.ID; got != "BIT-2" {
-		t.Errorf("items[1].ID = %q, want %q", got, "BIT-2")
+
+	if got := items[1].(item).t.ID; got != ttid2 {
+		t.Errorf("items[1].ID = %q, want %q", got, ttid2)
 	}
 }
 
 func TestUpdate_ReloadedMsgRebuildsBoard(t *testing.T) {
 	t.Parallel()
 
-	var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo", Approved: true}})
+	var mdl tea.Model = New([]*task.Task{{ID: ttid1, Status: task.StatusTodo, Approved: true}})
+
 	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 
 	mdl, _ = mdl.Update(reloadedMsg{tasks: []*task.Task{
-		{ID: "BIT-1", Status: "todo", Approved: true},
-		{ID: "BIT-2", Status: "todo", Approved: true},
+		{ID: ttid1, Status: task.StatusTodo, Approved: true},
+		{ID: ttid2, Status: task.StatusTodo, Approved: true},
 	}})
 
 	if got := len(mdl.(model).boardCols[0].Items()); got != 2 {
@@ -72,20 +76,23 @@ func TestUpdate_TickTriggersReload(t *testing.T) {
 	t.Parallel()
 
 	m := New(nil)
-	m.reload = func() ([]*task.Task, error) { return []*task.Task{{ID: "BIT-9"}}, nil }
+	m.reload = func() ([]*task.Task, error) { return []*task.Task{{ID: ttid9}}, nil }
 
 	_, cmd := m.Update(tickMsg{})
 
 	if cmd == nil {
 		t.Fatal("tickMsg produced cmd = nil, want a reload cmd")
 	}
+
 	rm, ok := cmd().(reloadedMsg)
 	if !ok {
 		t.Fatalf("tickMsg cmd() = %T, want reloadedMsg", cmd())
 	}
-	if len(rm.tasks) != 1 || rm.tasks[0].ID != "BIT-9" {
+
+	if len(rm.tasks) != 1 || rm.tasks[0].ID != ttid9 {
 		t.Errorf("reloadedMsg tasks = %v, want one task BIT-9", rm.tasks)
 	}
+
 	if rm.err != nil {
 		t.Errorf("reloadedMsg err = %v, want nil", rm.err)
 	}
@@ -100,6 +107,7 @@ func TestInit_StartsPollingWhenReloadSet(t *testing.T) {
 	if set.Init() == nil {
 		t.Error("Init() with reload set = nil, want a poll cmd")
 	}
+
 	if none.Init() != nil {
 		t.Error("Init() with no reload = non-nil, want nil")
 	}
@@ -122,13 +130,14 @@ func TestUpdate_ReloadErrorHoldsView(t *testing.T) {
 
 	m := New(nil).WithReload(func() ([]*task.Task, error) { return nil, nil })
 
-	good, _ := m.Update(reloadedMsg{tasks: []*task.Task{{ID: "BIT-1"}, {ID: "BIT-2"}}})
+	good, _ := m.Update(reloadedMsg{tasks: []*task.Task{{ID: ttid1}, {ID: ttid2}}})
 
 	updated, cmd := good.(model).Update(reloadedMsg{tasks: nil, err: errors.New("mid-write")})
 
 	if got := len(updated.(model).Items()); got != 2 {
 		t.Fatalf("after errored reloadedMsg, len(Items()) = %d, want 2", got)
 	}
+
 	if cmd == nil {
 		t.Error("errored reloadedMsg produced cmd = nil, want the next poll cmd")
 	}
@@ -137,41 +146,43 @@ func TestUpdate_ReloadErrorHoldsView(t *testing.T) {
 func TestUpdate_ReloadPreservesListSelection(t *testing.T) {
 	t.Parallel()
 
-	m := New([]*task.Task{{ID: "BIT-2"}, {ID: "BIT-2.1"}, {ID: "BIT-1"}})
+	m := New([]*task.Task{{ID: ttid2}, {ID: ttid2_1}, {ID: ttid1}})
 	m.Select(2)
 
 	updated, _ := m.Update(reloadedMsg{tasks: []*task.Task{
-		{ID: "BIT-3"},
-		{ID: "BIT-2"},
-		{ID: "BIT-2.1"},
-		{ID: "BIT-1"},
+		{ID: ttid3},
+		{ID: ttid2},
+		{ID: ttid2_1},
+		{ID: ttid1},
 	}})
 
-	if got := updated.(model).selected().ID; got != "BIT-1" {
-		t.Errorf("after reload, selected().ID = %q, want %q", got, "BIT-1")
+	if got := updated.(model).selected().ID; got != ttid1 {
+		t.Errorf("after reload, selected().ID = %q, want %q", got, ttid1)
 	}
 }
 
 func TestUpdate_ReloadSelectionGoneClamps(t *testing.T) {
 	t.Parallel()
 
-	m := New([]*task.Task{{ID: "BIT-5"}, {ID: "BIT-4"}, {ID: "BIT-3"}, {ID: "BIT-2"}, {ID: "BIT-1"}})
+	m := New([]*task.Task{{ID: ttid5}, {ID: ttid4}, {ID: ttid3}, {ID: ttid2}, {ID: ttid1}})
 	sized, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 40})
 	m = sized.(model)
 	m.Select(4)
 
-	updated, _ := m.Update(reloadedMsg{tasks: []*task.Task{{ID: "BIT-5"}, {ID: "BIT-4"}}})
+	updated, _ := m.Update(reloadedMsg{tasks: []*task.Task{{ID: ttid5}, {ID: ttid4}}})
 	got := updated.(model)
 
 	if got.Index() != 1 {
 		t.Errorf("after reload dropping the selected task, Index() = %d, want 1", got.Index())
 	}
+
 	sel := got.selected()
 	if sel == nil {
 		t.Fatalf("after reload dropping the selected task, selected() = nil, want a valid item")
 	}
-	if sel.ID != "BIT-4" {
-		t.Errorf("after reload dropping the selected task, selected().ID = %q, want %q", sel.ID, "BIT-4")
+
+	if sel.ID != ttid4 {
+		t.Errorf("after reload dropping the selected task, selected().ID = %q, want %q", sel.ID, ttid4)
 	}
 }
 
@@ -179,33 +190,37 @@ func TestUpdate_ReloadPreservesBoardSelection(t *testing.T) {
 	t.Parallel()
 
 	var mdl tea.Model = New([]*task.Task{
-		{ID: "BIT-1", Status: "todo"},
-		{ID: "BIT-2", Status: "doing"},
-		{ID: "BIT-3", Status: "doing"},
+		{ID: ttid1, Status: task.StatusTodo},
+		{ID: ttid2, Status: task.StatusDoing},
+		{ID: ttid3, Status: task.StatusDoing},
 	})
+
 	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 
 	mdl, _ = mdl.Update(reloadedMsg{tasks: []*task.Task{
-		{ID: "BIT-1", Status: "todo"},
-		{ID: "BIT-2", Status: "doing"},
-		{ID: "BIT-3", Status: "doing"},
-		{ID: "BIT-4", Status: "todo"},
+		{ID: ttid1, Status: task.StatusTodo},
+		{ID: ttid2, Status: task.StatusDoing},
+		{ID: ttid3, Status: task.StatusDoing},
+		{ID: ttid4, Status: task.StatusTodo},
 	}})
 	got := mdl.(model)
 
 	if got.activeCol != 1 {
 		t.Errorf("after reload, activeCol = %d, want 1", got.activeCol)
 	}
+
 	if got.mode != modeBoard {
 		t.Errorf("after reload, mode = %v, want modeBoard", got.mode)
 	}
+
 	sel := got.boardSelected()
 	if sel == nil {
 		t.Fatalf("after reload, boardSelected() = nil, want a valid card")
 	}
-	if sel.ID != "BIT-3" {
-		t.Errorf("after reload, boardSelected().ID = %q, want %q", sel.ID, "BIT-3")
+
+	if sel.ID != ttid3 {
+		t.Errorf("after reload, boardSelected().ID = %q, want %q", sel.ID, ttid3)
 	}
 }
 
@@ -220,38 +235,38 @@ func TestSameTasks(t *testing.T) {
 	}{
 		{
 			name: "identical single task",
-			a:    []*task.Task{{ID: "BIT-1", Status: "todo", Title: "one", Body: "b"}},
-			b:    []*task.Task{{ID: "BIT-1", Status: "todo", Title: "one", Body: "b"}},
+			a:    []*task.Task{{ID: ttid1, Status: task.StatusTodo, Title: "one", Body: "b"}},
+			b:    []*task.Task{{ID: ttid1, Status: task.StatusTodo, Title: "one", Body: "b"}},
 			want: true,
 		},
 		{
 			name: "different length",
-			a:    []*task.Task{{ID: "BIT-1"}},
-			b:    []*task.Task{{ID: "BIT-1"}, {ID: "BIT-2"}},
+			a:    []*task.Task{{ID: ttid1}},
+			b:    []*task.Task{{ID: ttid1}, {ID: ttid2}},
 			want: false,
 		},
 		{
 			name: "same length different ID",
-			a:    []*task.Task{{ID: "BIT-1"}},
-			b:    []*task.Task{{ID: "BIT-2"}},
+			a:    []*task.Task{{ID: ttid1}},
+			b:    []*task.Task{{ID: ttid2}},
 			want: false,
 		},
 		{
 			name: "same ID different Status",
-			a:    []*task.Task{{ID: "BIT-1", Status: "todo"}},
-			b:    []*task.Task{{ID: "BIT-1", Status: "doing"}},
+			a:    []*task.Task{{ID: ttid1, Status: task.StatusTodo}},
+			b:    []*task.Task{{ID: ttid1, Status: task.StatusDoing}},
 			want: false,
 		},
 		{
 			name: "same ID different Body",
-			a:    []*task.Task{{ID: "BIT-1", Body: "before"}},
-			b:    []*task.Task{{ID: "BIT-1", Body: "after"}},
+			a:    []*task.Task{{ID: ttid1, Body: "before"}},
+			b:    []*task.Task{{ID: ttid1, Body: "after"}},
 			want: false,
 		},
 		{
 			name: "two tasks reordered",
-			a:    []*task.Task{{ID: "BIT-1"}, {ID: "BIT-2"}},
-			b:    []*task.Task{{ID: "BIT-2"}, {ID: "BIT-1"}},
+			a:    []*task.Task{{ID: ttid1}, {ID: ttid2}},
+			b:    []*task.Task{{ID: ttid2}, {ID: ttid1}},
 			want: false,
 		},
 	}
@@ -259,6 +274,7 @@ func TestSameTasks(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+
 			if got := sameTasks(tt.a, tt.b); got != tt.want {
 				t.Errorf("sameTasks() = %v, want %v", got, tt.want)
 			}
@@ -270,9 +286,9 @@ func TestUpdate_ForwardsNavigationToList(t *testing.T) {
 	t.Parallel()
 
 	tasks := []*task.Task{
-		{ID: "BIT-2"},
-		{ID: "BIT-2.1"},
-		{ID: "BIT-1"},
+		{ID: ttid2},
+		{ID: ttid2_1},
+		{ID: ttid1},
 	}
 
 	m := New(tasks)
@@ -298,7 +314,7 @@ func TestNew_EmptyList(t *testing.T) {
 func TestNew_ListHelpDisabled(t *testing.T) {
 	t.Parallel()
 
-	m := New([]*task.Task{{ID: "BIT-1"}})
+	m := New([]*task.Task{{ID: ttid1}})
 
 	if m.ShowHelp() {
 		t.Error("New() left the list's built-in help on, want it disabled")
@@ -308,7 +324,7 @@ func TestNew_ListHelpDisabled(t *testing.T) {
 func TestNew_DefaultsToBoardMode(t *testing.T) {
 	t.Parallel()
 
-	m := New([]*task.Task{{ID: "BIT-1"}})
+	m := New([]*task.Task{{ID: ttid1}})
 
 	if m.mode != modeBoard {
 		t.Errorf("New() mode = %v, want modeBoard", m.mode)
@@ -319,9 +335,9 @@ func TestNew_LandsOnDoingsTopBar(t *testing.T) {
 	t.Parallel()
 
 	tasks := []*task.Task{
-		{ID: "BIT-2", Status: "todo"},
-		{ID: "BIT-1", Status: "doing"},
-		{ID: "BIT-1.1", Status: "doing"},
+		{ID: ttid2, Status: task.StatusTodo},
+		{ID: ttid1, Status: task.StatusDoing},
+		{ID: "BIT-1.1", Status: task.StatusDoing},
 	}
 
 	m := New(tasks)
@@ -329,6 +345,7 @@ func TestNew_LandsOnDoingsTopBar(t *testing.T) {
 	if m.activeCol != 1 {
 		t.Errorf("New() activeCol = %d, want 1 (Doing)", m.activeCol)
 	}
+
 	if got := m.boardSelected(); got == nil || got.ID != "BIT-1.1" {
 		t.Errorf("New() boardSelected() = %v, want BIT-1.1", got)
 	}
@@ -338,9 +355,9 @@ func TestSelected_TracksCursor(t *testing.T) {
 	t.Parallel()
 
 	tasks := []*task.Task{
-		{ID: "BIT-2"},
-		{ID: "BIT-2.1"},
-		{ID: "BIT-1"},
+		{ID: ttid2},
+		{ID: ttid2_1},
+		{ID: ttid1},
 	}
 
 	m := New(tasks)
@@ -387,9 +404,11 @@ func TestSplitWidth(t *testing.T) {
 			if listW < 0 {
 				t.Errorf("splitWidth(%d) listW = %d, want >= 0", tt.total, listW)
 			}
+
 			if detailW < 0 {
 				t.Errorf("splitWidth(%d) detailW = %d, want >= 0", tt.total, detailW)
 			}
+
 			if listW+detailW > tt.total {
 				t.Errorf("splitWidth(%d) listW+detailW = %d, want <= %d", tt.total, listW+detailW, tt.total)
 			}
@@ -404,6 +423,7 @@ func TestSplitWidth(t *testing.T) {
 		if listW <= 0 || detailW <= 0 {
 			t.Fatalf("splitWidth(120) = (%d, %d), want both > 0", listW, detailW)
 		}
+
 		if detailW <= listW {
 			t.Errorf("splitWidth(120) detailW = %d, listW = %d, want detailW > listW", detailW, listW)
 		}
@@ -421,6 +441,7 @@ func TestSplitWidthExpanded(t *testing.T) {
 		if listW != 10 {
 			t.Errorf("splitWidthExpanded(100) listW = %d, want 10", listW)
 		}
+
 		if detailW != 89 {
 			t.Errorf("splitWidthExpanded(100) detailW = %d, want 89", detailW)
 		}
@@ -434,6 +455,7 @@ func TestSplitWidthExpanded(t *testing.T) {
 		if listW != 20 {
 			t.Errorf("splitWidthExpanded(200) listW = %d, want 20", listW)
 		}
+
 		if detailW != 179 {
 			t.Errorf("splitWidthExpanded(200) detailW = %d, want 179", detailW)
 		}
@@ -458,9 +480,11 @@ func TestSplitWidthExpanded(t *testing.T) {
 			if listW < 0 {
 				t.Errorf("splitWidthExpanded(%d) listW = %d, want >= 0", total, listW)
 			}
+
 			if detailW < 0 {
 				t.Errorf("splitWidthExpanded(%d) detailW = %d, want >= 0", total, detailW)
 			}
+
 			if listW+detailW > total {
 				t.Errorf("splitWidthExpanded(%d) listW+detailW = %d, want <= %d", total, listW+detailW, total)
 			}
@@ -471,7 +495,7 @@ func TestSplitWidthExpanded(t *testing.T) {
 func TestLayout_ExpandedUsesWiderSplit(t *testing.T) {
 	t.Parallel()
 
-	m := New([]*task.Task{{ID: "BIT-1"}})
+	m := New([]*task.Task{{ID: ttid1}})
 	m.detailExpanded = true
 
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 24})
@@ -484,7 +508,7 @@ func TestLayout_ExpandedUsesWiderSplit(t *testing.T) {
 func TestUpdate_WindowSizeBuildsRenderer(t *testing.T) {
 	t.Parallel()
 
-	m := New([]*task.Task{{ID: "BIT-1", Body: "# Hi"}})
+	m := New([]*task.Task{{ID: ttid1, Body: ttBodyHi}})
 
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
@@ -497,7 +521,7 @@ func TestView_FitsWindowHeight(t *testing.T) {
 	t.Parallel()
 
 	body := strings.Repeat("line\n", 500)
-	m := New([]*task.Task{{ID: "BIT-1", Body: body}})
+	m := New([]*task.Task{{ID: ttid1, Body: body}})
 
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 
@@ -527,12 +551,14 @@ func TestView_PaneTitles(t *testing.T) {
 
 			tasks := make([]*task.Task, tt.total)
 			for i := range tasks {
-				tasks[i] = &task.Task{ID: "BIT-1"}
+				tasks[i] = &task.Task{ID: ttid1}
 				if i < tt.done {
 					tasks[i].Status = "done"
 				}
 			}
+
 			var mdl tea.Model = New(tasks)
+
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 
@@ -540,6 +566,7 @@ func TestView_PaneTitles(t *testing.T) {
 			if !strings.Contains(view, tt.want) {
 				t.Errorf("View() missing %q", tt.want)
 			}
+
 			if !strings.Contains(view, "Details") {
 				t.Errorf("View() missing \"Details\"")
 			}
@@ -551,6 +578,7 @@ func TestView_ListHidesTitleHeading(t *testing.T) {
 	t.Parallel()
 
 	var mdl tea.Model = New(nil)
+
 	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 60, Height: 16})
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 
@@ -565,9 +593,11 @@ func TestView_ListHidesItemCount(t *testing.T) {
 
 	tasks := make([]*task.Task, 3)
 	for i := range tasks {
-		tasks[i] = &task.Task{ID: "BIT-1"}
+		tasks[i] = &task.Task{ID: ttid1}
 	}
+
 	var mdl tea.Model = New(tasks)
+
 	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 60, Height: 16})
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 
@@ -581,6 +611,7 @@ func TestView_EmptyListSingleEmptyState(t *testing.T) {
 	t.Parallel()
 
 	var mdl tea.Model = New(nil)
+
 	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 60, Height: 16})
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 
@@ -594,15 +625,16 @@ func TestView_HelpBarPresentAndBounded(t *testing.T) {
 	t.Parallel()
 
 	body := strings.Repeat("line\n", 500)
-	m := New([]*task.Task{{ID: "BIT-1", Body: body}})
+	m := New([]*task.Task{{ID: ttid1, Body: body}})
 
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	withTab, _ := updated.(model).Update(tea.KeyPressMsg{Code: tea.KeyTab})
 
 	view := withTab.(model).View().Content
-	if !strings.Contains(view, "focus") {
-		t.Errorf("View() missing help text %q", "focus")
+	if !strings.Contains(view, ttFocus) {
+		t.Errorf("View() missing help text %q", ttFocus)
 	}
+
 	if h := lipgloss.Height(view); h > 24 {
 		t.Fatalf("View height = %d, want <= 24 (help bar must fit the budget)", h)
 	}
@@ -617,16 +649,18 @@ func TestView_FooterLabelsArrowsForCurrentState(t *testing.T) {
 		want    string
 		notWant string
 	}{
-		{"collapsed", false, "focus", "page"},
-		{"expanded", true, "page", "focus"},
+		{"collapsed", false, ttFocus, "page"},
+		{"expanded", true, "page", ttFocus},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			var mdl tea.Model = New([]*task.Task{{ID: "BIT-2"}, {ID: "BIT-1"}})
+			var mdl tea.Model = New([]*task.Task{{ID: ttid2}, {ID: ttid1}})
+
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+
 			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 			if tt.expand {
 				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -636,6 +670,7 @@ func TestView_FooterLabelsArrowsForCurrentState(t *testing.T) {
 			if !strings.Contains(view, tt.want) {
 				t.Errorf("View() missing help text %q", tt.want)
 			}
+
 			if strings.Contains(view, tt.notWant) {
 				t.Errorf("View() contains help text %q, want it absent", tt.notWant)
 			}
@@ -647,7 +682,9 @@ func TestUpdate_QuestionTogglesFullHelp(t *testing.T) {
 	t.Parallel()
 
 	body := strings.Repeat("line\n", 500)
-	var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Body: body}})
+
+	var mdl tea.Model = New([]*task.Task{{ID: ttid1, Body: body}})
+
 	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 
 	if mdl.(model).help.ShowAll {
@@ -660,6 +697,7 @@ func TestUpdate_QuestionTogglesFullHelp(t *testing.T) {
 	if !mdl.(model).help.ShowAll {
 		t.Error("after ?, help.ShowAll = false, want true (full menu)")
 	}
+
 	if h := lipgloss.Height(mdl.(model).View().Content); h > 24 {
 		t.Fatalf("expanded help View height = %d, want <= 24", h)
 	}
@@ -673,7 +711,7 @@ func TestUpdate_QuestionTogglesFullHelp(t *testing.T) {
 func TestUpdate_WindowSizeSizesViewport(t *testing.T) {
 	t.Parallel()
 
-	m := New([]*task.Task{{ID: "BIT-1", Body: "# Hi"}})
+	m := New([]*task.Task{{ID: ttid1, Body: ttBodyHi}})
 
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 
@@ -686,7 +724,7 @@ func TestUpdate_CtrlDScrollsDetail(t *testing.T) {
 	t.Parallel()
 
 	body := strings.Repeat("line\n", 500)
-	m := New([]*task.Task{{ID: "BIT-1", Body: body}})
+	m := New([]*task.Task{{ID: ttid1, Body: body}})
 
 	sized, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	toList, _ := sized.(model).Update(tea.KeyPressMsg{Code: tea.KeyTab})
@@ -704,14 +742,15 @@ func TestUpdate_NavigationResetsDetailScroll(t *testing.T) {
 
 	body := strings.Repeat("line\n", 500)
 	m := New([]*task.Task{
-		{ID: "BIT-2", Body: body},
-		{ID: "BIT-1", Body: body},
+		{ID: ttid2, Body: body},
+		{ID: ttid1, Body: body},
 	})
 
 	sized, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	toList, _ := sized.(model).Update(tea.KeyPressMsg{Code: tea.KeyTab})
 	focused, _ := toList.(model).Update(tea.KeyPressMsg{Code: tea.KeyRight})
 	scrolled, _ := focused.(model).Update(tea.KeyPressMsg{Code: 'd', Mod: tea.ModCtrl})
+
 	scrolledModel := scrolled.(model)
 	if scrolledModel.viewport.YOffset() == 0 {
 		t.Fatal("setup: ctrl+d did not scroll the detail")
@@ -747,8 +786,10 @@ func TestUpdate_Focus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Body: "# Hi"}})
+			var mdl tea.Model = New([]*task.Task{{ID: ttid1, Body: ttBodyHi}})
+
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+
 			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 			for _, k := range tt.keys {
 				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: k})
@@ -764,7 +805,7 @@ func TestUpdate_Focus(t *testing.T) {
 func TestUpdate_RightDoesNotPageList(t *testing.T) {
 	t.Parallel()
 
-	m := New([]*task.Task{{ID: "BIT-1"}, {ID: "BIT-2"}, {ID: "BIT-3"}})
+	m := New([]*task.Task{{ID: ttid1}, {ID: ttid2}, {ID: ttid3}})
 	sized, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	toList, _ := sized.(model).Update(tea.KeyPressMsg{Code: tea.KeyTab})
 
@@ -774,6 +815,7 @@ func TestUpdate_RightDoesNotPageList(t *testing.T) {
 	if idx := got.Index(); idx != 0 {
 		t.Errorf("after KeyRight, Index() = %d, want 0", idx)
 	}
+
 	if page := got.Paginator.Page; page != 0 {
 		t.Errorf("after KeyRight, Paginator.Page = %d, want 0", page)
 	}
@@ -798,10 +840,12 @@ func TestUpdate_FocusRoutesArrows(t *testing.T) {
 			t.Parallel()
 
 			var mdl tea.Model = New([]*task.Task{
-				{ID: "BIT-2", Body: body},
-				{ID: "BIT-1", Body: body},
+				{ID: ttid2, Body: body},
+				{ID: ttid1, Body: body},
 			})
+
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+
 			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 			for _, k := range tt.keys {
 				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: k})
@@ -811,6 +855,7 @@ func TestUpdate_FocusRoutesArrows(t *testing.T) {
 			if got.Index() != tt.wantIndex {
 				t.Errorf("Index() = %d, want %d", got.Index(), tt.wantIndex)
 			}
+
 			if scrolled := got.viewport.YOffset() > 0; scrolled != tt.wantScrolled {
 				t.Errorf("viewport scrolled = %v (YOffset=%d), want %v", scrolled, got.viewport.YOffset(), tt.wantScrolled)
 			}
@@ -826,7 +871,7 @@ func TestIsBar(t *testing.T) {
 		id   string
 		want bool
 	}{
-		{"track", "BIT-2", false},
+		{"track", ttid2, false},
 		{"bar", "BIT-2.5", true},
 	}
 
@@ -849,9 +894,9 @@ func TestVerse(t *testing.T) {
 		task *task.Task
 		want string
 	}{
-		{"phased bar", &task.Task{ID: "BIT-2.1", Phase: 2, PhaseLabel: "List & read"}, "phase 2 — List & read"},
-		{"unphased bar", &task.Task{ID: "BIT-2.1", Phase: 0}, ""},
-		{"track", &task.Task{ID: "BIT-2", Phase: 2, PhaseLabel: "List & read"}, ""},
+		{"phased bar", &task.Task{ID: ttid2_1, Phase: 2, PhaseLabel: "List & read"}, "phase 2 — List & read"},
+		{"unphased bar", &task.Task{ID: ttid2_1, Phase: 0}, ""},
+		{"track", &task.Task{ID: ttid2, Phase: 2, PhaseLabel: "List & read"}, ""},
 	}
 
 	for _, tt := range tests {
@@ -882,7 +927,7 @@ func TestUpdate_TabTogglesMode(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1"}})
+			var mdl tea.Model = New([]*task.Task{{ID: ttid1}})
 			for range tt.presses {
 				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 			}
@@ -897,7 +942,8 @@ func TestUpdate_TabTogglesMode(t *testing.T) {
 func TestUpdate_EnterExpandsDetail(t *testing.T) {
 	t.Parallel()
 
-	var mdl tea.Model = New([]*task.Task{{ID: "BIT-1"}})
+	var mdl tea.Model = New([]*task.Task{{ID: ttid1}})
+
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
@@ -909,7 +955,8 @@ func TestUpdate_EnterExpandsDetail(t *testing.T) {
 func TestUpdate_EnterTogglesDetailBackAndForth(t *testing.T) {
 	t.Parallel()
 
-	var mdl tea.Model = New([]*task.Task{{ID: "BIT-1"}})
+	var mdl tea.Model = New([]*task.Task{{ID: ttid1}})
+
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -923,10 +970,12 @@ func TestUpdate_EnterFocusesDetailForScrolling(t *testing.T) {
 	t.Parallel()
 
 	body := strings.Repeat("line\n", 500)
+
 	var mdl tea.Model = New([]*task.Task{
-		{ID: "BIT-2", Body: body},
-		{ID: "BIT-1", Body: body},
+		{ID: ttid2, Body: body},
+		{ID: ttid1, Body: body},
 	})
+
 	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -937,6 +986,7 @@ func TestUpdate_EnterFocusesDetailForScrolling(t *testing.T) {
 	if off := got.viewport.YOffset(); off == 0 {
 		t.Errorf("viewport.YOffset = %d, want > 0 — down should scroll the expanded body", off)
 	}
+
 	if idx := got.Index(); idx != 0 {
 		t.Errorf("Index() = %d, want 0 — down should not move the list selection while expanded", idx)
 	}
@@ -946,10 +996,12 @@ func TestUpdate_EnterAgainReturnsFocusToList(t *testing.T) {
 	t.Parallel()
 
 	body := strings.Repeat("line\n", 500)
+
 	var mdl tea.Model = New([]*task.Task{
-		{ID: "BIT-2", Body: body},
-		{ID: "BIT-1", Body: body},
+		{ID: ttid2, Body: body},
+		{ID: ttid1, Body: body},
 	})
+
 	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -961,6 +1013,7 @@ func TestUpdate_EnterAgainReturnsFocusToList(t *testing.T) {
 	if idx := got.Index(); idx != 1 {
 		t.Errorf("Index() = %d, want 1 — down should move the list selection once collapsed", idx)
 	}
+
 	if off := got.viewport.YOffset(); off != 0 {
 		t.Errorf("viewport.YOffset = %d, want 0 — down should not scroll the body once collapsed", off)
 	}
@@ -969,7 +1022,8 @@ func TestUpdate_EnterAgainReturnsFocusToList(t *testing.T) {
 func TestUpdate_PagesListWhenExpanded(t *testing.T) {
 	t.Parallel()
 
-	var mdl tea.Model = New([]*task.Task{{ID: "BIT-2"}, {ID: "BIT-1"}})
+	var mdl tea.Model = New([]*task.Task{{ID: ttid2}, {ID: ttid1}})
+
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
@@ -983,7 +1037,7 @@ func TestUpdate_PagesListWhenExpanded(t *testing.T) {
 func TestUpdate_PagesListLeftWhenExpanded(t *testing.T) {
 	t.Parallel()
 
-	m := New([]*task.Task{{ID: "BIT-3"}, {ID: "BIT-2"}, {ID: "BIT-1"}})
+	m := New([]*task.Task{{ID: ttid3}, {ID: ttid2}, {ID: ttid1}})
 	toList, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 	expanded, _ := toList.(model).Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	em := expanded.(model)
@@ -1013,7 +1067,7 @@ func TestUpdate_PagingClampsAtListEnds(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			m := New([]*task.Task{{ID: "BIT-2"}, {ID: "BIT-1"}})
+			m := New([]*task.Task{{ID: ttid2}, {ID: ttid1}})
 			toList, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 			expanded, _ := toList.(model).Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 			em := expanded.(model)
@@ -1031,7 +1085,8 @@ func TestUpdate_PagingClampsAtListEnds(t *testing.T) {
 func TestUpdate_EnterRelayoutsPaneWidths(t *testing.T) {
 	t.Parallel()
 
-	var mdl tea.Model = New([]*task.Task{{ID: "BIT-1"}})
+	var mdl tea.Model = New([]*task.Task{{ID: ttid1}})
+
 	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 100, Height: 24})
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 
@@ -1050,7 +1105,7 @@ func TestUpdate_QuitsFromDetail(t *testing.T) {
 		key  tea.KeyPressMsg
 	}{
 		{"q", tea.KeyPressMsg{Code: 'q', Text: "q"}},
-		{"esc", tea.KeyPressMsg{Code: tea.KeyEsc}},
+		{keyEsc, tea.KeyPressMsg{Code: tea.KeyEsc}},
 		{"ctrl+c", tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}},
 	}
 
@@ -1058,7 +1113,8 @@ func TestUpdate_QuitsFromDetail(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1"}})
+			var mdl tea.Model = New([]*task.Task{{ID: ttid1}})
+
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyRight})
@@ -1068,6 +1124,7 @@ func TestUpdate_QuitsFromDetail(t *testing.T) {
 			if cmd == nil {
 				t.Fatalf("%s from detail pane: cmd = nil, want a quit cmd", tt.name)
 			}
+
 			if _, ok := cmd().(tea.QuitMsg); !ok {
 				t.Errorf("%s from detail pane: cmd() = %T, want tea.QuitMsg", tt.name, cmd())
 			}
@@ -1078,13 +1135,14 @@ func TestUpdate_QuitsFromDetail(t *testing.T) {
 func TestUpdate_EscQuitsFromList(t *testing.T) {
 	t.Parallel()
 
-	m := New([]*task.Task{{ID: "BIT-1"}})
+	m := New([]*task.Task{{ID: ttid1}})
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 
 	if cmd == nil {
 		t.Fatal("after KeyEsc in list, cmd = nil, want a quit cmd")
 	}
+
 	if _, ok := cmd().(tea.QuitMsg); !ok {
 		t.Errorf("after KeyEsc in list, cmd() = %T, want tea.QuitMsg", cmd())
 	}
@@ -1093,11 +1151,12 @@ func TestUpdate_EscQuitsFromList(t *testing.T) {
 func TestTitledBorder_ActiveUsesTerminalGreen(t *testing.T) {
 	t.Parallel()
 
-	got := titledBorder("body", "Tasks (0)", 20, 3, true)
+	got := titledBorder(ttBody, "Tasks (0)", 20, 3, true)
 
 	if !strings.Contains(got, "\x1b[32m") {
 		t.Errorf("titledBorder active = %q, want terminal green SGR \\x1b[32m", got)
 	}
+
 	if strings.Contains(got, "38;5;99") {
 		t.Errorf("titledBorder active = %q, still contains 256-purple 38;5;99", got)
 	}
@@ -1106,11 +1165,12 @@ func TestTitledBorder_ActiveUsesTerminalGreen(t *testing.T) {
 func TestTitledBorder_ActiveTitleInverted(t *testing.T) {
 	t.Parallel()
 
-	got := titledBorder("body", "Tasks (0)", 20, 3, true)
+	got := titledBorder(ttBody, "Tasks (0)", 20, 3, true)
 
 	if !strings.Contains(got, "\x1b[7;32m") {
 		t.Errorf("titledBorder active = %q, want reverse-green title SGR \\x1b[7;32m", got)
 	}
+
 	if !strings.Contains(got, "\x1b[32m") {
 		t.Errorf("titledBorder active = %q, want green border SGR \\x1b[32m", got)
 	}
@@ -1119,7 +1179,7 @@ func TestTitledBorder_ActiveTitleInverted(t *testing.T) {
 func TestTitledBorder_InactiveTitleFramed(t *testing.T) {
 	t.Parallel()
 
-	got := titledBorder("body", "Doing (0)", 20, 3, false)
+	got := titledBorder(ttBody, "Doing (0)", 20, 3, false)
 
 	if !strings.Contains(got, "| Doing (0) |") {
 		t.Errorf("titledBorder inactive = %q, want framed title | Doing (0) |", got)
@@ -1129,7 +1189,7 @@ func TestTitledBorder_InactiveTitleFramed(t *testing.T) {
 func TestTitledBorder_ActiveTitleNotFramed(t *testing.T) {
 	t.Parallel()
 
-	got := titledBorder("body", "Tasks (0)", 20, 3, true)
+	got := titledBorder(ttBody, "Tasks (0)", 20, 3, true)
 
 	if strings.Contains(got, "| Tasks (0) |") {
 		t.Errorf("titledBorder active = %q, should not frame title with pipes", got)
@@ -1139,7 +1199,7 @@ func TestTitledBorder_ActiveTitleNotFramed(t *testing.T) {
 func TestView_ModalTitleInverted(t *testing.T) {
 	t.Parallel()
 
-	m := New([]*task.Task{{ID: "BIT-1", Status: "todo", Approved: true, Title: "T", Body: "b"}})
+	m := New([]*task.Task{{ID: ttid1, Status: task.StatusTodo, Approved: true, Title: "T", Body: "b"}})
 	mdl, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	mdl, _ = mdl.(model).Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
@@ -1147,6 +1207,7 @@ func TestView_ModalTitleInverted(t *testing.T) {
 	if !strings.Contains(view, "\x1b[7m BIT-1 — T \x1b[27m") {
 		t.Errorf("modal view = %q, want reverse-video title span \\x1b[7m BIT-1 — T \\x1b[27m", view)
 	}
+
 	if !strings.Contains(view, "\x1b[32m") {
 		t.Errorf("modal view = %q, want green border SGR \\x1b[32m", view)
 	}
@@ -1159,12 +1220,14 @@ func TestUpdate_SpaceTogglesApprovalInListMode(t *testing.T) {
 		id       string
 		approved bool
 	}
-	m := New([]*task.Task{{ID: "BIT-1", Status: "todo", Approved: false}}).
+
+	m := New([]*task.Task{{ID: ttid1, Status: task.StatusTodo, Approved: false}}).
 		WithApprove(func(id string, a bool) error {
 			called = append(called, struct {
 				id       string
 				approved bool
 			}{id, a})
+
 			return nil
 		})
 	mdl, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
@@ -1173,9 +1236,11 @@ func TestUpdate_SpaceTogglesApprovalInListMode(t *testing.T) {
 	if len(called) != 1 {
 		t.Fatalf("approve called %d times, want 1", len(called))
 	}
-	if called[0].id != "BIT-1" {
-		t.Errorf("approve id = %q, want %q", called[0].id, "BIT-1")
+
+	if called[0].id != ttid1 {
+		t.Errorf("approve id = %q, want %q", called[0].id, ttid1)
 	}
+
 	if !called[0].approved {
 		t.Errorf("approve approved = false, want true (invert of Approved:false)")
 	}
@@ -1188,12 +1253,14 @@ func TestUpdate_SpaceTogglesApprovalInBoardMode(t *testing.T) {
 		id       string
 		approved bool
 	}
-	m := New([]*task.Task{{ID: "BIT-1", Status: "doing", Approved: false}}).
+
+	m := New([]*task.Task{{ID: ttid1, Status: task.StatusDoing, Approved: false}}).
 		WithApprove(func(id string, a bool) error {
 			called = append(called, struct {
 				id       string
 				approved bool
 			}{id, a})
+
 			return nil
 		})
 	_, _ = m.Update(tea.KeyPressMsg{Code: ' '})
@@ -1201,8 +1268,9 @@ func TestUpdate_SpaceTogglesApprovalInBoardMode(t *testing.T) {
 	if len(called) != 1 {
 		t.Fatalf("approve called %d times, want 1", len(called))
 	}
-	if called[0].id != "BIT-1" {
-		t.Errorf("approve id = %q, want %q", called[0].id, "BIT-1")
+
+	if called[0].id != ttid1 {
+		t.Errorf("approve id = %q, want %q", called[0].id, ttid1)
 	}
 }
 
@@ -1213,12 +1281,14 @@ func TestUpdate_SpaceOnApprovedItemSendsUnapproved(t *testing.T) {
 		id       string
 		approved bool
 	}
-	m := New([]*task.Task{{ID: "BIT-1", Status: "todo", Approved: true}}).
+
+	m := New([]*task.Task{{ID: ttid1, Status: task.StatusTodo, Approved: true}}).
 		WithApprove(func(id string, a bool) error {
 			called = append(called, struct {
 				id       string
 				approved bool
 			}{id, a})
+
 			return nil
 		})
 	_, _ = m.Update(tea.KeyPressMsg{Code: ' '})
@@ -1226,6 +1296,7 @@ func TestUpdate_SpaceOnApprovedItemSendsUnapproved(t *testing.T) {
 	if len(called) != 1 {
 		t.Fatalf("approve called %d times, want 1", len(called))
 	}
+
 	if called[0].approved {
 		t.Errorf("approve approved = true, want false (invert of Approved:true)")
 	}
@@ -1234,7 +1305,7 @@ func TestUpdate_SpaceOnApprovedItemSendsUnapproved(t *testing.T) {
 func TestUpdate_SpaceWithNoCallbackIsNoop(t *testing.T) {
 	t.Parallel()
 
-	tasks := []*task.Task{{ID: "BIT-1", Status: "todo", Approved: false}}
+	tasks := []*task.Task{{ID: ttid1, Status: task.StatusTodo, Approved: false}}
 	m := New(tasks)
 
 	updated, _ := m.Update(tea.KeyPressMsg{Code: ' '})
@@ -1243,7 +1314,8 @@ func TestUpdate_SpaceWithNoCallbackIsNoop(t *testing.T) {
 	if got.selected() == nil {
 		t.Fatal("selected() = nil after space noop, want unchanged model")
 	}
-	if got.selected().ID != "BIT-1" {
-		t.Errorf("selected().ID = %q after space noop, want %q", got.selected().ID, "BIT-1")
+
+	if got.selected().ID != ttid1 {
+		t.Errorf("selected().ID = %q after space noop, want %q", got.selected().ID, ttid1)
 	}
 }

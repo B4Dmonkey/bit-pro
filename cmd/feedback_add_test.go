@@ -8,6 +8,8 @@ import (
 	"testing"
 )
 
+const firstNotePath = ".bit/feedback/BIT-1-001.md\n"
+
 const firstNote = "Happened at BIT-1.9.\n\n" +
 	"The plan said: fall back to `plugin install` when `plugin update` fails.\n" +
 	"The work required: deciding whether the fallback also runs `marketplace add`, " +
@@ -24,14 +26,15 @@ func TestFeedbackAddCmd_WritesFirstNote(t *testing.T) {
 
 	out := mustRun(t, "feedback", "add", "BIT-1", "-d", firstNote)
 
-	if want := ".bit/feedback/BIT-1-001.md\n"; out != want {
-		t.Errorf("feedback add stdout = %q, want %q", out, want)
+	if out != firstNotePath {
+		t.Errorf("feedback add stdout = %q, want %q", out, firstNotePath)
 	}
 
 	data, err := os.ReadFile(".bit/feedback/BIT-1-001.md")
 	if err != nil {
 		t.Fatalf("reading note: %v", err)
 	}
+
 	if string(data) != firstNote {
 		t.Errorf("note = %q, want %q", data, firstNote)
 	}
@@ -52,6 +55,7 @@ func TestFeedbackAddCmd_SecondNoteGetsNextSequence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reading second note: %v", err)
 	}
+
 	if string(second) != secondNote {
 		t.Errorf("second note = %q, want %q", second, secondNote)
 	}
@@ -60,6 +64,7 @@ func TestFeedbackAddCmd_SecondNoteGetsNextSequence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reading first note: %v", err)
 	}
+
 	if string(first) != firstNote {
 		t.Errorf("first note = %q, want %q", first, firstNote)
 	}
@@ -80,6 +85,7 @@ func TestFeedbackAddCmd_LowercaseTrackDoesNotOverwriteAnExistingNote(t *testing.
 	if err != nil {
 		t.Fatalf("reading first note: %v", err)
 	}
+
 	if string(first) != firstNote {
 		t.Errorf("first note = %q, want %q", first, firstNote)
 	}
@@ -88,9 +94,11 @@ func TestFeedbackAddCmd_LowercaseTrackDoesNotOverwriteAnExistingNote(t *testing.
 	if err != nil {
 		t.Fatalf("reading feedback dir: %v", err)
 	}
+
 	if len(entries) != 2 {
 		t.Fatalf("feedback dir holds %d files, want 2", len(entries))
 	}
+
 	for _, entry := range entries {
 		stem := strings.TrimSuffix(entry.Name(), ".md")
 		if stem != strings.ToUpper(stem) {
@@ -107,14 +115,15 @@ func TestFeedbackAddCmd_AcceptsArchivedTrack(t *testing.T) {
 
 	out := mustRun(t, "feedback", "add", "BIT-1", "-d", firstNote)
 
-	if want := ".bit/feedback/BIT-1-001.md\n"; out != want {
-		t.Errorf("feedback add against an archived track stdout = %q, want %q", out, want)
+	if out != firstNotePath {
+		t.Errorf("feedback add against an archived track stdout = %q, want %q", out, firstNotePath)
 	}
 
 	data, err := os.ReadFile(".bit/feedback/BIT-1-001.md")
 	if err != nil {
 		t.Fatalf("reading note: %v", err)
 	}
+
 	if string(data) != firstNote {
 		t.Errorf("note = %q, want %q", data, firstNote)
 	}
@@ -128,14 +137,15 @@ func TestFeedbackAddCmd_AcceptsCompletedTrack(t *testing.T) {
 
 	out := mustRun(t, "feedback", "add", "BIT-1", "-d", firstNote)
 
-	if want := ".bit/feedback/BIT-1-001.md\n"; out != want {
-		t.Errorf("feedback add against a completed track stdout = %q, want %q", out, want)
+	if out != firstNotePath {
+		t.Errorf("feedback add against a completed track stdout = %q, want %q", out, firstNotePath)
 	}
 
 	data, err := os.ReadFile(".bit/feedback/BIT-1-001.md")
 	if err != nil {
 		t.Fatalf("reading note: %v", err)
 	}
+
 	if string(data) != firstNote {
 		t.Errorf("note = %q, want %q", data, firstNote)
 	}
@@ -152,6 +162,7 @@ func TestFeedbackAddCmd_NoteSurvivesTrackRewrite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reading note after track rewrite: %v", err)
 	}
+
 	if string(data) != firstNote {
 		t.Errorf("note after track rewrite = %q, want %q", data, firstNote)
 	}
@@ -170,6 +181,7 @@ func TestFeedbackAddCmd_NoteSurvivesTrackCompletion(t *testing.T) {
 	if _, err := os.Stat(".bit/tasks/BIT-1.md"); !errors.Is(err, fs.ErrNotExist) {
 		t.Errorf("stat track under tasks = %v, want fs.ErrNotExist", err)
 	}
+
 	if _, err := os.Stat(".bit/completed/BIT-1.md"); err != nil {
 		t.Errorf("stat completed track = %v, want it relocated", err)
 	}
@@ -178,6 +190,7 @@ func TestFeedbackAddCmd_NoteSurvivesTrackCompletion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reading note after track completion: %v", err)
 	}
+
 	if string(data) != firstNote {
 		t.Errorf("note after track completion = %q, want %q", data, firstNote)
 	}

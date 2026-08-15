@@ -5,34 +5,35 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/B4Dmonkey/bit-pro/task"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/B4Dmonkey/bit-pro/task"
 )
 
 func TestGroupByStatus(t *testing.T) {
 	t.Parallel()
 
 	tasks := []*task.Task{
-		{ID: "BIT-4", Status: "todo", Approved: true},
-		{ID: "BIT-2.1", Status: "doing"},
-		{ID: "BIT-4.1", Status: "done"},
-		{ID: "BIT-4.2", Status: "done"},
-		{ID: "BIT-9", Status: "backlog"},
+		{ID: ttid4, Status: task.StatusTodo, Approved: true},
+		{ID: ttid2_1, Status: task.StatusDoing},
+		{ID: ttid4_1, Status: task.StatusDone},
+		{ID: ttid4_2, Status: task.StatusDone},
+		{ID: ttid9, Status: "backlog"},
 	}
 
 	cols := groupByStatus(tasks)
 
 	want := [3][]string{
-		{"BIT-4"},
-		{"BIT-2.1"},
-		{"BIT-4.1", "BIT-4.2"},
+		{ttid4},
+		{ttid2_1},
+		{ttid4_1, ttid4_2},
 	}
 	for i, wantIDs := range want {
 		if len(cols[i]) != len(wantIDs) {
 			t.Fatalf("column %d has %d tasks, want %d", i, len(cols[i]), len(wantIDs))
 		}
+
 		for j, id := range wantIDs {
 			if cols[i][j].ID != id {
 				t.Errorf("column %d task %d = %q, want %q", i, j, cols[i][j].ID, id)
@@ -42,7 +43,7 @@ func TestGroupByStatus(t *testing.T) {
 
 	for i, col := range cols {
 		for _, tk := range col {
-			if tk.ID == "BIT-9" {
+			if tk.ID == ttid9 {
 				t.Errorf("unmapped task BIT-9 leaked into column %d", i)
 			}
 		}
@@ -61,22 +62,22 @@ func TestGroupByStatus_PreservesOrderWithinColumn(t *testing.T) {
 		{
 			name: "todo column keeps non-ID incoming order",
 			tasks: []*task.Task{
-				{ID: "BIT-1.2", Status: "todo", Approved: true},
-				{ID: "BIT-1.1", Status: "todo", Approved: true},
-				{ID: "BIT-1.3", Status: "todo", Approved: true},
+				{ID: ttid1_2, Status: task.StatusTodo, Approved: true},
+				{ID: ttid1_1, Status: task.StatusTodo, Approved: true},
+				{ID: ttid1_3, Status: task.StatusTodo, Approved: true},
 			},
 			column: 0,
-			want:   []string{"BIT-1.2", "BIT-1.1", "BIT-1.3"},
+			want:   []string{ttid1_2, ttid1_1, ttid1_3},
 		},
 		{
 			name: "done column keeps non-ID incoming order",
 			tasks: []*task.Task{
-				{ID: "BIT-1.3", Status: "done"},
-				{ID: "BIT-1.1", Status: "done"},
-				{ID: "BIT-1.2", Status: "done"},
+				{ID: ttid1_3, Status: task.StatusDone},
+				{ID: ttid1_1, Status: task.StatusDone},
+				{ID: ttid1_2, Status: task.StatusDone},
 			},
 			column: 2,
-			want:   []string{"BIT-1.3", "BIT-1.1", "BIT-1.2"},
+			want:   []string{ttid1_3, ttid1_1, ttid1_2},
 		},
 	}
 
@@ -90,6 +91,7 @@ func TestGroupByStatus_PreservesOrderWithinColumn(t *testing.T) {
 			for _, tk := range cols[tt.column] {
 				got = append(got, tk.ID)
 			}
+
 			if !slices.Equal(got, tt.want) {
 				t.Errorf("column %d order = %v, want %v", tt.column, got, tt.want)
 			}
@@ -101,10 +103,10 @@ func TestBoardColumns_FromGrouping(t *testing.T) {
 	t.Parallel()
 
 	tasks := []*task.Task{
-		{ID: "BIT-4", Status: "todo", Approved: true},
-		{ID: "BIT-2.1", Status: "doing"},
-		{ID: "BIT-4.1", Status: "done"},
-		{ID: "BIT-4.2", Status: "done"},
+		{ID: ttid4, Status: task.StatusTodo, Approved: true},
+		{ID: ttid2_1, Status: task.StatusDoing},
+		{ID: ttid4_1, Status: task.StatusDone},
+		{ID: ttid4_2, Status: task.StatusDone},
 	}
 
 	m := New(tasks)
@@ -120,8 +122,9 @@ func TestBoardColumns_FromGrouping(t *testing.T) {
 	if !ok {
 		t.Fatalf("column 2 item 0 is %T, want item", m.boardCols[2].Items()[0])
 	}
-	if first.t.ID != "BIT-4.1" {
-		t.Errorf("column 2 item 0 = %q, want %q", first.t.ID, "BIT-4.1")
+
+	if first.t.ID != ttid4_1 {
+		t.Errorf("column 2 item 0 = %q, want %q", first.t.ID, ttid4_1)
 	}
 }
 
@@ -135,22 +138,22 @@ func TestDefaultColumn(t *testing.T) {
 	}{
 		{
 			name: "doing is the default when populated",
-			cols: [3][]*task.Task{nil, {{ID: "BIT-1"}}, nil},
+			cols: [3][]*task.Task{nil, {{ID: ttid1}}, nil},
 			want: 1,
 		},
 		{
 			name: "doing wins even when to do is also populated",
-			cols: [3][]*task.Task{{{ID: "BIT-4"}}, {{ID: "BIT-1"}}, {{ID: "BIT-9"}}},
+			cols: [3][]*task.Task{{{ID: ttid4}}, {{ID: ttid1}}, {{ID: ttid9}}},
 			want: 1,
 		},
 		{
 			name: "falls back to to do when doing is empty",
-			cols: [3][]*task.Task{{{ID: "BIT-4"}}, nil, nil},
+			cols: [3][]*task.Task{{{ID: ttid4}}, nil, nil},
 			want: 0,
 		},
 		{
 			name: "falls back to done when only done has tasks",
-			cols: [3][]*task.Task{nil, nil, {{ID: "BIT-4"}}},
+			cols: [3][]*task.Task{nil, nil, {{ID: ttid4}}},
 			want: 2,
 		},
 		{
@@ -182,24 +185,24 @@ func TestFirstBarIndex(t *testing.T) {
 		{
 			name: "bar after its track",
 			items: []list.Item{
-				item{t: &task.Task{ID: "BIT-1"}},
-				item{t: &task.Task{ID: "BIT-1.1"}},
+				item{t: &task.Task{ID: ttid1}},
+				item{t: &task.Task{ID: ttid1_1}},
 			},
 			want: 1,
 		},
 		{
 			name: "bar before its track",
 			items: []list.Item{
-				item{t: &task.Task{ID: "BIT-2.1"}},
-				item{t: &task.Task{ID: "BIT-2"}},
+				item{t: &task.Task{ID: ttid2_1}},
+				item{t: &task.Task{ID: ttid2}},
 			},
 			want: 0,
 		},
 		{
 			name: "no bars falls back to first row",
 			items: []list.Item{
-				item{t: &task.Task{ID: "BIT-3"}},
-				item{t: &task.Task{ID: "BIT-4"}},
+				item{t: &task.Task{ID: ttid3}},
+				item{t: &task.Task{ID: ttid4}},
 			},
 			want: 0,
 		},
@@ -231,31 +234,31 @@ func TestFlattenBoard(t *testing.T) {
 	}{
 		{
 			name: "single column",
-			cols: [3]list.Model{{}, newColumnList([]*task.Task{{ID: "BIT-1"}, {ID: "BIT-1.1"}}), {}},
+			cols: [3]list.Model{{}, newColumnList([]*task.Task{{ID: ttid1}, {ID: ttid1_1}}), {}},
 			want: []boardEntry{
-				{col: 1, pos: 0, t: &task.Task{ID: "BIT-1"}},
-				{col: 1, pos: 1, t: &task.Task{ID: "BIT-1.1"}},
+				{col: 1, pos: 0, t: &task.Task{ID: ttid1}},
+				{col: 1, pos: 1, t: &task.Task{ID: ttid1_1}},
 			},
 		},
 		{
 			name: "all three columns concatenate in order",
 			cols: [3]list.Model{
-				newColumnList([]*task.Task{{ID: "BIT-2"}}),
-				newColumnList([]*task.Task{{ID: "BIT-1"}, {ID: "BIT-1.1"}}),
-				newColumnList([]*task.Task{{ID: "BIT-3"}}),
+				newColumnList([]*task.Task{{ID: ttid2}}),
+				newColumnList([]*task.Task{{ID: ttid1}, {ID: ttid1_1}}),
+				newColumnList([]*task.Task{{ID: ttid3}}),
 			},
 			want: []boardEntry{
-				{col: 0, pos: 0, t: &task.Task{ID: "BIT-2"}},
-				{col: 1, pos: 0, t: &task.Task{ID: "BIT-1"}},
-				{col: 1, pos: 1, t: &task.Task{ID: "BIT-1.1"}},
-				{col: 2, pos: 0, t: &task.Task{ID: "BIT-3"}},
+				{col: 0, pos: 0, t: &task.Task{ID: ttid2}},
+				{col: 1, pos: 0, t: &task.Task{ID: ttid1}},
+				{col: 1, pos: 1, t: &task.Task{ID: ttid1_1}},
+				{col: 2, pos: 0, t: &task.Task{ID: ttid3}},
 			},
 		},
 		{
 			name: "empty columns are skipped not padded",
-			cols: [3]list.Model{{}, newColumnList([]*task.Task{{ID: "BIT-1"}}), {}},
+			cols: [3]list.Model{{}, newColumnList([]*task.Task{{ID: ttid1}}), {}},
 			want: []boardEntry{
-				{col: 1, pos: 0, t: &task.Task{ID: "BIT-1"}},
+				{col: 1, pos: 0, t: &task.Task{ID: ttid1}},
 			},
 		},
 		{
@@ -273,6 +276,7 @@ func TestFlattenBoard(t *testing.T) {
 			if len(got) != len(tt.want) {
 				t.Fatalf("flattenBoard() = %d entries, want %d", len(got), len(tt.want))
 			}
+
 			for i, e := range got {
 				if e.col != tt.want[i].col || e.pos != tt.want[i].pos || e.t.ID != tt.want[i].t.ID {
 					t.Errorf("entry %d = {col:%d pos:%d id:%q}, want {col:%d pos:%d id:%q}",
@@ -287,16 +291,17 @@ func TestView_BoardColumnCounts(t *testing.T) {
 	t.Parallel()
 
 	tasks := []*task.Task{
-		{ID: "BIT-1", Status: "todo", Approved: true},
-		{ID: "BIT-2", Status: "todo", Approved: true},
-		{ID: "BIT-3", Status: "todo", Approved: true},
-		{ID: "BIT-4", Status: "todo", Approved: true},
-		{ID: "BIT-5", Status: "doing"},
-		{ID: "BIT-6", Status: "done"},
-		{ID: "BIT-7", Status: "done"},
+		{ID: ttid1, Status: task.StatusTodo, Approved: true},
+		{ID: ttid2, Status: task.StatusTodo, Approved: true},
+		{ID: ttid3, Status: task.StatusTodo, Approved: true},
+		{ID: ttid4, Status: task.StatusTodo, Approved: true},
+		{ID: ttid5, Status: task.StatusDoing},
+		{ID: "BIT-6", Status: task.StatusDone},
+		{ID: "BIT-7", Status: task.StatusDone},
 	}
 
 	var mdl tea.Model = New(tasks)
+
 	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
 	view := mdl.(model).View().Content
@@ -340,8 +345,8 @@ func TestUpdate_BoardActiveColumn(t *testing.T) {
 			t.Parallel()
 
 			var mdl tea.Model = New([]*task.Task{
-				{ID: "BIT-1", Status: "todo", Approved: true},
-				{ID: "BIT-3", Status: "done"},
+				{ID: ttid1, Status: task.StatusTodo, Approved: true},
+				{ID: ttid3, Status: task.StatusDone},
 			})
 			for _, k := range tt.keys {
 				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: k})
@@ -366,7 +371,11 @@ func TestUpdate_BoardCardSelection(t *testing.T) {
 		{"empty column stays at zero", []rune{tea.KeyDown}, 0, 0},
 		{"down advances in active column", []rune{tea.KeyRight, tea.KeyRight, tea.KeyDown}, 2, 1},
 		{"down clamps at last card", []rune{tea.KeyRight, tea.KeyRight, tea.KeyDown, tea.KeyDown, tea.KeyDown}, 2, 2},
-		{"selection survives column round trip", []rune{tea.KeyRight, tea.KeyRight, tea.KeyDown, tea.KeyLeft, tea.KeyLeft, tea.KeyRight, tea.KeyRight}, 2, 1},
+		{
+			"selection survives column round trip",
+			[]rune{tea.KeyRight, tea.KeyRight, tea.KeyDown, tea.KeyLeft, tea.KeyLeft, tea.KeyRight, tea.KeyRight},
+			2, 1,
+		},
 	}
 
 	for _, tt := range tests {
@@ -374,11 +383,12 @@ func TestUpdate_BoardCardSelection(t *testing.T) {
 			t.Parallel()
 
 			var mdl tea.Model = New([]*task.Task{
-				{ID: "BIT-1", Status: "doing"},
-				{ID: "BIT-2", Status: "done"},
-				{ID: "BIT-3", Status: "done"},
-				{ID: "BIT-4", Status: "done"},
+				{ID: ttid1, Status: task.StatusDoing},
+				{ID: ttid2, Status: task.StatusDone},
+				{ID: ttid3, Status: task.StatusDone},
+				{ID: ttid4, Status: task.StatusDone},
 			})
+
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 			for _, k := range tt.keys {
 				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: k})
@@ -400,8 +410,8 @@ func TestView_BoardHelp(t *testing.T) {
 		contains []string
 		absent   []string
 	}{
-		{"list mode shows focus", false, []string{"focus"}, []string{"column"}},
-		{"board mode shows column and card", true, []string{"column", "card"}, []string{"focus"}},
+		{"list mode shows focus", false, []string{ttFocus}, []string{"column"}},
+		{"board mode shows column and card", true, []string{"column", "card"}, []string{ttFocus}},
 	}
 
 	for _, tt := range tests {
@@ -409,10 +419,11 @@ func TestView_BoardHelp(t *testing.T) {
 			t.Parallel()
 
 			var mdl tea.Model = New([]*task.Task{
-				{ID: "BIT-1", Status: "todo"},
-				{ID: "BIT-2", Status: "doing"},
-				{ID: "BIT-3", Status: "done"},
+				{ID: ttid1, Status: task.StatusTodo},
+				{ID: ttid2, Status: task.StatusDoing},
+				{ID: ttid3, Status: task.StatusDone},
 			})
+
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 			if !tt.toBoard {
 				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
@@ -424,6 +435,7 @@ func TestView_BoardHelp(t *testing.T) {
 					t.Errorf("View() missing %q", want)
 				}
 			}
+
 			for _, notWant := range tt.absent {
 				if strings.Contains(view, notWant) {
 					t.Errorf("View() contains %q, want absent", notWant)
@@ -449,7 +461,10 @@ func TestUpdate_BoardEnterOpensModal(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo", Approved: true, Body: "body"}})
+			var mdl tea.Model = New([]*task.Task{{
+				ID: ttid1, Status: task.StatusTodo, Approved: true, Body: ttBody,
+			}})
+
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 			if tt.enter {
 				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -478,7 +493,10 @@ func TestView_ModalShowsBody(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo", Approved: true, Title: "T", Body: "MODALBODYTOKEN"}})
+			var mdl tea.Model = New([]*task.Task{{
+				ID: ttid1, Status: task.StatusTodo, Approved: true, Title: "T", Body: "MODALBODYTOKEN",
+			}})
+
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 			if tt.enter {
 				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -499,14 +517,17 @@ func TestUpdate_ModalCloses(t *testing.T) {
 		key  tea.KeyPressMsg
 	}{
 		{"q", tea.KeyPressMsg{Code: 'q', Text: "q"}},
-		{"esc", tea.KeyPressMsg{Code: tea.KeyEsc}},
+		{keyEsc, tea.KeyPressMsg{Code: tea.KeyEsc}},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo", Approved: true, Body: "body"}})
+			var mdl tea.Model = New([]*task.Task{{
+				ID: ttid1, Status: task.StatusTodo, Approved: true, Body: ttBody,
+			}})
+
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
@@ -515,6 +536,7 @@ func TestUpdate_ModalCloses(t *testing.T) {
 			if mdl.(model).modalOpen {
 				t.Errorf("modalOpen = true, want false")
 			}
+
 			if cmd != nil {
 				t.Errorf("cmd = %T, want nil", cmd())
 			}
@@ -537,6 +559,7 @@ func TestUpdate_ModalCapturesInput(t *testing.T) {
 				if cmd == nil {
 					t.Fatalf("cmd = nil, want quit")
 				}
+
 				if _, ok := cmd().(tea.QuitMsg); !ok {
 					t.Errorf("cmd() = %T, want tea.QuitMsg", cmd())
 				}
@@ -546,9 +569,10 @@ func TestUpdate_ModalCapturesInput(t *testing.T) {
 			"right pages to next task instead of switching column the old way",
 			tea.KeyPressMsg{Code: tea.KeyRight},
 			func(t *testing.T, mdl tea.Model, _ tea.Cmd) {
-				if got := mdl.(model).boardSelected().ID; got != "BIT-3" {
-					t.Errorf("boardSelected().ID = %q, want %q", got, "BIT-3")
+				if got := mdl.(model).boardSelected().ID; got != ttid3 {
+					t.Errorf("boardSelected().ID = %q, want %q", got, ttid3)
 				}
+
 				if !mdl.(model).modalOpen {
 					t.Errorf("modalOpen = false, want true")
 				}
@@ -561,6 +585,7 @@ func TestUpdate_ModalCapturesInput(t *testing.T) {
 				if got := mdl.(model).mode; got != modeBoard {
 					t.Errorf("mode = %v, want modeBoard", got)
 				}
+
 				if !mdl.(model).modalOpen {
 					t.Errorf("modalOpen = false, want true")
 				}
@@ -573,10 +598,11 @@ func TestUpdate_ModalCapturesInput(t *testing.T) {
 			t.Parallel()
 
 			var mdl tea.Model = New([]*task.Task{
-				{ID: "BIT-1", Status: "todo", Body: "body"},
-				{ID: "BIT-2", Status: "doing", Body: "body"},
-				{ID: "BIT-3", Status: "done", Body: "body"},
+				{ID: ttid1, Status: task.StatusTodo, Body: ttBody},
+				{ID: ttid2, Status: task.StatusDoing, Body: ttBody},
+				{ID: ttid3, Status: task.StatusDone, Body: ttBody},
 			})
+
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
@@ -602,7 +628,10 @@ func TestUpdate_ModalScrollsLongBody(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo", Approved: true, Title: "T", Body: strings.Repeat("line\n", 500)}})
+			var mdl tea.Model = New([]*task.Task{{
+				ID: ttid1, Status: task.StatusTodo, Approved: true, Title: "T", Body: strings.Repeat("line\n", 500),
+			}})
+
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
@@ -617,6 +646,7 @@ func TestUpdate_ModalScrollsLongBody(t *testing.T) {
 			if got := scrolled.modalViewport.YOffset(); got <= 0 {
 				t.Errorf("YOffset after %s = %d, want > 0", tt.name, got)
 			}
+
 			if h := lipgloss.Height(scrolled.View().Content); h > 24 {
 				t.Errorf("View height = %d, want <= 24", h)
 			}
@@ -640,9 +670,10 @@ func TestUpdate_ModalPagesWithinColumn(t *testing.T) {
 			t.Parallel()
 
 			var mdl tea.Model = New([]*task.Task{
-				{ID: "BIT-1", Status: "doing"},
-				{ID: "BIT-1.1", Status: "doing"},
+				{ID: ttid1, Status: task.StatusDoing},
+				{ID: ttid1_1, Status: task.StatusDoing},
 			})
+
 			mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyUp})
 			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -650,9 +681,10 @@ func TestUpdate_ModalPagesWithinColumn(t *testing.T) {
 			mdl, _ = mdl.Update(tt.key)
 
 			opened := mdl.(model)
-			if got := opened.boardSelected().ID; got != "BIT-1.1" {
-				t.Errorf("boardSelected().ID = %q, want %q", got, "BIT-1.1")
+			if got := opened.boardSelected().ID; got != ttid1_1 {
+				t.Errorf("boardSelected().ID = %q, want %q", got, ttid1_1)
 			}
+
 			if !opened.modalOpen {
 				t.Errorf("modalOpen = false, want true")
 			}
@@ -664,10 +696,11 @@ func TestUpdate_ModalPagesAcrossColumns(t *testing.T) {
 	t.Parallel()
 
 	var mdl tea.Model = New([]*task.Task{
-		{ID: "BIT-2", Status: "todo", Approved: true},
-		{ID: "BIT-1", Status: "doing"},
-		{ID: "BIT-1.1", Status: "doing"},
+		{ID: ttid2, Status: task.StatusTodo, Approved: true},
+		{ID: ttid1, Status: task.StatusDoing},
+		{ID: ttid1_1, Status: task.StatusDoing},
 	})
+
 	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
@@ -676,18 +709,20 @@ func TestUpdate_ModalPagesAcrossColumns(t *testing.T) {
 		wantID  string
 		wantCol int
 	}{
-		{tea.KeyPressMsg{Code: tea.KeyLeft}, "BIT-1", 1},
-		{tea.KeyPressMsg{Code: tea.KeyLeft}, "BIT-2", 0},
-		{tea.KeyPressMsg{Code: tea.KeyRight}, "BIT-1", 1},
-		{tea.KeyPressMsg{Code: tea.KeyRight}, "BIT-1.1", 1},
+		{tea.KeyPressMsg{Code: tea.KeyLeft}, ttid1, 1},
+		{tea.KeyPressMsg{Code: tea.KeyLeft}, ttid2, 0},
+		{tea.KeyPressMsg{Code: tea.KeyRight}, ttid1, 1},
+		{tea.KeyPressMsg{Code: tea.KeyRight}, ttid1_1, 1},
 	}
 
 	for _, s := range steps {
 		mdl, _ = mdl.Update(s.key)
+
 		got := mdl.(model)
 		if id := got.boardSelected().ID; id != s.wantID {
 			t.Fatalf("boardSelected().ID = %q, want %q", id, s.wantID)
 		}
+
 		if got.activeCol != s.wantCol {
 			t.Fatalf("activeCol = %d, want %d", got.activeCol, s.wantCol)
 		}
@@ -698,52 +733,60 @@ func TestUpdate_ModalPagingClampsAtEnds(t *testing.T) {
 	t.Parallel()
 
 	var mdl tea.Model = New([]*task.Task{
-		{ID: "BIT-2", Status: "todo", Approved: true},
-		{ID: "BIT-1", Status: "doing"},
-		{ID: "BIT-1.1", Status: "doing"},
+		{ID: ttid2, Status: task.StatusTodo, Approved: true},
+		{ID: ttid1, Status: task.StatusDoing},
+		{ID: ttid1_1, Status: task.StatusDoing},
 	})
+
 	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
-	if got := mdl.(model).boardSelected().ID; got != "BIT-2" {
-		t.Fatalf("boardSelected().ID = %q, want %q (clamp at start)", got, "BIT-2")
+	if got := mdl.(model).boardSelected().ID; got != ttid2 {
+		t.Fatalf("boardSelected().ID = %q, want %q (clamp at start)", got, ttid2)
 	}
 
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyRight})
-	if got := mdl.(model).boardSelected().ID; got != "BIT-1.1" {
-		t.Fatalf("boardSelected().ID = %q, want %q", got, "BIT-1.1")
+
+	if got := mdl.(model).boardSelected().ID; got != ttid1_1 {
+		t.Fatalf("boardSelected().ID = %q, want %q", got, ttid1_1)
 	}
 
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyRight})
-	if got := mdl.(model).boardSelected().ID; got != "BIT-1.1" {
-		t.Fatalf("boardSelected().ID = %q, want %q (clamp at end)", got, "BIT-1.1")
+	if got := mdl.(model).boardSelected().ID; got != ttid1_1 {
+		t.Fatalf("boardSelected().ID = %q, want %q (clamp at end)", got, ttid1_1)
 	}
 }
 
 func TestUpdate_ModalPagingSingleTaskNoop(t *testing.T) {
 	t.Parallel()
 
-	var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "doing"}})
+	var mdl tea.Model = New([]*task.Task{{ID: ttid1, Status: task.StatusDoing}})
+
 	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+
 	got := mdl.(model)
-	if got.boardSelected().ID != "BIT-1" {
-		t.Errorf("boardSelected().ID = %q, want %q", got.boardSelected().ID, "BIT-1")
+	if got.boardSelected().ID != ttid1 {
+		t.Errorf("boardSelected().ID = %q, want %q", got.boardSelected().ID, ttid1)
 	}
+
 	if !got.modalOpen {
 		t.Errorf("modalOpen = false, want true")
 	}
 
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+
 	got = mdl.(model)
-	if got.boardSelected().ID != "BIT-1" {
-		t.Errorf("boardSelected().ID = %q, want %q", got.boardSelected().ID, "BIT-1")
+	if got.boardSelected().ID != ttid1 {
+		t.Errorf("boardSelected().ID = %q, want %q", got.boardSelected().ID, ttid1)
 	}
+
 	if !got.modalOpen {
 		t.Errorf("modalOpen = false, want true")
 	}
@@ -753,6 +796,7 @@ func TestUpdate_BoardEnterEmptyColumnNoop(t *testing.T) {
 	t.Parallel()
 
 	var mdl tea.Model = New(nil)
+
 	mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
@@ -764,11 +808,12 @@ func TestUpdate_BoardEnterEmptyColumnNoop(t *testing.T) {
 func TestGroupByStatus_UnapprovedTodosVisibleInListNotBoard(t *testing.T) {
 	t.Parallel()
 
-	m := New([]*task.Task{{ID: "BIT-1", Status: "todo", Approved: false}})
+	m := New([]*task.Task{{ID: ttid1, Status: task.StatusTodo, Approved: false}})
 
 	if got := len(m.Items()); got != 1 {
 		t.Errorf("list Items() = %d, want 1 (unapproved todo still in list)", got)
 	}
+
 	if got := len(m.boardCols[0].Items()); got != 0 {
 		t.Errorf("board todo column = %d items, want 0 (unapproved todo filtered from board)", got)
 	}
@@ -777,7 +822,7 @@ func TestGroupByStatus_UnapprovedTodosVisibleInListNotBoard(t *testing.T) {
 func TestGroupByStatus_UnapprovedTodoIsHiddenFromBoard(t *testing.T) {
 	t.Parallel()
 
-	tasks := []*task.Task{{ID: "BIT-1", Status: "todo", Approved: false}}
+	tasks := []*task.Task{{ID: ttid1, Status: task.StatusTodo, Approved: false}}
 
 	cols := groupByStatus(tasks)
 
@@ -789,7 +834,7 @@ func TestGroupByStatus_UnapprovedTodoIsHiddenFromBoard(t *testing.T) {
 func TestGroupByStatus_ApprovedTodoAppearsInBoard(t *testing.T) {
 	t.Parallel()
 
-	tasks := []*task.Task{{ID: "BIT-1", Status: "todo", Approved: true}}
+	tasks := []*task.Task{{ID: ttid1, Status: task.StatusTodo, Approved: true}}
 
 	cols := groupByStatus(tasks)
 
@@ -806,7 +851,7 @@ func TestUpdate_BoardQuits(t *testing.T) {
 		key  tea.KeyPressMsg
 	}{
 		{"q", tea.KeyPressMsg{Code: 'q', Text: "q"}},
-		{"esc", tea.KeyPressMsg{Code: tea.KeyEsc}},
+		{keyEsc, tea.KeyPressMsg{Code: tea.KeyEsc}},
 		{"ctrl+c", tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}},
 	}
 
@@ -814,13 +859,14 @@ func TestUpdate_BoardQuits(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			var mdl tea.Model = New([]*task.Task{{ID: "BIT-1", Status: "todo"}})
+			var mdl tea.Model = New([]*task.Task{{ID: ttid1, Status: task.StatusTodo}})
 
 			_, cmd := mdl.Update(tt.key)
 
 			if cmd == nil {
 				t.Fatalf("%s in board mode: cmd = nil, want a quit cmd", tt.name)
 			}
+
 			if _, ok := cmd().(tea.QuitMsg); !ok {
 				t.Errorf("%s in board mode: cmd() = %T, want tea.QuitMsg", tt.name, cmd())
 			}
