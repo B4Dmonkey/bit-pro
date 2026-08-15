@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -23,21 +24,7 @@ func TestRootCmd_Version(t *testing.T) {
 	}
 }
 
-func TestBitDirEnvVar_RoutesListToCanonicalDir(t *testing.T) {
-	dir1 := initProject(t, "BIT")
-	createTask(t, "Track", "...")
-
-	t.Chdir(t.TempDir())
-	t.Setenv("BIT_DIR", filepath.Join(dir1, ".bit"))
-
-	out := mustRun(t, "task", "list")
-
-	if !strings.Contains(out, "BIT-1") {
-		t.Errorf("output = %q, want output to contain BIT-1 from dir routed via BIT_DIR", out)
-	}
-}
-
-func TestBitDirEnvVar_DefaultIsRelativeDotBit(t *testing.T) {
+func TestBitDir_OutsideWorktreeUsesRelativeDotBit(t *testing.T) {
 	initProject(t, "BIT")
 	createTask(t, "Track", "...")
 
@@ -45,6 +32,47 @@ func TestBitDirEnvVar_DefaultIsRelativeDotBit(t *testing.T) {
 
 	if !strings.Contains(out, "BIT-1") {
 		t.Errorf("output = %q, want output to contain BIT-1 from default .bit dir", out)
+	}
+}
+
+func TestBitDir_InsideClaudeWorktreeResolvesToMainCheckout(t *testing.T) {
+	root := initProject(t, "BIT")
+	createTask(t, "Track", "...")
+
+	worktree := filepath.Join(root, ".claude", "worktrees", "hazy-pondering-star")
+	if err := os.MkdirAll(filepath.Join(worktree, ".bit"), 0o755); err != nil {
+		t.Fatalf("MkdirAll(%q) returned error: %v", worktree, err)
+	}
+
+	t.Chdir(worktree)
+
+	out := mustRun(t, "task", "list")
+
+	if !strings.Contains(out, "BIT-1") {
+		t.Errorf("output = %q, want output to contain BIT-1 from the main checkout's .bit", out)
+	}
+}
+
+func TestBitDir_NestedWorktreeResolvesToOutermostCheckout(t *testing.T) {
+	root := initProject(t, "BIT")
+	createTask(t, "Track", "...")
+
+	outer := filepath.Join(root, ".claude", "worktrees", "outer")
+	if err := os.MkdirAll(filepath.Join(outer, ".bit"), 0o755); err != nil {
+		t.Fatalf("MkdirAll(%q) returned error: %v", outer, err)
+	}
+
+	nested := filepath.Join(outer, ".claude", "worktrees", "inner")
+	if err := os.MkdirAll(filepath.Join(nested, ".bit"), 0o755); err != nil {
+		t.Fatalf("MkdirAll(%q) returned error: %v", nested, err)
+	}
+
+	t.Chdir(nested)
+
+	out := mustRun(t, "task", "list")
+
+	if !strings.Contains(out, "BIT-1") {
+		t.Errorf("output = %q, want output to contain BIT-1 from the outermost checkout's .bit", out)
 	}
 }
 
