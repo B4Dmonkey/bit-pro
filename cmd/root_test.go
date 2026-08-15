@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -45,6 +46,24 @@ func TestBitDirEnvVar_DefaultIsRelativeDotBit(t *testing.T) {
 
 	if !strings.Contains(out, "BIT-1") {
 		t.Errorf("output = %q, want output to contain BIT-1 from default .bit dir", out)
+	}
+}
+
+func TestBitDir_InsideClaudeWorktreeResolvesToMainCheckout(t *testing.T) {
+	root := initProject(t, "BIT")
+	createTask(t, "Track", "...")
+
+	worktree := filepath.Join(root, ".claude", "worktrees", "hazy-pondering-star")
+	if err := os.MkdirAll(filepath.Join(worktree, ".bit"), 0o755); err != nil {
+		t.Fatalf("MkdirAll(%q) returned error: %v", worktree, err)
+	}
+
+	t.Chdir(worktree)
+
+	out := mustRun(t, "task", "list")
+
+	if !strings.Contains(out, "BIT-1") {
+		t.Errorf("output = %q, want output to contain BIT-1 from the main checkout's .bit", out)
 	}
 }
 

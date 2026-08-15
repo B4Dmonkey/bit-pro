@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/B4Dmonkey/bit-pro/claude"
 	"github.com/spf13/cobra"
@@ -11,7 +13,23 @@ var version = "dev"
 
 var bitDir = ".bit"
 
-const claudeDir = ".claude"
+const (
+	claudeDir    = ".claude"
+	worktreesDir = "worktrees"
+)
+
+func canonicalBitDir(wd string) string {
+	sep := string(filepath.Separator)
+	segments := strings.Split(wd, sep)
+
+	for i := 0; i+1 < len(segments); i++ {
+		if segments[i] == claudeDir && segments[i+1] == worktreesDir {
+			return filepath.Join(strings.Join(segments[:i], sep), ".bit")
+		}
+	}
+
+	return ".bit"
+}
 
 func NewRootCmd() *cobra.Command {
 	return newRootCmd(claude.ExecRunner)
@@ -28,6 +46,10 @@ func newRootCmd(run claude.Runner) *cobra.Command {
 		SilenceErrors: true,
 		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 			bitDir = ".bit"
+			if wd, err := os.Getwd(); err == nil {
+				bitDir = canonicalBitDir(wd)
+			}
+
 			if bitDirFlag != "" {
 				bitDir = bitDirFlag
 			} else if v := os.Getenv("BIT_DIR"); v != "" {
