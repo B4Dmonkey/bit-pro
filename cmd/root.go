@@ -33,6 +33,7 @@ func newRootCmd(run claude.Runner) *cobra.Command {
 			} else if v := os.Getenv("BIT_DIR"); v != "" {
 				bitDir = v
 			}
+
 			return nil
 		},
 	}
@@ -44,5 +45,6 @@ func newRootCmd(run claude.Runner) *cobra.Command {
 	rootCmd.AddCommand(newTaskCmd())
 	rootCmd.AddCommand(newTUICmd())
 	rootCmd.AddCommand(newUnapproveCmd())
+
 	return rootCmd
 }

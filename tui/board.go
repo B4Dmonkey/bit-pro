@@ -4,11 +4,18 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/B4Dmonkey/bit-pro/task"
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/B4Dmonkey/bit-pro/task"
+)
+
+const (
+	keyCtrlC = "ctrl+c"
+	keyEsc   = "esc"
+	keyLeft  = "left"
+	keyRight = "right"
 )
 
 type boardKeyMap struct {
@@ -43,24 +50,28 @@ type boardColumn struct {
 }
 
 var boardColumns = [3]boardColumn{
-	{title: "To Do", status: "todo"},
-	{title: "Doing", status: "doing"},
-	{title: "Done", status: "done"},
+	{title: "To Do", status: task.StatusTodo},
+	{title: "Doing", status: task.StatusDoing},
+	{title: "Done", status: task.StatusDone},
 }
 
 func groupByStatus(tasks []*task.Task) [3][]*task.Task {
 	var cols [3][]*task.Task
+
 	for _, t := range tasks {
 		for i, col := range boardColumns {
 			if t.Status == col.status {
-				if col.status == "todo" && !t.Approved {
+				if col.status == task.StatusTodo && !t.Approved {
 					break
 				}
+
 				cols[i] = append(cols[i], t)
+
 				break
 			}
 		}
 	}
+
 	return cols
 }
 
@@ -69,11 +80,13 @@ func newColumnList(tasks []*task.Task) list.Model {
 	for i, t := range tasks {
 		items[i] = item{t: t}
 	}
+
 	l := list.New(items, delegate{board: true}, 0, 0)
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
 	l.SetShowTitle(false)
 	l.SetShowStatusBar(false)
+
 	return l
 }
 
@@ -81,11 +94,13 @@ func defaultColumn(cols [3][]*task.Task) int {
 	if len(cols[1]) > 0 {
 		return 1
 	}
+
 	for i, c := range cols {
 		if len(c) > 0 {
 			return i
 		}
 	}
+
 	return 0
 }
 
@@ -96,6 +111,7 @@ type boardEntry struct {
 
 func flattenBoard(cols [3]list.Model) []boardEntry {
 	var entries []boardEntry
+
 	for col := range cols {
 		for pos, it := range cols[col].Items() {
 			if bi, ok := it.(item); ok {
@@ -103,6 +119,7 @@ func flattenBoard(cols [3]list.Model) []boardEntry {
 			}
 		}
 	}
+
 	return entries
 }
 
@@ -112,6 +129,7 @@ func firstBarIndex(items []list.Item) int {
 			return i
 		}
 	}
+
 	return 0
 }
 
@@ -120,12 +138,15 @@ func (m *model) pageModal(delta int) {
 	if len(order) == 0 {
 		return
 	}
+
 	idx := 0
+
 	if cur := m.boardSelected(); cur != nil {
 		if i := slices.IndexFunc(order, func(e boardEntry) bool { return e.t.ID == cur.ID }); i >= 0 {
 			idx = i
 		}
 	}
+
 	idx = min(max(idx+delta, 0), len(order)-1)
 	m.activeCol = order[idx].col
 	m.boardCols[m.activeCol].Select(order[idx].pos)
@@ -137,37 +158,48 @@ func (m model) boardSelected() *task.Task {
 	if !ok {
 		return nil
 	}
+
 	return it.t
+}
+
+func (m model) updateModalBoard(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "q", keyEsc:
+		m.modalOpen = false
+		return m, nil
+	case keyCtrlC:
+		return m, tea.Quit
+	case "up", "down", "j", "k":
+		var cmd tea.Cmd
+
+		m.modalViewport, cmd = m.modalViewport.Update(msg)
+
+		return m, cmd
+	case keyLeft, "h":
+		m.pageModal(-1)
+		return m, nil
+	case keyRight, "l":
+		m.pageModal(1)
+		return m, nil
+	}
+
+	return m, nil
 }
 
 func (m model) updateBoard(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.modalOpen {
-		switch msg.String() {
-		case "q", "esc":
-			m.modalOpen = false
-			return m, nil
-		case "ctrl+c":
-			return m, tea.Quit
-		case "up", "down", "j", "k":
-			var cmd tea.Cmd
-			m.modalViewport, cmd = m.modalViewport.Update(msg)
-			return m, cmd
-		case "left", "h":
-			m.pageModal(-1)
-			return m, nil
-		case "right", "l":
-			m.pageModal(1)
-			return m, nil
-		}
-		return m, nil
+		return m.updateModalBoard(msg)
 	}
+
 	if msg.Code == tea.KeyEnter {
 		if m.boardSelected() != nil {
 			m.modalOpen = true
 			m.refreshModal()
 		}
+
 		return m, nil
 	}
+
 	if msg.Code == ' ' {
 		if m.approve != nil {
 			if t := m.boardSelected(); t != nil {
@@ -175,30 +207,36 @@ func (m model) updateBoard(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				return m, m.reloadCmd()
 			}
 		}
+
 		return m, nil
 	}
+
 	switch msg.String() {
-	case "q", "esc", "ctrl+c":
+	case "q", keyEsc, keyCtrlC:
 		return m, tea.Quit
-	case "right":
+	case keyRight:
 		if m.activeCol < len(boardColumns)-1 {
 			m.activeCol++
 		}
-	case "left":
+	case keyLeft:
 		if m.activeCol > 0 {
 			m.activeCol--
 		}
 	case "up", "down":
 		var cmd tea.Cmd
+
 		m.boardCols[m.activeCol], cmd = m.boardCols[m.activeCol].Update(msg)
+
 		return m, cmd
 	}
+
 	return m, nil
 }
 
 func modalInner(winWidth, winHeight int) (innerW, innerH int) {
 	modalW := 2 * winWidth / 3
 	modalH := winHeight - 6
+
 	return max(modalW-4, 1), max(modalH-3, 1)
 }
 
@@ -207,6 +245,7 @@ func modalView(m model, board string) string {
 	if t == nil {
 		return board
 	}
+
 	innerW, innerH := modalInner(m.winWidth, m.winHeight)
 	title := t.ID + " — " + t.Title
 	box := titledBorder(m.modalViewport.View(), title, innerW, innerH, true)
@@ -214,15 +253,18 @@ func modalView(m model, board string) string {
 	cy := max((lipgloss.Height(board)-lipgloss.Height(box))/2, 0)
 	base := lipgloss.NewLayer(board)
 	modal := lipgloss.NewLayer(box).X(cx).Y(cy).Z(1)
+
 	return lipgloss.NewCompositor(base, modal).Render()
 }
 
 func boardView(m model) string {
 	colW := m.winWidth / len(boardColumns)
+
 	cols := make([]string, len(m.boardCols))
 	for i := range m.boardCols {
 		title := fmt.Sprintf("%s (%d)", boardColumns[i].title, len(m.boardCols[i].Items()))
 		cols[i] = titledBorder(m.boardCols[i].View(), title, max(colW-2, 0), max(m.height-2, 0), i == m.activeCol)
 	}
+
 	return lipgloss.JoinHorizontal(lipgloss.Top, cols...)
 }

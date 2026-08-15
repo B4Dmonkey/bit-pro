@@ -11,6 +11,7 @@ import (
 
 func newTaskDeleteCmd() *cobra.Command {
 	var yes bool
+
 	var force bool
 
 	cmd := &cobra.Command{
@@ -25,6 +26,7 @@ func newTaskDeleteCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
+
 				if !confirmed {
 					fmt.Fprintln(cmd.ErrOrStderr(), "cancelled")
 					return nil
@@ -36,6 +38,7 @@ func newTaskDeleteCmd() *cobra.Command {
 	}
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "skip confirmation")
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "delete a track even if it has unfinished bars")
+
 	return cmd
 }
 
@@ -48,5 +51,6 @@ func confirm(cmd *cobra.Command, id string) (bool, error) {
 	}
 
 	answer := strings.ToLower(strings.TrimSpace(line))
+
 	return answer == "y" || answer == "yes", nil
 }

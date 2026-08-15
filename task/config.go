@@ -21,7 +21,9 @@ func (s *Store) Config() (*Config, error) {
 	if _, err := toml.DecodeFile(s.ConfigPath(), &cfg); err != nil {
 		return nil, fmt.Errorf("reading %s: %w", s.ConfigPath(), err)
 	}
+
 	cfg.Prefix = normalizeID(cfg.Prefix)
+
 	return &cfg, nil
 }
 
@@ -30,11 +32,14 @@ func (s *Store) SaveConfig(cfg *Config) error {
 	if err != nil {
 		return fmt.Errorf("encoding %s: %w", s.ConfigPath(), err)
 	}
+
 	if err := os.MkdirAll(s.root, dirMode); err != nil {
 		return fmt.Errorf("creating %s: %w", s.root, err)
 	}
+
 	if err := os.WriteFile(s.ConfigPath(), data, fileMode); err != nil {
 		return fmt.Errorf("writing %s: %w", s.ConfigPath(), err)
 	}
+
 	return nil
 }

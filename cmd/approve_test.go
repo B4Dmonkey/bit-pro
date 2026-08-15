@@ -16,6 +16,7 @@ func TestApproveCmd_SetsApprovedTrue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("loading BIT-1: %v", err)
 	}
+
 	if !got.Approved {
 		t.Error("expected Approved = true, got false")
 	}
@@ -32,6 +33,7 @@ func TestApproveCmd_UnapproveClears(t *testing.T) {
 	if err != nil {
 		t.Fatalf("loading BIT-1: %v", err)
 	}
+
 	if got.Approved {
 		t.Error("expected Approved = false after unapprove, got true")
 	}

@@ -16,15 +16,15 @@ func TestTaskCreateCmd_WritesFirstTask(t *testing.T) {
 	initProject(t, "BIT")
 	createTask(t, "Set up init wizard", "Add flags for prefix capture.")
 
-	got, err := task.New(".bit").Load("BIT-1")
+	got, err := task.New(".bit").Load(trackID)
 	if err != nil {
 		t.Fatalf("loading BIT-1: %v", err)
 	}
 
 	want := task.Task{
-		ID:     "BIT-1",
+		ID:     trackID,
 		Title:  "Set up init wizard",
-		Status: "todo",
+		Status: statusTodo,
 		Body:   "Add flags for prefix capture.",
 	}
 	if !reflect.DeepEqual(*got, want) {
@@ -57,7 +57,7 @@ func TestTaskCreateCmd_EchoesChildID(t *testing.T) {
 	initProject(t, "BIT")
 	createTask(t, "Track", "...")
 
-	out := mustRun(t, "task", "create", "A bar", "-d", "...", "--parent", "BIT-1")
+	out := mustRun(t, "task", "create", "A bar", "-d", "...", "--parent", trackID)
 
 	if out != "BIT-1.1\n" {
 		t.Errorf("task create stdout = %q, want %q", out, "BIT-1.1\n")
@@ -73,6 +73,7 @@ func TestTaskCreateCmd_AssignsNextIDWhenTasksExist(t *testing.T) {
 	if err != nil {
 		t.Fatalf("loading BIT-2: %v", err)
 	}
+
 	if got.Title != "Second" {
 		t.Errorf("BIT-2 title = %q, want %q", got.Title, "Second")
 	}
@@ -82,10 +83,11 @@ func TestTaskCreateCmd_ParentMintsDottedID(t *testing.T) {
 	initProject(t, "BIT")
 	createTask(t, "Track", "...")
 
-	mustRun(t, "task", "create", "A step", "-d", "...", "--parent", "BIT-1")
+	mustRun(t, "task", "create", "A step", "-d", "...", "--parent", trackID)
 
-	out := mustRun(t, "task", "read", "BIT-1.1")
-	want := "BIT-1.1\ttodo\tA step\n"
+	out := mustRun(t, "task", "read", firstBarID)
+
+	want := firstBarID + "\ttodo\tA step\n"
 	if !strings.HasPrefix(out, want) {
 		t.Errorf("task read BIT-1.1 first line = %q, want prefix %q", out, want)
 	}
@@ -107,12 +109,12 @@ func TestTaskCreateCmd_SecondChildIncrements(t *testing.T) {
 	initProject(t, "BIT")
 	createTask(t, "Track", "...")
 
-	mustRun(t, "task", "create", "First step", "-d", "...", "--parent", "BIT-1")
-	mustRun(t, "task", "create", "Second step", "-d", "...", "--parent", "BIT-1")
-	mustRun(t, "task", "create", "Third step", "-d", "...", "--parent", "BIT-1")
+	mustRun(t, "task", "create", "First step", "-d", "...", "--parent", trackID)
+	mustRun(t, "task", "create", "Second step", "-d", "...", "--parent", trackID)
+	mustRun(t, "task", "create", "Third step", "-d", "...", "--parent", trackID)
 
 	out := mustRun(t, "task", "list")
-	for _, id := range []string{"BIT-1.1", "BIT-1.2", "BIT-1.3"} {
+	for _, id := range []string{firstBarID, secondBarID, thirdBarID} {
 		if !strings.Contains(out, id) {
 			t.Errorf("task list = %q, want it to contain %q", out, id)
 		}
@@ -122,27 +124,30 @@ func TestTaskCreateCmd_SecondChildIncrements(t *testing.T) {
 func TestTaskCreate_AppendsToReorderedTrack(t *testing.T) {
 	initProject(t, "BIT")
 	createTask(t, "Track", "...")
-	mustRun(t, "task", "create", "First bar", "-d", "...", "--parent", "BIT-1")
-	mustRun(t, "task", "create", "Second bar", "-d", "...", "--parent", "BIT-1")
-	mustRun(t, "task", "move", "BIT-1.2", "--before", "BIT-1.1")
+	mustRun(t, "task", "create", "First bar", "-d", "...", "--parent", trackID)
+	mustRun(t, "task", "create", "Second bar", "-d", "...", "--parent", trackID)
+	mustRun(t, "task", "move", secondBarID, "--before", firstBarID)
 
-	mustRun(t, "task", "create", "Third bar", "-d", "...", "--parent", "BIT-1")
+	mustRun(t, "task", "create", "Third bar", "-d", "...", "--parent", trackID)
 
-	track, err := task.New(".bit").Load("BIT-1")
+	track, err := task.New(".bit").Load(trackID)
 	if err != nil {
 		t.Fatalf("loading BIT-1: %v", err)
 	}
-	want := []string{"BIT-1.2", "BIT-1.1", "BIT-1.3"}
+
+	want := []string{secondBarID, firstBarID, thirdBarID}
 	if !slices.Equal(track.Order, want) {
 		t.Errorf("BIT-1 order = %v, want %v", track.Order, want)
 	}
 
-	out := mustRun(t, "task", "list", "--parent", "BIT-1")
+	out := mustRun(t, "task", "list", "--parent", trackID)
+
 	var ids []string
 	for line := range strings.SplitSeq(strings.TrimSpace(out), "\n") {
 		ids = append(ids, strings.SplitN(line, "\t", 2)[0])
 	}
-	if len(ids) == 0 || ids[len(ids)-1] != "BIT-1.3" {
+
+	if len(ids) == 0 || ids[len(ids)-1] != thirdBarID {
 		t.Errorf("parent list = %v, want it to end with BIT-1.3", ids)
 	}
 }
@@ -150,29 +155,32 @@ func TestTaskCreate_AppendsToReorderedTrack(t *testing.T) {
 func TestTaskCreate_AfterInsertsMidPlan(t *testing.T) {
 	initProject(t, "BIT")
 	createTask(t, "Track", "...")
-	mustRun(t, "task", "create", "First bar", "-d", "...", "--parent", "BIT-1")
-	mustRun(t, "task", "create", "Second bar", "-d", "...", "--parent", "BIT-1")
+	mustRun(t, "task", "create", "First bar", "-d", "...", "--parent", trackID)
+	mustRun(t, "task", "create", "Second bar", "-d", "...", "--parent", trackID)
 
-	out := mustRun(t, "task", "create", "Inserted", "-d", "...", "--parent", "BIT-1", "--after", "BIT-1.1")
+	out := mustRun(t, "task", "create", "Inserted", "-d", "...", "--parent", trackID, "--after", firstBarID)
 
-	if out != "BIT-1.3\n" {
-		t.Errorf("minted ID = %q, want %q", out, "BIT-1.3\n")
+	if out != thirdBarID+"\n" {
+		t.Errorf("minted ID = %q, want %q", out, thirdBarID+"\n")
 	}
 
-	track, err := task.New(".bit").Load("BIT-1")
+	track, err := task.New(".bit").Load(trackID)
 	if err != nil {
 		t.Fatalf("loading BIT-1: %v", err)
 	}
-	want := []string{"BIT-1.1", "BIT-1.3", "BIT-1.2"}
+
+	want := []string{firstBarID, thirdBarID, secondBarID}
 	if !slices.Equal(track.Order, want) {
 		t.Errorf("BIT-1 order = %v, want %v", track.Order, want)
 	}
 
-	listOut := mustRun(t, "task", "list", "--parent", "BIT-1")
+	listOut := mustRun(t, "task", "list", "--parent", trackID)
+
 	var ids []string
 	for line := range strings.SplitSeq(strings.TrimSpace(listOut), "\n") {
 		ids = append(ids, strings.SplitN(line, "\t", 2)[0])
 	}
+
 	if !slices.Equal(ids, want) {
 		t.Errorf("parent list = %v, want %v", ids, want)
 	}
@@ -181,10 +189,10 @@ func TestTaskCreate_AfterInsertsMidPlan(t *testing.T) {
 func TestTaskCreate_AfterRejectsUnknownAnchor(t *testing.T) {
 	initProject(t, "BIT")
 	createTask(t, "Track", "...")
-	mustRun(t, "task", "create", "First bar", "-d", "...", "--parent", "BIT-1")
-	mustRun(t, "task", "create", "Second bar", "-d", "...", "--parent", "BIT-1")
+	mustRun(t, "task", "create", "First bar", "-d", "...", "--parent", trackID)
+	mustRun(t, "task", "create", "Second bar", "-d", "...", "--parent", trackID)
 
-	if _, err := run(t, "task", "create", "Inserted", "-d", "...", "--parent", "BIT-1", "--after", "BIT-1.9"); err == nil {
+	if _, err := run(t, "task", "create", "Inserted", "-d", "...", "--parent", trackID, "--after", "BIT-1.9"); err == nil {
 		t.Fatal("Execute() returned nil error, want non-nil for an unknown anchor")
 	}
 
@@ -196,7 +204,7 @@ func TestTaskCreate_AfterRejectsUnknownAnchor(t *testing.T) {
 func TestTaskCreateCmd_LowercaseParentDoesNotDestroyAnExistingBar(t *testing.T) {
 	initProject(t, "BIT")
 	createTask(t, "Track", "...")
-	mustRun(t, "task", "create", "First bar", "-d", "ORIGINAL BAR ONE", "--parent", "BIT-1")
+	mustRun(t, "task", "create", "First bar", "-d", "ORIGINAL BAR ONE", "--parent", trackID)
 
 	out := mustRun(t, "task", "create", "sneaky", "-d", "...", "--parent", "bit-1")
 
@@ -208,6 +216,7 @@ func TestTaskCreateCmd_LowercaseParentDoesNotDestroyAnExistingBar(t *testing.T) 
 	if err != nil {
 		t.Fatalf("os.ReadFile(.bit/tasks/BIT-1.2.md) error = %v", err)
 	}
+
 	if !strings.Contains(string(minted), "id: BIT-1.2") {
 		t.Errorf("BIT-1.2.md = %q, want it to contain %q", minted, "id: BIT-1.2")
 	}
@@ -216,9 +225,11 @@ func TestTaskCreateCmd_LowercaseParentDoesNotDestroyAnExistingBar(t *testing.T) 
 	if err != nil {
 		t.Fatalf("os.ReadFile(.bit/tasks/BIT-1.1.md) error = %v", err)
 	}
+
 	if !strings.Contains(string(survivor), "ORIGINAL BAR ONE") {
 		t.Errorf("BIT-1.1.md = %q, want it to still contain %q", survivor, "ORIGINAL BAR ONE")
 	}
+
 	if !strings.Contains(string(survivor), "title: First bar") {
 		t.Errorf("BIT-1.1.md = %q, want it to still contain %q", survivor, "title: First bar")
 	}
@@ -227,11 +238,13 @@ func TestTaskCreateCmd_LowercaseParentDoesNotDestroyAnExistingBar(t *testing.T) 
 	if err != nil {
 		t.Fatalf("os.ReadDir(.bit/tasks) error = %v", err)
 	}
+
 	if len(entries) != 3 {
 		var names []string
 		for _, e := range entries {
 			names = append(names, e.Name())
 		}
+
 		t.Errorf("os.ReadDir(.bit/tasks) names = %v, want 3 entries", names)
 	}
 }
@@ -239,7 +252,7 @@ func TestTaskCreateCmd_LowercaseParentDoesNotDestroyAnExistingBar(t *testing.T) 
 func TestTaskCreateCmd_UppercasesACorruptPrefixOnRead(t *testing.T) {
 	initProject(t, "BIT")
 
-	if err := os.WriteFile(".bit/config.toml", []byte("prefix = \"bit\"\n"), 0o644); err != nil {
+	if err := os.WriteFile(".bit/config.toml", []byte("prefix = \"bit\"\n"), 0o600); err != nil {
 		t.Fatalf("os.WriteFile(.bit/config.toml) error = %v", err)
 	}
 
@@ -253,6 +266,7 @@ func TestTaskCreateCmd_UppercasesACorruptPrefixOnRead(t *testing.T) {
 	if err != nil {
 		t.Fatalf("os.ReadFile(.bit/tasks/BIT-1.md) error = %v", err)
 	}
+
 	if !strings.Contains(string(data), "id: BIT-1") {
 		t.Errorf("BIT-1.md = %q, want it to contain %q", data, "id: BIT-1")
 	}

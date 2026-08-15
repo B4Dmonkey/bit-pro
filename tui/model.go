@@ -94,25 +94,43 @@ func New(tasks []*task.Task) model {
 	for i, t := range tasks {
 		items[i] = item{t: t}
 	}
+
 	l := list.New(items, delegate{}, 0, 0)
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
 	l.SetShowTitle(false)
 	l.SetShowStatusBar(false)
+
 	style := styles.LightStyle
 	if lipgloss.HasDarkBackground(os.Stdin, os.Stdout) {
 		style = styles.DarkStyle
 	}
+
 	vp := viewport.New()
 	mvp := viewport.New()
 	cols := groupByStatus(tasks)
+
 	var boardCols [3]list.Model
 	for i, cards := range cols {
 		boardCols[i] = newColumnList(cards)
 	}
+
 	activeCol := defaultColumn(cols)
 	boardCols[activeCol].Select(firstBarIndex(boardCols[activeCol].Items()))
-	return model{Model: l, viewport: vp, modalViewport: mvp, help: help.New(), keys: newKeyMap(), boardKeys: newBoardKeyMap(), style: style, boardCols: boardCols, activeCol: activeCol, loaded: tasks, mode: modeBoard}
+
+	return model{
+		Model:         l,
+		viewport:      vp,
+		modalViewport: mvp,
+		help:          help.New(),
+		keys:          newKeyMap(),
+		boardKeys:     newBoardKeyMap(),
+		style:         style,
+		boardCols:     boardCols,
+		activeCol:     activeCol,
+		loaded:        tasks,
+		mode:          modeBoard,
+	}
 }
 
 func sameTasks(a, b []*task.Task) bool {
@@ -147,6 +165,7 @@ func (m model) Init() tea.Cmd {
 	if m.reload != nil {
 		return tick()
 	}
+
 	return nil
 }
 
@@ -154,7 +173,9 @@ func (m model) reloadCmd() tea.Cmd {
 	if m.reload == nil {
 		return nil
 	}
+
 	reload := m.reload
+
 	return func() tea.Msg {
 		tasks, err := reload()
 		return reloadedMsg{tasks: tasks, err: err}
@@ -163,32 +184,42 @@ func (m model) reloadCmd() tea.Cmd {
 
 func (m *model) setTasks(tasks []*task.Task) {
 	var prevID string
+
 	prevIndex := m.Index()
 	if t := m.selected(); t != nil {
 		prevID = t.ID
 	}
+
 	items := make([]list.Item, len(tasks))
 	for i, t := range tasks {
 		items[i] = item{t: t}
 	}
+
 	m.SetItems(items)
+
 	if prevID != "" && len(tasks) > 0 {
 		target := min(prevIndex, len(tasks)-1)
+
 		for i, t := range tasks {
 			if t.ID == prevID {
 				target = i
 				break
 			}
 		}
+
 		m.Select(target)
 	}
+
 	var prevBoardID string
+
 	if t := m.boardSelected(); t != nil {
 		prevBoardID = t.ID
 	}
+
 	for i, cards := range groupByStatus(tasks) {
 		m.boardCols[i] = newColumnList(cards)
 	}
+
 	if prevBoardID != "" {
 		for i, it := range m.boardCols[m.activeCol].Items() {
 			if bi, ok := it.(item); ok && bi.t.ID == prevBoardID {
@@ -197,12 +228,134 @@ func (m *model) setTasks(tasks []*task.Task) {
 			}
 		}
 	}
+
 	if m.modalOpen {
 		m.refreshModal()
 	}
+
 	m.loaded = tasks
 	m.layout()
 	m.refreshDetail()
+}
+
+func (m model) handleReloaded(msg reloadedMsg) (tea.Model, tea.Cmd) {
+	if msg.err != nil {
+		return m, tick()
+	}
+
+	if sameTasks(m.loaded, msg.tasks) {
+		return m, tick()
+	}
+
+	m.setTasks(msg.tasks)
+
+	return m, tick()
+}
+
+func (m model) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if m.mode == modeBoard && m.modalOpen {
+		return m.updateBoard(msg)
+	}
+
+	if key.Matches(msg, m.keys.help) {
+		m.help.ShowAll = !m.help.ShowAll
+		m.layout()
+
+		return m, nil
+	}
+
+	if msg.Code == tea.KeyTab {
+		if m.mode == modeList {
+			m.mode = modeBoard
+		} else {
+			m.mode = modeList
+		}
+
+		return m, nil
+	}
+
+	if m.mode == modeBoard {
+		return m.updateBoard(msg)
+	}
+
+	return m.handleListKey(msg)
+}
+
+func (m model) handleApprove() (tea.Model, tea.Cmd) {
+	if m.approve != nil {
+		if t := m.selected(); t != nil {
+			_ = m.approve(t.ID, !t.Approved)
+
+			return m, m.reloadCmd()
+		}
+	}
+
+	return m, nil
+}
+
+func (m model) handleDetailFocusedKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+
+	m.viewport, cmd = m.viewport.Update(msg)
+
+	return m, cmd
+}
+
+func (m model) handleListKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "q", keyEsc, keyCtrlC:
+		return m, tea.Quit
+	case keyRight, "l":
+		if m.detailExpanded {
+			m.Select(min(m.Index()+1, len(m.Items())-1))
+			m.refreshDetail()
+
+			return m, nil
+		}
+
+		m.detailFocused = true
+
+		return m, nil
+	case keyLeft, "h":
+		if m.detailExpanded {
+			m.Select(max(m.Index()-1, 0))
+			m.refreshDetail()
+
+			return m, nil
+		}
+
+		m.detailFocused = false
+
+		return m, nil
+	}
+
+	if msg.Code == tea.KeyEnter {
+		m.detailExpanded = !m.detailExpanded
+		m.detailFocused = m.detailExpanded
+		m.relayout()
+
+		return m, nil
+	}
+
+	if msg.Code == ' ' {
+		return m.handleApprove()
+	}
+
+	if m.detailFocused {
+		return m.handleDetailFocusedKey(msg)
+	}
+
+	prev := m.Index()
+
+	var cmd tea.Cmd
+
+	m.Model, cmd = m.Model.Update(msg)
+
+	if m.Index() != prev {
+		m.refreshDetail()
+	}
+
+	return m, cmd
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -210,84 +363,31 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tickMsg:
 		return m, m.reloadCmd()
 	case reloadedMsg:
-		if msg.err != nil {
-			return m, tick()
-		}
-		if sameTasks(m.loaded, msg.tasks) {
-			return m, tick()
-		}
-		m.setTasks(msg.tasks)
-		return m, tick()
+		return m.handleReloaded(msg)
 	case tea.WindowSizeMsg:
 		m.winWidth, m.winHeight = msg.Width, msg.Height
 		m.relayout()
+
 		return m, nil
 	case tea.KeyPressMsg:
-		if m.mode == modeBoard && m.modalOpen {
-			return m.updateBoard(msg)
-		}
-		if key.Matches(msg, m.keys.help) {
-			m.help.ShowAll = !m.help.ShowAll
-			m.layout()
-			return m, nil
-		}
-		if msg.Code == tea.KeyTab {
-			if m.mode == modeList {
-				m.mode = modeBoard
-			} else {
-				m.mode = modeList
-			}
-			return m, nil
-		}
-		if m.mode == modeBoard {
-			return m.updateBoard(msg)
-		}
-		switch msg.String() {
-		case "q", "esc", "ctrl+c":
-			return m, tea.Quit
-		case "right", "l":
-			if m.detailExpanded {
-				m.Select(min(m.Index()+1, len(m.Items())-1))
-				m.refreshDetail()
-				return m, nil
-			}
-			m.detailFocused = true
-			return m, nil
-		case "left", "h":
-			if m.detailExpanded {
-				m.Select(max(m.Index()-1, 0))
-				m.refreshDetail()
-				return m, nil
-			}
-			m.detailFocused = false
-			return m, nil
-		}
-		if msg.Code == tea.KeyEnter {
-			m.detailExpanded = !m.detailExpanded
-			m.detailFocused = m.detailExpanded
-			m.relayout()
-			return m, nil
-		}
-		if msg.Code == ' ' {
-			if m.approve != nil {
-				if t := m.selected(); t != nil {
-					_ = m.approve(t.ID, !t.Approved)
-					return m, m.reloadCmd()
-				}
-			}
-			return m, nil
-		}
+		return m.handleKeyPress(msg)
 	}
+
 	var cmd tea.Cmd
+
 	if m.detailFocused {
 		m.viewport, cmd = m.viewport.Update(msg)
+
 		return m, cmd
 	}
+
 	prev := m.Index()
 	m.Model, cmd = m.Model.Update(msg)
+
 	if m.Index() != prev {
 		m.refreshDetail()
 	}
+
 	return m, cmd
 }
 
@@ -299,6 +399,7 @@ func newRenderer(style string, width int) *glamour.TermRenderer {
 	if err != nil {
 		return nil
 	}
+
 	return r
 }
 
@@ -308,12 +409,14 @@ func (m *model) refreshDetail() {
 		m.viewport.SetContent("")
 		return
 	}
+
 	body := t.Body
 	if m.renderer != nil {
 		if out, err := m.renderer.Render(t.Body); err == nil {
 			body = out
 		}
 	}
+
 	m.viewport.SetContent(body)
 	m.viewport.GotoTop()
 }
@@ -324,15 +427,18 @@ func (m *model) refreshModal() {
 		m.modalViewport.SetContent("")
 		return
 	}
+
 	innerW, innerH := modalInner(m.winWidth, m.winHeight)
 	m.modalViewport.SetWidth(innerW)
 	m.modalViewport.SetHeight(innerH)
+
 	body := t.Body
 	if r := newRenderer(m.style, max(innerW, 1)); r != nil {
 		if out, err := r.Render(t.Body); err == nil {
 			body = out
 		}
 	}
+
 	m.modalViewport.SetContent(body)
 	m.modalViewport.GotoTop()
 }
@@ -341,11 +447,14 @@ func (m model) helpKeys() help.KeyMap {
 	if m.mode == modeBoard {
 		return m.boardKeys
 	}
+
 	if m.detailExpanded {
 		k := m.keys
 		k.focus.SetHelp("←/→", "page")
+
 		return k
 	}
+
 	return m.keys
 }
 
@@ -357,11 +466,13 @@ func (m *model) relayout() {
 
 func (m *model) layout() {
 	var listW, detailW int
+
 	if m.detailExpanded {
 		listW, detailW = splitWidthExpanded(m.winWidth)
 	} else {
 		listW, detailW = splitWidth(m.winWidth)
 	}
+
 	m.help.SetWidth(m.winWidth)
 	helpHeight := lipgloss.Height(m.help.View(m.helpKeys()))
 	paneHeight := max(m.winHeight-helpHeight, 0)
@@ -369,6 +480,7 @@ func (m *model) layout() {
 	m.SetSize(max(listW-2, 0), max(paneHeight-2, 0))
 	m.viewport.SetWidth(max(detailW-2, 0))
 	m.viewport.SetHeight(max(paneHeight-2, 0))
+
 	colW := m.winWidth / len(boardColumns)
 	for i := range m.boardCols {
 		m.boardCols[i].SetSize(max(colW-2, 0), max(paneHeight-2, 0))
@@ -378,6 +490,7 @@ func (m *model) layout() {
 func (m model) View() tea.View {
 	v := tea.NewView(m.content())
 	v.AltScreen = true
+
 	return v
 }
 
@@ -387,26 +500,32 @@ func (m model) content() string {
 		if m.modalOpen {
 			board = modalView(m, board)
 		}
+
 		return lipgloss.JoinVertical(lipgloss.Left, board, m.help.View(m.helpKeys()))
 	}
+
 	listTitle := fmt.Sprintf("Tasks (%d/%d)", doneCount(m.Items()), len(m.Items()))
 	listPane := titledBorder(m.Model.View(), listTitle, max(m.listWidth-2, 0), max(m.height-2, 0), !m.detailFocused)
 	detailPane := titledBorder(m.viewport.View(), "Details", max(m.detailWidth-2, 0), max(m.height-2, 0), m.detailFocused)
 	panes := lipgloss.JoinHorizontal(lipgloss.Top, listPane, detailPane)
+
 	return lipgloss.JoinVertical(lipgloss.Left, panes, m.help.View(m.helpKeys()))
 }
 
 func doneCount(items []list.Item) int {
 	n := 0
+
 	for _, listItem := range items {
 		it, ok := listItem.(item)
 		if !ok {
 			continue
 		}
-		if it.t.Status == "done" {
+
+		if it.t.Status == task.StatusDone {
 			n++
 		}
 	}
+
 	return n
 }
 
@@ -420,6 +539,7 @@ func titledBorder(content, title string, width, height int, active bool) string 
 		Height(height + 1)
 	topStyle := lipgloss.NewStyle()
 	titleStyle := lipgloss.NewStyle()
+
 	if active {
 		accent := lipgloss.Color("2")
 		boxStyle = boxStyle.BorderForeground(accent)
@@ -431,22 +551,26 @@ func titledBorder(content, title string, width, height int, active bool) string 
 	if !active {
 		titleSeg = "| " + title + " |"
 	}
+
 	fill := max(width-lipgloss.Width(titleSeg)-1, 0)
 	left := border.TopLeft + border.Top
 	right := strings.Repeat(border.Top, fill) + border.TopRight
 	top := topStyle.Render(left) + titleStyle.Render(titleSeg) + topStyle.Render(right)
+
 	return lipgloss.JoinVertical(lipgloss.Left, top, boxStyle.Render(content))
 }
 
 func splitWidth(total int) (listW, detailW int) {
 	listW = total * 40 / 100
 	detailW = max(total-listW-1, 0)
+
 	return listW, detailW
 }
 
 func splitWidthExpanded(total int) (listW, detailW int) {
 	listW = total * 10 / 100
 	detailW = max(total-listW-1, 0)
+
 	return listW, detailW
 }
 
@@ -458,6 +582,7 @@ func verse(t *task.Task) string {
 	if !isBar(t.ID) || t.Phase == 0 {
 		return ""
 	}
+
 	return fmt.Sprintf("phase %d — %s", t.Phase, t.PhaseLabel)
 }
 
@@ -466,5 +591,6 @@ func (m model) selected() *task.Task {
 	if !ok {
 		return nil
 	}
+
 	return it.t
 }

@@ -8,5 +8,6 @@ func newFeedbackCmd() *cobra.Command {
 		Short: "Record feedback notes",
 	}
 	feedbackCmd.AddCommand(newFeedbackAddCmd())
+
 	return feedbackCmd
 }

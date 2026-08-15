@@ -16,6 +16,7 @@ func newTaskMoveCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			hasBefore := cmd.Flags().Changed("before")
+
 			hasAfter := cmd.Flags().Changed("after")
 			if hasBefore == hasAfter {
 				return errors.New("specify exactly one of --before or --after")
@@ -25,10 +26,12 @@ func newTaskMoveCmd() *cobra.Command {
 			if hasBefore {
 				anchor = before
 			}
+
 			return task.New(bitDir).Move(args[0], anchor, hasBefore)
 		},
 	}
 	cmd.Flags().StringVar(&before, "before", "", "move the bar directly before this sibling")
 	cmd.Flags().StringVar(&after, "after", "", "move the bar directly after this sibling")
+
 	return cmd
 }

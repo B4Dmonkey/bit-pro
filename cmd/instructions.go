@@ -17,7 +17,9 @@ func newInstructionsCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("reading embedded bit-cli.md: %w", err)
 			}
+
 			fmt.Fprint(cmd.OutOrStdout(), string(contract))
+
 			return nil
 		},
 	}

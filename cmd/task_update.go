@@ -7,6 +7,7 @@ import (
 
 func newTaskUpdateCmd() *cobra.Command {
 	var title, description, status, phaseLabel string
+
 	var phase int
 
 	cmd := &cobra.Command{
@@ -24,15 +25,19 @@ func newTaskUpdateCmd() *cobra.Command {
 			if cmd.Flags().Changed("title") {
 				t.Title = title
 			}
+
 			if cmd.Flags().Changed("description") {
 				t.Body = description
 			}
+
 			if cmd.Flags().Changed("status") {
 				t.Status = status
 			}
+
 			if cmd.Flags().Changed("phase") {
 				t.Phase = phase
 			}
+
 			if cmd.Flags().Changed("phase-label") {
 				t.PhaseLabel = phaseLabel
 			}
@@ -54,5 +59,6 @@ func newTaskUpdateCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&status, "status", "s", "", "new task status")
 	cmd.Flags().IntVar(&phase, "phase", 0, "new scope phase this step serves")
 	cmd.Flags().StringVar(&phaseLabel, "phase-label", "", "new human-readable label for the phase")
+
 	return cmd
 }

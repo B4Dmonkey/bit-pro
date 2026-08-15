@@ -52,6 +52,7 @@ func TestTaskReadCmd_ShowsPhase(t *testing.T) {
 	out := mustRun(t, "task", "read", "BIT-1.1")
 
 	firstLine := strings.SplitN(out, "\n", 2)[0]
+
 	want := "BIT-1.1\ttodo\tList cmd\tphase 2 — List & read"
 	if firstLine != want {
 		t.Errorf("first line = %q, want %q", firstLine, want)
@@ -73,6 +74,7 @@ func TestTaskReadCmd_OmitsPhaseWhenAbsent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reading task file: %v", err)
 	}
+
 	if strings.Contains(string(data), "phase") {
 		t.Errorf("task file = %q, want no phase key", data)
 	}
@@ -88,8 +90,9 @@ func TestTaskReadCmd_ErrorsOnUnknownID(t *testing.T) {
 
 func TestTaskReadCmd_ContainsPathTraversalID(t *testing.T) {
 	dir := initProject(t, "BIT")
+
 	readme := filepath.Join(dir, "README.md")
-	if err := os.WriteFile(readme, []byte("# real project readme\n"), 0o644); err != nil {
+	if err := os.WriteFile(readme, []byte("# real project readme\n"), 0o600); err != nil {
 		t.Fatalf("writing README fixture: %v", err)
 	}
 
@@ -98,6 +101,7 @@ func TestTaskReadCmd_ContainsPathTraversalID(t *testing.T) {
 	if !errors.Is(err, fs.ErrNotExist) {
 		t.Fatalf("Execute() error = %v, want an error wrapping fs.ErrNotExist", err)
 	}
+
 	if strings.Contains(out, "real project readme") {
 		t.Errorf("output = %q, must not contain the escaped file's content", out)
 	}

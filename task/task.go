@@ -8,7 +8,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const delim = "---"
+const (
+	delim = "---"
+
+	StatusTodo  = "todo"
+	StatusDoing = "doing"
+	StatusDone  = "done"
+)
 
 type Task struct {
 	ID         string   `yaml:"id"`
@@ -26,6 +32,7 @@ func Parse(data []byte) (*Task, error) {
 	if !strings.HasPrefix(s, delim+"\n") {
 		return nil, errors.New("task file missing frontmatter delimiter")
 	}
+
 	rest := s[len(delim)+1:]
 
 	idx := strings.Index(rest, "\n"+delim+"\n")
@@ -37,11 +44,14 @@ func Parse(data []byte) (*Task, error) {
 	if err := yaml.Unmarshal([]byte(rest[:idx+1]), &t); err != nil {
 		return nil, fmt.Errorf("parsing task frontmatter: %w", err)
 	}
+
 	t.ID = normalizeID(t.ID)
 	for i, id := range t.Order {
 		t.Order[i] = normalizeID(id)
 	}
+
 	t.Body = rest[idx+len("\n"+delim+"\n"):]
+
 	return &t, nil
 }
 
@@ -50,5 +60,6 @@ func (t *Task) Bytes() ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("marshaling task %s: %w", t.ID, err)
 	}
+
 	return []byte(delim + "\n" + string(header) + delim + "\n" + t.Body), nil
 }
