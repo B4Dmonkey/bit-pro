@@ -53,11 +53,23 @@ bp task update "$ID" -s todo|doing|done
 # You can change body and status (and title/phase) in one call:
 bp task update "$TRACK" -d "<new body>" -s done
 
-# List one track's bars only, in step order: <ID>\t<status>\t<title>\tphase N — label
+# List one track's bars only, in step order. Five tab-separated columns:
+#   <ID>\t<status>\t<title>\t<approved>\t<phase N — label>
+# Column 4 is the literal word `approved` when the flag is set and empty when it
+# isn't; column 5 is empty when the task carries no phase. Both columns are always
+# present, so count tabs rather than assuming the phase label is the fourth field.
 bp task list --parent "$TRACK"
 
-# List everything. Tracks are the rows whose ID has no dot; bars have a dotted ID.
+# List everything, same five columns. Tracks are the rows whose ID has no dot;
+# bars have a dotted ID.
 bp task list
+
+# Mark a track or bar as reviewed. Approval is a separate axis from status, and both
+# take any task ID — a track approved means the scope is blessed and planning may
+# proceed; every bar approved means the plan is blessed and work may proceed.
+# Both print nothing on success. See the approval gotcha below before calling these.
+bp approve "$ID"
+bp unapprove "$ID"
 
 # File a signed-off track and its bars under .bit/completed/. Refuses a track that still
 # has an unfinished bar, and there is no override — mark the bars done first.
@@ -124,6 +136,13 @@ bp feedback add "$TRACK" -d "$(cat note.md)"
   only once all its bars do. A typo silently breaks that: a bar reading `doen` never counts as
   done, so its verse never checks off and the track never signals ready. Always pass exactly
   `todo`, `doing`, or `done`.
+- **Any `task update` to an approved task revokes its approval — including a status
+  change.** The revocation exists so a replan can't quietly edit a bar someone already
+  blessed. But it keys on *any* of `--title`, `--description`, `--status`, `--phase`, or
+  `--phase-label` changing, so `task update "$BAR" -s doing` on an approved bar clears the
+  flag as a side effect of starting work on it. Expect an in-flight or finished bar to read
+  as unapproved, and don't treat that as "nobody reviewed it." If you need the flag back,
+  set it explicitly with `bp approve` after the status write.
 - **Relocating a task reserves its ID — it isn't freed.** `task delete` *relocates* the file
   into `.bit/archive/tasks/` and `task complete` into `.bit/completed/`, instead of destroying
   it, and `NextID`/`NextChildID` count `tasks/`, `completed/`, and `archive/tasks/` when

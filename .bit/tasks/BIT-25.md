@@ -1,143 +1,175 @@
 ---
 id: BIT-25
-title: 'Dispatch on approval: approve a bar and Claude starts working it'
+title: 'Dispatch on approval: approving the last bar starts the track''s work'
 status: todo
 ---
 ## Why
 
-`bp` has two jobs in the automated pipeline, and neither exists yet. It shows the operator
-what is being worked on, and it hands reviewed work to Claude. It does not do the work, and
-it does not manage the machinery Claude uses to do it — creating a branch, building a
-worktree, tearing either down — because Claude Code already owns all of that.
+Approval is already the signal that work has been reviewed and may start — a human reads the
+bar in the TUI and blesses it. Nothing acts on that signal. Starting the work is still a
+person in a terminal hand-assembling an invocation: remember the flags, name the worktree,
+namespace the session so it can be found again, and type the bar ID correctly.
 
-Today the hand-off is entirely manual and entirely undocumented. Starting a bar means opening
-a terminal, remembering the invocation, remembering which flags keep task state out of the
-branch, remembering to namespace the session so it can be found again, and getting the bar's
-ID right by hand. Every one of those is a step that can be silently fumbled, and the
-consequence of fumbling the task-state flag in particular is corrupted `.bit/` on a branch.
+Every one of those is silently fumbleable, and two of them are expensive. Name the worktree
+per bar instead of per track and each bar restarts from `main`, losing the previous bar's
+work. Type the wrong bar ID and a reviewed plan runs out of order. The operator pays this tax
+once per bar, on every track, forever.
 
-And once something is running there is nowhere to look. The board shows what the plan says,
-not what is actually happening right now. The operator has to leave the tool they were just
-reviewing in and go ask a different tool what it is doing.
-
-Closing both gaps is small, because the hard parts belong to someone else: Claude Code owns
-the session and the worktree, and `BIT-23` owns knowing whether a bar is eligible. What is
-left is the hand-off itself.
+The gap is small because the hard parts belong to someone else. Claude Code owns the session;
+`BIT-23` owns knowing whether a bar is eligible; `BIT-27` already guarantees a session running
+inside a worktree writes to the canonical `.bit/`. What is missing is the hand-off itself —
+the step between "I approved this" and "Claude is working it".
 
 ## Summary
 
-Approving a bar dispatches it. `bp` builds the invocation — the right worktree name, the
-right session name, the flag that keeps task state in the canonical `.bit/` — spawns a
-background session, and records which session belongs to which bar. The board then shows what
-is actually running alongside what is planned.
+Approving the last unapproved bar on a track starts the work. `bp` creates the track's
+worktree if it does not exist, spawns a background Claude session in it prompted `/bit_do
+<BAR>` for the first bar that is not `done`, and stops caring. It records nothing about the
+session, never asks how it went, and re-reads `.bit/` from disk the next time it is invoked.
 
-An `orca` package owns background session dispatch and tracking. There is **no daemon**: the
-operator is the loop, and approving the next bar is what advances the track.
+The worktree is named once, per track, at scope time, and that one string is the worktree
+name, the branch name, and the session name — so a row in `claude agents` is directly
+recognisable. Signing the track off reclaims both.
+
+There is **no daemon** and no `bp dispatch` command. Approval is the only trigger.
 
 ## Visual aid
 
 ```
-the loop, with the operator in it                    what bp adds
-─────────────────────────────────                    ────────────
-  review a bar on the board                             ─
-  approve it                          ──▶  bp builds the invocation and spawns
-                                            claude --bg -n bit/BIT-23.4 \
-                                                       -w bit-BIT-23-4  \
-                                                       BIT_DIR=<canonical .bit/>
-  watch it work                       ──▶  board shows live session state
-  it finishes                                           ─
-  run the bar's declared check        ──▶  bp check   (BIT-23 Verse 3)
-  approve the next bar                ──▶  dispatches  ← the loop closes here,
-                                                          not in a daemon
+  scope a track ──▶ worktree name chosen and stored on the record
+                                    │
+  plan it ──▶ bars written, unapproved
+                                    │
+  review each bar ──▶ approve them one by one
+                                    │
+                    last one flips ─┴──▶ bp creates <name> worktree if absent
+                                          spawns claude --bg -n <name> in it,
+                                          prompted /bit_do <first not-done bar>
+                                    │
+                    already a live session for this track? ──▶ refuse, say so
+                                    │
+                          bp exits. It is done with this bar.
+                                    │
+  ... work happens; the operator watches it in `claude` ...
+                                    │
+  every bar done, PR merged ──▶ bp task complete ──▶ worktree + branch reaped
 ```
 
-Nothing watches for completion and advances on its own. That is the whole reason no daemon
-is needed, and it is a deliberate limit rather than an omission.
-
-## Risks & unknowns
-
-- **Unknown:** What prompt does a dispatched session receive?
-  **Resolve by:** A call from the user. `/bit_do <BAR>` is the obvious candidate since the
-  skill already knows how to read a bar and execute it, but it is a real choice — the
-  alternative is injecting the bar's body directly so the session does not have to re-derive
-  context it was already given.
-  **De-risk before planning?** Yes — it decides whether dispatch depends on the `bit` plugin
-  being installed in the target repo, which is a meaningfully different constraint.
-
-- **Unknown:** Does approving a bar dispatch it unconditionally, or does the operator get a
-  confirmation first?
-  **Resolve by:** A call from the user. Unconditional matches "approve and it goes" and is
-  fewer keystrokes; a confirmation is the cheap guard against approving on the wrong row in a
-  list UI, which is an easy mistake to make and an expensive one to undo once a session has
-  started editing.
-  **De-risk before planning?** No — it is a small change either way and does not reshape a
-  verse.
+Nothing polls, nothing watches for completion, nothing advances bar 1 → bar 2. Advancing is a
+later track (a `Stop` hook); this one only closes the gap between approval and a running
+session.
 
 ## Decisions
 
-- **No daemon.** Neither of `bp`'s jobs requires one. Displaying what is running is answered
-  on demand by `claude agents --json`, and dispatching is synchronous with the operator's
-  approval. A daemon would only be needed to advance a track *unattended* — dispatching bar 2
-  when bar 1 finishes and passes, with nobody present — and that is explicitly not wanted.
-  This retires the earlier `bp start` / `bp stop` shape entirely.
-- **The operator is the loop.** Approving the next bar is what advances the track. Nothing
-  polls, nothing watches for completion, nothing auto-commits. This is what keeps the design
-  small, and it matches the stated position that automation is earned incrementally rather
-  than assumed.
-- **`bp` reviews, dispatches, and displays — it never does the work or the setup.** Creating
-  a branch, building a worktree, and tearing both down belong to Claude Code, which already
-  does them: measured 2026-08-13, a `--bg` editing session builds its own worktree with no
-  flag asked for, and `claude rm <id>` removes the worktree and its branch. Anything in this
-  package that starts looking like setup or teardown means the boundary has been crossed.
-- **Approving a *bar* dispatches; approving a *track* does not.** `BIT-23` gives the two
-  approvals different meanings — a track approved means the scope is blessed and planning may
-  proceed, a bar approved means the plan is blessed and work may proceed — so only the second
-  is a hand-off to Claude.
-- **Dispatch passes a deterministic worktree name and session name.** `-w bit-<BAR>` and
-  `-n bit/<BAR>`, both measured to work. The deterministic worktree is what makes the branch
-  predictable; the namespaced session is what lets `bp` find its own sessions among every
-  other session on the machine.
-- **Dispatch passes the canonical `.bit/` location.** A dispatched editing session's working
-  directory is a worktree whether or not this project asked for one, so without this the
-  session's `bp` writes land on the branch. This is why `BIT-23` Verse 2 is a hard
-  prerequisite rather than a nicety.
-- **A new `orca` package owns this.** Background session dispatch and tracking are a distinct
-  concern from task storage (`task/`) and command wiring (`cmd/`), and the commands stay thin
-  wrappers over it, as the existing commands are over `task/`.
-- **Session-to-bar mapping is machine state and never enters `.bit/`.** Which session id is
-  working which bar is local to one machine and meaningless to anyone who checks the repo
-  out, so it does not belong in git-tracked project state.
-- **`BIT-23` lands first.** Approval is the trigger, the performer field is what stops a
-  human-only bar from being handed to an agent, and the canonical-`.bit/` escape is what
-  keeps a dispatched session from corrupting task state. All three are `BIT-23` verses.
-- **Only the user pushes.** A dispatched session must be denied push at the tool layer — a
-  deny rule is evaluated before the permission mode, so this is enforceable rather than
-  merely requested.
+- **No daemon, and dispatch is fire-and-forget.** Once a session is spawned, `bp` is done with
+  that bar — it never learns how the session went. The only signal that matters is a bar
+  reaching `done` in `.bit/`, which `bp` reads off disk like any other state. This retires the
+  earlier `bp start` / `bp stop` shape and the idea of `bp` tracking sessions.
+- **There is no `bp dispatch` subcommand.** Dispatch lives inside the approval path, so the
+  TUI — where approval actually happens — fires it too. `bp approve` ships auto-denied for
+  Claude, and **Claude never approves**; that stays true, which is what keeps an agent from
+  dispatching itself.
+- **The trigger is every bar on the track being approved**, and the bar dispatched is the
+  first one whose status is not `done`. Eligibility is re-read from `.bit/` at the moment of
+  dispatch, never captured as a snapshot at kickoff.
+- **`bp` creates the worktree.** This reverses "`bp` never does setup", and the reason is
+  naming: `-w` forces a `worktree-` prefix onto the branch, while a pre-created worktree
+  handed to a session as its cwd keeps its exact branch name and is not re-isolated (measured
+  2026-08-13).
+- **The worktree is named per track, never per bar.** Two sessions given the same worktree
+  report the same cwd, which is what lets bar 2 build on bar 1. Per-bar naming — the previous
+  `-w bit-<BAR>` decision — would restart every bar from `main`.
+- **One identifier everywhere.** Worktree name, branch name, and session name (`-n`) are the
+  same string.
+- **The name is decided at scope time and stored on the track record.** bit_scope asks for it
+  and proposes a readable short one; bit_plan and bit_do carry it down. The default is
+  `<track-id>-<short name>` (e.g. `bit-25-dispatch`); a name the user gives explicitly is used
+  verbatim, with **no length limit and no mechanical truncation** — a name from Jira is
+  whatever Jira says. The skill owns the name, not `bp` config.
+- **Dispatch passes no `.bit/` location.** `BIT-27` made `bp` derive the canonical `.bit/` by
+  cutting the path at `.claude/worktrees/`, and removed `--bit-dir` and `BIT_DIR` outright.
+  The previous "dispatch passes `BIT_DIR`" decision is void.
+- **A dispatched session is prompted `/bit_do <BAR>`.** The `bit` plugin is installed in every
+  target repo, so that dependency is free. This settles the earlier open question and retires
+  the alternative of injecting the bar's body inline.
+- **The first pass spawns with no agent override.** A dedicated `bit:bot-dev` — different tool
+  permissions, instructions written for no human continuously present — is deliberate follow-up
+  work, not part of this track.
+- **The session registry is the lock.** "Is this track already live?" is answered by filtering
+  `claude agents --json` on the session-name prefix and `state ∈ {working, blocked}`. A
+  finished session lingers as `state: done`, so presence is not liveness. No lockfile, no
+  claim field, and nothing about sessions is written to `.bit/` — that mapping is local to one
+  machine and meaningless to anyone who checks the repo out.
+- **`bp` reaps the worktree on `bp task complete`,** not `claude rm`. A `bp`-created worktree
+  is not locked, so a plain `git worktree remove` plus a branch delete works. Teardown lives
+  in the command rather than in agent prose, because prose that must be remembered silently
+  does not run.
+- **No `performer` field.** Status already encodes it: bit_do leaves a bar `doing` and stops
+  whenever it has `## User verifies` items, and only marks it `done` when there is nothing for
+  a human to judge. A chain that advances on `done` therefore parks at exactly the bars
+  needing a person, with no field to store and nothing to parse.
+- **"Only the user pushes" is reversed.** bit_do commits and pushes; the tool-layer push deny
+  rule comes out. The safety mechanism that replaces the push gate is the permission prompt —
+  a background session parks on one and the operator answers it — so no permission mode may be
+  chosen that suppresses prompts. Opening the PR stays the operator's.
+- **Two changes are ordered before this track.** bit_do committing and pushing (without it a
+  dispatched bar cannot close out on its own), and the approval-revocation fix in
+  `cmd/task_update.go` — today `--status` revokes approval, so the moment bar 1 goes `doing`
+  the track is no longer all-approved and the trigger can never re-arm.
+- **Deliberately out of scope.** Advancing bar → bar on a `Stop` hook; `blocked_by` and
+  readiness (dispatch gains an `AND ready` clause when that lands, in that track); the
+  `bit:bot-dev` agent; and showing live session state in the TUI — `claude` already shows it,
+  and `bp`'s display job is the board out of `.bit/`, not a second session viewer.
+
+## Risks & unknowns
+
+- **Unknown:** Does a background session spawned by `bp` survive `bp` exiting — including when
+  the spawner is the TUI process rather than a shell?
+  **Resolve by:** Verse 2, which proves it by building. Answer is yes if the session appears in
+  `claude agents` with `state: working` and keeps working after `bp` (or the TUI) has exited;
+  no if it dies with its parent or never registers.
+  **De-risk before planning?** No — fire-and-forget is the whole shape of the verse, so this is
+  the first thing verse 2 exercises. If it fails, the fallback is spawning detached rather than
+  redesigning the track.
 
 ## Verses
 
-- [ ] Verse 1 — Approve a bar and Claude starts working it: one action spawns a correctly
-  configured background session, so the operator never hand-assembles the invocation and
-  cannot forget the flag that keeps task state off the branch. A bar whose performer is human
-  is handed back to the operator instead of dispatched.
-  Touches: a new `orca/` package, a new `cmd/` command, `cmd/root.go` — where to look to
+- [ ] Verse 1 — A track carries the name its work will land under: bit_scope asks for and
+  proposes a short readable name, `bp` stores it on the track record and defaults it to
+  `<track-id>-<short name>`, and bit_plan and bit_do carry it down. The operator can see, before
+  any work starts, exactly which branch a track's bars will build on.
+  Touches: `task/` frontmatter, `cmd/task_create.go`, `cmd/task_update.go`, the scope/plan/do
+  skills under `bit/skills/`, `assets/bit-cli.md` — where to look to verify.
+- [ ] Verse 2 — Approving the last bar starts the work: `bp` creates the track's worktree if it
+  is absent and spawns a background session in it, prompted `/bit_do <BAR>` for the first bar
+  that is not `done`, then exits. The operator never hand-assembles an invocation and cannot
+  fumble the bar ID or the worktree name.
+  Touches: `cmd/approve.go`, the Claude Code integration package (`claude/`), `task/` — where to
+  look to verify.
+- [ ] Verse 3 — A track that is already working cannot be dispatched twice: `bp` checks the
+  session registry for a live session on this track's name and refuses with a reason instead of
+  spawning a second one over the top of a bar in progress. Re-approving after an edit becomes
+  safe rather than destructive.
+  Touches: the Claude Code integration package (`claude/`), `cmd/approve.go` — where to look to
   verify.
-- [ ] Verse 2 — See what Claude is actually doing from the board: the TUI shows live session
-  state next to the planned work, so "is this running, blocked, or finished?" is answerable
-  without leaving the tool. A session waiting on a permission prompt is visible as waiting,
-  which is the only channel telling the operator something is parked.
-  Touches: `orca/`, `tui/model.go`, `tui/delegate.go`, `tui/board.go` — where to look to
-  verify.
+- [ ] Verse 4 — Signing a track off reclaims its worktree: `bp task complete` removes the
+  worktree and deletes its branch alongside filing the track under `.bit/completed/`, so a
+  finished track leaves nothing behind for the operator to clean up by hand.
+  Touches: `cmd/task_complete.go`, the Claude Code integration package (`claude/`) — where to
+  look to verify.
 
 ## References
 
-- `automation-notes.md` — the design notes this track came out of. "Daemon substrate: two
-  options" records what was measured about background sessions, including the `blocked` /
-  `waitingFor` states Verse 2 surfaces. Informs both verses.
-- `BIT-23` — the rails this dispatcher reads: approval, performer, and the canonical `.bit/`
-  escape. A prerequisite, not a reference to consult.
-- https://github.com/gastownhall/gastown — a Go daemon dispatching work to agents in
-  worktrees. Prior art for the shape this track deliberately does *not* take; most of its
-  complexity comes from concurrency and unattended operation, both excluded here.
-- https://code.claude.com/docs/en/headless — headless invocation, permissions, and session
-  management.
+- `automation-notes.md` — the running design notes this track is cut from. Its "Measured facts"
+  section records what was observed about background sessions, worktree imposition, branch
+  prefixes, and teardown; its "Settled decisions" section is the source for every decision
+  above. Informs all four verses.
+- `BIT-23` — the approval rails this dispatcher hangs off: the `approved` flag, `bp approve` /
+  `bp unapprove`, and the TUI toggle. A shipped prerequisite, not a reference to consult.
+- `BIT-27` — canonical `.bit/` derivation from a worktree path, and the removal of `--bit-dir` /
+  `BIT_DIR`. Shipped; it is why verse 2 passes no task-state location.
+- <https://code.claude.com/docs/en/headless> — headless invocation, permission modes, and
+  session management. Informs verses 2 and 3.
+- <https://github.com/gastownhall/gastown> — prior art for the shape this track deliberately
+  does *not* take. Nearly all of its complexity follows from concurrency and unattended
+  operation, both excluded here.

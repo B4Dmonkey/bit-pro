@@ -26,7 +26,7 @@ Two rules that don't bend:
 
 For read-only orientation you can go straight to `bp task list` (all tracks and bars) or `bp task list --parent <TRACK>` (one track's bars in step order) without reading the contract first.
 
-**Task IDs are case-sensitive and `bp` does not normalize them.** Users type `bit-23.4` or `xyz-2`; the stored ID is uppercase. Uppercase the prefix yourself before passing an ID to `bp` — a lowercase one is not rejected, it silently misses or corrupts state.
+**Task IDs are uppercase on disk, and `bp` normalizes whatever you pass.** Users type `bit-23.4` or `xyz-2`; either case resolves to the same task. IDs `bp` prints back are always uppercase, so quote them as printed.
 
 **Status is stored verbatim, with no validation.** Pass exactly `todo`, `doing`, or `done`. A typo stores the typo and quietly breaks verse rollup.
 
