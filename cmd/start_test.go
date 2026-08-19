@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	editedPlist = "not a plist"
-	startedPID  = "started (pid 4242)\n"
+	editedPlist       = "not a plist"
+	startedPID        = "started (pid 4242)\n"
+	alreadyRunningPID = "already running (pid 4242)\n"
 )
 
 func TestStartCmd_WritesThePlistOnlyWhenMissing(t *testing.T) {
@@ -150,22 +151,16 @@ func bootstrapCall(home string) string {
 	return "launchctl bootstrap gui/" + strconv.Itoa(os.Getuid()) + " " + plist
 }
 
-func TestStartCmd_EnablesBeforeBootstrapping(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("XDG_DATA_HOME", "")
-
-	var calls []string
-
-	lc := func(_ context.Context, name string, args ...string) (string, int, error) {
-		calls = append(calls, strings.Join(append([]string{name}, args...), " "))
+func recordingLaunchctl(calls *[]string, action, out string, code int) launchd.Runner {
+	return func(_ context.Context, name string, args ...string) (string, int, error) {
+		*calls = append(*calls, strings.Join(append([]string{name}, args...), " "))
 
 		switch args[0] {
 		case printDisabled:
 			return disabledStore(), 0, nil
-		case "list":
-			if !slices.Contains(calls, bootstrapCall(home)) {
-				return "", 113, nil
+		case listSubcmd:
+			if action != "" && !slices.Contains(*calls, action) {
+				return out, code, nil
 			}
 
 			return launchctlDict, 0, nil
@@ -173,8 +168,24 @@ func TestStartCmd_EnablesBeforeBootstrapping(t *testing.T) {
 			return "", 0, nil
 		}
 	}
+}
 
-	out, err := runWithLaunchd(t, lc, startCmdUse)
+func assertNoCallContains(t *testing.T, calls []string, unwanted string) {
+	t.Helper()
+
+	if slices.ContainsFunc(calls, func(c string) bool { return strings.Contains(c, unwanted) }) {
+		t.Errorf("launchctl calls = %v, want no %s call", calls, unwanted)
+	}
+}
+
+func TestStartCmd_EnablesBeforeBootstrapping(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_DATA_HOME", "")
+
+	var calls []string
+
+	out, err := runWithLaunchd(t, recordingLaunchctl(&calls, bootstrapCall(home), "", 113), startCmdUse)
 	if err != nil {
 		t.Fatalf("bp start returned error: %v", err)
 	}
@@ -188,5 +199,71 @@ func TestStartCmd_EnablesBeforeBootstrapping(t *testing.T) {
 
 	if enable < 0 || bootstrap < 0 || enable > bootstrap {
 		t.Errorf("launchctl calls = %v, want enable before bootstrap", calls)
+	}
+}
+
+func kickstartCall() string {
+	return "launchctl kickstart gui/" + strconv.Itoa(os.Getuid()) + "/" + launchd.Label
+}
+
+func TestStartCmd_ReconcilesTheStateItFinds(t *testing.T) {
+	tests := []struct {
+		name   string
+		out    string
+		code   int
+		action func(home string) string
+		want   string
+	}{
+		{
+			name: "already running",
+			out:  launchctlDict,
+			want: alreadyRunningPID,
+		},
+		{
+			name:   "loaded but not running",
+			out:    strings.ReplaceAll(launchctlDict, "\t\"PID\" = 4242;\n", ""),
+			action: func(string) string { return kickstartCall() },
+			want:   startedPID,
+		},
+		{
+			name:   "not loaded",
+			code:   113,
+			action: bootstrapCall,
+			want:   startedPID,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			home := t.TempDir()
+			t.Setenv("HOME", home)
+			t.Setenv("XDG_DATA_HOME", "")
+
+			var action string
+			if tt.action != nil {
+				action = tt.action(home)
+			}
+
+			var calls []string
+
+			out, err := runWithLaunchd(t, recordingLaunchctl(&calls, action, tt.out, tt.code), startCmdUse)
+			if err != nil {
+				t.Fatalf("bp start returned error: %v", err)
+			}
+
+			if out != tt.want {
+				t.Errorf("bp start output = %q, want %q", out, tt.want)
+			}
+
+			if action != "" && !slices.Contains(calls, action) {
+				t.Errorf("launchctl calls = %v, want %q", calls, action)
+			}
+
+			for _, unwanted := range []string{"bootstrap", "kickstart"} {
+				if !strings.Contains(action, unwanted) {
+					assertNoCallContains(t, calls, unwanted)
+				}
+			}
+		})
 	}
 }

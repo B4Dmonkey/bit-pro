@@ -5,14 +5,31 @@ import (
 	"fmt"
 )
 
-func Start(ctx context.Context, run Runner, plistPath string) (State, int, error) {
+func Start(ctx context.Context, run Runner, plistPath string) (State, int, bool, error) {
+	loaded, pid, err := listJob(ctx, run)
+	if err != nil {
+		return StateNotRunning, 0, false, err
+	}
+
+	if loaded && pid != 0 {
+		return StateRunning, pid, true, nil
+	}
+
 	if _, _, err := run(ctx, "launchctl", "enable", domain()+"/"+Label); err != nil {
-		return StateNotRunning, 0, fmt.Errorf("enabling %s: %w", Label, err)
+		return StateNotRunning, 0, false, fmt.Errorf("enabling %s: %w", Label, err)
 	}
 
-	if _, _, err := run(ctx, "launchctl", "bootstrap", domain(), plistPath); err != nil {
-		return StateNotRunning, 0, fmt.Errorf("bootstrapping %s from %s: %w", Label, plistPath, err)
+	if loaded {
+		if _, _, err := run(ctx, "launchctl", "kickstart", domain()+"/"+Label); err != nil {
+			return StateNotRunning, 0, false, fmt.Errorf("kickstarting %s: %w", Label, err)
+		}
+	} else {
+		if _, _, err := run(ctx, "launchctl", "bootstrap", domain(), plistPath); err != nil {
+			return StateNotRunning, 0, false, fmt.Errorf("bootstrapping %s from %s: %w", Label, plistPath, err)
+		}
 	}
 
-	return Status(ctx, run)
+	state, pid, err := Status(ctx, run)
+
+	return state, pid, false, err
 }

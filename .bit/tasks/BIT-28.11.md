@@ -1,8 +1,7 @@
 ---
 id: BIT-28.11
 title: Contradiction forces bp start to reconcile
-status: todo
-approved: true
+status: done
 phase: 2
 phase_label: lifecycle
 ---

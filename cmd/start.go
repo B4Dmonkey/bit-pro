@@ -25,12 +25,17 @@ func newStartCmd(lc launchd.Runner) *cobra.Command {
 				return err
 			}
 
-			_, pid, err := launchd.Start(cmd.Context(), lc, path)
+			_, pid, alreadyRunning, err := launchd.Start(cmd.Context(), lc, path)
 			if err != nil {
 				return err
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "started (pid %d)\n", pid)
+			state := "started"
+			if alreadyRunning {
+				state = "already running"
+			}
+
+			fmt.Fprintf(cmd.OutOrStdout(), "%s (pid %d)\n", state, pid)
 
 			return nil
 		},

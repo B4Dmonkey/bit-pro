@@ -13,6 +13,7 @@ import (
 
 const (
 	printDisabled = "print-disabled"
+	listSubcmd    = "list"
 
 	notRunning = "not running\n"
 	runningPID = "running (pid 4242)\n"
