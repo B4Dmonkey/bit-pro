@@ -12,6 +12,8 @@ import (
 )
 
 const (
+	printDisabled = "print-disabled"
+
 	notRunning = "not running\n"
 	runningPID = "running (pid 4242)\n"
 	stopped    = "stopped\n"
@@ -74,7 +76,7 @@ func TestStatusCmd_ReportsWhatLaunchctlSays(t *testing.T) {
 			lc := func(_ context.Context, name string, args ...string) (string, int, error) {
 				calls = append(calls, strings.Join(append([]string{name}, args...), " "))
 
-				if len(args) > 0 && args[0] == "print-disabled" {
+				if len(args) > 0 && args[0] == printDisabled {
 					return disabledStore(), 0, nil
 				}
 
@@ -140,7 +142,7 @@ func TestStatusCmd_ReportsStoppedFromTheDisabledStore(t *testing.T) {
 			lc := func(_ context.Context, name string, args ...string) (string, int, error) {
 				calls = append(calls, strings.Join(append([]string{name}, args...), " "))
 
-				if len(args) > 0 && args[0] == "print-disabled" {
+				if len(args) > 0 && args[0] == printDisabled {
 					return tt.store, 0, nil
 				}
 

@@ -1,16 +1,22 @@
 package cmd
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/launchd"
 )
 
-const editedPlist = "not a plist"
+const (
+	editedPlist = "not a plist"
+	startedPID  = "started (pid 4242)\n"
+)
 
 func TestStartCmd_WritesThePlistOnlyWhenMissing(t *testing.T) {
 	tests := []struct {
@@ -131,5 +137,56 @@ func TestStartCmd_LogPathFollowsXDGDataHome(t *testing.T) {
 
 	if strings.Contains(plist, filepath.Join(".local", "share")) {
 		t.Errorf("plist still points at the home fallback:\n%s", plist)
+	}
+}
+
+func enableCall() string {
+	return "launchctl enable gui/" + strconv.Itoa(os.Getuid()) + "/" + launchd.Label
+}
+
+func bootstrapCall(home string) string {
+	plist := filepath.Join(home, "Library", "LaunchAgents", launchd.Label+".plist")
+
+	return "launchctl bootstrap gui/" + strconv.Itoa(os.Getuid()) + " " + plist
+}
+
+func TestStartCmd_EnablesBeforeBootstrapping(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_DATA_HOME", "")
+
+	var calls []string
+
+	lc := func(_ context.Context, name string, args ...string) (string, int, error) {
+		calls = append(calls, strings.Join(append([]string{name}, args...), " "))
+
+		switch args[0] {
+		case printDisabled:
+			return disabledStore(), 0, nil
+		case "list":
+			if !slices.Contains(calls, bootstrapCall(home)) {
+				return "", 113, nil
+			}
+
+			return launchctlDict, 0, nil
+		default:
+			return "", 0, nil
+		}
+	}
+
+	out, err := runWithLaunchd(t, lc, startCmdUse)
+	if err != nil {
+		t.Fatalf("bp start returned error: %v", err)
+	}
+
+	if out != startedPID {
+		t.Errorf("bp start output = %q, want %q", out, startedPID)
+	}
+
+	enable := slices.Index(calls, enableCall())
+	bootstrap := slices.Index(calls, bootstrapCall(home))
+
+	if enable < 0 || bootstrap < 0 || enable > bootstrap {
+		t.Errorf("launchctl calls = %v, want enable before bootstrap", calls)
 	}
 }

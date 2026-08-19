@@ -1,8 +1,7 @@
 ---
 id: BIT-28.10
 title: bp start enables before it bootstraps
-status: todo
-approved: true
+status: done
 phase: 2
 phase_label: lifecycle
 ---

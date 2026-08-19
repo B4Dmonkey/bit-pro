@@ -3,7 +3,6 @@ package launchd
 import (
 	"context"
 	"fmt"
-	"os"
 	"regexp"
 	"strconv"
 )
@@ -14,7 +13,7 @@ var (
 )
 
 func Status(ctx context.Context, run Runner) (State, int, error) {
-	disabled, _, err := run(ctx, "launchctl", "print-disabled", "gui/"+strconv.Itoa(os.Getuid()))
+	disabled, _, err := run(ctx, "launchctl", "print-disabled", domain())
 	if err != nil {
 		return StateNotRunning, 0, fmt.Errorf("asking launchd which labels are disabled: %w", err)
 	}
