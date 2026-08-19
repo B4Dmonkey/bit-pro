@@ -1,8 +1,7 @@
 ---
 id: BIT-28.5
 title: bp status answers not running
-status: todo
-approved: true
+status: done
 phase: 2
 phase_label: lifecycle
 ---
