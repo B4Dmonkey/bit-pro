@@ -34,6 +34,21 @@ func runWithRunner(t *testing.T, run claude.Runner, stdin string, args ...string
 	return out.String(), err
 }
 
+func runWithContext(t *testing.T, ctx context.Context, args ...string) (string, error) {
+	t.Helper()
+
+	root := newRootCmd(func(context.Context, string, ...string) error { return nil })
+	out := &bytes.Buffer{}
+	root.SetOut(out)
+	root.SetErr(out)
+	root.SetIn(strings.NewReader(""))
+	root.SetArgs(args)
+
+	err := root.ExecuteContext(ctx)
+
+	return out.String(), err
+}
+
 func mustRun(t *testing.T, args ...string) string {
 	t.Helper()
 
