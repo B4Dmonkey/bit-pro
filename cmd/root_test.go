@@ -4,7 +4,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 )
 
 func TestRootCmd_Help(t *testing.T) {
@@ -86,5 +88,32 @@ func TestRootCmd_RuntimeErrorOmitsUsage(t *testing.T) {
 
 	if strings.Contains(out, "Usage:") {
 		t.Errorf("output = %q, want no usage text on a runtime failure", out)
+	}
+}
+
+func TestSignalContext_CancelsOnTerminationSignals(t *testing.T) {
+	tests := []struct {
+		name string
+		sig  syscall.Signal
+	}{
+		{name: "SIGTERM", sig: syscall.SIGTERM},
+		{name: "SIGINT", sig: syscall.SIGINT},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, stop := signalContext()
+			defer stop()
+
+			if err := syscall.Kill(syscall.Getpid(), tt.sig); err != nil {
+				t.Fatalf("Kill(%v) returned error: %v", tt.sig, err)
+			}
+
+			select {
+			case <-ctx.Done():
+			case <-time.After(2 * time.Second):
+				t.Fatal("context was not cancelled within 2s of the signal")
+			}
+		})
 	}
 }

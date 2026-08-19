@@ -155,7 +155,7 @@ reboot     ─▶ launchd walks ~/Library/LaunchAgents/, honours the disabled st
   `=> disabled`, `=> enabled`.
 ## Verses
 
-- [ ] Verse 1 — Operator can run the daemon in their terminal and watch it: `bp serve` runs the stub
+- [x] Verse 1 — Operator can run the daemon in their terminal and watch it: `bp serve` runs the stub
   loop attached to the terminal and exits cleanly on Ctrl-C / `SIGTERM`; `bp serve -v` shows each
   10s tick. Nothing launchd-related yet — this is the walking skeleton the plist will later point at,
   and it fails cheap if the body can't run at all.

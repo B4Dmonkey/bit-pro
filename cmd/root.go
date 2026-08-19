@@ -1,9 +1,12 @@
 package cmd
 
 import (
+	"context"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/B4Dmonkey/bit-pro/claude"
 	"github.com/spf13/cobra"
@@ -29,6 +32,17 @@ func canonicalBitDir(wd string) string {
 	}
 
 	return ".bit"
+}
+
+func signalContext() (context.Context, context.CancelFunc) {
+	return signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+}
+
+func Execute() error {
+	ctx, stop := signalContext()
+	defer stop()
+
+	return NewRootCmd().ExecuteContext(ctx)
 }
 
 func NewRootCmd() *cobra.Command {

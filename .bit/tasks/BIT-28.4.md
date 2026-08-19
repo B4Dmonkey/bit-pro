@@ -1,8 +1,7 @@
 ---
 id: BIT-28.4
 title: A termination signal cancels the root context
-status: todo
-approved: true
+status: done
 phase: 1
 phase_label: serve
 ---
