@@ -1,8 +1,7 @@
 ---
 id: BIT-28.7
 title: The disabled store makes stopped a third state
-status: todo
-approved: true
+status: done
 phase: 2
 phase_label: lifecycle
 ---

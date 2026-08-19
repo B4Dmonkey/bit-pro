@@ -3,13 +3,26 @@ package launchd
 import (
 	"context"
 	"fmt"
+	"os"
 	"regexp"
 	"strconv"
 )
 
-var pidPattern = regexp.MustCompile(`"PID"\s*=\s*(\d+)`)
+var (
+	pidPattern      = regexp.MustCompile(`"PID"\s*=\s*(\d+)`)
+	disabledPattern = regexp.MustCompile(regexp.QuoteMeta(`"`+Label+`"`) + `\s*=>\s*disabled`)
+)
 
 func Status(ctx context.Context, run Runner) (State, int, error) {
+	disabled, _, err := run(ctx, "launchctl", "print-disabled", "gui/"+strconv.Itoa(os.Getuid()))
+	if err != nil {
+		return StateNotRunning, 0, fmt.Errorf("asking launchd which labels are disabled: %w", err)
+	}
+
+	if disabledPattern.MatchString(disabled) {
+		return StateStopped, 0, nil
+	}
+
 	out, code, err := run(ctx, "launchctl", "list", Label)
 	if err != nil {
 		return StateNotRunning, 0, fmt.Errorf("asking launchd about %s: %w", Label, err)
