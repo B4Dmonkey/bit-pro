@@ -1,8 +1,7 @@
 ---
 id: BIT-28.8
 title: bp start writes the plist on first run
-status: todo
-approved: true
+status: done
 phase: 2
 phase_label: lifecycle
 ---
@@ -13,14 +12,14 @@ phase_label: lifecycle
 the log, and launchd together is generated correctly.
 
 ## Scope
-- `state/state.go` — new package: `Dir() (string, error)`, returning `~/.local/share/bit-pro` and
+- `store/store.go` — new package: `Dir() (string, error)`, returning `~/.local/share/bit-pro` and
   creating it. It is deliberately not part of `launchd`: BIT-29's `state.db` lives in the same
   directory and must not have to import the launchd package to find it.
 - `launchd/plist.go` — new: `PlistPath() (string, error)`, `Plist(exe, logPath string) []byte`,
   `WritePlist(path string, data []byte) error`
 - `cmd/start.go` — new; `newStartCmd(lc launchd.Runner)`
 - `cmd/root.go` — register it
-- `state/state_test.go`, `launchd/plist_test.go`, `cmd/start_test.go` — the new tests
+- `store/store_test.go`, `launchd/plist_test.go`, `cmd/start_test.go` — the new tests
 
 `ProgramArguments[0]` comes from `os.Executable()`, so the plist points at whichever binary
 generated it. Under `go test` that is the test binary — the assertion below reads `os.Executable()`
@@ -64,7 +63,7 @@ resolved path is embedded, not which path it is.
    - [ ] Confirm fails: `unknown command "start" for "bp"`, and `undefined: Plist`.
 
 2. **Implement (GREEN):**
-   - [ ] `state/state.go`: `Dir() (string, error)` — `os.UserHomeDir()`, join
+   - [ ] `store/store.go`: `Dir() (string, error)` — `os.UserHomeDir()`, join
          `.local/share/bit-pro`, `os.MkdirAll(dir, 0o755)`, return it. The `XDG_DATA_HOME` branch is
          BIT-28.9's job; hardcoding the home-relative path is correct for this bar.
    - [ ] `launchd/plist.go`: `PlistPath() (string, error)` — `os.UserHomeDir()` joined with
@@ -76,7 +75,7 @@ resolved path is embedded, not which path it is.
          `StandardErrorPath` both set to `logPath`.
    - [ ] `launchd/plist.go`: `WritePlist(path string, data []byte) error` — write with `0o644`.
    - [ ] `cmd/start.go`: `const startCmdUse = "start"`; `newStartCmd(lc launchd.Runner)` with
-         `Args: cobra.NoArgs`; `RunE` resolves `os.Executable()`, `state.Dir()`, and `PlistPath()`,
+         `Args: cobra.NoArgs`; `RunE` resolves `os.Executable()`, `store.Dir()`, and `PlistPath()`,
          and calls `WritePlist` only when `os.Stat` on the plist path returns `fs.ErrNotExist`.
          Print nothing — output is BIT-28.10's contradiction.
    - [ ] `cmd/root.go`: `rootCmd.AddCommand(newStartCmd(lc))`.

@@ -12,8 +12,8 @@ phase_label: lifecycle
 at. Contradicts BIT-28.8, which hardcoded `~/.local/share`.
 
 ## Scope
-- `state/state.go` — branch on `$XDG_DATA_HOME`
-- `state/state_test.go`, `cmd/start_test.go` — the new tests
+- `store/store.go` — branch on `$XDG_DATA_HOME`
+- `store/store_test.go`, `cmd/start_test.go` — the new tests
 
 The scope calls this directory "XDG convention", and honouring the variable is what that convention
 actually is. `XDG_DATA_HOME` is **unset on this machine** (checked 2026-08-19), so the live path
@@ -24,7 +24,7 @@ observable here.
 ## TDD cycle
 
 1. **Write test (RED):**
-   - [ ] `TestDir_FollowsXDGDataHome` (table-driven, in `state/state_test.go`)
+   - [ ] `TestDir_FollowsXDGDataHome` (table-driven, in `store/store_test.go`)
      - **Behavior:** the daemon's state lives where the environment says user data lives, so an
        operator who has moved their XDG root does not end up with a stray `~/.local/share`.
      - **Setup:** two rows. (a) `t.Setenv("XDG_DATA_HOME", "")` and `t.Setenv("HOME", t.TempDir())`.
@@ -46,7 +46,7 @@ observable here.
          `$XDG_DATA_HOME/bit-pro`.
 
 2. **Implement (GREEN):**
-   - [ ] `state/state.go`: in `Dir()`, read `os.Getenv("XDG_DATA_HOME")` first; when it is non-empty,
+   - [ ] `store/store.go`: in `Dir()`, read `os.Getenv("XDG_DATA_HOME")` first; when it is non-empty,
          use it as the base instead of `~/.local/share`. Keep the existing `os.MkdirAll` and the
          `bit-pro` leaf for both branches, so the two paths differ only in their base.
 
@@ -58,4 +58,4 @@ observable here.
 - [ ] none — deterministic.
 
 ## Commit (user)
-`feat(state): honour XDG_DATA_HOME for the state directory`
+`feat(store): honour XDG_DATA_HOME for the state directory`
