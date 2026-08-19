@@ -13,11 +13,11 @@ unconditionally and always claims it started something — bootstrapping an alre
 is an error, and it would report a start that never happened.
 
 ## Scope
-- `launchd/status.go` — extract an unexported `listJob(ctx, run) (loaded bool, pid int, err error)`
+- `daemon/status.go` — extract an unexported `listJob(ctx, run) (loaded bool, pid int, err error)`
   and have `Status` call it, so the loaded-versus-not distinction `Status` currently collapses is
   available inside the package
-- `launchd/start.go` — branch on it
-- `launchd/start_test.go`, `cmd/start_test.go` — the new tests
+- `daemon/start.go` — branch on it
+- `daemon/start_test.go`, `cmd/start_test.go` — the new tests
 
 This is where the fourth reconcile case lands; the plist-missing case is already covered by
 BIT-28.8's two rows.
@@ -48,15 +48,15 @@ BIT-28.8's two rows.
          there; row (b) fails on the missing `kickstart`.
 
 2. **Implement (GREEN):**
-   - [ ] `launchd/status.go`: extract `listJob(ctx context.Context, run Runner) (bool, int, error)` —
+   - [ ] `daemon/status.go`: extract `listJob(ctx context.Context, run Runner) (bool, int, error)` —
          run `launchctl list <Label>`, return `loaded=false` on a non-zero `code`, otherwise
          `loaded=true` plus the pid from the existing `"PID"` regexp (`0` when absent). Rewrite
          `Status` to call it, leaving its behaviour and every BIT-28.6 / BIT-28.7 assertion unchanged.
-   - [ ] `launchd/start.go`: in `Start`, before enabling, call `listJob`; when it reports
+   - [ ] `daemon/start.go`: in `Start`, before enabling, call `listJob`; when it reports
          `loaded && pid != 0`, return `StateRunning` with that pid and a new
          `alreadyRunning bool` return so the command can pick its wording. Do not short-circuit on
          `StateStopped` — enabling and bootstrapping is exactly the recovery from a previous stop.
-   - [ ] `launchd/start.go`: after the `enable` call, run
+   - [ ] `daemon/start.go`: after the `enable` call, run
          `launchctl kickstart <domain>/<Label>` when `listJob` reported `loaded`, and
          `launchctl bootstrap <domain> <plistPath>` when it did not. Then return `Status(ctx, run)`
          as before.

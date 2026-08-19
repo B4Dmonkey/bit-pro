@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/B4Dmonkey/bit-pro/launchd"
+	"github.com/B4Dmonkey/bit-pro/daemon"
 )
 
 const (
@@ -48,7 +48,7 @@ func TestStartCmd_WritesThePlistOnlyWhenMissing(t *testing.T) {
 			t.Setenv("HOME", home)
 			t.Setenv("XDG_DATA_HOME", "")
 
-			path := filepath.Join(home, "Library", "LaunchAgents", launchd.Label+".plist")
+			path := filepath.Join(home, "Library", "LaunchAgents", daemon.Label+".plist")
 			if tt.existing != "" {
 				if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 					t.Fatalf("os.MkdirAll(%q) returned error: %v", filepath.Dir(path), err)
@@ -59,7 +59,7 @@ func TestStartCmd_WritesThePlistOnlyWhenMissing(t *testing.T) {
 				}
 			}
 
-			if _, err := runWithLaunchd(t, nothingLoaded, startCmdUse); err != nil {
+			if _, err := runWithDaemon(t, nothingLoaded, startCmdUse); err != nil {
 				t.Fatalf("bp start returned error: %v", err)
 			}
 
@@ -84,7 +84,7 @@ func assertEnrollsTheDaemon(t *testing.T, home, plist string) {
 	storeDir := filepath.Join(home, ".local", "share", "bit-pro")
 	logPath := regexp.QuoteMeta(filepath.Join(storeDir, "daemon.log"))
 
-	for _, want := range []string{launchd.Label, exe, "<string>serve</string>"} {
+	for _, want := range []string{daemon.Label, exe, "<string>serve</string>"} {
 		if !strings.Contains(plist, want) {
 			t.Errorf("plist does not contain %q:\n%s", want, plist)
 		}
@@ -118,11 +118,11 @@ func TestStartCmd_LogPathFollowsXDGDataHome(t *testing.T) {
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_DATA_HOME", data)
 
-	if _, err := runWithLaunchd(t, nothingLoaded, startCmdUse); err != nil {
+	if _, err := runWithDaemon(t, nothingLoaded, startCmdUse); err != nil {
 		t.Fatalf("bp start returned error: %v", err)
 	}
 
-	path := filepath.Join(home, "Library", "LaunchAgents", launchd.Label+".plist")
+	path := filepath.Join(home, "Library", "LaunchAgents", daemon.Label+".plist")
 
 	contents, err := os.ReadFile(path)
 	if err != nil {
@@ -142,16 +142,16 @@ func TestStartCmd_LogPathFollowsXDGDataHome(t *testing.T) {
 }
 
 func enableCall() string {
-	return "launchctl enable gui/" + strconv.Itoa(os.Getuid()) + "/" + launchd.Label
+	return "launchctl enable gui/" + strconv.Itoa(os.Getuid()) + "/" + daemon.Label
 }
 
 func bootstrapCall(home string) string {
-	plist := filepath.Join(home, "Library", "LaunchAgents", launchd.Label+".plist")
+	plist := filepath.Join(home, "Library", "LaunchAgents", daemon.Label+".plist")
 
 	return "launchctl bootstrap gui/" + strconv.Itoa(os.Getuid()) + " " + plist
 }
 
-func recordingLaunchctl(calls *[]string, action, out string, code int) launchd.Runner {
+func recordingLaunchctl(calls *[]string, action, out string, code int) daemon.Runner {
 	return func(_ context.Context, name string, args ...string) (string, int, error) {
 		*calls = append(*calls, strings.Join(append([]string{name}, args...), " "))
 
@@ -185,7 +185,7 @@ func TestStartCmd_EnablesBeforeBootstrapping(t *testing.T) {
 
 	var calls []string
 
-	out, err := runWithLaunchd(t, recordingLaunchctl(&calls, bootstrapCall(home), "", 113), startCmdUse)
+	out, err := runWithDaemon(t, recordingLaunchctl(&calls, bootstrapCall(home), "", 113), startCmdUse)
 	if err != nil {
 		t.Fatalf("bp start returned error: %v", err)
 	}
@@ -203,7 +203,7 @@ func TestStartCmd_EnablesBeforeBootstrapping(t *testing.T) {
 }
 
 func kickstartCall() string {
-	return "launchctl kickstart gui/" + strconv.Itoa(os.Getuid()) + "/" + launchd.Label
+	return "launchctl kickstart gui/" + strconv.Itoa(os.Getuid()) + "/" + daemon.Label
 }
 
 func TestStartCmd_ReconcilesTheStateItFinds(t *testing.T) {
@@ -246,7 +246,7 @@ func TestStartCmd_ReconcilesTheStateItFinds(t *testing.T) {
 
 			var calls []string
 
-			out, err := runWithLaunchd(t, recordingLaunchctl(&calls, action, tt.out, tt.code), startCmdUse)
+			out, err := runWithDaemon(t, recordingLaunchctl(&calls, action, tt.out, tt.code), startCmdUse)
 			if err != nil {
 				t.Fatalf("bp start returned error: %v", err)
 			}

@@ -1,7 +1,7 @@
 ---
 id: BIT-28
 title: daemon lifecycle (serve / start / stop / status)
-status: doing
+status: done
 ---
 ## Why
 
@@ -160,7 +160,7 @@ reboot     ─▶ launchd walks ~/Library/LaunchAgents/, honours the disabled st
   10s tick. Nothing launchd-related yet — this is the walking skeleton the plist will later point at,
   and it fails cheap if the body can't run at all.
   Touches: `cmd/serve.go` (new), `cmd/root.go` (register it) — where to look to verify.
-- [ ] Verse 2 — Operator can manage a supervised background daemon: `bp start` writes the LaunchAgent
+- [x] Verse 2 — Operator can manage a supervised background daemon: `bp start` writes the LaunchAgent
   plist on first run and bootstraps it, `bp status` reports `running` / `not running` / `stopped`,
   `bp stop` brings it down durably. It survives closing the terminal, comes back after a crash, and
   comes back after a reboot *unless* `bp stop` was called. The reboot half of that is the operator's

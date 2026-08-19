@@ -7,14 +7,14 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/B4Dmonkey/bit-pro/launchd"
+	"github.com/B4Dmonkey/bit-pro/daemon"
 	"github.com/B4Dmonkey/bit-pro/store"
 	"github.com/spf13/cobra"
 )
 
 const startCmdUse = "start"
 
-func newStartCmd(lc launchd.Runner) *cobra.Command {
+func newStartCmd(lc daemon.Runner) *cobra.Command {
 	return &cobra.Command{
 		Use:   startCmdUse,
 		Short: "Start the background daemon under launchd",
@@ -25,7 +25,7 @@ func newStartCmd(lc launchd.Runner) *cobra.Command {
 				return err
 			}
 
-			_, pid, alreadyRunning, err := launchd.Start(cmd.Context(), lc, path)
+			_, pid, alreadyRunning, err := daemon.Start(cmd.Context(), lc, path)
 			if err != nil {
 				return err
 			}
@@ -53,7 +53,7 @@ func enrollDaemon() (string, error) {
 		return "", err
 	}
 
-	path, err := launchd.PlistPath()
+	path, err := daemon.PlistPath()
 	if err != nil {
 		return "", err
 	}
@@ -67,7 +67,7 @@ func enrollDaemon() (string, error) {
 		return "", fmt.Errorf("reading %s: %w", path, err)
 	}
 
-	if err := launchd.WritePlist(path, launchd.Plist(exe, filepath.Join(dir, "daemon.log"))); err != nil {
+	if err := daemon.WritePlist(path, daemon.Plist(exe, filepath.Join(dir, "daemon.log"))); err != nil {
 		return "", err
 	}
 

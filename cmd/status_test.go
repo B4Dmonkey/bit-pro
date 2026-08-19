@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/B4Dmonkey/bit-pro/launchd"
+	"github.com/B4Dmonkey/bit-pro/daemon"
 )
 
 const (
@@ -84,7 +84,7 @@ func TestStatusCmd_ReportsWhatLaunchctlSays(t *testing.T) {
 				return tt.out, tt.code, nil
 			}
 
-			out, err := runWithLaunchd(t, lc, statusCmdUse)
+			out, err := runWithDaemon(t, lc, statusCmdUse)
 			if err != nil {
 				t.Fatalf("bp status returned error: %v", err)
 			}
@@ -110,7 +110,7 @@ func printDisabledCall() string {
 }
 
 func listCall() string {
-	return "launchctl list " + launchd.Label
+	return "launchctl list " + daemon.Label
 }
 
 func TestStatusCmd_ReportsStoppedFromTheDisabledStore(t *testing.T) {
@@ -150,7 +150,7 @@ func TestStatusCmd_ReportsStoppedFromTheDisabledStore(t *testing.T) {
 				return launchctlDict, 0, nil
 			}
 
-			out, err := runWithLaunchd(t, lc, statusCmdUse)
+			out, err := runWithDaemon(t, lc, statusCmdUse)
 			if err != nil {
 				t.Fatalf("bp status returned error: %v", err)
 			}

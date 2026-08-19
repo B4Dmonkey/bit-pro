@@ -1,8 +1,7 @@
 ---
 id: BIT-28.12
 title: bp stop brings the daemon down durably
-status: todo
-approved: true
+status: done
 phase: 2
 phase_label: lifecycle
 ---
@@ -14,10 +13,10 @@ the bar that makes a stop durable — `bootout` alone is session-scoped, and lau
 silently resurrect itself after a reboot.
 
 ## Scope
-- `launchd/stop.go` — new: `Stop(ctx context.Context, run Runner) error`
-- `cmd/stop.go` — new; `newStopCmd(lc launchd.Runner)`
+- `daemon/stop.go` — new: `Stop(ctx context.Context, run Runner) error`
+- `cmd/stop.go` — new; `newStopCmd(lc daemon.Runner)`
 - `cmd/root.go` — register it
-- `launchd/stop_test.go`, `cmd/stop_test.go` — the new tests
+- `daemon/stop_test.go`, `cmd/stop_test.go` — the new tests
 
 ## References
 - `automation-notes.md` (repo root, untracked) — "Daemons on macOS" for `bootout` being
@@ -31,10 +30,10 @@ silently resurrect itself after a reboot.
    - [ ] `TestStopCmd_BootsOutThenDisables` (table-driven)
      - **Behavior:** stopping is an explicit operator intent that outlives the login session, and it
        reports one terminal state regardless of what it had to do to get there.
-     - **Setup:** the recording fake `launchd.Runner`. Two rows: (a) the job is loaded — every call
+     - **Setup:** the recording fake `daemon.Runner`. Two rows: (a) the job is loaded — every call
        returns `("", 0, nil)`; (b) the job is not loaded — the `bootout` call returns
        `("Boot-out failed: 3: No such process", 3, nil)` and the rest return `("", 0, nil)`.
-       Run `runWithLaunchd(t, lc, stopCmdUse)`.
+       Run `runWithDaemon(t, lc, stopCmdUse)`.
      - **Assertions:** both rows — output is exactly `"stopped\n"` and the returned error is `nil`;
        the recorded calls contain `launchctl bootout gui/<uid>/com.github.b4dmonkey.bit-pro` at an
        index **less than** `launchctl disable gui/<uid>/com.github.b4dmonkey.bit-pro`, with
@@ -49,13 +48,13 @@ silently resurrect itself after a reboot.
    - [ ] Confirm fails: `unknown command "stop" for "bp"`.
 
 2. **Implement (GREEN):**
-   - [ ] `launchd/stop.go`: `Stop(ctx, run)` — `run(ctx, "launchctl", "bootout", domain()+"/"+Label)`,
+   - [ ] `daemon/stop.go`: `Stop(ctx, run)` — `run(ctx, "launchctl", "bootout", domain()+"/"+Label)`,
          ignoring a non-zero `code` (a job that is not loaded is already booted out) but propagating
          a non-nil `err`; then `run(ctx, "launchctl", "disable", domain()+"/"+Label)`, propagating
          both a non-nil `err` and a non-zero `code` from this one — a `disable` that did not take is
          a stop that will not survive a reboot, and must not be reported as success.
-   - [ ] `cmd/stop.go`: `const stopCmdUse = "stop"`; `newStopCmd(lc launchd.Runner)` with
-         `Args: cobra.NoArgs`; `RunE` calls `launchd.Stop` and prints `stopped`.
+   - [ ] `cmd/stop.go`: `const stopCmdUse = "stop"`; `newStopCmd(lc daemon.Runner)` with
+         `Args: cobra.NoArgs`; `RunE` calls `daemon.Stop` and prints `stopped`.
    - [ ] `cmd/root.go`: `rootCmd.AddCommand(newStopCmd(lc))`.
 
 ## Claude verifies

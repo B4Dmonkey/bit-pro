@@ -37,7 +37,7 @@ observable here.
      - **Behavior:** the branch reaches the artifact that matters — the plist's log path, which is
        the only place the state directory is written down for launchd to read.
      - **Setup:** `t.Setenv("HOME", t.TempDir())`, `t.Setenv("XDG_DATA_HOME", t.TempDir())`, the
-       same all-113 fake runner as BIT-28.8; run `runWithLaunchd(t, lc, startCmdUse)`.
+       same all-113 fake runner as BIT-28.8; run `runWithDaemon(t, lc, startCmdUse)`.
      - **Assertions:** the written plist contains `$XDG_DATA_HOME/bit-pro/daemon.log` and does not
        contain `.local/share`.
      - **Boundary:** `XDG_DATA_HOME` set — the state BIT-28.8 could not reach.

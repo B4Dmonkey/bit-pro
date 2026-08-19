@@ -12,8 +12,8 @@ same thing it says for a job that simply is not running. Contradicts BIT-28.6, w
 two — and collapsing them hides the one fact an operator needs when queued bars are not moving.
 
 ## Scope
-- `launchd/status.go` — read `launchctl print-disabled gui/$UID` before consulting `list`
-- `launchd/status_test.go`, `cmd/status_test.go` — the new tests
+- `daemon/status.go` — read `launchctl print-disabled gui/$UID` before consulting `list`
+- `daemon/status_test.go`, `cmd/status_test.go` — the new tests
 
 ## References
 - `automation-notes.md` (repo root, untracked) — "Daemons on macOS" for why `disable` is the durable
@@ -27,7 +27,7 @@ two — and collapsing them hides the one fact an operator needs when queued bar
      - **Behavior:** a deliberate stop is durable and survives a reboot, so "the operator stopped
        this and it will not come back at login" is a different answer from "it happens not to be
        running right now".
-     - **Setup:** extend the fake `launchd.Runner` to answer two subcommands — `print-disabled gui/<uid>`
+     - **Setup:** extend the fake `daemon.Runner` to answer two subcommands — `print-disabled gui/<uid>`
        and `list <label>` — where `<uid>` is `os.Getuid()`. Three rows, all with `list` returning a
        dict containing `"PID" = 4242;` and code `0`, varying only the store: (a) the store contains
        `"com.github.b4dmonkey.bit-pro" => disabled`; (b) it contains
@@ -44,14 +44,14 @@ two — and collapsing them hides the one fact an operator needs when queued bar
          BIT-28.6 never consults the disabled store at all.
 
 2. **Implement (GREEN):**
-   - [ ] `launchd/status.go`: before the `list` call, run
+   - [ ] `daemon/status.go`: before the `list` call, run
          `run(ctx, "launchctl", "print-disabled", "gui/"+strconv.Itoa(os.Getuid()))`. Propagate a
          non-nil `err`; ignore a non-zero `code` and fall through (an empty store is not a failure).
-   - [ ] `launchd/status.go`: match the output against a package-level regexp built as
+   - [ ] `daemon/status.go`: match the output against a package-level regexp built as
          `regexp.QuoteMeta` of a quoted `Label` followed by the Go raw string `\s*=>\s*disabled`.
          `QuoteMeta` is what keeps the label's dots from matching any character. On a match return
          `StateStopped, 0, nil` without calling `list`.
-   - [ ] `launchd/status.go`: leave the existing `list` path untouched for every other case.
+   - [ ] `daemon/status.go`: leave the existing `list` path untouched for every other case.
 
 ## Claude verifies
 - [ ] `just test`

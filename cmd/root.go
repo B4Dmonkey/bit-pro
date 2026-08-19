@@ -9,7 +9,7 @@ import (
 	"syscall"
 
 	"github.com/B4Dmonkey/bit-pro/claude"
-	"github.com/B4Dmonkey/bit-pro/launchd"
+	"github.com/B4Dmonkey/bit-pro/daemon"
 	"github.com/spf13/cobra"
 )
 
@@ -47,10 +47,10 @@ func Execute() error {
 }
 
 func NewRootCmd() *cobra.Command {
-	return newRootCmd(claude.ExecRunner, launchd.ExecRunner)
+	return newRootCmd(claude.ExecRunner, daemon.ExecRunner)
 }
 
-func newRootCmd(run claude.Runner, lc launchd.Runner) *cobra.Command {
+func newRootCmd(run claude.Runner, lc daemon.Runner) *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:           "bp",
 		Short:         "bp is a project-management CLI for LLM-driven development workflows",
@@ -73,6 +73,7 @@ func newRootCmd(run claude.Runner, lc launchd.Runner) *cobra.Command {
 	rootCmd.AddCommand(newServeCmd())
 	rootCmd.AddCommand(newStartCmd(lc))
 	rootCmd.AddCommand(newStatusCmd(lc))
+	rootCmd.AddCommand(newStopCmd(lc))
 	rootCmd.AddCommand(newTaskCmd())
 	rootCmd.AddCommand(newTUICmd())
 	rootCmd.AddCommand(newUnapproveCmd())

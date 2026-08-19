@@ -12,13 +12,13 @@ forces the real `launchctl list <label>` call, its output parse, and the exec se
 stand in for `launchctl`.
 
 ## Scope
-- `launchd/launchd.go` — new package: `Label`, `Runner`, `ExecRunner`, `State`
-- `launchd/status.go` — new: `Status(ctx, run Runner) (State, int, error)`
-- `cmd/status.go` — take a `launchd.Runner` and render its answer
-- `cmd/root.go` — `newRootCmd` gains a `launchd.Runner` parameter; `NewRootCmd()` passes
-  `launchd.ExecRunner`
+- `daemon/daemon.go` — new package: `Label`, `Runner`, `ExecRunner`, `State`
+- `daemon/status.go` — new: `Status(ctx, run Runner) (State, int, error)`
+- `cmd/status.go` — take a `daemon.Runner` and render its answer
+- `cmd/root.go` — `newRootCmd` gains a `daemon.Runner` parameter; `NewRootCmd()` passes
+  `daemon.ExecRunner`
 - `cmd/cmd_test.go` — thread the new parameter through the helpers
-- `launchd/status_test.go`, `cmd/status_test.go` — the new tests
+- `daemon/status_test.go`, `cmd/status_test.go` — the new tests
 
 **The exec seam.** `claude.Runner` returns only an `error` and discards output, so it cannot serve
 here — `bp status` has to read what `launchctl` printed. Define a second, output-carrying runner in
@@ -49,11 +49,11 @@ Both are updated in this bar, so the module still builds and every existing test
    - [ ] `TestStatusCmd_ReportsWhatLaunchctlSays` (table-driven, in `cmd/status_test.go`)
      - **Behavior:** `bp status` is a faithful reading of launchd's own answer — a live daemon is
        reported with the pid launchd owns, so the operator can find the process.
-     - **Setup:** a fake `launchd.Runner` that records its calls and returns a canned
+     - **Setup:** a fake `daemon.Runner` that records its calls and returns a canned
        `(out, code, err)` per subtest. Three rows, each keyed on `launchctl list <label>`:
        (a) loaded with a pid — the dict text from `automation-notes.md` containing `"PID" = 4242;`,
        code `0`; (b) loaded without a pid — the same dict with the `PID` line removed, code `0`;
-       (c) not loaded — empty output, code `113`. Run `runWithLaunchd(t, lc, statusCmdUse)`.
+       (c) not loaded — empty output, code `113`. Run `runWithDaemon(t, lc, statusCmdUse)`.
      - **Assertions:** (a) output is exactly `"running (pid 4242)\n"`; (b) and (c) are exactly
        `"not running\n"`; every row returns a `nil` error; the recorded call is
        `launchctl list com.github.b4dmonkey.bit-pro`.
@@ -64,26 +64,26 @@ Both are updated in this bar, so the module still builds and every existing test
          BIT-28.5's hardcoded string cannot vary with the fake's answer.
 
 2. **Implement (GREEN):**
-   - [ ] `launchd/launchd.go`: `const Label = "com.github.b4dmonkey.bit-pro"`; the `Runner` type
+   - [ ] `daemon/daemon.go`: `const Label = "com.github.b4dmonkey.bit-pro"`; the `Runner` type
          above; `ExecRunner` built on `exec.CommandContext(ctx, name, args...).CombinedOutput()`,
          returning the trimmed output plus `exitErr.ExitCode()` via `errors.As(err, &exitErr)` for
          an `*exec.ExitError` and a wrapped error for anything else.
-   - [ ] `launchd/launchd.go`: `type State int` with `StateRunning`, `StateNotRunning`,
+   - [ ] `daemon/daemon.go`: `type State int` with `StateRunning`, `StateNotRunning`,
          `StateStopped` and a `String()` returning `"running"`, `"not running"`, `"stopped"` — the
          scope's three-word vocabulary lives in one place.
-   - [ ] `launchd/status.go`: `Status(ctx context.Context, run Runner) (State, int, error)` —
+   - [ ] `daemon/status.go`: `Status(ctx context.Context, run Runner) (State, int, error)` —
          call `run(ctx, "launchctl", "list", Label)`; propagate a non-nil `err`; return
          `StateNotRunning, 0, nil` when `code != 0`; otherwise match the
          output against a package-level regexp compiled from the Go raw string
          `"PID"\s*=\s*(\d+)` — RE2 supports `\s`, `\d`, and the capture group as written —
          returning `StateRunning` with the parsed pid on a match and `StateNotRunning` otherwise.
-   - [ ] `cmd/status.go`: `newStatusCmd(lc launchd.Runner)`; call `launchd.Status`; print
+   - [ ] `cmd/status.go`: `newStatusCmd(lc daemon.Runner)`; call `daemon.Status`; print
          `running (pid N)` when the state is `StateRunning`, otherwise the state's `String()`.
-   - [ ] `cmd/root.go`: `newRootCmd(run claude.Runner, lc launchd.Runner)`; pass `lc` to
-         `newStatusCmd`; `NewRootCmd()` calls `newRootCmd(claude.ExecRunner, launchd.ExecRunner)`.
-   - [ ] `cmd/cmd_test.go`: give `runWithRunner` a default no-op `launchd.Runner` (returns `"", 113, nil`,
+   - [ ] `cmd/root.go`: `newRootCmd(run claude.Runner, lc daemon.Runner)`; pass `lc` to
+         `newStatusCmd`; `NewRootCmd()` calls `newRootCmd(claude.ExecRunner, daemon.ExecRunner)`.
+   - [ ] `cmd/cmd_test.go`: give `runWithRunner` a default no-op `daemon.Runner` (returns `"", 113, nil`,
          i.e. nothing loaded) so every existing test keeps compiling and passing unchanged, and add
-         `runWithLaunchd(t *testing.T, lc launchd.Runner, args ...string) (string, error)` for the
+         `runWithDaemon(t *testing.T, lc daemon.Runner, args ...string) (string, error)` for the
          tests that need to drive it.
 
 ## Claude verifies

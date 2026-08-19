@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/claude"
-	"github.com/B4Dmonkey/bit-pro/launchd"
+	"github.com/B4Dmonkey/bit-pro/daemon"
 )
 
 func run(t *testing.T, args ...string) (string, error) {
@@ -24,7 +24,7 @@ func nothingLoaded(context.Context, string, ...string) (string, int, error) {
 	return "", 113, nil
 }
 
-func runWithLaunchd(t *testing.T, lc launchd.Runner, args ...string) (string, error) {
+func runWithDaemon(t *testing.T, lc daemon.Runner, args ...string) (string, error) {
 	t.Helper()
 
 	root := newRootCmd(func(context.Context, string, ...string) error { return nil }, lc)
