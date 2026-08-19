@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"io"
 	"log/slog"
+	"os"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -9,7 +11,19 @@ import (
 
 const serveCmdUse = "serve"
 
-var serveTick = 30 * time.Second
+var serveTick = 10 * time.Second
+
+func newHandler(w io.Writer, level slog.Level) slog.Handler {
+	opts := &slog.HandlerOptions{Level: level}
+
+	if f, ok := w.(*os.File); ok {
+		if info, err := f.Stat(); err == nil && info.Mode()&os.ModeCharDevice != 0 {
+			return slog.NewTextHandler(w, opts)
+		}
+	}
+
+	return slog.NewJSONHandler(w, opts)
+}
 
 func newServeCmd() *cobra.Command {
 	var verbose bool
@@ -24,7 +38,10 @@ func newServeCmd() *cobra.Command {
 				level = slog.LevelDebug
 			}
 
-			log := slog.New(slog.NewTextHandler(cmd.OutOrStdout(), &slog.HandlerOptions{Level: level}))
+			log := slog.New(newHandler(cmd.OutOrStdout(), level))
+
+			log.Info("started")
+			defer log.Info("stopped")
 
 			ticker := time.NewTicker(serveTick)
 			defer ticker.Stop()

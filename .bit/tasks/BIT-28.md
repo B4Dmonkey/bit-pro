@@ -25,7 +25,7 @@ bp serve   ─▶ the daemon itself: runs the loop in the foreground and exits c
              watches the loop live instead of tailing a log.
 
                $ bp serve                 → (silence until something happens)
-               $ bp serve -v              → time=… level=DEBUG msg=tick   (every 30s)
+               $ bp serve -v              → time=… level=DEBUG msg=tick   (every 10s)
 
 bp start   ─▶ plist missing?      → write it
              launchctl enable gui/$UID/<label>      (mandatory: bootstrap of a disabled
@@ -123,9 +123,15 @@ reboot     ─▶ launchd walks ~/Library/LaunchAgents/, honours the disabled st
 - **No loop logic in this track.** The daemon body is a stub. The loop is a later track — this one
   only proves the lifecycle plumbing works.
 
-- **The stub loop ticks every 30 seconds.** A bar takes minutes to run, so 30s of pickup latency is
-  negligible once the real loop lands, and it keeps `daemon.log` skimmable (~2,900 tick lines/day at
-  `debug`, none at the default level).
+- **The stub loop ticks every 10 seconds.** Revised down from 30s during BIT-28.3: while the body is
+  a stub the tick is the only liveness signal an operator watching `bp serve -v` gets, and 30s is long
+  enough to read as hung. A bar takes minutes to run, so pickup latency is negligible either way once
+  the real loop lands, and `daemon.log` stays skimmable (~8,600 tick lines/day at `debug`, none at the
+  default level).
+- **The daemon logs `started` and `stopped` at `info`.** Added during BIT-28.3. Without them the
+  default level emits nothing ever, so `daemon.log` cannot answer whether the daemon came up — the
+  exact silence the Why calls out. `stopped` is deferred, so it also covers the real loop's later error
+  exits; it only appears on Ctrl-C once BIT-28.4 wires the signal to the root context.
 - **A tick logs at `debug`; `bp serve` defaults to `info` and `-v` opts in.** Ticks are the operator's
   liveness signal while watching, and noise in a log kept for real events. Default `info` means plain
   `bp serve` prints nothing until something happens, and the plist passes no level argument — the
@@ -151,7 +157,7 @@ reboot     ─▶ launchd walks ~/Library/LaunchAgents/, honours the disabled st
 
 - [ ] Verse 1 — Operator can run the daemon in their terminal and watch it: `bp serve` runs the stub
   loop attached to the terminal and exits cleanly on Ctrl-C / `SIGTERM`; `bp serve -v` shows each
-  30s tick. Nothing launchd-related yet — this is the walking skeleton the plist will later point at,
+  10s tick. Nothing launchd-related yet — this is the walking skeleton the plist will later point at,
   and it fails cheap if the body can't run at all.
   Touches: `cmd/serve.go` (new), `cmd/root.go` (register it) — where to look to verify.
 - [ ] Verse 2 — Operator can manage a supervised background daemon: `bp start` writes the LaunchAgent

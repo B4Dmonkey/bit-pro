@@ -1,8 +1,7 @@
 ---
 id: BIT-28.3
 title: Log encoding follows the output writer
-status: todo
-approved: true
+status: done
 phase: 1
 phase_label: serve
 ---
@@ -61,9 +60,10 @@ what makes the branch testable at all. A real terminal is the user-verify below.
 - [ ] `just lint`
 
 ## User verifies
-- [ ] `just install`, then run `bp serve -v` in your terminal: the lines read
-      `time=… level=DEBUG msg=tick`, one every 30 seconds — not JSON. `Ctrl-C` still leaves the
+- [ ] `just install`, then run `bp serve -v` in your terminal: `msg=started` at `INFO`, then
+      `time=… level=DEBUG msg=tick` every 10 seconds — text, not JSON. `Ctrl-C` still leaves the
       shell usable. (The terminal branch is the one case no automated test can reach without a pty.)
+      No `msg=stopped` on Ctrl-C yet — nothing cancels the root context until BIT-28.4.
 
 ## Commit (user)
 `feat(serve): pick the log encoding from the output writer`
