@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/claude"
+	"github.com/B4Dmonkey/bit-pro/launchd"
 )
 
 func run(t *testing.T, args ...string) (string, error) {
@@ -19,10 +20,29 @@ func runWithStdin(t *testing.T, stdin string, args ...string) (string, error) {
 	return runWithRunner(t, func(context.Context, string, ...string) error { return nil }, stdin, args...)
 }
 
+func nothingLoaded(context.Context, string, ...string) (string, int, error) {
+	return "", 113, nil
+}
+
+func runWithLaunchd(t *testing.T, lc launchd.Runner, args ...string) (string, error) {
+	t.Helper()
+
+	root := newRootCmd(func(context.Context, string, ...string) error { return nil }, lc)
+	out := &bytes.Buffer{}
+	root.SetOut(out)
+	root.SetErr(out)
+	root.SetIn(strings.NewReader(""))
+	root.SetArgs(args)
+
+	err := root.Execute()
+
+	return out.String(), err
+}
+
 func runWithRunner(t *testing.T, run claude.Runner, stdin string, args ...string) (string, error) {
 	t.Helper()
 
-	root := newRootCmd(run)
+	root := newRootCmd(run, nothingLoaded)
 	out := &bytes.Buffer{}
 	root.SetOut(out)
 	root.SetErr(out)
@@ -37,7 +57,7 @@ func runWithRunner(t *testing.T, run claude.Runner, stdin string, args ...string
 func runWithContext(t *testing.T, ctx context.Context, args ...string) (string, error) {
 	t.Helper()
 
-	root := newRootCmd(func(context.Context, string, ...string) error { return nil })
+	root := newRootCmd(func(context.Context, string, ...string) error { return nil }, nothingLoaded)
 	out := &bytes.Buffer{}
 	root.SetOut(out)
 	root.SetErr(out)

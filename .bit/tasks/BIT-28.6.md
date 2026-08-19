@@ -1,8 +1,7 @@
 ---
 id: BIT-28.6
 title: Contradiction forces the real launchctl list parse
-status: todo
-approved: true
+status: done
 phase: 2
 phase_label: lifecycle
 ---
