@@ -104,3 +104,32 @@ func assertEnrollsTheDaemon(t *testing.T, home, plist string) {
 		t.Errorf("%s is not a directory", storeDir)
 	}
 }
+
+func TestStartCmd_LogPathFollowsXDGDataHome(t *testing.T) {
+	home := t.TempDir()
+	data := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_DATA_HOME", data)
+
+	if _, err := runWithLaunchd(t, nothingLoaded, startCmdUse); err != nil {
+		t.Fatalf("bp start returned error: %v", err)
+	}
+
+	path := filepath.Join(home, "Library", "LaunchAgents", launchd.Label+".plist")
+
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("os.ReadFile(%q) returned error: %v", path, err)
+	}
+
+	plist := string(contents)
+
+	want := filepath.Join(data, "bit-pro", "daemon.log")
+	if !strings.Contains(plist, want) {
+		t.Errorf("plist does not contain %q:\n%s", want, plist)
+	}
+
+	if strings.Contains(plist, filepath.Join(".local", "share")) {
+		t.Errorf("plist still points at the home fallback:\n%s", plist)
+	}
+}

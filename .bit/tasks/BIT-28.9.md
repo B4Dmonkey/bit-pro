@@ -1,8 +1,7 @@
 ---
 id: BIT-28.9
 title: XDG_DATA_HOME moves the state directory
-status: todo
-approved: true
+status: done
 phase: 2
 phase_label: lifecycle
 ---
