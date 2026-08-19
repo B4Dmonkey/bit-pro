@@ -1,8 +1,7 @@
 ---
 id: BIT-28.2
 title: Ticks appear only under -v
-status: todo
-approved: true
+status: done
 phase: 1
 phase_label: serve
 ---
