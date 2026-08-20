@@ -66,6 +66,7 @@ func newRootCmd(run claude.Runner, lc daemon.Runner) *cobra.Command {
 			return nil
 		},
 	}
+	rootCmd.AddCommand(newAddCmd())
 	rootCmd.AddCommand(newApproveCmd())
 	rootCmd.AddCommand(newFeedbackCmd())
 	rootCmd.AddCommand(newInitCmd(run))

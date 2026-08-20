@@ -1,8 +1,7 @@
 ---
 id: BIT-29.4
 title: A project with a bit prefix enrolls on one keypress
-status: todo
-approved: true
+status: done
 phase: 2
 phase_label: add
 ---
