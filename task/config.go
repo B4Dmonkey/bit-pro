@@ -22,13 +22,13 @@ func (s *Store) Config() (*Config, error) {
 		return nil, fmt.Errorf("reading %s: %w", s.ConfigPath(), err)
 	}
 
-	cfg.Prefix = normalizeID(cfg.Prefix)
+	cfg.Prefix = NormalizeID(cfg.Prefix)
 
 	return &cfg, nil
 }
 
 func (s *Store) SaveConfig(cfg *Config) error {
-	data, err := toml.Marshal(Config{Prefix: normalizeID(cfg.Prefix)})
+	data, err := toml.Marshal(Config{Prefix: NormalizeID(cfg.Prefix)})
 	if err != nil {
 		return fmt.Errorf("encoding %s: %w", s.ConfigPath(), err)
 	}

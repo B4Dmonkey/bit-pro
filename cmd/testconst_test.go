@@ -8,4 +8,5 @@ const (
 	prefixFlag  = "--prefix"
 	updateCmd   = "update"
 	testPrefix  = "BIT"
+	testCode    = "FOO"
 )

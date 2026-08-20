@@ -53,6 +53,8 @@ func newAddCmd() *cobra.Command {
 				return err
 			}
 
+			code = task.NormalizeID(code)
+
 			params := orm.CreateProjectParams{Path: abs, Code: code}
 			if err := queries.CreateProject(cmd.Context(), params); err != nil {
 				return fmt.Errorf("registering %s: %w", abs, err)

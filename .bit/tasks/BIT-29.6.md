@@ -1,8 +1,7 @@
 ---
 id: BIT-29.6
 title: A typed code beats the default and is stored uppercase
-status: todo
-approved: true
+status: done
 phase: 2
 phase_label: add
 ---

@@ -53,6 +53,59 @@ func TestAddCmd_EnrollsUsingTheBitPrefix(t *testing.T) {
 	}
 }
 
+func TestAddCmd_UppercasesATypedCode(t *testing.T) {
+	tests := []struct {
+		name  string
+		typed string
+	}{
+		{name: "lowercase", typed: "foo"},
+		{name: "uppercase", typed: testCode},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			home := t.TempDir()
+			t.Setenv("HOME", home)
+			t.Setenv("XDG_DATA_HOME", "")
+
+			initProject(t, testPrefix)
+
+			want, err := filepath.Abs(".")
+			if err != nil {
+				t.Fatalf("filepath.Abs(.) returned error: %v", err)
+			}
+
+			out, err := runWithStdin(t, tt.typed+"\n", addCmdUse, ".")
+			if err != nil {
+				t.Fatalf("Execute() returned error: %v", err)
+			}
+
+			if wantOut := "Project code (BIT): added " + testCode + " " + want + "\n"; out != wantOut {
+				t.Errorf("output = %q, want %q", out, wantOut)
+			}
+
+			sqlDB, err := db.Open()
+			if err != nil {
+				t.Fatalf("db.Open() returned error: %v", err)
+			}
+			defer sqlDB.Close()
+
+			projects, err := orm.New(sqlDB).ListProjects(t.Context())
+			if err != nil {
+				t.Fatalf("ListProjects() returned error: %v", err)
+			}
+
+			if len(projects) != 1 {
+				t.Fatalf("ListProjects() returned %d projects, want 1", len(projects))
+			}
+
+			if projects[0].Code != testCode {
+				t.Errorf("Code = %q, want %q", projects[0].Code, testCode)
+			}
+		})
+	}
+}
+
 func TestAddCmd_SkipsAPathAlreadyEnrolled(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
