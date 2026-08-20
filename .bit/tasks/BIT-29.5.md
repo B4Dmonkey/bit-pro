@@ -1,8 +1,7 @@
 ---
 id: BIT-29.5
 title: Re-adding an enrolled path is a no-op
-status: todo
-approved: true
+status: done
 phase: 2
 phase_label: add
 ---

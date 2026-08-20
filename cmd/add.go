@@ -25,6 +25,24 @@ func newAddCmd() *cobra.Command {
 				return fmt.Errorf("resolving %s: %w", args[0], err)
 			}
 
+			sqlDB, err := db.Open()
+			if err != nil {
+				return err
+			}
+			defer sqlDB.Close()
+
+			queries := orm.New(sqlDB)
+
+			enrolled, err := queries.ProjectExists(cmd.Context(), abs)
+			if err != nil {
+				return fmt.Errorf("looking up %s: %w", abs, err)
+			}
+
+			if enrolled {
+				fmt.Fprintln(cmd.OutOrStdout(), "already added")
+				return nil
+			}
+
 			var existing string
 			if cfg, err := task.New(filepath.Join(abs, ".bit")).Config(); err == nil {
 				existing = cfg.Prefix
@@ -35,14 +53,8 @@ func newAddCmd() *cobra.Command {
 				return err
 			}
 
-			sqlDB, err := db.Open()
-			if err != nil {
-				return err
-			}
-			defer sqlDB.Close()
-
 			params := orm.CreateProjectParams{Path: abs, Code: code}
-			if err := orm.New(sqlDB).CreateProject(cmd.Context(), params); err != nil {
+			if err := queries.CreateProject(cmd.Context(), params); err != nil {
 				return fmt.Errorf("registering %s: %w", abs, err)
 			}
 

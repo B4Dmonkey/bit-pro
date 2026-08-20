@@ -52,3 +52,39 @@ func TestAddCmd_EnrollsUsingTheBitPrefix(t *testing.T) {
 		t.Errorf("Path = %q, want %q", projects[0].Path, want)
 	}
 }
+
+func TestAddCmd_SkipsAPathAlreadyEnrolled(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_DATA_HOME", "")
+
+	initProject(t, testPrefix)
+
+	if _, err := runWithStdin(t, "\n", addCmdUse, "."); err != nil {
+		t.Fatalf("first Execute() returned error: %v", err)
+	}
+
+	out, err := runWithStdin(t, "\n", addCmdUse, ".")
+	if err != nil {
+		t.Fatalf("second Execute() returned error: %v", err)
+	}
+
+	if wantOut := "already added\n"; out != wantOut {
+		t.Errorf("output = %q, want %q", out, wantOut)
+	}
+
+	sqlDB, err := db.Open()
+	if err != nil {
+		t.Fatalf("db.Open() returned error: %v", err)
+	}
+	defer sqlDB.Close()
+
+	projects, err := orm.New(sqlDB).ListProjects(t.Context())
+	if err != nil {
+		t.Fatalf("ListProjects() returned error: %v", err)
+	}
+
+	if len(projects) != 1 {
+		t.Fatalf("ListProjects() returned %d projects, want 1", len(projects))
+	}
+}
