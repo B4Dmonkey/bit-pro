@@ -1,8 +1,7 @@
 ---
 id: BIT-29.7
 title: A project with no .bit gets wired, then enrolled
-status: todo
-approved: true
+status: done
 phase: 2
 phase_label: add
 ---

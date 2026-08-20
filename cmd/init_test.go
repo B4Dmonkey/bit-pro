@@ -187,10 +187,7 @@ func TestInitCmd_SyncsThePlugin(t *testing.T) {
 		t.Fatalf("Execute() returned error: %v", err)
 	}
 
-	want := [][]string{
-		{"claude", "plugin", "marketplace", updateCmd, "bit-pro"},
-		{"claude", "plugin", updateCmd, "bit@bit-pro", "--scope", "project"},
-	}
+	want := pluginSyncCalls()
 	if !slices.EqualFunc(calls, want, slices.Equal) {
 		t.Errorf("calls = %v, want %v", calls, want)
 	}

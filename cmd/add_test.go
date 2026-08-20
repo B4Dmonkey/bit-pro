@@ -1,7 +1,13 @@
 package cmd
 
 import (
+	"context"
+	"errors"
+	"io/fs"
+	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/db"
@@ -50,6 +56,76 @@ func TestAddCmd_EnrollsUsingTheBitPrefix(t *testing.T) {
 
 	if projects[0].Path != want {
 		t.Errorf("Path = %q, want %q", projects[0].Path, want)
+	}
+}
+
+func TestAddCmd_InitialisesAProjectWithoutBit(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_DATA_HOME", "")
+	t.Chdir(t.TempDir())
+
+	var calls [][]string
+
+	run := func(_ context.Context, name string, args ...string) error {
+		calls = append(calls, append([]string{name}, args...))
+		return nil
+	}
+
+	want, err := filepath.Abs(".")
+	if err != nil {
+		t.Fatalf("filepath.Abs(.) returned error: %v", err)
+	}
+
+	out, err := runWithRunner(t, run, "BIT\n", addCmdUse, ".")
+	if err != nil {
+		t.Fatalf("Execute() returned error: %v", err)
+	}
+
+	wantOut := "Project code: Bringing the bit plugin current...\nadded BIT " + want + "\n"
+	if out != wantOut {
+		t.Errorf("output = %q, want %q", out, wantOut)
+	}
+
+	if strings.Contains(out, "(") {
+		t.Errorf("prompt = %q, want no %q", out, "(")
+	}
+
+	data, err := os.ReadFile(filepath.Join(".claude", "settings.json"))
+	if err != nil {
+		t.Fatalf("os.ReadFile(.claude/settings.json) returned error: %v", err)
+	}
+
+	if !strings.Contains(string(data), "bit@bit-pro") {
+		t.Errorf("settings.json = %s, want it to contain %q", data, "bit@bit-pro")
+	}
+
+	if _, err := os.Stat(filepath.Join(".bit", "config.toml")); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("os.Stat(.bit/config.toml) error = %v, want fs.ErrNotExist", err)
+	}
+
+	wantCalls := pluginSyncCalls()
+	if !slices.EqualFunc(calls, wantCalls, slices.Equal) {
+		t.Errorf("calls = %v, want %v", calls, wantCalls)
+	}
+
+	sqlDB, err := db.Open()
+	if err != nil {
+		t.Fatalf("db.Open() returned error: %v", err)
+	}
+	defer sqlDB.Close()
+
+	projects, err := orm.New(sqlDB).ListProjects(t.Context())
+	if err != nil {
+		t.Fatalf("ListProjects() returned error: %v", err)
+	}
+
+	if len(projects) != 1 {
+		t.Fatalf("ListProjects() returned %d projects, want 1", len(projects))
+	}
+
+	if projects[0].Code != testPrefix {
+		t.Errorf("Code = %q, want %q", projects[0].Code, testPrefix)
 	}
 }
 

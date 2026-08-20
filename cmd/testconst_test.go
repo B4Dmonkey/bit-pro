@@ -7,6 +7,7 @@ const (
 	thirdBarID  = "BIT-1.3"
 	prefixFlag  = "--prefix"
 	updateCmd   = "update"
+	claudeBin   = "claude"
 	testPrefix  = "BIT"
 	testCode    = "FOO"
 )

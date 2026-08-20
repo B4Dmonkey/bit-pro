@@ -39,18 +39,22 @@ func newInitCmd(run claude.Runner) *cobra.Command {
 				return err
 			}
 
-			if err := claude.WriteSettings(filepath.Join(claudeDir, "settings.json")); err != nil {
-				return err
-			}
-
-			fmt.Fprintln(cmd.OutOrStdout(), "Bringing the bit plugin current...")
-
-			return claude.SyncPlugin(cmd.Context(), run)
+			return writeClaudeWiring(cmd, run, ".")
 		},
 	}
 	cmd.Flags().StringVar(&prefix, "prefix", "", "task ID prefix for this project (e.g. BIT)")
 
 	return cmd
+}
+
+func writeClaudeWiring(cmd *cobra.Command, run claude.Runner, dir string) error {
+	if err := claude.WriteSettings(filepath.Join(dir, claudeDir, "settings.json")); err != nil {
+		return err
+	}
+
+	fmt.Fprintln(cmd.OutOrStdout(), "Bringing the bit plugin current...")
+
+	return claude.SyncPlugin(cmd.Context(), run)
 }
 
 func readInteractivePrefix(cmd *cobra.Command) (string, error) {

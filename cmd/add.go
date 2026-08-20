@@ -2,10 +2,14 @@ package cmd
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
+	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/B4Dmonkey/bit-pro/claude"
 	"github.com/B4Dmonkey/bit-pro/db"
 	"github.com/B4Dmonkey/bit-pro/db/orm"
 	"github.com/B4Dmonkey/bit-pro/task"
@@ -14,7 +18,7 @@ import (
 
 const addCmdUse = "add"
 
-func newAddCmd() *cobra.Command {
+func newAddCmd(run claude.Runner) *cobra.Command {
 	return &cobra.Command{
 		Use:   "add <path>",
 		Short: "Enroll a project in the registry the daemon watches",
@@ -54,6 +58,12 @@ func newAddCmd() *cobra.Command {
 			}
 
 			code = task.NormalizeID(code)
+
+			if _, err := os.Stat(filepath.Join(abs, ".bit")); errors.Is(err, fs.ErrNotExist) {
+				if err := writeClaudeWiring(cmd, run, abs); err != nil {
+					return err
+				}
+			}
 
 			params := orm.CreateProjectParams{Path: abs, Code: code}
 			if err := queries.CreateProject(cmd.Context(), params); err != nil {

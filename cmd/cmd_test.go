@@ -90,6 +90,13 @@ func initProject(t *testing.T, prefix string) string {
 	return dir
 }
 
+func pluginSyncCalls() [][]string {
+	return [][]string{
+		{claudeBin, "plugin", "marketplace", updateCmd, "bit-pro"},
+		{claudeBin, "plugin", updateCmd, "bit@bit-pro", "--scope", "project"},
+	}
+}
+
 func createTask(t *testing.T, title, description string) {
 	t.Helper()
 	mustRun(t, "task", "create", title, "--description", description)
