@@ -1,8 +1,7 @@
 ---
 id: BIT-29.2
 title: The generated query layer round-trips a project
-status: todo
-approved: true
+status: done
 phase: 1
 phase_label: registry
 ---
