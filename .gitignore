@@ -1,3 +1,4 @@
 bin/
 .claude/worktrees
 db/orm/
+db/bit.db

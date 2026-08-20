@@ -44,7 +44,7 @@ SQLite database at `~/.local/share/bit-pro/bit.db` with a `projects` table (id, 
 
 ## Verses
 
-- [ ] Verse 1 — The project registry exists: a dbmate migration authors the schema, sqlc generates the Go query layer, just targets manage the dev workflow. Migration applies cleanly on a fresh machine.
+- [x] Verse 1 — The project registry exists: a dbmate migration authors the schema, sqlc generates the Go query layer, just targets manage the dev workflow. Migration applies cleanly on a fresh machine.
   Touches: `db/migrations/` (new), `db/queries/` (new), `db/orm/` (new, sqlc-generated, gitignored), `Justfile` — where to look to verify.
 
 - [ ] Verse 2 — Operator can register a project: `bp add <path>` creates the DB if absent, prompts for a project code (suggesting the `.bit` prefix when present), inserts the row. Re-running on the same path prints "already added". Running on a path without `.bit/` runs the init flow first.

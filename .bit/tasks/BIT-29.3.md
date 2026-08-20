@@ -1,8 +1,7 @@
 ---
 id: BIT-29.3
 title: The dev workflow rehearses migrations on a throwaway database
-status: todo
-approved: true
+status: done
 phase: 1
 phase_label: registry
 ---
