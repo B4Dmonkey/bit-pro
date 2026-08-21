@@ -71,6 +71,7 @@ func newRootCmd(run claude.Runner, lc daemon.Runner) *cobra.Command {
 	rootCmd.AddCommand(newFeedbackCmd())
 	rootCmd.AddCommand(newInitCmd(run))
 	rootCmd.AddCommand(newInstructionsCmd())
+	rootCmd.AddCommand(newListCmd())
 	rootCmd.AddCommand(newServeCmd())
 	rootCmd.AddCommand(newStartCmd(lc))
 	rootCmd.AddCommand(newStatusCmd(lc))

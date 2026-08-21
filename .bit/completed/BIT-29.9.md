@@ -1,8 +1,7 @@
 ---
 id: BIT-29.9
 title: The registry prints as tab-separated rows ordered by code
-status: todo
-approved: true
+status: done
 phase: 3
 phase_label: list
 ---
