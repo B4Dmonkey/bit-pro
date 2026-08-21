@@ -1451,3 +1451,16 @@ func TestUpdate_SpaceWithNoCallbackIsNoop(t *testing.T) {
 		t.Errorf("selected().ID = %q after space noop, want %q", got.selected().ID, ttid1)
 	}
 }
+
+func TestContent_PlayPromptRendersInModeList(t *testing.T) {
+	t.Parallel()
+
+	m := New(nil)
+	m.mode = modeList
+	m.playPromptOpen = true
+	m.playPromptTitle = "My Track"
+
+	if !strings.Contains(m.content(), "Play My Track? (y / n)") {
+		t.Errorf("content() in modeList with playPromptOpen=true does not contain play prompt")
+	}
+}
