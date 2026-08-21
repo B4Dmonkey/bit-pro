@@ -68,6 +68,61 @@ func TestServeCmd_WritesProjectCounts(t *testing.T) {
 	}
 }
 
+func TestServeCmd_CountsBacklogAndTodo(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", "")
+
+	dir := t.TempDir()
+
+	store := task.New(filepath.Join(dir, ".bit"))
+	for _, tr := range []*task.Task{
+		{ID: "ACME-1", Title: "unapproved track", Status: task.StatusTodo, Approved: false},
+		{ID: "ACME-2", Title: "approved track a", Status: task.StatusTodo, Approved: true},
+		{ID: "ACME-3", Title: "approved track b", Status: task.StatusTodo, Approved: true},
+		{ID: "ACME-3.1", Title: "bar under acme-3", Status: task.StatusTodo, Approved: true},
+	} {
+		if err := store.Save(tr); err != nil {
+			t.Fatalf("Save(%s) returned error: %v", tr.ID, err)
+		}
+	}
+
+	seedProject(t, orm.CreateProjectParams{Path: dir, Code: "ACME"})
+
+	original := serveTick
+	serveTick = 5 * time.Millisecond
+
+	t.Cleanup(func() { serveTick = original })
+
+	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
+	defer cancel()
+
+	if _, err := runWithContext(t, ctx, serveCmdUse); err != nil {
+		t.Fatalf("bp serve returned error: %v", err)
+	}
+
+	sqlDB, err := db.Open()
+	if err != nil {
+		t.Fatalf("db.Open() returned error: %v", err)
+	}
+
+	defer sqlDB.Close()
+
+	var backlog, todo, done, completed int64
+	if err := sqlDB.QueryRowContext(t.Context(),
+		"SELECT backlog, todo, done, completed FROM projects WHERE code = ?", "ACME",
+	).Scan(&backlog, &todo, &done, &completed); err != nil {
+		if err == sql.ErrNoRows {
+			t.Fatal("project row not found")
+		}
+
+		t.Fatalf("Scan() returned error: %v", err)
+	}
+
+	if backlog != 1 || todo != 2 || done != 0 || completed != 0 {
+		t.Errorf("counts = (%d, %d, %d, %d), want (1, 2, 0, 0)", backlog, todo, done, completed)
+	}
+}
+
 func TestServeCmd_ReturnsWhenContextCancelled(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("XDG_DATA_HOME", "")

@@ -5,12 +5,14 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/B4Dmonkey/bit-pro/db"
 	"github.com/B4Dmonkey/bit-pro/db/orm"
+	"github.com/B4Dmonkey/bit-pro/task"
 )
 
 const serveCmdUse = "serve"
@@ -26,11 +28,18 @@ func writeCounts(ctx context.Context, queries *orm.Queries, log *slog.Logger) {
 	}
 
 	for _, p := range projects {
+		counts, err := task.New(filepath.Join(p.Path, ".bit")).Counts()
+		if err != nil {
+			log.Error("reading counts", "project", p.Code, "err", err)
+
+			return
+		}
+
 		if err := queries.UpdateProjectCounts(ctx, orm.UpdateProjectCountsParams{
-			Backlog:   1,
-			Todo:      0,
-			Done:      0,
-			Completed: 0,
+			Backlog:   int64(counts.Backlog),
+			Todo:      int64(counts.Todo),
+			Done:      int64(counts.Done),
+			Completed: int64(counts.Completed),
 			ID:        p.ID,
 		}); err != nil {
 			log.Error("updating project counts", "project", p.Code, "err", err)
