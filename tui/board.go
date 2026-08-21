@@ -200,12 +200,15 @@ func (m model) updateBoard(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	if msg.Code == ' ' {
-		if m.approve != nil {
-			if t := m.boardSelected(); t != nil {
-				_ = m.approve(t.ID, !t.Approved)
-				return m, m.reloadCmd()
+	if msg.Code == ' ' && m.approve != nil {
+		if t := m.boardSelected(); t != nil {
+			if !t.Approved && isBar(t.ID) {
+				m.pendingApprovalID = t.ID
 			}
+
+			_ = m.approve(t.ID, !t.Approved)
+
+			return m, m.reloadCmd()
 		}
 
 		return m, nil

@@ -66,27 +66,29 @@ func (k keyMap) FullHelp() [][]key.Binding {
 
 type model struct {
 	list.Model
-	viewport       viewport.Model
-	modalViewport  viewport.Model
-	help           help.Model
-	keys           keyMap
-	boardKeys      boardKeyMap
-	mode           viewMode
-	boardCols      [3]list.Model
-	activeCol      int
-	detailWidth    int
-	listWidth      int
-	winWidth       int
-	winHeight      int
-	height         int
-	style          string
-	renderer       *glamour.TermRenderer
-	reload         func() ([]*task.Task, error)
-	approve        func(id string, approved bool) error
-	loaded         []*task.Task
-	detailFocused  bool
-	modalOpen      bool
-	detailExpanded bool
+	viewport          viewport.Model
+	modalViewport     viewport.Model
+	help              help.Model
+	keys              keyMap
+	boardKeys         boardKeyMap
+	mode              viewMode
+	boardCols         [3]list.Model
+	activeCol         int
+	detailWidth       int
+	listWidth         int
+	winWidth          int
+	winHeight         int
+	height            int
+	style             string
+	renderer          *glamour.TermRenderer
+	reload            func() ([]*task.Task, error)
+	approve           func(id string, approved bool) error
+	loaded            []*task.Task
+	detailFocused     bool
+	modalOpen         bool
+	detailExpanded    bool
+	playPromptOpen    bool
+	pendingApprovalID string
 }
 
 func New(tasks []*task.Task) model {
@@ -249,6 +251,11 @@ func (m model) handleReloaded(msg reloadedMsg) (tea.Model, tea.Cmd) {
 
 	m.setTasks(msg.tasks)
 
+	if m.pendingApprovalID != "" {
+		m.playPromptOpen = true
+		m.pendingApprovalID = ""
+	}
+
 	return m, tick()
 }
 
@@ -284,6 +291,10 @@ func (m model) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 func (m model) handleApprove() (tea.Model, tea.Cmd) {
 	if m.approve != nil {
 		if t := m.selected(); t != nil {
+			if !t.Approved && isBar(t.ID) {
+				m.pendingApprovalID = t.ID
+			}
+
 			_ = m.approve(t.ID, !t.Approved)
 
 			return m, m.reloadCmd()

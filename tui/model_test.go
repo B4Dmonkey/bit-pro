@@ -34,6 +34,22 @@ func TestNew_PreservesStoreOrder(t *testing.T) {
 	}
 }
 
+func TestUpdate_BarApprovalSetsPlayPromptOpen(t *testing.T) {
+	t.Parallel()
+
+	m := New([]*task.Task{{ID: ttid1}, {ID: ttid1_1, Approved: false}}).
+		WithApprove(func(_ string, _ bool) error { return nil })
+
+	mdl, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	mdl, _ = mdl.(model).Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	mdl, _ = mdl.(model).Update(tea.KeyPressMsg{Code: ' '})
+	updated, _ := mdl.(model).Update(reloadedMsg{tasks: []*task.Task{{ID: ttid1}, {ID: ttid1_1, Approved: true}}})
+
+	if !updated.(model).playPromptOpen {
+		t.Error("playPromptOpen = false, want true after bar approval reload")
+	}
+}
+
 func TestUpdate_ReloadedMsgRebuildsList(t *testing.T) {
 	t.Parallel()
 
