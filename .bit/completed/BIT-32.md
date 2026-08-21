@@ -1,8 +1,7 @@
 ---
 id: BIT-32
 title: Project counts
-status: todo
-approved: true
+status: done
 ---
 ## Why
 `bp list` and `bp status` show a project path but no signal of health — an operator can't tell at a glance whether a project has work waiting, work approved and ready to run, work already finished, or work archived. Adding counts to both commands gives the context needed to decide where to direct the daemon without opening the TUI.
@@ -35,11 +34,11 @@ running (pid 4821)
 - **A project the loop cannot read is skipped for that tick.** A registered path with no `.bit/` directory, or an unparseable task file, leaves that project's stored counts untouched and the loop moves on to the next project. Skipping keeps one broken project from stalling the tick or zeroing counts that were previously correct — see the open gap in `automation-notes.md`.
 
 ## Verses
-- [ ] Verse 1 — Counts exist in the DB: `projects` gains `backlog`, `todo`, `done`, `completed` columns via a new migration, and the daemon loop populates them for every registered project each tick.
+- [x] Verse 1 — Counts exist in the DB: `projects` gains `backlog`, `todo`, `done`, `completed` columns via a new migration, and the daemon loop populates them for every registered project each tick.
   Touches: `db/migrations/`, `db/queries/projects.sql`, `cmd/serve.go`
 
-- [ ] Verse 2 — `bp list` shows counts: each project row renders all four counts (backlog / todo / done / completed) alongside code and path.
+- [x] Verse 2 — `bp list` shows counts: each project row renders all four counts (backlog / todo / done / completed) alongside code and path.
   Touches: `cmd/list.go`
 
-- [ ] Verse 3 — `bp status` shows per-project counts: the status command adds a project count table (backlog / todo / done) below the daemon state line.
+- [x] Verse 3 — `bp status` shows per-project counts: the status command adds a project count table (backlog / todo / done) below the daemon state line.
   Touches: `cmd/status.go`

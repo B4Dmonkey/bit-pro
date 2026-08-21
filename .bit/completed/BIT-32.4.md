@@ -1,7 +1,7 @@
 ---
 id: BIT-32.4
 title: Contradiction forces the completed bucket
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: Counts in the DB

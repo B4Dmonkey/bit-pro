@@ -1,7 +1,7 @@
 ---
 id: BIT-32.2
 title: Contradiction forces the tick to read the ledger
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: Counts in the DB

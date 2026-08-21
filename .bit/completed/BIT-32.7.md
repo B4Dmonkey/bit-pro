@@ -1,7 +1,7 @@
 ---
 id: BIT-32.7
 title: bp status renders three counts in every daemon state
-status: todo
+status: done
 approved: true
 phase: 3
 phase_label: bp status

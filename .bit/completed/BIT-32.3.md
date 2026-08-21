@@ -1,7 +1,7 @@
 ---
 id: BIT-32.3
 title: Contradiction splits done out of todo
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: Counts in the DB

@@ -1,7 +1,7 @@
 ---
 id: BIT-32.6
 title: bp list renders the four counts
-status: todo
+status: done
 approved: true
 phase: 2
 phase_label: bp list

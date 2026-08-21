@@ -1,7 +1,7 @@
 ---
 id: BIT-32.1
 title: A tick writes counts onto every project row
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: Counts in the DB

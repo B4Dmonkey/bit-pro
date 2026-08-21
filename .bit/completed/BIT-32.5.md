@@ -1,7 +1,7 @@
 ---
 id: BIT-32.5
 title: An unreadable project is skipped, not fatal
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: Counts in the DB
