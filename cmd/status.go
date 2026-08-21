@@ -1,9 +1,13 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"io"
 
 	"github.com/B4Dmonkey/bit-pro/daemon"
+	"github.com/B4Dmonkey/bit-pro/db"
+	"github.com/B4Dmonkey/bit-pro/db/orm"
 	"github.com/spf13/cobra"
 )
 
@@ -20,15 +24,40 @@ func newStatusCmd(lc daemon.Runner) *cobra.Command {
 				return err
 			}
 
-			if state == daemon.StateRunning {
-				fmt.Fprintf(cmd.OutOrStdout(), "running (pid %d)\n", pid)
+			out := cmd.OutOrStdout()
 
-				return nil
+			if state == daemon.StateRunning {
+				fmt.Fprintf(out, "running (pid %d)\n", pid)
+			} else {
+				fmt.Fprintln(out, state)
 			}
 
-			fmt.Fprintln(cmd.OutOrStdout(), state)
-
-			return nil
+			return printProjectCounts(cmd.Context(), out)
 		},
 	}
+}
+
+func printProjectCounts(ctx context.Context, out io.Writer) error {
+	sqlDB, err := db.Open()
+	if err != nil {
+		return err
+	}
+	defer sqlDB.Close()
+
+	projects, err := orm.New(sqlDB).ListProjects(ctx)
+	if err != nil {
+		return fmt.Errorf("listing projects: %w", err)
+	}
+
+	if len(projects) == 0 {
+		return nil
+	}
+
+	fmt.Fprintln(out)
+
+	for _, p := range projects {
+		fmt.Fprintf(out, "  %s\tbacklog:%d\ttodo:%d\tdone:%d\n", p.Code, p.Backlog, p.Todo, p.Done)
+	}
+
+	return nil
 }
