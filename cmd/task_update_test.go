@@ -29,8 +29,8 @@ func TestTaskUpdateCmd(t *testing.T) {
 		},
 		{
 			name: "description and status together",
-			args: []string{taskCmdUse, updateCmd, trackID, "--description", "New body.", "--status", "doing"},
-			want: task.Task{ID: trackID, Title: "Old title", Status: "doing", Body: "New body."},
+			args: []string{taskCmdUse, updateCmd, trackID, "--description", "New body.", "--status", statusDoing},
+			want: task.Task{ID: trackID, Title: "Old title", Status: statusDoing, Body: "New body."},
 		},
 		{
 			name: "explicitly empty title is applied",
@@ -80,7 +80,7 @@ func TestTaskUpdateCmd_RewritesACorruptIDToCanonicalCase(t *testing.T) {
 	initProject(t, "BIT")
 	writeRawTask(t, ".bit/tasks/BIT-1.md", "bit-1", "Corrupt frontmatter", statusTodo)
 
-	mustRun(t, taskCmdUse, updateCmd, trackID, "-s", "doing")
+	mustRun(t, taskCmdUse, updateCmd, trackID, "-s", statusDoing)
 
 	data, err := os.ReadFile(".bit/tasks/BIT-1.md")
 	if err != nil {
@@ -160,5 +160,44 @@ func TestTaskUpdateCmd_RevokesApprovalOnBodyChange(t *testing.T) {
 
 	if got.Approved {
 		t.Error("expected Approved = false after description change, got true")
+	}
+}
+
+func TestTaskUpdateCmd_ForwardStatusMovePreservesApproval(t *testing.T) {
+	tests := []struct {
+		name string
+		from string
+		to   string
+	}{
+		{name: "todo to doing", to: statusDoing},
+		{name: "doing to done", from: statusDoing, to: "done"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			initProject(t, "BIT")
+			createTask(t, "Old title", oldTaskBody)
+
+			if tt.from != "" {
+				mustRun(t, taskCmdUse, updateCmd, trackID, "-s", tt.from)
+			}
+
+			mustRun(t, "approve", trackID)
+
+			mustRun(t, taskCmdUse, updateCmd, trackID, "-s", tt.to)
+
+			got, err := task.New(".bit").Load(trackID)
+			if err != nil {
+				t.Fatalf("loading %s: %v", trackID, err)
+			}
+
+			if !got.Approved {
+				t.Errorf("Approved = false after move to %s, want true", tt.to)
+			}
+
+			if got.Status != tt.to {
+				t.Errorf("Status = %q, want %q", got.Status, tt.to)
+			}
+		})
 	}
 }

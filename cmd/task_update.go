@@ -44,7 +44,6 @@ func newTaskUpdateCmd() *cobra.Command {
 
 			anyChanged := cmd.Flags().Changed("title") ||
 				cmd.Flags().Changed("description") ||
-				cmd.Flags().Changed("status") ||
 				cmd.Flags().Changed("phase") ||
 				cmd.Flags().Changed("phase-label")
 			if t.Approved && anyChanged {

@@ -10,4 +10,5 @@ const (
 	claudeBin   = "claude"
 	testPrefix  = "BIT"
 	testCode    = "FOO"
+	statusDoing = "doing"
 )
