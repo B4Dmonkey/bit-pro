@@ -26,5 +26,18 @@ func (s *Store) Counts() (Counts, error) {
 		}
 	}
 
+	completed, err := s.listCompleted()
+	if err != nil {
+		return Counts{}, err
+	}
+
+	for _, t := range completed {
+		if _, ok := barParent(t.ID); ok {
+			continue
+		}
+
+		c.Completed++
+	}
+
 	return c, nil
 }
