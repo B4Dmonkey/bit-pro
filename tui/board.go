@@ -262,8 +262,13 @@ func modalView(m model, board string) string {
 
 func playPromptView(m model, board string) string {
 	prompt := "Play " + m.playPromptTitle + "? (y / n)"
-	box := titledBorder("", prompt, lipgloss.Width(prompt), 1, true)
-	cx := max((m.winWidth-lipgloss.Width(box))/2, 0)
+	box := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		Padding(0, 1).
+		BorderForeground(lipgloss.Color("2")).
+		Foreground(lipgloss.Color("2")).
+		Render(prompt)
+	cx := max((lipgloss.Width(board)-lipgloss.Width(box))/2, 0)
 	cy := max((lipgloss.Height(board)-lipgloss.Height(box))/2, 0)
 	base := lipgloss.NewLayer(board)
 	overlay := lipgloss.NewLayer(box).X(cx).Y(cy).Z(1)
