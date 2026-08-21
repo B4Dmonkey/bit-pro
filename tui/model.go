@@ -530,25 +530,27 @@ func (m model) View() tea.View {
 }
 
 func (m model) content() string {
+	var canvas string
+
 	if m.mode == modeBoard {
-		board := boardView(m)
-		if m.playPromptOpen {
-			return lipgloss.JoinVertical(lipgloss.Left, playPromptView(m, board), m.help.View(m.helpKeys()))
+		b := boardView(m)
+		if m.modalOpen && !m.playPromptOpen {
+			b = modalView(m, b)
 		}
 
-		if m.modalOpen {
-			board = modalView(m, board)
-		}
-
-		return lipgloss.JoinVertical(lipgloss.Left, board, m.help.View(m.helpKeys()))
+		canvas = b
+	} else {
+		listTitle := fmt.Sprintf("Tasks (%d/%d)", doneCount(m.Items()), len(m.Items()))
+		listPane := titledBorder(m.Model.View(), listTitle, max(m.listWidth-2, 0), max(m.height-2, 0), !m.detailFocused)
+		detailPane := titledBorder(m.viewport.View(), "Details", max(m.detailWidth-2, 0), max(m.height-2, 0), m.detailFocused)
+		canvas = lipgloss.JoinHorizontal(lipgloss.Top, listPane, detailPane)
 	}
 
-	listTitle := fmt.Sprintf("Tasks (%d/%d)", doneCount(m.Items()), len(m.Items()))
-	listPane := titledBorder(m.Model.View(), listTitle, max(m.listWidth-2, 0), max(m.height-2, 0), !m.detailFocused)
-	detailPane := titledBorder(m.viewport.View(), "Details", max(m.detailWidth-2, 0), max(m.height-2, 0), m.detailFocused)
-	panes := lipgloss.JoinHorizontal(lipgloss.Top, listPane, detailPane)
+	if m.playPromptOpen {
+		return lipgloss.JoinVertical(lipgloss.Left, playPromptView(m, canvas), m.help.View(m.helpKeys()))
+	}
 
-	return lipgloss.JoinVertical(lipgloss.Left, panes, m.help.View(m.helpKeys()))
+	return lipgloss.JoinVertical(lipgloss.Left, canvas, m.help.View(m.helpKeys()))
 }
 
 func doneCount(items []list.Item) int {
