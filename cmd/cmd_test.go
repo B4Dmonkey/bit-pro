@@ -69,6 +69,10 @@ func runWithContext(t *testing.T, ctx context.Context, args ...string) (string, 
 	return out.String(), err
 }
 
+func normalizeSpaces(s string) string {
+	return strings.TrimSpace(strings.Join(strings.Fields(s), " "))
+}
+
 func mustRun(t *testing.T, args ...string) string {
 	t.Helper()
 
