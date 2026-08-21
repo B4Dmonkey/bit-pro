@@ -50,6 +50,61 @@ func TestUpdate_BarApprovalSetsPlayPromptOpen(t *testing.T) {
 	}
 }
 
+func TestUpdate_PartialApprovalSkipsPlayPrompt(t *testing.T) {
+	t.Parallel()
+
+	m := New([]*task.Task{{ID: ttid1}, {ID: ttid1_1, Approved: false}, {ID: ttid1_2, Approved: false}}).
+		WithApprove(func(_ string, _ bool) error { return nil })
+
+	mdl, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	mdl, _ = mdl.(model).Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	mdl, _ = mdl.(model).Update(tea.KeyPressMsg{Code: ' '})
+	updated, _ := mdl.(model).Update(reloadedMsg{tasks: []*task.Task{
+		{ID: ttid1},
+		{ID: ttid1_1, Approved: true},
+		{ID: ttid1_2, Approved: false},
+	}})
+
+	if updated.(model).playPromptOpen {
+		t.Error("playPromptOpen = true, want false when a sibling bar is still unapproved")
+	}
+}
+
+func TestUpdate_ZeroBarTrackSkipsPlayPrompt(t *testing.T) {
+	t.Parallel()
+
+	m := New([]*task.Task{{ID: ttid1, Approved: false}}).
+		WithApprove(func(_ string, _ bool) error { return nil })
+
+	mdl, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	mdl, _ = mdl.(model).Update(tea.KeyPressMsg{Code: ' '})
+	updated, _ := mdl.(model).Update(reloadedMsg{tasks: []*task.Task{{ID: ttid1, Approved: true}}})
+
+	if updated.(model).playPromptOpen {
+		t.Error("playPromptOpen = true, want false when selected task is a track (no dot)")
+	}
+}
+
+func TestUpdate_ReapprovalRefiresPlayPrompt(t *testing.T) {
+	t.Parallel()
+
+	m := New([]*task.Task{{ID: ttid1}, {ID: ttid1_1, Approved: true}}).
+		WithApprove(func(_ string, _ bool) error { return nil })
+
+	mdl, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	mdl, _ = mdl.(model).Update(tea.KeyPressMsg{Code: tea.KeyDown})
+
+	mdl, _ = mdl.(model).Update(tea.KeyPressMsg{Code: ' '})
+	mdl, _ = mdl.(model).Update(reloadedMsg{tasks: []*task.Task{{ID: ttid1}, {ID: ttid1_1, Approved: false}}})
+
+	mdl, _ = mdl.(model).Update(tea.KeyPressMsg{Code: ' '})
+	updated, _ := mdl.(model).Update(reloadedMsg{tasks: []*task.Task{{ID: ttid1}, {ID: ttid1_1, Approved: true}}})
+
+	if !updated.(model).playPromptOpen {
+		t.Error("playPromptOpen = false, want true after re-approving the bar")
+	}
+}
+
 func TestUpdate_ReloadedMsgRebuildsList(t *testing.T) {
 	t.Parallel()
 

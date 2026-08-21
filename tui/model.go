@@ -252,7 +252,13 @@ func (m model) handleReloaded(msg reloadedMsg) (tea.Model, tea.Cmd) {
 	m.setTasks(msg.tasks)
 
 	if m.pendingApprovalID != "" {
-		m.playPromptOpen = true
+		parentID := strings.SplitN(m.pendingApprovalID, ".", 2)[0]
+		bars := barChildrenOf(parentID, msg.tasks)
+
+		if len(bars) >= 1 && allApproved(bars) {
+			m.playPromptOpen = true
+		}
+
 		m.pendingApprovalID = ""
 	}
 
@@ -587,6 +593,30 @@ func splitWidthExpanded(total int) (listW, detailW int) {
 
 func isBar(id string) bool {
 	return strings.Contains(id, ".")
+}
+
+func barChildrenOf(parentID string, tasks []*task.Task) []*task.Task {
+	prefix := parentID + "."
+
+	var bars []*task.Task
+
+	for _, t := range tasks {
+		if strings.HasPrefix(t.ID, prefix) {
+			bars = append(bars, t)
+		}
+	}
+
+	return bars
+}
+
+func allApproved(tasks []*task.Task) bool {
+	for _, t := range tasks {
+		if !t.Approved {
+			return false
+		}
+	}
+
+	return true
 }
 
 func verse(t *task.Task) string {
