@@ -265,8 +265,9 @@ func playPromptView(m model, board string) string {
 	box := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		Padding(0, 1).
-		BorderForeground(lipgloss.Color("2")).
-		Foreground(lipgloss.Color("2")).
+		BorderForeground(lipgloss.Color("4")).
+		Background(lipgloss.Color("4")).
+		Foreground(lipgloss.Color("0")).
 		Render(prompt)
 	cx := max((lipgloss.Width(board)-lipgloss.Width(box))/2, 0)
 	cy := max((lipgloss.Height(board)-lipgloss.Height(box))/2, 0)
