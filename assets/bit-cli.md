@@ -136,13 +136,13 @@ bp feedback add "$TRACK" -d "$(cat note.md)"
   only once all its bars do. A typo silently breaks that: a bar reading `doen` never counts as
   done, so its verse never checks off and the track never signals ready. Always pass exactly
   `todo`, `doing`, or `done`.
-- **Any `task update` to an approved task revokes its approval — including a status
-  change.** The revocation exists so a replan can't quietly edit a bar someone already
-  blessed. But it keys on *any* of `--title`, `--description`, `--status`, `--phase`, or
-  `--phase-label` changing, so `task update "$BAR" -s doing` on an approved bar clears the
-  flag as a side effect of starting work on it. Expect an in-flight or finished bar to read
-  as unapproved, and don't treat that as "nobody reviewed it." If you need the flag back,
-  set it explicitly with `bp approve` after the status write.
+- **A content edit revokes approval; so does sending a task back to `todo`.** The revocation
+  exists so a replan can't quietly change a bar someone already blessed, and so a bar pulled
+  back for rework can't run again until it's re-reviewed. It fires when any of `--title`,
+  `--description`, `--phase`, or `--phase-label` changes, and when `--status` writes the value
+  `todo`. A forward status move — `todo → doing`, `doing → done` — is the act of doing approved
+  work rather than a change to what was approved, so it keeps the flag: an approved bar stays
+  approved for the whole run.
 - **Relocating a task reserves its ID — it isn't freed.** `task delete` *relocates* the file
   into `.bit/archive/tasks/` and `task complete` into `.bit/completed/`, instead of destroying
   it, and `NextID`/`NextChildID` count `tasks/`, `completed/`, and `archive/tasks/` when

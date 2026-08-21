@@ -1,7 +1,7 @@
 ---
 id: BIT-30.3
 title: The printed contract states the new approval rule
-status: todo
+status: done
 approved: true
 phase: 2
 phase_label: Sent back, re-reviewed

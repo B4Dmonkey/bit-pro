@@ -2,7 +2,6 @@
 id: BIT-30
 title: approval survives a forward status move
 status: doing
-approved: true
 ---
 ## Why
 
@@ -54,6 +53,6 @@ today                          after
   or `doing → done` keeps its approval, so the card stays white for the whole run.
   Touches: the update command's revoke condition (`cmd/task_update.go`) — where `--status`
   is currently folded into `anyChanged`.
-- [ ] Verse 2 — A task sent back asks to be re-reviewed: moving a task from `doing` or `done`
+- [x] Verse 2 — A task sent back asks to be re-reviewed: moving a task from `doing` or `done`
   to `todo` revokes approval, so it cannot run again until someone approves it.
   Touches: the same revoke condition (`cmd/task_update.go`).
