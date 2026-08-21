@@ -1,8 +1,7 @@
 ---
 id: BIT-29.8
 title: An empty code is refused before anything is written
-status: todo
-approved: true
+status: doing
 phase: 2
 phase_label: add
 ---

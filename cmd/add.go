@@ -57,6 +57,10 @@ func newAddCmd(run claude.Runner) *cobra.Command {
 				return err
 			}
 
+			if code == "" {
+				return errors.New("project code cannot be empty")
+			}
+
 			code = task.NormalizeID(code)
 
 			if _, err := os.Stat(filepath.Join(abs, ".bit")); errors.Is(err, fs.ErrNotExist) {

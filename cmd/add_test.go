@@ -182,6 +182,41 @@ func TestAddCmd_UppercasesATypedCode(t *testing.T) {
 	}
 }
 
+func TestAddCmd_RejectsAnEmptyCode(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_DATA_HOME", "")
+	t.Chdir(t.TempDir())
+
+	_, err := runWithStdin(t, "\n", addCmdUse, ".")
+	if err == nil {
+		t.Fatal("Execute() returned nil error, want non-nil")
+	}
+
+	if want := "project code cannot be empty"; err.Error() != want {
+		t.Errorf("err = %q, want %q", err, want)
+	}
+
+	if _, err := os.Stat(filepath.Join(".claude", "settings.json")); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("os.Stat(.claude/settings.json) error = %v, want fs.ErrNotExist", err)
+	}
+
+	sqlDB, err := db.Open()
+	if err != nil {
+		t.Fatalf("db.Open() returned error: %v", err)
+	}
+	defer sqlDB.Close()
+
+	projects, err := orm.New(sqlDB).ListProjects(t.Context())
+	if err != nil {
+		t.Fatalf("ListProjects() returned error: %v", err)
+	}
+
+	if len(projects) != 0 {
+		t.Errorf("ListProjects() returned %d projects, want 0", len(projects))
+	}
+}
+
 func TestAddCmd_SkipsAPathAlreadyEnrolled(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
