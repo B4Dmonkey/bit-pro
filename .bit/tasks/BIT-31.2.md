@@ -1,7 +1,8 @@
 ---
 id: BIT-31.2
 title: Contradiction forces all-approved check before firing play prompt
-status: todo
+status: done
+approved: true
 phase: 1
 phase_label: play prompt
 ---

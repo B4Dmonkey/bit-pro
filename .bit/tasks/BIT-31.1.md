@@ -1,7 +1,8 @@
 ---
 id: BIT-31.1
 title: Hardcoded play-prompt fires on any bar approval
-status: todo
+status: done
+approved: true
 phase: 1
 phase_label: play prompt
 ---

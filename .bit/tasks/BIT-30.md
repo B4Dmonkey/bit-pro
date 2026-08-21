@@ -2,6 +2,7 @@
 id: BIT-30
 title: approval survives a forward status move
 status: doing
+approved: true
 ---
 ## Why
 

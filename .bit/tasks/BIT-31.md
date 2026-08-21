@@ -1,7 +1,8 @@
 ---
 id: BIT-31
 title: TUI — play prompt
-status: todo
+status: doing
+approved: true
 ---
 ## Why
 The approval keypress is already where the operator signals intent — "this bar is ready." When that gesture completes the last unapproved bar on a track, the moment to ask "do you want to run this track?" is right now, not later. Without a prompt here, the operator has to remember to navigate somewhere else to enqueue, which breaks the flow at the exact point where it should feel seamless.

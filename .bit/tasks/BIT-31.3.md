@@ -1,7 +1,8 @@
 ---
 id: BIT-31.3
 title: y / n / Esc dismiss the play prompt; board input blocked while open
-status: todo
+status: doing
+approved: true
 phase: 1
 phase_label: play prompt
 ---
