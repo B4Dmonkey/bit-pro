@@ -30,9 +30,9 @@ func writeCounts(ctx context.Context, queries *orm.Queries, log *slog.Logger) {
 	for _, p := range projects {
 		counts, err := task.New(filepath.Join(p.Path, ".bit")).Counts()
 		if err != nil {
-			log.Error("reading counts", "project", p.Code, "err", err)
+			log.Warn("reading counts", "project", p.Code, "path", p.Path, "err", err)
 
-			return
+			continue
 		}
 
 		if err := queries.UpdateProjectCounts(ctx, orm.UpdateProjectCountsParams{

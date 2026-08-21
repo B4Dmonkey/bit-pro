@@ -234,6 +234,114 @@ func TestServeCmd_LogsJSONWhenOutputIsNotATerminal(t *testing.T) {
 	}
 }
 
+func TestServeCmd_SkipsAProjectItCannotRead(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(t *testing.T, aaaDir string)
+	}{
+		{
+			name: "unparseable task file",
+			setup: func(t *testing.T, aaaDir string) {
+				t.Helper()
+
+				if err := os.MkdirAll(filepath.Join(aaaDir, ".bit", "tasks"), 0o755); err != nil {
+					t.Fatalf("MkdirAll: %v", err)
+				}
+
+				p := filepath.Join(aaaDir, ".bit", "tasks", "AAA-1.md")
+				if err := os.WriteFile(p, []byte("not frontmatter"), 0o600); err != nil {
+					t.Fatalf("WriteFile: %v", err)
+				}
+			},
+		},
+		{
+			name:  "no .bit/ directory",
+			setup: func(*testing.T, string) {},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			runSkipTest(t, tt.setup)
+		})
+	}
+}
+
+func runSkipTest(t *testing.T, setup func(*testing.T, string)) {
+	t.Helper()
+
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", "")
+
+	aaaDir := t.TempDir()
+	zzzDir := t.TempDir()
+
+	setup(t, aaaDir)
+
+	tr := &task.Task{ID: "ZZZ-1", Title: "a track", Status: task.StatusTodo, Approved: true}
+	if err := task.New(filepath.Join(zzzDir, ".bit")).Save(tr); err != nil {
+		t.Fatalf("Save() returned error: %v", err)
+	}
+
+	seedProject(t, orm.CreateProjectParams{Path: aaaDir, Code: "AAA"})
+	seedProject(t, orm.CreateProjectParams{Path: zzzDir, Code: "ZZZ"})
+
+	sqlDB, err := db.Open()
+	if err != nil {
+		t.Fatalf("db.Open() returned error: %v", err)
+	}
+
+	if _, err := sqlDB.ExecContext(t.Context(),
+		"UPDATE projects SET backlog = 9 WHERE code = ?", "AAA",
+	); err != nil {
+		sqlDB.Close()
+		t.Fatalf("UPDATE backlog: %v", err)
+	}
+
+	sqlDB.Close()
+
+	original := serveTick
+	serveTick = 5 * time.Millisecond
+
+	t.Cleanup(func() { serveTick = original })
+
+	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
+	defer cancel()
+
+	if _, err := runWithContext(t, ctx, serveCmdUse); err != nil {
+		t.Fatalf("bp serve returned error: %v", err)
+	}
+
+	sqlDB2, err := db.Open()
+	if err != nil {
+		t.Fatalf("db.Open() returned error: %v", err)
+	}
+
+	defer sqlDB2.Close()
+
+	var aaaBacklog int64
+	if err := sqlDB2.QueryRowContext(t.Context(),
+		"SELECT backlog FROM projects WHERE code = ?", "AAA",
+	).Scan(&aaaBacklog); err != nil {
+		t.Fatalf("Scan AAA backlog: %v", err)
+	}
+
+	var zzzTodo int64
+	if err := sqlDB2.QueryRowContext(t.Context(),
+		"SELECT todo FROM projects WHERE code = ?", "ZZZ",
+	).Scan(&zzzTodo); err != nil {
+		t.Fatalf("Scan ZZZ todo: %v", err)
+	}
+
+	if aaaBacklog != 9 {
+		t.Errorf("AAA.backlog = %d, want 9 (project should be skipped, not zeroed)", aaaBacklog)
+	}
+
+	if zzzTodo != 1 {
+		t.Errorf("ZZZ.todo = %d, want 1 (tick should continue past broken AAA)", zzzTodo)
+	}
+}
+
 func TestNewHandler_PicksEncodingFromTheWriter(t *testing.T) {
 	tests := []struct {
 		name   string

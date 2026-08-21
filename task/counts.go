@@ -1,10 +1,19 @@
 package task
 
+import (
+	"fmt"
+	"os"
+)
+
 type Counts struct {
 	Backlog, Todo, Done, Completed int
 }
 
 func (s *Store) Counts() (Counts, error) {
+	if _, err := os.Stat(s.root); err != nil {
+		return Counts{}, fmt.Errorf("reading %s: %w", s.root, err)
+	}
+
 	tasks, err := s.List()
 	if err != nil {
 		return Counts{}, err
