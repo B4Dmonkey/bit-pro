@@ -66,27 +66,30 @@ func (k keyMap) FullHelp() [][]key.Binding {
 
 type model struct {
 	list.Model
-	viewport       viewport.Model
-	modalViewport  viewport.Model
-	help           help.Model
-	keys           keyMap
-	boardKeys      boardKeyMap
-	mode           viewMode
-	boardCols      [3]list.Model
-	activeCol      int
-	detailWidth    int
-	listWidth      int
-	winWidth       int
-	winHeight      int
-	height         int
-	style          string
-	renderer       *glamour.TermRenderer
-	reload         func() ([]*task.Task, error)
-	approve        func(id string, approved bool) error
-	loaded         []*task.Task
-	detailFocused  bool
-	modalOpen      bool
-	detailExpanded bool
+	viewport          viewport.Model
+	modalViewport     viewport.Model
+	help              help.Model
+	keys              keyMap
+	boardKeys         boardKeyMap
+	mode              viewMode
+	boardCols         [3]list.Model
+	activeCol         int
+	detailWidth       int
+	listWidth         int
+	winWidth          int
+	winHeight         int
+	height            int
+	style             string
+	renderer          *glamour.TermRenderer
+	reload            func() ([]*task.Task, error)
+	approve           func(id string, approved bool) error
+	loaded            []*task.Task
+	detailFocused     bool
+	modalOpen         bool
+	detailExpanded    bool
+	playPromptOpen    bool
+	playPromptTitle   string
+	pendingApprovalID string
 }
 
 func New(tasks []*task.Task) model {
@@ -249,10 +252,38 @@ func (m model) handleReloaded(msg reloadedMsg) (tea.Model, tea.Cmd) {
 
 	m.setTasks(msg.tasks)
 
+	if m.pendingApprovalID != "" {
+		parentID := strings.SplitN(m.pendingApprovalID, ".", 2)[0]
+		bars := barChildrenOf(parentID, msg.tasks)
+
+		if len(bars) >= 1 && allApproved(bars) {
+			m.playPromptOpen = true
+			m.playPromptTitle = trackTitle(parentID, msg.tasks)
+		}
+
+		m.pendingApprovalID = ""
+	}
+
 	return m, tick()
 }
 
+func (m model) handlePlayPrompt(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "y", "n", keyEsc:
+		m.playPromptOpen = false
+		return m, nil
+	case keyCtrlC:
+		return m, tea.Quit
+	}
+
+	return m, nil
+}
+
 func (m model) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if m.playPromptOpen {
+		return m.handlePlayPrompt(msg)
+	}
+
 	if m.mode == modeBoard && m.modalOpen {
 		return m.updateBoard(msg)
 	}
@@ -284,6 +315,10 @@ func (m model) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 func (m model) handleApprove() (tea.Model, tea.Cmd) {
 	if m.approve != nil {
 		if t := m.selected(); t != nil {
+			if !t.Approved && isBar(t.ID) {
+				m.pendingApprovalID = t.ID
+			}
+
 			_ = m.approve(t.ID, !t.Approved)
 
 			return m, m.reloadCmd()
@@ -497,6 +532,10 @@ func (m model) View() tea.View {
 func (m model) content() string {
 	if m.mode == modeBoard {
 		board := boardView(m)
+		if m.playPromptOpen {
+			return lipgloss.JoinVertical(lipgloss.Left, playPromptView(m, board), m.help.View(m.helpKeys()))
+		}
+
 		if m.modalOpen {
 			board = modalView(m, board)
 		}
@@ -576,6 +615,40 @@ func splitWidthExpanded(total int) (listW, detailW int) {
 
 func isBar(id string) bool {
 	return strings.Contains(id, ".")
+}
+
+func barChildrenOf(parentID string, tasks []*task.Task) []*task.Task {
+	prefix := parentID + "."
+
+	var bars []*task.Task
+
+	for _, t := range tasks {
+		if strings.HasPrefix(t.ID, prefix) {
+			bars = append(bars, t)
+		}
+	}
+
+	return bars
+}
+
+func trackTitle(trackID string, tasks []*task.Task) string {
+	for _, t := range tasks {
+		if t.ID == trackID {
+			return t.Title
+		}
+	}
+
+	return trackID
+}
+
+func allApproved(tasks []*task.Task) bool {
+	for _, t := range tasks {
+		if !t.Approved {
+			return false
+		}
+	}
+
+	return true
 }
 
 func verse(t *task.Task) string {

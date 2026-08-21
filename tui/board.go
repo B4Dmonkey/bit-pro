@@ -200,12 +200,15 @@ func (m model) updateBoard(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	if msg.Code == ' ' {
-		if m.approve != nil {
-			if t := m.boardSelected(); t != nil {
-				_ = m.approve(t.ID, !t.Approved)
-				return m, m.reloadCmd()
+	if msg.Code == ' ' && m.approve != nil {
+		if t := m.boardSelected(); t != nil {
+			if !t.Approved && isBar(t.ID) {
+				m.pendingApprovalID = t.ID
 			}
+
+			_ = m.approve(t.ID, !t.Approved)
+
+			return m, m.reloadCmd()
 		}
 
 		return m, nil
@@ -255,6 +258,17 @@ func modalView(m model, board string) string {
 	modal := lipgloss.NewLayer(box).X(cx).Y(cy).Z(1)
 
 	return lipgloss.NewCompositor(base, modal).Render()
+}
+
+func playPromptView(m model, board string) string {
+	prompt := "Play " + m.playPromptTitle + "? (y / n)"
+	box := titledBorder("", prompt, lipgloss.Width(prompt), 1, true)
+	cx := max((m.winWidth-lipgloss.Width(box))/2, 0)
+	cy := max((lipgloss.Height(board)-lipgloss.Height(box))/2, 0)
+	base := lipgloss.NewLayer(board)
+	overlay := lipgloss.NewLayer(box).X(cx).Y(cy).Z(1)
+
+	return lipgloss.NewCompositor(base, overlay).Render()
 }
 
 func boardView(m model) string {
