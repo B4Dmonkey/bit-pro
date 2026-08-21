@@ -260,6 +260,17 @@ func modalView(m model, board string) string {
 	return lipgloss.NewCompositor(base, modal).Render()
 }
 
+func playPromptView(m model, board string) string {
+	prompt := "Play " + m.playPromptTitle + "? (y / n)"
+	box := titledBorder("", prompt, lipgloss.Width(prompt), 1, true)
+	cx := max((m.winWidth-lipgloss.Width(box))/2, 0)
+	cy := max((lipgloss.Height(board)-lipgloss.Height(box))/2, 0)
+	base := lipgloss.NewLayer(board)
+	overlay := lipgloss.NewLayer(box).X(cx).Y(cy).Z(1)
+
+	return lipgloss.NewCompositor(base, overlay).Render()
+}
+
 func boardView(m model) string {
 	colW := m.winWidth / len(boardColumns)
 

@@ -88,6 +88,7 @@ type model struct {
 	modalOpen         bool
 	detailExpanded    bool
 	playPromptOpen    bool
+	playPromptTitle   string
 	pendingApprovalID string
 }
 
@@ -257,6 +258,7 @@ func (m model) handleReloaded(msg reloadedMsg) (tea.Model, tea.Cmd) {
 
 		if len(bars) >= 1 && allApproved(bars) {
 			m.playPromptOpen = true
+			m.playPromptTitle = trackTitle(parentID, msg.tasks)
 		}
 
 		m.pendingApprovalID = ""
@@ -265,7 +267,23 @@ func (m model) handleReloaded(msg reloadedMsg) (tea.Model, tea.Cmd) {
 	return m, tick()
 }
 
+func (m model) handlePlayPrompt(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "y", "n", keyEsc:
+		m.playPromptOpen = false
+		return m, nil
+	case keyCtrlC:
+		return m, tea.Quit
+	}
+
+	return m, nil
+}
+
 func (m model) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if m.playPromptOpen {
+		return m.handlePlayPrompt(msg)
+	}
+
 	if m.mode == modeBoard && m.modalOpen {
 		return m.updateBoard(msg)
 	}
@@ -514,6 +532,10 @@ func (m model) View() tea.View {
 func (m model) content() string {
 	if m.mode == modeBoard {
 		board := boardView(m)
+		if m.playPromptOpen {
+			return lipgloss.JoinVertical(lipgloss.Left, playPromptView(m, board), m.help.View(m.helpKeys()))
+		}
+
 		if m.modalOpen {
 			board = modalView(m, board)
 		}
@@ -607,6 +629,16 @@ func barChildrenOf(parentID string, tasks []*task.Task) []*task.Task {
 	}
 
 	return bars
+}
+
+func trackTitle(trackID string, tasks []*task.Task) string {
+	for _, t := range tasks {
+		if t.ID == trackID {
+			return t.Title
+		}
+	}
+
+	return trackID
 }
 
 func allApproved(tasks []*task.Task) bool {

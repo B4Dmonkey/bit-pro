@@ -105,6 +105,67 @@ func TestUpdate_ReapprovalRefiresPlayPrompt(t *testing.T) {
 	}
 }
 
+func TestUpdate_PlayPromptDismissedByY(t *testing.T) {
+	t.Parallel()
+
+	m := New(nil)
+	m.playPromptOpen = true
+
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'y'})
+
+	if updated.(model).playPromptOpen {
+		t.Error("playPromptOpen = true, want false after pressing y")
+	}
+}
+
+func TestUpdate_PlayPromptDismissedByN(t *testing.T) {
+	t.Parallel()
+
+	m := New(nil)
+	m.playPromptOpen = true
+
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
+
+	if updated.(model).playPromptOpen {
+		t.Error("playPromptOpen = true, want false after pressing n")
+	}
+}
+
+func TestUpdate_PlayPromptDismissedByEsc(t *testing.T) {
+	t.Parallel()
+
+	m := New(nil)
+	m.playPromptOpen = true
+
+	updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+
+	if updated.(model).playPromptOpen {
+		t.Error("playPromptOpen = true, want false after pressing esc")
+	}
+}
+
+func TestUpdate_BoardInputBlockedDuringPlayPrompt(t *testing.T) {
+	t.Parallel()
+
+	called := false
+	m := New([]*task.Task{{ID: ttid1_1, Status: task.StatusDoing, Approved: false}}).
+		WithApprove(func(_ string, _ bool) error {
+			called = true
+			return nil
+		})
+	m.playPromptOpen = true
+
+	updated, _ := m.Update(tea.KeyPressMsg{Code: ' '})
+
+	if called {
+		t.Error("approve called = true, want false while the play prompt is open")
+	}
+
+	if !updated.(model).playPromptOpen {
+		t.Error("playPromptOpen = false, want true after a key that does not dismiss it")
+	}
+}
+
 func TestUpdate_ReloadedMsgRebuildsList(t *testing.T) {
 	t.Parallel()
 
