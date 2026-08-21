@@ -2,6 +2,7 @@
 id: BIT-32
 title: Project counts
 status: todo
+approved: true
 ---
 ## Why
 `bp list` and `bp status` show a project path but no signal of health — an operator can't tell at a glance whether a project has work waiting, work approved and ready to run, work already finished, or work archived. Adding counts to both commands gives the context needed to decide where to direct the daemon without opening the TUI.
@@ -28,6 +29,10 @@ running (pid 4821)
 - **`bp list` shows all four counts; `bp status` shows three (backlog / todo / done).** Archived work is active-project context on list but not relevant to daemon health on status.
 - **Migration adds four NOT NULL INTEGER columns defaulting to 0.** Existing rows stay valid without a data migration.
 - **Efficiency of the refresh is a planning-time question.** Do not pre-optimise the implementation here.
+- **The rendered column format is not pinned; tests assert it loosely.** A count test collapses runs of whitespace to a single space and checks that the labelled numbers are present and in order, rather than asserting an exact byte string. The format is corrected on the fly under a `## User verifies` check, so pinning it in a test would only make cosmetic tweaks expensive.
+- **Buckets are a first-match chain, approval before status: backlog → todo → done.** A track is counted once, in the first bucket it matches. A track that is unapproved *and* already `done` or `doing` is not expected to arise, so where the chain happens to place it is incidental rather than designed — see the open gap in `automation-notes.md`. No bar handles the overlap.
+- **`bp status` prints the count table whatever the daemon's state.** The table describes project work, not daemon health, so it renders under `running`, `not running`, and `stopped` alike.
+- **A project the loop cannot read is skipped for that tick.** A registered path with no `.bit/` directory, or an unparseable task file, leaves that project's stored counts untouched and the loop moves on to the next project. Skipping keeps one broken project from stalling the tick or zeroing counts that were previously correct — see the open gap in `automation-notes.md`.
 
 ## Verses
 - [ ] Verse 1 — Counts exist in the DB: `projects` gains `backlog`, `todo`, `done`, `completed` columns via a new migration, and the daemon loop populates them for every registered project each tick.
