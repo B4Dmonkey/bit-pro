@@ -46,7 +46,9 @@ func newTaskUpdateCmd() *cobra.Command {
 				cmd.Flags().Changed("description") ||
 				cmd.Flags().Changed("phase") ||
 				cmd.Flags().Changed("phase-label")
-			if t.Approved && anyChanged {
+			sentBack := cmd.Flags().Changed("status") && status == task.StatusTodo
+
+			if t.Approved && (anyChanged || sentBack) {
 				t.Approved = false
 			}
 

@@ -1,7 +1,7 @@
 ---
 id: BIT-30.2
 title: A task sent back to todo needs re-approval
-status: todo
+status: doing
 approved: true
 phase: 2
 phase_label: Sent back, re-reviewed

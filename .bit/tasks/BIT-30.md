@@ -2,6 +2,7 @@
 id: BIT-30
 title: approval survives a forward status move
 status: doing
+approved: true
 ---
 ## Why
 
@@ -49,7 +50,7 @@ today                          after
 
 ## Verses
 
-- [ ] Verse 1 — Approved work stays approved as it runs: an approved task moved `todo → doing`
+- [x] Verse 1 — Approved work stays approved as it runs: an approved task moved `todo → doing`
   or `doing → done` keeps its approval, so the card stays white for the whole run.
   Touches: the update command's revoke condition (`cmd/task_update.go`) — where `--status`
   is currently folded into `anyChanged`.

@@ -201,3 +201,45 @@ func TestTaskUpdateCmd_ForwardStatusMovePreservesApproval(t *testing.T) {
 		})
 	}
 }
+
+func TestTaskUpdateCmd_StatusToTodoRevokesApproval(t *testing.T) {
+	tests := []struct {
+		name string
+		from string
+		to   string
+		want bool
+	}{
+		{name: "doing to todo", from: statusDoing, to: statusTodo, want: false},
+		{name: "done to todo", from: statusDone, to: statusTodo, want: false},
+		{name: "todo to todo", to: statusTodo, want: false},
+		{name: "done to doing", from: statusDone, to: statusDoing, want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			initProject(t, "BIT")
+			createTask(t, "Old title", oldTaskBody)
+
+			if tt.from != "" {
+				mustRun(t, taskCmdUse, updateCmd, trackID, "-s", tt.from)
+			}
+
+			mustRun(t, "approve", trackID)
+
+			mustRun(t, taskCmdUse, updateCmd, trackID, "-s", tt.to)
+
+			got, err := task.New(".bit").Load(trackID)
+			if err != nil {
+				t.Fatalf("loading %s: %v", trackID, err)
+			}
+
+			if got.Approved != tt.want {
+				t.Errorf("Approved = %v after move to %s, want %v", got.Approved, tt.to, tt.want)
+			}
+
+			if got.Status != tt.to {
+				t.Errorf("Status = %q, want %q", got.Status, tt.to)
+			}
+		})
+	}
+}

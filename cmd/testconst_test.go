@@ -11,4 +11,5 @@ const (
 	testPrefix  = "BIT"
 	testCode    = "FOO"
 	statusDoing = "doing"
+	statusDone  = "done"
 )

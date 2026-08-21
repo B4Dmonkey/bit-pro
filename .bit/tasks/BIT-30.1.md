@@ -1,7 +1,8 @@
 ---
 id: BIT-30.1
 title: A forward status move keeps its approval
-status: doing
+status: done
+approved: true
 phase: 1
 phase_label: Approved work stays approved
 ---
