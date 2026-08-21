@@ -3,18 +3,75 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/B4Dmonkey/bit-pro/db"
+	"github.com/B4Dmonkey/bit-pro/db/orm"
+	"github.com/B4Dmonkey/bit-pro/task"
 )
 
+func TestServeCmd_WritesProjectCounts(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", "")
+
+	dir := t.TempDir()
+
+	store := task.New(filepath.Join(dir, ".bit"))
+	if err := store.Save(&task.Task{ID: "ACME-1", Title: "a track", Status: task.StatusTodo}); err != nil {
+		t.Fatalf("Save() returned error: %v", err)
+	}
+
+	seedProject(t, orm.CreateProjectParams{Path: dir, Code: "ACME"})
+
+	original := serveTick
+	serveTick = 5 * time.Millisecond
+
+	t.Cleanup(func() { serveTick = original })
+
+	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
+	defer cancel()
+
+	if _, err := runWithContext(t, ctx, serveCmdUse); err != nil {
+		t.Fatalf("bp serve returned error: %v", err)
+	}
+
+	sqlDB, err := db.Open()
+	if err != nil {
+		t.Fatalf("db.Open() returned error: %v", err)
+	}
+
+	defer sqlDB.Close()
+
+	var backlog, todo, done, completed int64
+	if err := sqlDB.QueryRowContext(t.Context(),
+		"SELECT backlog, todo, done, completed FROM projects WHERE code = ?", "ACME",
+	).Scan(&backlog, &todo, &done, &completed); err != nil {
+		if err == sql.ErrNoRows {
+			t.Fatal("project row not found")
+		}
+
+		t.Fatalf("Scan() returned error: %v", err)
+	}
+
+	if backlog != 1 || todo != 0 || done != 0 || completed != 0 {
+		t.Errorf("counts = (%d, %d, %d, %d), want (1, 0, 0, 0)", backlog, todo, done, completed)
+	}
+}
+
 func TestServeCmd_ReturnsWhenContextCancelled(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", "")
+
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
@@ -37,6 +94,9 @@ func TestServeCmd_IsListedInHelp(t *testing.T) {
 }
 
 func TestServeCmd_TicksOnlyWhenVerbose(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", "")
+
 	tests := []struct {
 		name      string
 		args      []string
@@ -81,6 +141,9 @@ func TestServeCmd_TicksOnlyWhenVerbose(t *testing.T) {
 }
 
 func TestServeCmd_LogsJSONWhenOutputIsNotATerminal(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", "")
+
 	original := serveTick
 	serveTick = 5 * time.Millisecond
 
@@ -169,6 +232,9 @@ func TestNewHandler_PicksEncodingFromTheWriter(t *testing.T) {
 }
 
 func TestServeCmd_LogsStartAndStop(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", "")
+
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
