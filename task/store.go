@@ -307,6 +307,30 @@ func (s *Store) materializeOrder(parent string) ([]string, error) {
 	return order, nil
 }
 
+func (s *Store) listCompleted() ([]*Task, error) {
+	matches, err := filepath.Glob(filepath.Join(s.completedDir(), "*.md"))
+	if err != nil {
+		return nil, fmt.Errorf("scanning %s for completed tasks: %w", s.completedDir(), err)
+	}
+
+	tasks := make([]*Task, 0, len(matches))
+	for _, path := range matches {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("reading %s: %w", path, err)
+		}
+
+		t, err := Parse(data)
+		if err != nil {
+			return nil, fmt.Errorf("parsing %s: %w", path, err)
+		}
+
+		tasks = append(tasks, t)
+	}
+
+	return tasks, nil
+}
+
 func (s *Store) List() ([]*Task, error) {
 	matches, err := filepath.Glob(filepath.Join(s.tasksDir(), "*.md"))
 	if err != nil {

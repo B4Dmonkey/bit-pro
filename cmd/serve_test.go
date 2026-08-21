@@ -3,18 +3,130 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/B4Dmonkey/bit-pro/db"
+	"github.com/B4Dmonkey/bit-pro/db/orm"
+	"github.com/B4Dmonkey/bit-pro/task"
 )
 
+func TestServeCmd_WritesProjectCounts(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", "")
+
+	dir := t.TempDir()
+
+	store := task.New(filepath.Join(dir, ".bit"))
+	if err := store.Save(&task.Task{ID: "ACME-1", Title: "a track", Status: task.StatusTodo}); err != nil {
+		t.Fatalf("Save() returned error: %v", err)
+	}
+
+	seedProject(t, orm.CreateProjectParams{Path: dir, Code: "ACME"})
+
+	original := serveTick
+	serveTick = 5 * time.Millisecond
+
+	t.Cleanup(func() { serveTick = original })
+
+	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
+	defer cancel()
+
+	if _, err := runWithContext(t, ctx, serveCmdUse); err != nil {
+		t.Fatalf("bp serve returned error: %v", err)
+	}
+
+	sqlDB, err := db.Open()
+	if err != nil {
+		t.Fatalf("db.Open() returned error: %v", err)
+	}
+
+	defer sqlDB.Close()
+
+	var backlog, todo, done, completed int64
+	if err := sqlDB.QueryRowContext(t.Context(),
+		"SELECT backlog, todo, done, completed FROM projects WHERE code = ?", "ACME",
+	).Scan(&backlog, &todo, &done, &completed); err != nil {
+		if err == sql.ErrNoRows {
+			t.Fatal("project row not found")
+		}
+
+		t.Fatalf("Scan() returned error: %v", err)
+	}
+
+	if backlog != 1 || todo != 0 || done != 0 || completed != 0 {
+		t.Errorf("counts = (%d, %d, %d, %d), want (1, 0, 0, 0)", backlog, todo, done, completed)
+	}
+}
+
+func TestServeCmd_CountsBacklogAndTodo(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", "")
+
+	dir := t.TempDir()
+
+	store := task.New(filepath.Join(dir, ".bit"))
+	for _, tr := range []*task.Task{
+		{ID: "ACME-1", Title: "unapproved track", Status: task.StatusTodo, Approved: false},
+		{ID: "ACME-2", Title: "approved track a", Status: task.StatusTodo, Approved: true},
+		{ID: "ACME-3", Title: "approved track b", Status: task.StatusTodo, Approved: true},
+		{ID: "ACME-3.1", Title: "bar under acme-3", Status: task.StatusTodo, Approved: true},
+	} {
+		if err := store.Save(tr); err != nil {
+			t.Fatalf("Save(%s) returned error: %v", tr.ID, err)
+		}
+	}
+
+	seedProject(t, orm.CreateProjectParams{Path: dir, Code: "ACME"})
+
+	original := serveTick
+	serveTick = 5 * time.Millisecond
+
+	t.Cleanup(func() { serveTick = original })
+
+	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
+	defer cancel()
+
+	if _, err := runWithContext(t, ctx, serveCmdUse); err != nil {
+		t.Fatalf("bp serve returned error: %v", err)
+	}
+
+	sqlDB, err := db.Open()
+	if err != nil {
+		t.Fatalf("db.Open() returned error: %v", err)
+	}
+
+	defer sqlDB.Close()
+
+	var backlog, todo, done, completed int64
+	if err := sqlDB.QueryRowContext(t.Context(),
+		"SELECT backlog, todo, done, completed FROM projects WHERE code = ?", "ACME",
+	).Scan(&backlog, &todo, &done, &completed); err != nil {
+		if err == sql.ErrNoRows {
+			t.Fatal("project row not found")
+		}
+
+		t.Fatalf("Scan() returned error: %v", err)
+	}
+
+	if backlog != 1 || todo != 2 || done != 0 || completed != 0 {
+		t.Errorf("counts = (%d, %d, %d, %d), want (1, 2, 0, 0)", backlog, todo, done, completed)
+	}
+}
+
 func TestServeCmd_ReturnsWhenContextCancelled(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", "")
+
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
@@ -37,6 +149,9 @@ func TestServeCmd_IsListedInHelp(t *testing.T) {
 }
 
 func TestServeCmd_TicksOnlyWhenVerbose(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", "")
+
 	tests := []struct {
 		name      string
 		args      []string
@@ -81,6 +196,9 @@ func TestServeCmd_TicksOnlyWhenVerbose(t *testing.T) {
 }
 
 func TestServeCmd_LogsJSONWhenOutputIsNotATerminal(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", "")
+
 	original := serveTick
 	serveTick = 5 * time.Millisecond
 
@@ -113,6 +231,114 @@ func TestServeCmd_LogsJSONWhenOutputIsNotATerminal(t *testing.T) {
 
 	if ticks == 0 {
 		t.Errorf("bp serve -v logged no JSON tick records:\n%s", out)
+	}
+}
+
+func TestServeCmd_SkipsAProjectItCannotRead(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(t *testing.T, aaaDir string)
+	}{
+		{
+			name: "unparseable task file",
+			setup: func(t *testing.T, aaaDir string) {
+				t.Helper()
+
+				if err := os.MkdirAll(filepath.Join(aaaDir, ".bit", "tasks"), 0o755); err != nil {
+					t.Fatalf("MkdirAll: %v", err)
+				}
+
+				p := filepath.Join(aaaDir, ".bit", "tasks", "AAA-1.md")
+				if err := os.WriteFile(p, []byte("not frontmatter"), 0o600); err != nil {
+					t.Fatalf("WriteFile: %v", err)
+				}
+			},
+		},
+		{
+			name:  "no .bit/ directory",
+			setup: func(*testing.T, string) {},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			runSkipTest(t, tt.setup)
+		})
+	}
+}
+
+func runSkipTest(t *testing.T, setup func(*testing.T, string)) {
+	t.Helper()
+
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", "")
+
+	aaaDir := t.TempDir()
+	zzzDir := t.TempDir()
+
+	setup(t, aaaDir)
+
+	tr := &task.Task{ID: "ZZZ-1", Title: "a track", Status: task.StatusTodo, Approved: true}
+	if err := task.New(filepath.Join(zzzDir, ".bit")).Save(tr); err != nil {
+		t.Fatalf("Save() returned error: %v", err)
+	}
+
+	seedProject(t, orm.CreateProjectParams{Path: aaaDir, Code: "AAA"})
+	seedProject(t, orm.CreateProjectParams{Path: zzzDir, Code: "ZZZ"})
+
+	sqlDB, err := db.Open()
+	if err != nil {
+		t.Fatalf("db.Open() returned error: %v", err)
+	}
+
+	if _, err := sqlDB.ExecContext(t.Context(),
+		"UPDATE projects SET backlog = 9 WHERE code = ?", "AAA",
+	); err != nil {
+		sqlDB.Close()
+		t.Fatalf("UPDATE backlog: %v", err)
+	}
+
+	sqlDB.Close()
+
+	original := serveTick
+	serveTick = 5 * time.Millisecond
+
+	t.Cleanup(func() { serveTick = original })
+
+	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
+	defer cancel()
+
+	if _, err := runWithContext(t, ctx, serveCmdUse); err != nil {
+		t.Fatalf("bp serve returned error: %v", err)
+	}
+
+	sqlDB2, err := db.Open()
+	if err != nil {
+		t.Fatalf("db.Open() returned error: %v", err)
+	}
+
+	defer sqlDB2.Close()
+
+	var aaaBacklog int64
+	if err := sqlDB2.QueryRowContext(t.Context(),
+		"SELECT backlog FROM projects WHERE code = ?", "AAA",
+	).Scan(&aaaBacklog); err != nil {
+		t.Fatalf("Scan AAA backlog: %v", err)
+	}
+
+	var zzzTodo int64
+	if err := sqlDB2.QueryRowContext(t.Context(),
+		"SELECT todo FROM projects WHERE code = ?", "ZZZ",
+	).Scan(&zzzTodo); err != nil {
+		t.Fatalf("Scan ZZZ todo: %v", err)
+	}
+
+	if aaaBacklog != 9 {
+		t.Errorf("AAA.backlog = %d, want 9 (project should be skipped, not zeroed)", aaaBacklog)
+	}
+
+	if zzzTodo != 1 {
+		t.Errorf("ZZZ.todo = %d, want 1 (tick should continue past broken AAA)", zzzTodo)
 	}
 }
 
@@ -169,6 +395,9 @@ func TestNewHandler_PicksEncodingFromTheWriter(t *testing.T) {
 }
 
 func TestServeCmd_LogsStartAndStop(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", "")
+
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
