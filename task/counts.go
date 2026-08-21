@@ -19,6 +19,8 @@ func (s *Store) Counts() (Counts, error) {
 
 		if !t.Approved {
 			c.Backlog++
+		} else if t.Status == StatusDone {
+			c.Done++
 		} else {
 			c.Todo++
 		}
