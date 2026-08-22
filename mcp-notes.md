@@ -12,8 +12,9 @@ Claude should never run *absent* rather than merely denied.
 This phase runs **during or after** the automation phase (`automation-notes.md`); the two are
 mostly orthogonal, but see "Relationship to the automation phase".
 
-Everything under "Measured facts" was read out of this repo on 2026-08-22. Everything under
-"Unverified" has **not** been checked and must not be planned against as written.
+Everything under "Measured facts" was checked on 2026-08-22 — the first half read out of this
+repo, the second half looked up from the SDK and Claude Code docs. What is under "Still
+unverified" has **not** been confirmed and must not be planned against as written.
 
 ---
 
@@ -30,6 +31,8 @@ Each line is done when its "done when" clause is true.
       *Depends on:* the `serve` parent existing — see the pending rename in `automation-notes.md`.
       Landing this under a bare `bp mcp` first and moving it later is fine; the two-word form is
       where it ends up.
+      *Built on:* `github.com/modelcontextprotocol/go-sdk/mcp` — `NewServer`, the generic
+      `AddTool`, `StdioTransport`. See Measured facts for why not hand-rolled.
 - [ ] The server is a plain foreground process speaking stdio on stdin/stdout, so it can be driven
       by hand.
       *Done when:* running it in a terminal and typing an `initialize` frame gets a response.
@@ -54,10 +57,15 @@ code path corrupts the protocol stream. This is the one mechanical hazard of the
 
 ### 4. Registration
 
-- [ ] A project enrolled with `bp init` gets the server with no manual step.
+- [ ] `bp init` registers the server at **local scope** — the nested
+      `projects."<abs path>".mcpServers` entry in `~/.claude.json`.
       *Done when:* `bp init` in a fresh repo, then a new session, and the tools are listed.
-- [ ] Settle where the registration lives — see the first Open gap. This step cannot be
-      planned before that decision.
+- [ ] It registers by shelling out to `claude mcp add bit -- bp serve mcp`, not by editing
+      `~/.claude.json` directly.
+      *Done when:* `bp init` adds the entry and leaves the rest of the file untouched.
+- [ ] Dispatched worktree sessions get the server explicitly, since local scope will not
+      match a worktree path.
+      *Done when:* a session the daemon spawns into `.claude/worktrees/<x>` lists the tools.
 
 ### 5. Skills migration
 
@@ -119,6 +127,8 @@ code path corrupts the protocol stream. This is the one mechanical hazard of the
   would migrate skill logic into Go — a much larger change, against YAGNI, and the right cut
   lines are not known yet. Revisit only if the noun-shaped tools prove to invite the same
   read-modify-write dances the CLI does.
+- **No `bit_` prefix on tool names.** Claude Code already namespaces them as
+  `mcp__bit__task_read`, so the nouns stay bare.
 - **Approval-revocation semantics are preserved verbatim.** A change to title, description,
   phase, or phase-label revokes approval; a status write of `todo` revokes it; a forward status
   move keeps it. This is load-bearing for the automation phase — an approved bar has to stay
@@ -139,6 +149,31 @@ code path corrupts the protocol stream. This is the one mechanical hazard of the
 - **Nobody types `bp serve mcp`.** Claude Code's config does, per session. So it is not a service in
   the operator's sense: `bp start`/`stop`/`status` stay daemon-only and never gain an MCP mode, and
   there is no plist, no label, and no liveness question here.
+
+**Where the server is registered** — settled 2026-08-22.
+- **Local scope: the nested `projects."<abs path>".mcpServers` entry in `~/.claude.json`.** Per
+  project, so a repo with no `.bit/` never sees the tools, and nothing is written into the
+  project — `bp init` keeps the direction it took at `TestInitCmd_WritesNoSkills`.
+- **Project `.mcp.json` was rejected** because it reverses that direction, and **user scope was
+  rejected** because it loads in every project on the machine, taxing unrelated sessions with six
+  tools that can only error. Per-project opt-in is worth a second mechanism for dispatch.
+- **`bp init` shells out to `claude mcp add bit -- bp serve mcp`** (local is the default scope)
+  rather than editing `~/.claude.json` itself. That file holds all of Claude Code's per-project
+  state, so `bp` must not read-modify-write it. Cost: `bp init` now requires `claude` on `PATH`.
+- **The daemon passes the server inline on dispatch.** Local scope keys on the directory the
+  session starts in, so a worktree at `.claude/worktrees/<x>` does not match the entry filed
+  under the main checkout. `--mcp-config` takes a file path or an inline JSON string
+  (space-separated); the inline form is used so dispatch mutates nothing.
+
+**How the server finds `.bit/`** — settled 2026-08-22, once the lookups came back.
+- **Read `CLAUDE_PROJECT_DIR`, not cwd.** It is set in the server's own environment to the stable
+  project root, and one server process exists per session, so the resolution happens once and is
+  right for that session.
+- **Worktrees need no new machinery.** `CLAUDE_PROJECT_DIR` is the session's launch directory, so
+  a dispatched worktree session gets the worktree path and BIT-27's existing cut at
+  `.claude/worktrees/` reaches the same canonical `.bit/` the CLI does.
+- **So no project/root param on every tool, and no `roots/list`** — the latter is deprecated at
+  the `2026-07-28` revision anyway.
 
 **MCP does not dispatch; the daemon does**
 - **An MCP tool only fires while a session is already alive and chooses to call it.** Dispatch has to
@@ -212,16 +247,18 @@ Notes on the map:
   `bp task move`. That is the session that most needs a typed surface — which argues for
   landing this before automation step 6 rather than after.
 - **Worktrees.** BIT-27 has `bp` cut the path at `.claude/worktrees/` to find the canonical
-  `.bit/`. Whatever the MCP does about project resolution has to reach the same answer, or a
-  dispatched session writes to the wrong ledger. See the second Open gap.
-- **A tracked registration file follows into a worktree; an untracked one does not.** A
-  worktree is a checkout, so this decides whether dispatched sessions see the tools at all.
+  `.bit/`. The MCP server reaches the same answer by running that same cut against
+  `CLAUDE_PROJECT_DIR` — see "How the server finds `.bit/`" under Decisions.
+- **The registration does not reach a dispatched worktree on its own.** Local scope keys on the
+  session's start directory, so the daemon has to pass the server inline with `--mcp-config` when
+  it spawns into `.claude/worktrees/<x>`. That is a change to the dispatch command, which makes it
+  the one place the two phases touch code as well as concepts.
 
 ---
 
 ## Measured facts
 
-Read out of the repo on 2026-08-22.
+### Read out of the repo on 2026-08-22
 
 - **The surface is 15 top-level commands and 7 `task` subcommands.** Top level: `add`,
   `approve`, `unapprove`, `completion`, `feedback`, `help`, `init`, `instructions`, `list`,
@@ -252,22 +289,81 @@ Read out of the repo on 2026-08-22.
 - **`create --after` exists in code and not in the contract.** `cmd/task_create.go:31` versus
   `assets/bit-cli.md`, which covers `--after` only under `task move`.
 
+### Looked up on 2026-08-22
+
+Sources under Docs. These are the answers to what used to be the Unverified section.
+
+- **The Go SDK is official, stable, and beats hand-rolling.**
+  `github.com/modelcontextprotocol/go-sdk` is maintained in collaboration with Google; **v1.0.0
+  shipped an explicit no-breaking-API-changes guarantee** and v1.7.0 is current. It needs Go
+  1.25+ and `go.mod` is on 1.26.5. The whole server is three calls — `mcp.NewServer`,
+  `mcp.AddTool`, `s.Run(ctx, &mcp.StdioTransport{})` — and the generic `mcp.AddTool[In, Out]`
+  **derives the JSON Schema from the Go structs**, with handlers shaped `func(ctx,
+  *mcp.CallToolRequest, In) (*mcp.CallToolResult, Out, error)`. That is what settles it:
+  hand-rolling six tools means hand-writing six schemas and keeping them in sync with the
+  structs, which is the same drift this phase exists to kill. The parity map's params and
+  returns become two structs per tool.
+- **v1.7.0 formally deprecates `roots`, sampling, and logging** at the `2026-07-28` protocol
+  revision, keeps the Go types for older peers, and preserves backward compatibility on every
+  endpoint. A plain stdio tool server is unaffected — but it does rule `roots/list` out as the
+  project-resolution mechanism.
+- **Three scopes, and two of them share one file.** Local (the default for `claude mcp add`)
+  loads in the current project only and lives in `~/.claude.json` under that project's path;
+  project loads in the current project only and lives in `.mcp.json` at the project root; user
+  loads in **all** your projects and lives at the top level of `~/.claude.json`. Precedence is
+  local, then project, then user, then plugin-provided, then claude.ai connectors — matched by
+  name across the three scopes, and the whole entry from the winning source is used with no
+  field merging.
+- **`--mcp-config` takes JSON files or inline JSON strings, space-separated**, and its servers
+  run with the working directory Claude Code started in. This is the dispatch mechanism: it
+  reaches a worktree session that no local-scope entry matches.
+- **A plugin manifest can declare MCP servers, and the inline form is currently broken.**
+  `plugin.json` documents `mcpServers` as either an inline object or a path string
+  (`"mcpServers": "./.mcp.json"`), with `${CLAUDE_PLUGIN_ROOT}`, `${CLAUDE_PLUGIN_DATA}`, and
+  `${CLAUDE_PROJECT_DIR}` substituted in `command`, `args`, and `env`. Plugin servers connect at
+  session startup once the plugin is enabled. But `anthropics/claude-code` issue **#16143** —
+  open, reported against v2.0.76 — has the inline `mcpServers` key stripped during manifest
+  parsing and silently ignored; the stated workaround is a separate `.mcp.json` in the plugin
+  root.
+- **A plugin-declared server registers under the scoped name
+  `plugin:<plugin-name>:<server-name>`**, not a bare name.
+- **`CLAUDE_PROJECT_DIR` is set in the spawned stdio server's environment**, to the stable
+  project root — the same value hooks get — and it does not change when working directories are
+  added or removed mid-session. Plugin-provided configs substitute `${CLAUDE_PROJECT_DIR}`
+  directly; a project `.mcp.json` or a `~/.claude.json` entry needs a default
+  (`${CLAUDE_PROJECT_DIR:-.}`) because the variable is set in the *server's* environment, not
+  Claude Code's own.
+- **One stdio server process per session, launched at session startup.** Stdio servers are local
+  processes, are not shared across sessions, and are **not** reconnected automatically if they
+  die (only HTTP/SSE are). So "resolves the project once, at startup" is once *per session* —
+  the right granularity, since a dispatched worktree session gets its own server rooted at its
+  own worktree.
+- **cwd is unreliable, but only outside the CLI.** The CLI launches stdio servers from the
+  project directory; the **desktop app** launches them with `cwd=$HOME` (issue #75266, open).
+  The daemon spawns the CLI, so dispatch is unaffected — but it is a second reason to read the
+  env var rather than `os.Getwd`.
+- **Project-scoped `.mcp.json` servers load without the approval prompt in `claude -p`, Agent
+  SDK, and cloud sessions**, because those sessions cannot show the prompt. Interactive sessions
+  approve once, and `claude mcp reset-project-choices` resets that choice. So a tracked
+  `.mcp.json` needs zero interaction in exactly the sessions the daemon dispatches.
+- **Claude Code namespaces every MCP tool as `mcp__<server>__<tool>`**, normalizing invalid
+  characters to underscores. A server named `bit` yields `mcp__bit__task_read`. Provenance is
+  visible in transcripts, and these are the names step 6's deny rules have to spell.
+
 ---
 
-## Unverified — check before planning
+## Still unverified
 
-Load-bearing for effort estimates. None of this has been looked up.
+What the 2026-08-22 lookups did not settle.
 
-- **The Go MCP SDK.** `github.com/modelcontextprotocol/go-sdk` is the presumed import path;
-  its API shape, stability, and whether it is the right choice over a hand-rolled JSON-RPC
-  stdio loop are all unchecked. A hand-rolled server is not obviously wrong for six tools.
-- **Whether a plugin manifest can declare MCP servers.** If `plugin.json` supports an
-  `mcpServers` key, registration could ride the plugin that already ships the skills — which
-  would tie the two together and mostly answer the first Open gap. Unconfirmed.
-- **How a stdio server's working directory is set**, and whether it is re-launched per session
-  or shared. This decides the project-resolution question outright.
-- **Whether tool names are namespaced by the server** when Claude sees them, and therefore
-  whether `task_read` needs a `bit_` prefix to be unambiguous.
+- **Whether a dispatched worktree session really misses a local-scope entry.** Inferred from the
+  documented rule that local scope is filed under the project's path and loads in "the current
+  project only" — a worktree is a different path, so it should not match. Not observed. Step 4's
+  third line is the empirical check, and if it turns out worktrees resolve to the main checkout
+  the `--mcp-config` mechanism is unnecessary.
+- The two prior unverified items — whether inline `mcpServers` in `plugin.json` works (#16143),
+  and the tool names a plugin-declared server produces — no longer block anything now that the
+  plugin route is rejected for registration. Left in the record as the reasons it was rejected.
 
 ---
 
@@ -276,17 +372,6 @@ Load-bearing for effort estimates. None of this has been looked up.
 Everything here needs the operator's review. The two under "Assumptions" would change the
 plan, not just fill it in.
 
-- **Where the server is registered.** Candidates: a `.mcp.json` at the project root written by
-  `bp init`; the plugin manifest, if it supports servers; user-level settings. Tracked
-  `.mcp.json` follows into a worktree and into a clone, which suits dispatched sessions — but
-  it reverses the direction `bp init` deliberately took when it stopped writing content files
-  into projects (`TestInitCmd_WritesNoSkills`). Nothing chosen. **Step 4 cannot be planned
-  until this is.**
-- **How the server resolves `.bit/`.** A CLI call carries cwd implicitly and BIT-27 cuts the
-  path at `.claude/worktrees/` to reach the canonical ledger. A stdio server launched once per
-  session resolves the project *once*, at startup — fine if it is launched per project, wrong
-  if a dispatched worktree session inherits a server rooted somewhere else. The alternative is
-  an explicit project/root param on every tool, which is uglier and unambiguous. Undecided.
 - **What happens to `bp instructions`.** Schemas absorb the how; the domain half has to land
   somewhere. Candidates: an MCP resource, a tool that returns the doc, or folded into the
   skills themselves. Whichever wins, `assets/bit-cli.md` shrinks to roughly its domain
@@ -335,3 +420,8 @@ without it. The removal steps are last because they are the only irreversible on
 - <https://modelcontextprotocol.io/>
 - <https://code.claude.com/docs/en/mcp>
 - <https://code.claude.com/docs/en/settings>
+- <https://code.claude.com/docs/en/plugins-reference>
+- <https://pkg.go.dev/github.com/modelcontextprotocol/go-sdk/mcp>
+- <https://github.com/modelcontextprotocol/go-sdk/releases>
+- <https://github.com/anthropics/claude-code/issues/16143> — inline `mcpServers` dropped
+- <https://github.com/anthropics/claude-code/issues/75266> — desktop app stdio cwd is `$HOME`
