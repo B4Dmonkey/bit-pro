@@ -148,6 +148,14 @@ func TestServeCmd_DaemonIsListedInServeHelp(t *testing.T) {
 	}
 }
 
+func TestServeMCPCmd_IsListedInServeHelp(t *testing.T) {
+	out := mustRun(t, "serve", "--help")
+
+	if !strings.Contains(out, "mcp") {
+		t.Errorf("bp serve --help output does not list mcp:\n%s", out)
+	}
+}
+
 func TestServeCmd_IsListedInHelp(t *testing.T) {
 	out := mustRun(t, "serve", "--help")
 
