@@ -1,7 +1,7 @@
 ---
 id: BIT-34
 title: The queue holds bars only
-status: doing
+status: done
 ---
 ## Why
 
