@@ -1,7 +1,7 @@
 ---
 id: BIT-34.3
 title: e on a track queues its bars
-status: todo
+status: done
 approved: true
 phase: 3
 phase_label: Track shortcut

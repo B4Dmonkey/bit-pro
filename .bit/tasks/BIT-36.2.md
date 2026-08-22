@@ -1,7 +1,7 @@
 ---
 id: BIT-36.2
 title: Contradiction forces plist to emit serve daemon
-status: todo
+status: doing
 approved: true
 phase: 1
 phase_label: serve daemon
