@@ -1,7 +1,7 @@
 ---
 id: BIT-35.2
 title: Contradiction forces real MCP server with task_read handler
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: mcp skeleton

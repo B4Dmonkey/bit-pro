@@ -1,8 +1,7 @@
 ---
 id: BIT-35
 title: MCP server skeleton — task_read over stdio
-status: doing
-approved: true
+status: done
 ---
 ## Why
 Claude reaches `bp` today through Bash — one of thousands of things a shell can invoke.
@@ -51,7 +50,7 @@ terminal. `task_read` is the only tool; the write surface comes in a later scope
 
 ## Verses
 
-- [ ] Verse 1 — Operator can wire `bp serve mcp` into Claude Code and Claude can call
+- [x] Verse 1 — Operator can wire `bp serve mcp` into Claude Code and Claude can call
   `task_read` on a real task:
   `bp serve mcp` starts a stdio MCP server. Typing an `initialize` frame by hand gets a
   response. Claude Code lists `task_read` in the tool panel for a project wired to it.

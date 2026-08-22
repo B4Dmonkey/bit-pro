@@ -1,7 +1,7 @@
 ---
 id: BIT-35.1
 title: bp serve mcp skeleton registered in bp serve --help
-status: doing
+status: done
 approved: true
 phase: 1
 phase_label: mcp skeleton
