@@ -2,7 +2,6 @@
 id: BIT-36
 title: Rename bp serve → bp serve daemon
 status: doing
-approved: true
 ---
 ## Why
 `bp serve` is today a leaf command whose `RunE` *is* the daemon loop. The MCP phase (`mcp-notes.md`) needs `bp serve mcp` to live beside the daemon as a sibling — which requires `serve` to become a parent first. Without the rename, the two servers can't share a grouping, and `bp serve` would have to be both a parent and the daemon itself, which Cobra cannot express cleanly.
@@ -24,7 +23,7 @@ None — all questions are settled. See Decisions.
 
 ## Verses
 
-- [ ] Verse 1 — `bp serve daemon` runs the loop: `serve` becomes a parent, the daemon body moves to `serve daemon`, the plist template emits `serve daemon`, and tests pass against the two-word form.
+- [x] Verse 1 — `bp serve daemon` runs the loop: `serve` becomes a parent, the daemon body moves to `serve daemon`, the plist template emits `serve daemon`, and tests pass against the two-word form.
   Touches: `cmd/serve.go`, `cmd/root.go`, `daemon/plist.go`, `cmd/serve_test.go`, `daemon/plist_test.go`.
 
 - [ ] Verse 2 — `bp start` repairs a stale plist: on first start after an upgrade, if the on-disk plist differs from what `bp start` would write, it does bootout → rewrite → bootstrap instead of skipping. An already-enrolled machine running a new binary ends up with a daemon on `bp serve daemon`.
