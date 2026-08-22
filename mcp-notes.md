@@ -13,8 +13,7 @@ This phase runs **during or after** the automation phase (`automation-notes.md`)
 mostly orthogonal, but see "Relationship to the automation phase".
 
 Everything under "Measured facts" was checked on 2026-08-22 — the first half read out of this
-repo, the second half looked up from the SDK and Claude Code docs. What is under "Still
-unverified" has **not** been confirmed and must not be planned against as written.
+repo, the second half looked up from the SDK and Claude Code docs.
 
 ---
 
@@ -48,7 +47,7 @@ code path corrupts the protocol stream. This is the one mechanical hazard of the
 
 ### 3. Write surface
 
-- [ ] `task_create`, `task_update`, `task_move`, `feedback_add`.
+- [ ] `task_create`, `task_update`, `task_move`, `task_complete`, `task_delete`, `feedback_add`.
       *Done when:* a full scope → plan cycle runs start to finish without Bash touching
       `.bit/` once.
 - [ ] `task_update` preserves the approval-revocation rule exactly (see Decisions).
@@ -63,17 +62,17 @@ code path corrupts the protocol stream. This is the one mechanical hazard of the
 - [ ] It registers by shelling out to `claude mcp add bit -- bp serve mcp`, not by editing
       `~/.claude.json` directly.
       *Done when:* `bp init` adds the entry and leaves the rest of the file untouched.
-- [ ] Dispatched worktree sessions get the server explicitly, since local scope will not
-      match a worktree path.
-      *Done when:* a session the daemon spawns into `.claude/worktrees/<x>` lists the tools.
+Getting the server in front of a **dispatched** session is the daemon's job, not this phase's —
+see "Scope boundary" under Decisions, and the dispatch step in `automation-notes.md`.
 
 ### 5. Skills migration
 
 - [ ] All seven skills under `bit/skills/` and both agents under `bit/agents/` call tools
       instead of shelling out.
       *Done when:* no skill or agent file contains a `bp task` or `bp feedback` bash block.
-- [ ] Decide the fate of `bp instructions` / `assets/bit-cli.md` (see Open gaps). Roughly half
-      the file is shell technique that schemas absorb; the domain half has to land somewhere.
+- [ ] The domain half of `assets/bit-cli.md` lands on the MCP surface; `bp instructions` retires
+      with the other Claude-only commands in step 7 (see Decisions).
+      *Done when:* no skill runs `bp instructions` and no skill has lost the domain it taught.
 - [ ] This is skill-creator work, not code — and it ships through the plugin, so remember the
       GitHub coupling under "Relationship to the automation phase".
 
@@ -84,16 +83,27 @@ code path corrupts the protocol stream. This is the one mechanical hazard of the
 - [ ] **Strictly after step 5.** Denying the shell path while a skill still depends on it
       breaks every cycle.
 
-### 7. CLI removal
+### 7. CLI removal — optional, and last
 
 - [ ] Delete the Claude-only commands from the CLI (see the inventory table).
       *Done when:* `bp --help` lists only commands the operator actually runs.
-- [ ] Last, and only once a real cycle has run on tools alone. The commands are the fallback
-      until then.
+- [ ] **This step may never run, and the phase is a success either way.** The goal is Claude on the
+      MCP; deleting the commands afterwards is tidying, not the point. Steps 1–6 stand alone, so
+      revisit this only once a real cycle has run on tools alone and the commands have gone unused
+      long enough to be obviously dead.
 
 ---
 
 ## Decisions
+
+**Scope boundary** — settled 2026-08-22.
+- **This phase is exactly one thing: how Claude reaches `bp`, moving from Bash to a typed
+  surface.** Not orchestration, not sessions, not worktrees.
+- **Worktrees are the daemon's.** The MCP server needs no worktree machinery of its own — it
+  resolves `.bit/` through the same BIT-27 path cut the CLI already uses, so a worktree session
+  lands on the canonical store for free. Everything else about worktrees — creating them, spawning
+  into them, and passing the server config to a session started in one — belongs to
+  `automation-notes.md`.
 
 **What the MCP is for**
 - **Typed and enumerable beats documented.** The tools appear in the tool list with schemas.
@@ -119,8 +129,8 @@ code path corrupts the protocol stream. This is the one mechanical hazard of the
   serialisation for a terminal and have no reason to reach a model.
 
 **Tool shape — mirror the nouns, fix the accidents**
-- **Six tools, not a redesign.** `task_create`, `task_read`, `task_list`, `task_update`,
-  `task_move`, `feedback_add`.
+- **Eight tools, not a redesign.** `task_create`, `task_read`, `task_list`, `task_update`,
+  `task_move`, `task_complete`, `task_delete`, `feedback_add`.
 - **Rollup stays skill logic.** The CLI does not cascade a bar's status up to its track and
   neither does the MCP. bit_do owns that rule today and keeps owning it.
 - **Intent-shaped tools were rejected for now.** `scope_write` / `plan_add_bar` / `rollup`
@@ -133,6 +143,36 @@ code path corrupts the protocol stream. This is the one mechanical hazard of the
   phase, or phase-label revokes approval; a status write of `todo` revokes it; a forward status
   move keeps it. This is load-bearing for the automation phase — an approved bar has to stay
   approved for the whole run.
+
+**`task complete` and `task delete` are both** — settled 2026-08-22.
+- **One implementation, two callers.** The logic lives in the task package where it already does;
+  the operator keeps `bp task complete` and `bp task delete`, and Claude gets `task_complete` and
+  `task_delete`. This is the only pair that stays in the CLI *and* becomes tools, so step 7 does
+  not touch it.
+- **The confirmation prompt does not cross over.** `-y/--yes` exists because a terminal has to ask
+  before an irreversible move; a tool call is already surfaced to the operator by Claude Code's own
+  permission prompt, which is the same guarantee by a different mechanism.
+- **`--force` does cross over**, because "a track with unfinished bars needs an override" is a
+  domain rule, not a terminal affordance.
+
+**`bp instructions` retires; the MCP carries the domain** — settled 2026-08-22.
+- **Schemas absorb the how**, so the shell-technique half of `assets/bit-cli.md` simply stops
+  existing. The domain half — track vs. bar, approval as an axis separate from status,
+  rollup-is-skill-logic, IDs reserved rather than freed on delete — moves onto the MCP surface, and
+  `bp instructions` is deleted with the other Claude-only commands.
+- **Where exactly on the surface is deferred to the point the tools are written.** The cheapest
+  answer is that the tool descriptions carry it per-tool and nothing separate ships; the fallback is
+  a single `get_instructions` tool. An MCP *resource* is the wrong shape — a resource has to be
+  pulled in deliberately, and this whole phase exists because a thing Claude has to be told about is
+  a thing Claude does not use.
+
+**Ordering against the automation phase does not constrain** — settled 2026-08-22.
+- **Either phase can go first, and parallel streams are fine.** Neither has a hard dependency on
+  the other: no step here waits on dispatch, and nothing in the automation phase waits on a tool.
+- **The two streams collide in `cmd/serve.go` and nowhere else.** Automation turns `serve` into a
+  parent; this phase hangs `mcp` off that parent. Whichever lands second inherits it.
+- **"Dispatched sessions need the typed surface most" is a preference, not a constraint.** If
+  dispatch ships on Bash, unsupervised sessions reach for `mv` until step 6 closes that path.
 
 **Same binary, not a second one**
 - `bp serve mcp` lives in the `bp` binary, like the daemon. One install, one version, no separate
@@ -156,14 +196,20 @@ code path corrupts the protocol stream. This is the one mechanical hazard of the
   project — `bp init` keeps the direction it took at `TestInitCmd_WritesNoSkills`.
 - **Project `.mcp.json` was rejected** because it reverses that direction, and **user scope was
   rejected** because it loads in every project on the machine, taxing unrelated sessions with six
-  tools that can only error. Per-project opt-in is worth a second mechanism for dispatch.
+  tools that can only error.
+- **Declaring the server in the plugin manifest was rejected** on two counts, both recorded under
+  Measured facts: the inline `mcpServers` key is silently stripped during manifest parsing
+  (`anthropics/claude-code` #16143, open), and a plugin-declared server registers under the scoped
+  name `plugin:<plugin>:<server>` rather than a bare `bit`, which changes every tool name step 6's
+  deny rules have to spell. Neither was ever verified first-hand, and neither needs to be — they
+  are why the route is closed, not open questions.
 - **`bp init` shells out to `claude mcp add bit -- bp serve mcp`** (local is the default scope)
   rather than editing `~/.claude.json` itself. That file holds all of Claude Code's per-project
   state, so `bp` must not read-modify-write it. Cost: `bp init` now requires `claude` on `PATH`.
-- **The daemon passes the server inline on dispatch.** Local scope keys on the directory the
-  session starts in, so a worktree at `.claude/worktrees/<x>` does not match the entry filed
-  under the main checkout. `--mcp-config` takes a file path or an inline JSON string
-  (space-separated); the inline form is used so dispatch mutates nothing.
+- **Getting the server in front of a dispatched session is not this phase's problem.** Local scope
+  covers the sessions this phase is about — an operator working in the checkout. Whether a session
+  the daemon spawns elsewhere also needs the server, and how, is a property of dispatch; it is
+  owned in `automation-notes.md` and changes nothing here.
 
 **How the server finds `.bit/`** — settled 2026-08-22, once the lookups came back.
 - **Read `CLAUDE_PROJECT_DIR`, not cwd.** It is set in the server's own environment to the stable
@@ -196,7 +242,7 @@ The full surface as of 2026-08-22, split by who actually runs it.
 | --- | --- | --- |
 | **Operator-only** | `tui`, `approve`, `unapprove`, `init`, `add`, `list`, `start`, `stop`, `status`, `serve daemon` | stay CLI; **never** become MCP tools |
 | **Claude-only** | `task read`, `task list`, `task create`, `task update`, `task move`, `feedback add`, `instructions` | become tools, then delete from the CLI (step 7) |
-| **Contested** | `task complete`, `task delete` | undecided — see Open gaps |
+| **Both** | `task complete`, `task delete` | become tools **and** stay CLI — one task-package implementation, two callers |
 
 `completion` and `help` are Cobra's and are nobody's decision. `serve mcp` is in neither column — it
 is the surface the tools arrive *through*, and its only caller is Claude Code's own config.
@@ -212,6 +258,8 @@ Flags on the left are what exists today; params on the right are the proposed sc
 | `task list [-p/--parent]` | `task_list` | `parent?` | array of the above, minus `body` |
 | `task update <id> -t -d -s --phase --phase-label` | `task_update` | `id`, `title?`, `body?`, `status?` (enum `todo\|doing\|done`), `phase?`, `phase_label?` | `{id, approved}` — so revocation is visible |
 | `task move <bar> --before\|--after` | `task_move` | `bar`, `before?`, `after?` (exactly one) | `{}` |
+| `task complete <id>` | `task_complete` | `id` | `{}` |
+| `task delete <id> [-y] [-f/--force]` | `task_delete` | `id`, `force?` | `{}` |
 | `feedback add <track> -d` | `feedback_add` | `track`, `body` | `{path}` |
 
 Notes on the map:
@@ -226,6 +274,8 @@ Notes on the map:
   `cmd/task_create.go:31` and `assets/bit-cli.md` mentions `--after` only for `task move`. So
   a bar can be inserted mid-track at create time and no skill knows it. Carrying it into the
   schema fixes the drift by construction, since the schema *is* the documentation.
+- **`task_delete` drops `-y` and keeps `--force`.** The prompt is a terminal affordance the
+  permission prompt already covers; the unfinished-bars override is a domain rule. See Decisions.
 - **Whole-body writes stay coarse.** Toggling one verse checkbox still means rewriting the
   body. It is much less painful without the shell (`body` is just a JSON string, no temp file,
   no quoting), so a targeted edit tool is deferred rather than designed.
@@ -242,17 +292,14 @@ Notes on the map:
 - **The daemon is the MCP server's most important client.** The two phases are not competing for the
   same job — the daemon spawns sessions, those sessions talk MCP. See "MCP does not dispatch; the
   daemon does" for the split.
-- **Dispatched sessions are the strongest argument for landing this early.** A `bit:bot-dev`
-  session spawned by the daemon into a worktree has no operator watching it choose `mv` over
-  `bp task move`. That is the session that most needs a typed surface — which argues for
-  landing this before automation step 6 rather than after.
-- **Worktrees.** BIT-27 has `bp` cut the path at `.claude/worktrees/` to find the canonical
-  `.bit/`. The MCP server reaches the same answer by running that same cut against
-  `CLAUDE_PROJECT_DIR` — see "How the server finds `.bit/`" under Decisions.
-- **The registration does not reach a dispatched worktree on its own.** Local scope keys on the
-  session's start directory, so the daemon has to pass the server inline with `--mcp-config` when
-  it spawns into `.claude/worktrees/<x>`. That is a change to the dispatch command, which makes it
-  the one place the two phases touch code as well as concepts.
+- **Dispatched sessions are the strongest argument for landing this early — but it stays an
+  argument, not a constraint.** A `bit:bot-dev` session spawned by the daemon into a worktree has
+  no operator watching it choose `mv` over `bp task move`. Ordering is settled as unconstrained
+  (see Decisions); this is the cost of dispatching on Bash in the meantime.
+- **Registering the server for a dispatched session is the daemon's line item**, recorded in
+  `automation-notes.md`, not here — see "Scope boundary" under Decisions.
+- **The server itself needs nothing for worktrees.** It runs the same BIT-27 path cut the CLI
+  does — see "How the server finds `.bit/`" under Decisions.
 
 ---
 
@@ -315,8 +362,8 @@ Sources under Docs. These are the answers to what used to be the Unverified sect
   name across the three scopes, and the whole entry from the winning source is used with no
   field merging.
 - **`--mcp-config` takes JSON files or inline JSON strings, space-separated**, and its servers
-  run with the working directory Claude Code started in. This is the dispatch mechanism: it
-  reaches a worktree session that no local-scope entry matches.
+  run with the working directory Claude Code started in. Noted because dispatch may want it; the
+  decision is `automation-notes.md`'s.
 - **A plugin manifest can declare MCP servers, and the inline form is currently broken.**
   `plugin.json` documents `mcpServers` as either an inline object or a path string
   (`"mcpServers": "./.mcp.json"`), with `${CLAUDE_PLUGIN_ROOT}`, `${CLAUDE_PLUGIN_DATA}`, and
@@ -352,65 +399,34 @@ Sources under Docs. These are the answers to what used to be the Unverified sect
 
 ---
 
-## Still unverified
-
-What the 2026-08-22 lookups did not settle.
-
-- **Whether a dispatched worktree session really misses a local-scope entry.** Inferred from the
-  documented rule that local scope is filed under the project's path and loads in "the current
-  project only" — a worktree is a different path, so it should not match. Not observed. Step 4's
-  third line is the empirical check, and if it turns out worktrees resolve to the main checkout
-  the `--mcp-config` mechanism is unnecessary.
-- The two prior unverified items — whether inline `mcpServers` in `plugin.json` works (#16143),
-  and the tool names a plugin-declared server produces — no longer block anything now that the
-  plugin route is rejected for registration. Left in the record as the reasons it was rejected.
-
----
-
 ## Open gaps
 
 Everything here needs the operator's review. The two under "Assumptions" would change the
 plan, not just fill it in.
 
-- **What happens to `bp instructions`.** Schemas absorb the how; the domain half has to land
-  somewhere. Candidates: an MCP resource, a tool that returns the doc, or folded into the
-  skills themselves. Whichever wins, `assets/bit-cli.md` shrinks to roughly its domain
-  sections. Undecided.
-- **`task complete` and `task delete` — operator or Claude?** `complete` is the track sign-off,
-  and `automation-notes.md` says the operator's explicit sign-off is what flips a track to
-  `done` — which reads operator-side, except bit_do runs it today (3 call sites). `delete` has
-  a confirmation prompt, which reads human, except dropping a bar mid-plan is a planning
-  action. Both could be operator-only, both could be tools, or `complete` could be operator
-  and `delete` a tool. Undecided.
-- **Ordering against the automation phase.** Narrowed, not settled. Additive-first says ship the
-  MCP, migrate the skills, then remove. Against that, dispatched sessions are the ones that most
-  need the typed surface, which argues for steps 1–5 landing before automation step 6 — the removal
-  steps (6 and 7) are unaffected either way, since they only close a path nothing depends on by
-  then. So the live question is narrow: **does dispatch wait on the read/write tools and the skills
-  migration, or ship on Bash and get the tools underneath it afterwards?** Operator's call.
 - **Version skew between plugin skills and the installed binary.** Stated as a risk under
   "Relationship to the automation phase"; no mitigation designed. A version handshake, a
   capability check at session start, and "just live with it" are all on the table.
 
-### Assumptions that need confirming
-
-These came out of the brainstorm and were read *into* the request. Either one being wrong
-changes the plan rather than a detail of it.
+### Assumptions — both confirmed 2026-08-22
 
 1. **"Remove commands the operator will never run" means the Claude-only ones get deleted from
-   the CLI** once the MCP owns them — *not* "hide operator commands from Claude". This is the
-   reading the inventory table is built on, and flipping it inverts the whole removal list.
-2. **Parity means equivalent capability, not equivalent flags.** Dropping `--body`, the tab
-   columns, and the `$( )` idiom counts as achieving parity rather than losing it. If parity
-   means flag-for-flag, the parity map above is wrong.
+   the CLI** once the MCP owns them — *not* "hide operator commands from Claude". Confirmed as the
+   reading the inventory table is built on. Confirmed with a caveat: deletion is a last step and may
+   not happen at all, so the table records where each command *would* go, not a commitment. See
+   step 7.
+2. **Parity means equivalent capability, not equivalent flags.** Confirmed: the bar is that Claude
+   can do everything it can do today. Dropping `--body`, the tab columns, and the `$( )` idiom is
+   achieving parity, not losing it, because those exist to get data through a shell and a tool call
+   has no shell.
 
 ---
 
 ## Position
 
-The CLI is not being replaced; it is being split by audience. The operator keeps a CLI and a
-TUI, Claude gets a typed tool surface, and the commands that only ever existed to be driven by
-a model stop existing. Two surfaces over one task package, not two implementations.
+One thing: change how Claude reaches `bp`, from Bash to a typed surface. The operator keeps a CLI
+and a TUI, Claude gets tools, and both run over one task package rather than two implementations.
+Deleting the commands nothing drives any more is optional tidying at the end, not the goal.
 
 Sequenced additive-first on purpose: the shell path stays open until a real cycle has run
 without it. The removal steps are last because they are the only irreversible ones.

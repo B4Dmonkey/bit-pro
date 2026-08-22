@@ -101,6 +101,17 @@ it there for the full decision list; the parts step 6 inherits:
       `/bit_do <BAR>` as `bit:bot-dev` in the track's worktree, and waits for it before dispatching
       that project's next bar. Cleanup on completion.
       *Done when:* a three-bar approved track runs bar 1 → 2 → 3 unattended, in order.
+- [ ] **The spawned session gets the MCP server passed inline.** Once `bp serve mcp` exists
+      (`mcp-notes.md`), the dispatch command adds `--mcp-config` with the server as an inline JSON
+      string. `bp init` registers it at local scope, keyed on the main checkout's path, so a
+      session started in `.claude/worktrees/<x>` does not match that entry — the inline form
+      reaches it and mutates nothing. Owned here, not by the MCP phase: it is a change to the
+      dispatch command, and the MCP server needs nothing worktree-aware of its own.
+      *Done when:* a dispatched worktree session lists the `mcp__bit__*` tools.
+      *First verify the premise* — that a worktree session really misses the local-scope entry is
+      documented behaviour, not something observed. If it resolves to the main checkout anyway,
+      this line is unnecessary.
+      *Not a blocker for dispatch itself* — dispatch can ship on Bash and gain this later.
 - [ ] Expect gaps here. Revisit this list before planning it.
 
 ### Before step 6 can do anything — carried over, still true
