@@ -1,13 +1,14 @@
-package cmd
+package task
 
 import (
 	"errors"
 
-	"github.com/B4Dmonkey/bit-pro/task"
+	"github.com/B4Dmonkey/bit-pro/bitdir"
+	taskstore "github.com/B4Dmonkey/bit-pro/task"
 	"github.com/spf13/cobra"
 )
 
-func newTaskMoveCmd() *cobra.Command {
+func newMoveCmd() *cobra.Command {
 	var before, after string
 
 	cmd := &cobra.Command{
@@ -27,7 +28,7 @@ func newTaskMoveCmd() *cobra.Command {
 				anchor = before
 			}
 
-			return task.New(bitDir).Move(args[0], anchor, hasBefore)
+			return taskstore.New(bitdir.Current()).Move(args[0], anchor, hasBefore)
 		},
 	}
 	cmd.Flags().StringVar(&before, "before", "", "move the bar directly before this sibling")

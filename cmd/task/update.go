@@ -1,11 +1,12 @@
-package cmd
+package task
 
 import (
-	"github.com/B4Dmonkey/bit-pro/task"
+	"github.com/B4Dmonkey/bit-pro/bitdir"
+	taskstore "github.com/B4Dmonkey/bit-pro/task"
 	"github.com/spf13/cobra"
 )
 
-func newTaskUpdateCmd() *cobra.Command {
+func newUpdateCmd() *cobra.Command {
 	var title, description, status, phaseLabel string
 
 	var phase int
@@ -15,7 +16,7 @@ func newTaskUpdateCmd() *cobra.Command {
 		Short: "Update an existing task",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s := task.New(bitDir)
+			s := taskstore.New(bitdir.Current())
 
 			t, err := s.Load(args[0])
 			if err != nil {
@@ -46,7 +47,7 @@ func newTaskUpdateCmd() *cobra.Command {
 				cmd.Flags().Changed("description") ||
 				cmd.Flags().Changed("phase") ||
 				cmd.Flags().Changed("phase-label")
-			sentBack := cmd.Flags().Changed("status") && status == task.StatusTodo
+			sentBack := cmd.Flags().Changed("status") && status == taskstore.StatusTodo
 
 			if t.Approved && (anyChanged || sentBack) {
 				t.Approved = false

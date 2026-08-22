@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 
+	"github.com/B4Dmonkey/bit-pro/bitdir"
 	"github.com/B4Dmonkey/bit-pro/db"
 	"github.com/B4Dmonkey/bit-pro/db/orm"
 	"github.com/B4Dmonkey/bit-pro/task"
@@ -17,7 +18,7 @@ func newTUICmd() *cobra.Command {
 		Short: "Browse tasks in a terminal UI",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			s := task.New(bitDir)
+			s := task.New(bitdir.Current())
 
 			tasks, err := s.List()
 			if err != nil {

@@ -1,4 +1,4 @@
-package cmd
+package task_test
 
 import (
 	"fmt"
@@ -153,7 +153,7 @@ func TestTaskListCmd_EmptyWhenNoTasks(t *testing.T) {
 func TestTaskListCmd_ShowsApprovedMarker(t *testing.T) {
 	initProject(t, "BIT")
 	createTask(t, "Track", "...")
-	mustRun(t, "approve", "BIT-1")
+	approve(t, trackID)
 
 	out := mustRun(t, "task", "list")
 

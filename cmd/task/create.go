@@ -1,15 +1,14 @@
-package cmd
+package task
 
 import (
 	"fmt"
 
-	"github.com/B4Dmonkey/bit-pro/task"
+	"github.com/B4Dmonkey/bit-pro/bitdir"
+	taskstore "github.com/B4Dmonkey/bit-pro/task"
 	"github.com/spf13/cobra"
 )
 
-const statusTodo = "todo"
-
-func newTaskCreateCmd() *cobra.Command {
+func newCreateCmd() *cobra.Command {
 	var (
 		description string
 		parent      string
@@ -23,7 +22,7 @@ func newTaskCreateCmd() *cobra.Command {
 		Short: "Create a new task",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runTaskCreate(cmd, args, parent, after, description, phase, phaseLabel)
+			return runCreate(cmd, args, parent, after, description, phase, phaseLabel)
 		},
 	}
 	cmd.Flags().StringVarP(&description, "description", "d", "", "task description (body content)")
@@ -35,12 +34,12 @@ func newTaskCreateCmd() *cobra.Command {
 	return cmd
 }
 
-func runTaskCreate(
+func runCreate(
 	cmd *cobra.Command, args []string,
 	parent, after, description string,
 	phase int, phaseLabel string,
 ) error {
-	s := task.New(bitDir)
+	s := taskstore.New(bitdir.Current())
 
 	var (
 		id  string
@@ -50,7 +49,7 @@ func runTaskCreate(
 	if parent != "" {
 		id, err = s.NextChildID(parent)
 	} else {
-		var cfg *task.Config
+		var cfg *taskstore.Config
 
 		cfg, err = s.Config()
 		if err != nil {
@@ -70,10 +69,10 @@ func runTaskCreate(
 		}
 	}
 
-	if err := s.Save(&task.Task{
+	if err := s.Save(&taskstore.Task{
 		ID:         id,
 		Title:      args[0],
-		Status:     statusTodo,
+		Status:     taskstore.StatusTodo,
 		Phase:      phase,
 		PhaseLabel: phaseLabel,
 		Body:       description,

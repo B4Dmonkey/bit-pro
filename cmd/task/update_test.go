@@ -1,4 +1,4 @@
-package cmd
+package task_test
 
 import (
 	"os"
@@ -115,7 +115,7 @@ func TestTaskUpdateCmd_ErrorsOnUnknownID(t *testing.T) {
 func TestTaskUpdateCmd_RevokesApprovalOnTitleChange(t *testing.T) {
 	initProject(t, "BIT")
 	createTask(t, "Old title", "...")
-	mustRun(t, "approve", trackID)
+	approve(t, trackID)
 
 	mustRun(t, taskCmdUse, updateCmd, trackID, "--title", "New title")
 
@@ -132,7 +132,7 @@ func TestTaskUpdateCmd_RevokesApprovalOnTitleChange(t *testing.T) {
 func TestTaskUpdateCmd_NoOpPreservesApproval(t *testing.T) {
 	initProject(t, "BIT")
 	createTask(t, "Old title", "...")
-	mustRun(t, "approve", trackID)
+	approve(t, trackID)
 
 	mustRun(t, taskCmdUse, updateCmd, trackID)
 
@@ -149,7 +149,7 @@ func TestTaskUpdateCmd_NoOpPreservesApproval(t *testing.T) {
 func TestTaskUpdateCmd_RevokesApprovalOnBodyChange(t *testing.T) {
 	initProject(t, "BIT")
 	createTask(t, "Old title", oldTaskBody)
-	mustRun(t, "approve", trackID)
+	approve(t, trackID)
 
 	mustRun(t, taskCmdUse, updateCmd, trackID, "--description", "New body.")
 
@@ -182,7 +182,7 @@ func TestTaskUpdateCmd_ForwardStatusMovePreservesApproval(t *testing.T) {
 				mustRun(t, taskCmdUse, updateCmd, trackID, "-s", tt.from)
 			}
 
-			mustRun(t, "approve", trackID)
+			approve(t, trackID)
 
 			mustRun(t, taskCmdUse, updateCmd, trackID, "-s", tt.to)
 
@@ -224,7 +224,7 @@ func TestTaskUpdateCmd_StatusToTodoRevokesApproval(t *testing.T) {
 				mustRun(t, taskCmdUse, updateCmd, trackID, "-s", tt.from)
 			}
 
-			mustRun(t, "approve", trackID)
+			approve(t, trackID)
 
 			mustRun(t, taskCmdUse, updateCmd, trackID, "-s", tt.to)
 

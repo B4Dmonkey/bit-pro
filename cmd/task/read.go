@@ -1,13 +1,14 @@
-package cmd
+package task
 
 import (
 	"fmt"
 
-	"github.com/B4Dmonkey/bit-pro/task"
+	"github.com/B4Dmonkey/bit-pro/bitdir"
+	taskstore "github.com/B4Dmonkey/bit-pro/task"
 	"github.com/spf13/cobra"
 )
 
-func newTaskReadCmd() *cobra.Command {
+func newReadCmd() *cobra.Command {
 	var bodyOnly bool
 
 	cmd := &cobra.Command{
@@ -15,7 +16,7 @@ func newTaskReadCmd() *cobra.Command {
 		Short: "Show a task's full content",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			t, err := task.New(bitDir).Load(args[0])
+			t, err := taskstore.New(bitdir.Current()).Load(args[0])
 			if err != nil {
 				return err
 			}

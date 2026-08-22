@@ -1,4 +1,4 @@
-package cmd
+package task_test
 
 import (
 	"errors"

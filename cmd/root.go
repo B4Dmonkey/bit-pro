@@ -4,36 +4,18 @@ import (
 	"context"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"strings"
 	"syscall"
 
+	"github.com/B4Dmonkey/bit-pro/bitdir"
 	"github.com/B4Dmonkey/bit-pro/claude"
+	taskcmd "github.com/B4Dmonkey/bit-pro/cmd/task"
 	"github.com/B4Dmonkey/bit-pro/daemon"
 	"github.com/spf13/cobra"
 )
 
 var version = "dev"
 
-var bitDir = ".bit"
-
-const (
-	claudeDir    = ".claude"
-	worktreesDir = "worktrees"
-)
-
-func canonicalBitDir(wd string) string {
-	sep := string(filepath.Separator)
-	segments := strings.Split(wd, sep)
-
-	for i := 0; i+1 < len(segments); i++ {
-		if segments[i] == claudeDir && segments[i+1] == worktreesDir {
-			return filepath.Join(strings.Join(segments[:i], sep), ".bit")
-		}
-	}
-
-	return ".bit"
-}
+const claudeDir = ".claude"
 
 func signalContext() (context.Context, context.CancelFunc) {
 	return signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -58,10 +40,7 @@ func newRootCmd(run claude.Runner, lc daemon.Runner) *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
-			bitDir = ".bit"
-			if wd, err := os.Getwd(); err == nil {
-				bitDir = canonicalBitDir(wd)
-			}
+			bitdir.Resolve()
 
 			return nil
 		},
@@ -76,7 +55,7 @@ func newRootCmd(run claude.Runner, lc daemon.Runner) *cobra.Command {
 	rootCmd.AddCommand(newStartCmd(lc))
 	rootCmd.AddCommand(newStatusCmd(lc))
 	rootCmd.AddCommand(newStopCmd(lc))
-	rootCmd.AddCommand(newTaskCmd())
+	rootCmd.AddCommand(taskcmd.NewCmd())
 	rootCmd.AddCommand(newTUICmd())
 	rootCmd.AddCommand(newUnapproveCmd())
 

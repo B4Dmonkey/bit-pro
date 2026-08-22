@@ -1,15 +1,16 @@
-package cmd
+package task
 
 import (
 	"bufio"
 	"fmt"
 	"strings"
 
-	"github.com/B4Dmonkey/bit-pro/task"
+	"github.com/B4Dmonkey/bit-pro/bitdir"
+	taskstore "github.com/B4Dmonkey/bit-pro/task"
 	"github.com/spf13/cobra"
 )
 
-func newTaskDeleteCmd() *cobra.Command {
+func newDeleteCmd() *cobra.Command {
 	var yes bool
 
 	var force bool
@@ -33,7 +34,7 @@ func newTaskDeleteCmd() *cobra.Command {
 				}
 			}
 
-			return task.New(bitDir).Relocate(id, force)
+			return taskstore.New(bitdir.Current()).Relocate(id, force)
 		},
 	}
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "skip confirmation")
