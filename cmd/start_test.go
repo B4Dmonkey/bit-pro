@@ -15,11 +15,12 @@ import (
 
 const (
 	editedPlist       = "not a plist"
+	stalePlist        = "<string>serve</string>"
 	startedPID        = "started (pid 4242)\n"
 	alreadyRunningPID = "already running (pid 4242)\n"
 )
 
-func TestStartCmd_WritesThePlistOnlyWhenMissing(t *testing.T) {
+func TestStartCmd_EnrollsOrRepairsThePlist(t *testing.T) {
 	tests := []struct {
 		name     string
 		existing string
@@ -32,13 +33,7 @@ func TestStartCmd_WritesThePlistOnlyWhenMissing(t *testing.T) {
 		{
 			name:     "a plist the operator edited",
 			existing: editedPlist,
-			check: func(t *testing.T, _, plist string) {
-				t.Helper()
-
-				if plist != editedPlist {
-					t.Errorf("plist contents = %q, want %q", plist, editedPlist)
-				}
-			},
+			check:    assertEnrollsTheDaemon,
 		},
 	}
 
@@ -110,6 +105,46 @@ func assertEnrollsTheDaemon(t *testing.T, home, plist string) {
 	if !info.IsDir() {
 		t.Errorf("%s is not a directory", storeDir)
 	}
+}
+
+func TestStartCmd_RepairsAStalePlist(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_DATA_HOME", "")
+
+	path := filepath.Join(home, "Library", "LaunchAgents", daemon.Label+".plist")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("os.MkdirAll(%q) returned error: %v", filepath.Dir(path), err)
+	}
+
+	if err := os.WriteFile(path, []byte(stalePlist), 0o600); err != nil {
+		t.Fatalf("os.WriteFile(%q) returned error: %v", path, err)
+	}
+
+	var calls []string
+
+	out, err := runWithDaemon(t, recordingLaunchctl(&calls, bootstrapCall(home), "", 113), startCmdUse)
+	if err != nil {
+		t.Fatalf("bp start returned error: %v", err)
+	}
+
+	bootout := slices.Index(calls, bootoutCall())
+	bootstrap := slices.Index(calls, bootstrapCall(home))
+
+	if bootout < 0 || bootstrap < 0 || bootout > bootstrap {
+		t.Errorf("launchctl calls = %v, want bootout before bootstrap", calls)
+	}
+
+	if out != startedPID {
+		t.Errorf("bp start output = %q, want %q", out, startedPID)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("os.ReadFile(%q) returned error: %v", path, err)
+	}
+
+	assertEnrollsTheDaemon(t, home, string(data))
 }
 
 func TestStartCmd_LogPathFollowsXDGDataHome(t *testing.T) {
