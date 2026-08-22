@@ -74,7 +74,7 @@ today                                    after
   the blast radius worse than today.
   Touches: `db/migrations/` (new migration), `db/queries/queue.sql`, `db/orm/` (sqlc regenerated).
 
-- [ ] Verse 2 — The play prompt queues the track it named: answering yes queues every approved,
+- [x] Verse 2 — The play prompt queues the track it named: answering yes queues every approved,
   not-yet-done bar of the track, in order, so the operator gets the run they confirmed instead of a
   single bar.
   Touches: `tui/model.go` (`handlePlayPrompt`, `enqueueSelected`), `cmd/tui.go` (`queueFuncs` — the

@@ -1,7 +1,7 @@
 ---
 id: BIT-34.2
 title: Yes at the prompt queues the track's bars
-status: todo
+status: done
 approved: true
 phase: 2
 phase_label: Play prompt

@@ -26,7 +26,7 @@ func newTUICmd() *cobra.Command {
 			}
 
 			var (
-				enqueue   func(targetID, targetTyp string) error
+				enqueue   func(targetIDs []string, targetTyp string) error
 				listQueue func() ([]string, error)
 			)
 
@@ -46,7 +46,7 @@ func newTUICmd() *cobra.Command {
 }
 
 func queueFuncs(ctx context.Context, q *orm.Queries) (
-	enqueue func(targetID, targetTyp string) error,
+	enqueue func(targetIDs []string, targetTyp string) error,
 	listQueue func() ([]string, error),
 ) {
 	wd, err := os.Getwd()
@@ -59,12 +59,18 @@ func queueFuncs(ctx context.Context, q *orm.Queries) (
 		return nil, nil
 	}
 
-	enqueue = func(targetID, targetTyp string) error {
-		return q.EnqueueTask(ctx, orm.EnqueueTaskParams{
-			ProjectID: project.ID,
-			TargetID:  targetID,
-			TargetTyp: targetTyp,
-		})
+	enqueue = func(targetIDs []string, targetTyp string) error {
+		for _, id := range targetIDs {
+			if err := q.EnqueueTask(ctx, orm.EnqueueTaskParams{
+				ProjectID: project.ID,
+				TargetID:  id,
+				TargetTyp: targetTyp,
+			}); err != nil {
+				return err
+			}
+		}
+
+		return nil
 	}
 
 	listQueue = func() ([]string, error) {

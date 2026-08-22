@@ -2,6 +2,7 @@
 id: BIT-36.3
 title: Contradiction forces stale-plist repair in bp start
 status: todo
+approved: true
 phase: 2
 phase_label: stale plist repair
 ---

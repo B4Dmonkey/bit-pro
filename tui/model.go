@@ -89,7 +89,7 @@ type model struct {
 	renderer          *glamour.TermRenderer
 	reload            func() ([]*task.Task, error)
 	approve           func(id string, approved bool) error
-	enqueue           func(targetID, targetTyp string) error
+	enqueue           func(targetIDs []string, targetTyp string) error
 	listQueue         func() ([]string, error)
 	queuedIDs         map[string]bool
 	loaded            []*task.Task
@@ -98,6 +98,7 @@ type model struct {
 	detailExpanded    bool
 	playPromptOpen    bool
 	playPromptTitle   string
+	playPromptTrackID string
 	pendingApprovalID string
 }
 
@@ -173,7 +174,7 @@ func (m model) WithApprove(f func(id string, approved bool) error) model {
 	return m
 }
 
-func (m model) WithEnqueue(f func(targetID, targetTyp string) error) model {
+func (m model) WithEnqueue(f func(targetIDs []string, targetTyp string) error) model {
 	m.enqueue = f
 	return m
 }
@@ -288,6 +289,7 @@ func (m model) handleReloaded(msg reloadedMsg) (tea.Model, tea.Cmd) {
 		if len(bars) >= 1 && allApproved(bars) {
 			m.playPromptOpen = true
 			m.playPromptTitle = trackTitle(parentID, msg.tasks)
+			m.playPromptTrackID = parentID
 		}
 
 		m.pendingApprovalID = ""
@@ -321,7 +323,10 @@ func (m model) handlePlayPrompt(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "y":
 		m.playPromptOpen = false
-		m.enqueueSelected()
+
+		if ids := m.enqueueableBarIDs(m.playPromptTrackID); len(ids) > 0 && m.enqueue != nil {
+			_ = m.enqueue(ids, targetBar)
+		}
 
 		return m, nil
 	case "n", keyEsc:
@@ -332,6 +337,18 @@ func (m model) handlePlayPrompt(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+func (m model) enqueueableBarIDs(trackID string) []string {
+	var ids []string
+
+	for _, t := range barChildrenOf(trackID, m.loaded) {
+		if t.Approved && t.Status != task.StatusDone {
+			ids = append(ids, t.ID)
+		}
+	}
+
+	return ids
 }
 
 func (m model) enqueueSelected() {
@@ -353,7 +370,7 @@ func (m model) enqueueSelected() {
 		typ = targetBar
 	}
 
-	_ = m.enqueue(t.ID, typ)
+	_ = m.enqueue([]string{t.ID}, typ)
 }
 
 func (m model) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
