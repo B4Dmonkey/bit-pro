@@ -80,7 +80,7 @@ today                                    after
   Touches: `tui/model.go` (`handlePlayPrompt`, `enqueueSelected`), `cmd/tui.go` (`queueFuncs` — the
   enqueue seam takes more than one target).
 
-- [ ] Verse 3 — `e` on a track queues the whole track: the shortcut matches the popup, so an
+- [x] Verse 3 — `e` on a track queues the whole track: the shortcut matches the popup, so an
   operator who declined the prompt can still queue a track in one keystroke. After this no surface
   writes a `track` row.
   Touches: `tui/model.go` (`enqueueSelected`, key dispatch), `tui/board.go`.

@@ -1,7 +1,7 @@
 ---
 id: BIT-36
 title: Rename bp serve → bp serve daemon
-status: todo
+status: doing
 approved: true
 ---
 ## Why

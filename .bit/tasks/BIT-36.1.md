@@ -1,7 +1,7 @@
 ---
 id: BIT-36.1
 title: Contradiction forces serve to become a parent
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: serve daemon

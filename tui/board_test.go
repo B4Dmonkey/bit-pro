@@ -873,3 +873,33 @@ func TestUpdate_BoardQuits(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateBoard_EKey_EnqueuesTrackBars(t *testing.T) {
+	t.Parallel()
+
+	var (
+		gotTargetIDs []string
+		gotTargetTyp string
+	)
+
+	m := New([]*task.Task{
+		{ID: ttid1, Status: task.StatusDoing, Approved: true},
+		{ID: ttid1_1, Status: task.StatusTodo, Approved: true},
+		{ID: ttid1_2, Status: task.StatusTodo, Approved: true},
+	}).
+		WithEnqueue(func(targetIDs []string, targetTyp string) error {
+			gotTargetIDs, gotTargetTyp = targetIDs, targetTyp
+
+			return nil
+		})
+
+	m.Update(tea.KeyPressMsg{Code: 'e'})
+
+	if want := []string{ttid1_1, ttid1_2}; !slices.Equal(gotTargetIDs, want) {
+		t.Errorf("enqueue target ids = %v, want %v", gotTargetIDs, want)
+	}
+
+	if gotTargetTyp != targetBar {
+		t.Errorf("enqueue target typ = %q, want %q", gotTargetTyp, targetBar)
+	}
+}

@@ -1587,7 +1587,7 @@ func TestHandlePlayPrompt_No_SkipsEnqueue(t *testing.T) {
 	}
 }
 
-func TestUpdate_EKey_EnqueuesTrack(t *testing.T) {
+func TestUpdate_EKey_EnqueuesTrackBars(t *testing.T) {
 	t.Parallel()
 
 	calls := 0
@@ -1597,7 +1597,11 @@ func TestUpdate_EKey_EnqueuesTrack(t *testing.T) {
 		gotTargetTyp string
 	)
 
-	m := New([]*task.Task{{ID: ttid1, Status: task.StatusDoing, Approved: true}}).
+	m := New([]*task.Task{
+		{ID: ttid1, Status: task.StatusDoing, Approved: true},
+		{ID: ttid1_1, Status: task.StatusTodo, Approved: true},
+		{ID: ttid1_2, Status: task.StatusTodo, Approved: true},
+	}).
 		WithEnqueue(func(targetIDs []string, targetTyp string) error {
 			calls++
 			gotTargetIDs, gotTargetTyp = targetIDs, targetTyp
@@ -1605,18 +1609,42 @@ func TestUpdate_EKey_EnqueuesTrack(t *testing.T) {
 			return nil
 		})
 
-	m.Update(tea.KeyPressMsg{Code: 'e'})
+	updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	updated.(model).Update(tea.KeyPressMsg{Code: 'e'})
 
 	if calls != 1 {
 		t.Errorf("enqueue calls = %d, want 1", calls)
 	}
 
-	if want := []string{ttid1}; !slices.Equal(gotTargetIDs, want) {
+	if want := []string{ttid1_1, ttid1_2}; !slices.Equal(gotTargetIDs, want) {
 		t.Errorf("enqueue target ids = %v, want %v", gotTargetIDs, want)
 	}
 
-	if gotTargetTyp != targetTrack {
-		t.Errorf("enqueue target typ = %q, want %q", gotTargetTyp, targetTrack)
+	if gotTargetTyp != targetBar {
+		t.Errorf("enqueue target typ = %q, want %q", gotTargetTyp, targetBar)
+	}
+}
+
+func TestUpdate_EKey_TrackWithNothingEnqueueableIsSilent(t *testing.T) {
+	t.Parallel()
+
+	calls := 0
+
+	m := New([]*task.Task{
+		{ID: ttid1, Status: task.StatusDoing, Approved: true},
+		{ID: ttid1_1, Status: task.StatusDone, Approved: true},
+		{ID: ttid1_2, Status: task.StatusTodo, Approved: false},
+	}).
+		WithEnqueue(func(_ []string, _ string) error {
+			calls++
+			return nil
+		})
+
+	updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	updated.(model).Update(tea.KeyPressMsg{Code: 'e'})
+
+	if calls != 0 {
+		t.Errorf("enqueue calls = %d, want 0", calls)
 	}
 }
 

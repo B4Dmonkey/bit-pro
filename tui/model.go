@@ -25,10 +25,7 @@ const (
 	modeBoard
 )
 
-const (
-	targetTrack = "track"
-	targetBar   = "bar"
-)
+const targetBar = "bar"
 
 type item struct {
 	t *task.Task
@@ -365,12 +362,16 @@ func (m model) enqueueSelected() {
 		return
 	}
 
-	typ := targetTrack
-	if isBar(t.ID) {
-		typ = targetBar
+	ids := []string{t.ID}
+	if !isBar(t.ID) {
+		ids = m.enqueueableBarIDs(t.ID)
 	}
 
-	_ = m.enqueue([]string{t.ID}, typ)
+	if len(ids) == 0 {
+		return
+	}
+
+	_ = m.enqueue(ids, targetBar)
 }
 
 func (m model) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
