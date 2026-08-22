@@ -24,38 +24,61 @@ func newTUICmd() *cobra.Command {
 				return err
 			}
 
-			var enqueue func(targetID, targetTyp string) error
+			var (
+				enqueue   func(targetID, targetTyp string) error
+				listQueue func() ([]string, error)
+			)
 
 			if sqlDB, err := db.Open(); err == nil {
 				defer sqlDB.Close()
 
-				enqueue = enqueueFunc(cmd.Context(), orm.New(sqlDB))
+				enqueue, listQueue = queueFuncs(cmd.Context(), orm.New(sqlDB))
 			}
 
 			return tui.Run(tui.New(tasks).
 				WithReload(s.List).
 				WithApprove(func(id string, approved bool) error { return s.SetApproved(id, approved) }).
-				WithEnqueue(enqueue))
+				WithEnqueue(enqueue).
+				WithListQueue(listQueue))
 		},
 	}
 }
 
-func enqueueFunc(ctx context.Context, q *orm.Queries) func(targetID, targetTyp string) error {
+func queueFuncs(ctx context.Context, q *orm.Queries) (
+	enqueue func(targetID, targetTyp string) error,
+	listQueue func() ([]string, error),
+) {
 	wd, err := os.Getwd()
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 
 	project, err := q.GetProjectByPath(ctx, wd)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 
-	return func(targetID, targetTyp string) error {
+	enqueue = func(targetID, targetTyp string) error {
 		return q.EnqueueTask(ctx, orm.EnqueueTaskParams{
 			ProjectID: project.ID,
 			TargetID:  targetID,
 			TargetTyp: targetTyp,
 		})
 	}
+
+	listQueue = func() ([]string, error) {
+		rows, err := q.ListQueueByProject(ctx, project.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		ids := make([]string, len(rows))
+		for i, r := range rows {
+			ids[i] = r.TargetID
+		}
+
+		return ids, nil
+	}
+
+	return enqueue, listQueue
 }

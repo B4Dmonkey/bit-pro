@@ -1,7 +1,7 @@
 ---
 id: BIT-33.4
 title: Contradiction forces cyan color + reload pulls queue
-status: todo
+status: done
 approved: true
 phase: 4
 phase_label: Queued items render cyan

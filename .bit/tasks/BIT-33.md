@@ -80,7 +80,7 @@ bp serve pops the head  →  row removed  →  cyan clears
   row without the popup. Works in both list and board modes.
   Touches: `tui/model.go`, `tui/board.go` key dispatch.
 
-- [ ] Verse 4 — Queued items render cyan: the delegate colors queued tasks cyan; the reload
+- [x] Verse 4 — Queued items render cyan: the delegate colors queued tasks cyan; the reload
   loop is extended to pull queue state each cycle so the color clears when a row is removed
   from the queue (hand-edited `bit.db` at this point; `clear-queue.sh` from Verse 5, or dispatch,
   later).

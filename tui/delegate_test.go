@@ -274,3 +274,29 @@ func TestDelegate_TrackVsBarDistinguishedByWeightNotColor(t *testing.T) {
 		t.Errorf("unselected bar = %q, should carry no foreground color", bar)
 	}
 }
+
+func TestResolveStyle_Queued_IsCyan(t *testing.T) {
+	t.Parallel()
+
+	d := delegate{queued: map[string]bool{ttid1: true}}
+
+	got := d.resolveStyle(trackStyle, &task.Task{ID: ttid1, Title: ttTrack, Approved: true}, false).Render(ttTrack)
+	if !strings.Contains(got, "36m") {
+		t.Errorf("queued approved unselected row = %q, want terminal cyan SGR 36m", got)
+	}
+}
+
+func TestResolveStyle_Selected_BeatsQueuedCyan(t *testing.T) {
+	t.Parallel()
+
+	d := delegate{board: true, queued: map[string]bool{ttid1: true}}
+
+	got := d.resolveStyle(trackStyle, &task.Task{ID: ttid1, Title: ttTrack, Approved: true}, true).Render(ttTrack)
+	if want := selectedBoardStyle.Render(ttTrack); got != want {
+		t.Errorf("queued selected board card = %q, want selected style %q", got, want)
+	}
+
+	if strings.Contains(got, "36m") {
+		t.Errorf("queued selected board card = %q, should not contain terminal cyan SGR 36m", got)
+	}
+}

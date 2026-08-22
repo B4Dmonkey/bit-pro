@@ -35,8 +35,9 @@ type item struct {
 }
 
 type reloadedMsg struct {
-	tasks []*task.Task
-	err   error
+	tasks  []*task.Task
+	queued []string
+	err    error
 }
 
 type tickMsg struct{}
@@ -89,6 +90,8 @@ type model struct {
 	reload            func() ([]*task.Task, error)
 	approve           func(id string, approved bool) error
 	enqueue           func(targetID, targetTyp string) error
+	listQueue         func() ([]string, error)
+	queuedIDs         map[string]bool
 	loaded            []*task.Task
 	detailFocused     bool
 	modalOpen         bool
@@ -121,7 +124,7 @@ func New(tasks []*task.Task) model {
 
 	var boardCols [3]list.Model
 	for i, cards := range cols {
-		boardCols[i] = newColumnList(cards)
+		boardCols[i] = newColumnList(cards, nil)
 	}
 
 	activeCol := defaultColumn(cols)
@@ -175,6 +178,11 @@ func (m model) WithEnqueue(f func(targetID, targetTyp string) error) model {
 	return m
 }
 
+func (m model) WithListQueue(f func() ([]string, error)) model {
+	m.listQueue = f
+	return m
+}
+
 func (m model) Init() tea.Cmd {
 	if m.reload != nil {
 		return tick()
@@ -189,10 +197,17 @@ func (m model) reloadCmd() tea.Cmd {
 	}
 
 	reload := m.reload
+	listQueue := m.listQueue
 
 	return func() tea.Msg {
 		tasks, err := reload()
-		return reloadedMsg{tasks: tasks, err: err}
+		if err != nil || listQueue == nil {
+			return reloadedMsg{tasks: tasks, err: err}
+		}
+
+		queued, err := listQueue()
+
+		return reloadedMsg{tasks: tasks, queued: queued, err: err}
 	}
 }
 
@@ -231,7 +246,7 @@ func (m *model) setTasks(tasks []*task.Task) {
 	}
 
 	for i, cards := range groupByStatus(tasks) {
-		m.boardCols[i] = newColumnList(cards)
+		m.boardCols[i] = newColumnList(cards, m.queuedIDs)
 	}
 
 	if prevBoardID != "" {
@@ -257,6 +272,9 @@ func (m model) handleReloaded(msg reloadedMsg) (tea.Model, tea.Cmd) {
 		return m, tick()
 	}
 
+	m.queuedIDs = idSet(msg.queued)
+	m.applyQueued()
+
 	if sameTasks(m.loaded, msg.tasks) {
 		return m, tick()
 	}
@@ -276,6 +294,27 @@ func (m model) handleReloaded(msg reloadedMsg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, tick()
+}
+
+func idSet(ids []string) map[string]bool {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	set := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		set[id] = true
+	}
+
+	return set
+}
+
+func (m *model) applyQueued() {
+	m.SetDelegate(delegate{queued: m.queuedIDs})
+
+	for i := range m.boardCols {
+		m.boardCols[i].SetDelegate(delegate{board: true, queued: m.queuedIDs})
+	}
 }
 
 func (m model) handlePlayPrompt(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {

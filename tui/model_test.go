@@ -1571,3 +1571,27 @@ func TestUpdate_EKey_EnqueuesBar(t *testing.T) {
 		t.Errorf("enqueue target typ = %q, want %q", gotTargetTyp, targetBar)
 	}
 }
+
+func TestUpdate_Tick_PopulatesQueuedIDs(t *testing.T) {
+	t.Parallel()
+
+	m := New(nil).
+		WithReload(func() ([]*task.Task, error) { return []*task.Task{{ID: ttid1}}, nil }).
+		WithListQueue(func() ([]string, error) { return []string{ttid1}, nil })
+
+	_, cmd := m.Update(tickMsg{})
+	if cmd == nil {
+		t.Fatal("tickMsg produced cmd = nil, want a reload cmd")
+	}
+
+	updated, _ := m.Update(cmd())
+
+	got := updated.(model).queuedIDs
+	if !got[ttid1] {
+		t.Errorf("queuedIDs[%s] = false, want true", ttid1)
+	}
+
+	if got[ttid9] {
+		t.Errorf("queuedIDs[%s] = true, want false", ttid9)
+	}
+}

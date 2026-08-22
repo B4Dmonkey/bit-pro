@@ -75,13 +75,13 @@ func groupByStatus(tasks []*task.Task) [3][]*task.Task {
 	return cols
 }
 
-func newColumnList(tasks []*task.Task) list.Model {
+func newColumnList(tasks []*task.Task, queued map[string]bool) list.Model {
 	items := make([]list.Item, len(tasks))
 	for i, t := range tasks {
 		items[i] = item{t: t}
 	}
 
-	l := list.New(items, delegate{board: true}, 0, 0)
+	l := list.New(items, delegate{board: true, queued: queued}, 0, 0)
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
 	l.SetShowTitle(false)

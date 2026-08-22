@@ -234,7 +234,7 @@ func TestFlattenBoard(t *testing.T) {
 	}{
 		{
 			name: "single column",
-			cols: [3]list.Model{{}, newColumnList([]*task.Task{{ID: ttid1}, {ID: ttid1_1}}), {}},
+			cols: [3]list.Model{{}, newColumnList([]*task.Task{{ID: ttid1}, {ID: ttid1_1}}, nil), {}},
 			want: []boardEntry{
 				{col: 1, pos: 0, t: &task.Task{ID: ttid1}},
 				{col: 1, pos: 1, t: &task.Task{ID: ttid1_1}},
@@ -243,9 +243,9 @@ func TestFlattenBoard(t *testing.T) {
 		{
 			name: "all three columns concatenate in order",
 			cols: [3]list.Model{
-				newColumnList([]*task.Task{{ID: ttid2}}),
-				newColumnList([]*task.Task{{ID: ttid1}, {ID: ttid1_1}}),
-				newColumnList([]*task.Task{{ID: ttid3}}),
+				newColumnList([]*task.Task{{ID: ttid2}}, nil),
+				newColumnList([]*task.Task{{ID: ttid1}, {ID: ttid1_1}}, nil),
+				newColumnList([]*task.Task{{ID: ttid3}}, nil),
 			},
 			want: []boardEntry{
 				{col: 0, pos: 0, t: &task.Task{ID: ttid2}},
@@ -256,7 +256,7 @@ func TestFlattenBoard(t *testing.T) {
 		},
 		{
 			name: "empty columns are skipped not padded",
-			cols: [3]list.Model{{}, newColumnList([]*task.Task{{ID: ttid1}}), {}},
+			cols: [3]list.Model{{}, newColumnList([]*task.Task{{ID: ttid1}}, nil), {}},
 			want: []boardEntry{
 				{col: 1, pos: 0, t: &task.Task{ID: ttid1}},
 			},
