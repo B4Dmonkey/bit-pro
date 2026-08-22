@@ -118,6 +118,7 @@ func newServeCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(newServeDaemonCmd())
+	cmd.AddCommand(newServeMCPCmd())
 
 	return cmd
 }
