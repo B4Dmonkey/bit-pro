@@ -25,6 +25,11 @@ const (
 	modeBoard
 )
 
+const (
+	targetTrack = "track"
+	targetBar   = "bar"
+)
+
 type item struct {
 	t *task.Task
 }
@@ -83,6 +88,7 @@ type model struct {
 	renderer          *glamour.TermRenderer
 	reload            func() ([]*task.Task, error)
 	approve           func(id string, approved bool) error
+	enqueue           func(targetID, targetTyp string) error
 	loaded            []*task.Task
 	detailFocused     bool
 	modalOpen         bool
@@ -161,6 +167,11 @@ func (m model) WithReload(r func() ([]*task.Task, error)) model {
 
 func (m model) WithApprove(f func(id string, approved bool) error) model {
 	m.approve = f
+	return m
+}
+
+func (m model) WithEnqueue(f func(targetID, targetTyp string) error) model {
+	m.enqueue = f
 	return m
 }
 
@@ -269,7 +280,12 @@ func (m model) handleReloaded(msg reloadedMsg) (tea.Model, tea.Cmd) {
 
 func (m model) handlePlayPrompt(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
-	case "y", "n", keyEsc:
+	case "y":
+		m.playPromptOpen = false
+		m.enqueueSelected()
+
+		return m, nil
+	case "n", keyEsc:
 		m.playPromptOpen = false
 		return m, nil
 	case keyCtrlC:
@@ -277,6 +293,28 @@ func (m model) handlePlayPrompt(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+func (m model) enqueueSelected() {
+	if m.enqueue == nil {
+		return
+	}
+
+	t := m.selected()
+	if m.mode == modeBoard {
+		t = m.boardSelected()
+	}
+
+	if t == nil {
+		return
+	}
+
+	typ := targetTrack
+	if isBar(t.ID) {
+		typ = targetBar
+	}
+
+	_ = m.enqueue(t.ID, typ)
 }
 
 func (m model) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {

@@ -72,7 +72,7 @@ bp serve pops the head  →  row removed  →  cyan clears
   Touches: `db/migrations/` (new migration), `db/queries/queue.sql`, `db/orm/` (sqlc
   regenerated).
 
-- [ ] Verse 2 — Popup "yes" enqueues: answering "yes" at the play prompt creates a `queue`
+- [x] Verse 2 — Popup "yes" enqueues: answering "yes" at the play prompt creates a `queue`
   row for the track. Verifiable by checking `bit.db`.
   Touches: `tui/board.go` (`handlePlayPrompt`), wired to the queue store from Verse 1.
 

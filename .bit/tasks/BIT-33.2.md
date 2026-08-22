@@ -1,7 +1,7 @@
 ---
 id: BIT-33.2
 title: Play-prompt yes calls enqueue stub
-status: todo
+status: done
 approved: true
 phase: 2
 phase_label: Popup yes enqueues

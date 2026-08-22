@@ -1464,3 +1464,57 @@ func TestContent_PlayPromptRendersInModeList(t *testing.T) {
 		t.Errorf("content() in modeList with playPromptOpen=true does not contain play prompt")
 	}
 }
+
+func TestHandlePlayPrompt_Yes_CallsEnqueue(t *testing.T) {
+	t.Parallel()
+
+	calls := 0
+
+	var gotTargetID, gotTargetTyp string
+
+	m := New([]*task.Task{{ID: ttid1, Status: task.StatusDoing, Approved: true}}).
+		WithEnqueue(func(targetID, targetTyp string) error {
+			calls++
+			gotTargetID, gotTargetTyp = targetID, targetTyp
+
+			return nil
+		})
+	m.playPromptOpen = true
+
+	m.Update(tea.KeyPressMsg{Code: 'y'})
+
+	if calls != 1 {
+		t.Errorf("enqueue calls = %d, want 1", calls)
+	}
+
+	if gotTargetID != ttid1 {
+		t.Errorf("enqueue target id = %q, want %q", gotTargetID, ttid1)
+	}
+
+	if gotTargetTyp != targetTrack {
+		t.Errorf("enqueue target typ = %q, want %q", gotTargetTyp, targetTrack)
+	}
+}
+
+func TestHandlePlayPrompt_No_SkipsEnqueue(t *testing.T) {
+	t.Parallel()
+
+	calls := 0
+
+	m := New([]*task.Task{{ID: ttid1, Status: task.StatusDoing, Approved: true}}).
+		WithEnqueue(func(_, _ string) error {
+			calls++
+			return nil
+		})
+	m.playPromptOpen = true
+
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
+
+	if calls != 0 {
+		t.Errorf("enqueue calls = %d, want 0", calls)
+	}
+
+	if updated.(model).playPromptOpen {
+		t.Error("playPromptOpen = true, want false after pressing n")
+	}
+}
