@@ -1,7 +1,8 @@
 ---
 id: BIT-33.1
 title: Migration + queries drive the orm
-status: todo
+status: done
+approved: true
 phase: 1
 phase_label: Queue table exists
 ---
@@ -10,7 +11,7 @@ phase_label: Queue table exists
 Compilation failure on missing ORM functions forces the migration, query files, and `sqlc generate` to exist.
 
 ## Scope
-- `db/migrations/20260821000001_create_queue.sql` — new `queue` table with `id`, `project_id` FK → `projects.id`, `subject_id TEXT NOT NULL`, `subject_kind TEXT NOT NULL`
+- `db/migrations/20260821000001_create_queue.sql` — new `queue` table with `id`, `project_id` FK → `projects.id`, `target_id TEXT NOT NULL`, `target_typ TEXT NOT NULL`
 - `db/queries/queue.sql` — `EnqueueTask :exec` (INSERT) and `ListQueueByProject :many` (SELECT WHERE project_id ORDER BY id)
 - `db/queries/projects.sql` — add `GetProjectByPath :one` (`SELECT id, path, code FROM projects WHERE path = ?`); `ProjectExists` returns a bool and cannot return the `id` needed for queue FK resolution
 - `db/orm/` — run `sqlc generate` to regenerate; new files: `queue.sql.go`, updated `models.go`

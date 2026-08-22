@@ -1,8 +1,7 @@
 ---
 id: BIT-33
 title: Queue
-status: todo
-approved: true
+status: doing
 ---
 ## Why
 The serve loop (`bp serve`) dispatches bars unattended, but it has no input: nothing tells
@@ -13,7 +12,9 @@ the end of the operator's involvement rather than the beginning of the machine's
 ## Summary
 Add a `queue` table to `bit.db` with a FK to `projects.id`. Enqueue from two surfaces: the
 play-prompt popup ("yes") and a TUI shortcut for tracks or bars the operator wants to queue
-without the popup. Queued items render cyan; the color clears when the item leaves the queue.
+without the popup. Queued items render cyan; the color clears when the item leaves the queue. Nothing in this
+scope consumes the queue, so a throwaway top-level `clear-queue.sh` empties the table between
+runs.
 
 ## Visual aid
 ```
@@ -47,7 +48,18 @@ bp serve pops the head  →  row removed  →  cyan clears
   same queue write function; the row is identical regardless of how it was requested.
 - **No CLI queue commands in this step.** `bp queue add/list/rm` are out of scope.
   The queue is written by the TUI and popped by the serve loop; the operator escape hatch
-  is direct `sqlite3` access. Step 6 (dispatch) is where a dequeue command earns its keep.
+  is `clear-queue.sh` (Verse 5). Step 6 (dispatch) is where a dequeue command earns its keep.
+- **The escape hatch is a throwaway shell script, not a `bp` subcommand.** Nothing here dequeues,
+  so rows accumulate with no way to remove them. `clear-queue.sh` at the repo root wipes the
+  table so the operator can reset between tracks. Deliberately not Go: a `bp queue clear` would
+  have to be designed, tested, and then unbuilt once dispatch owns dequeuing. It sits beside
+  `install.sh` and is **deleted, not migrated**, when the dispatch track lands a real dequeue
+  surface.
+- **The script targets the runtime database, not the dev one.** Two `bit.db` files exist: the
+  Justfile exports `DATABASE_URL` at `db/bit.db` for dbmate and sqlc, while the daemon and TUI
+  read `~/.local/share/bit-pro/bit.db`. The script uses the runtime path.
+- **It clears every row and takes no arguments.** One project is registered, so a `--project`
+  filter would be speculative. Delete all, report the count removed.
 - **Daemon state is not the TUI's concern for this MVP.** Answering "yes" while the daemon
   is stopped writes a queue row that nothing dispatches until the daemon starts. The TUI
   does not check or surface daemon state. The operator is expected to know whether `bp serve`
@@ -55,7 +67,7 @@ bp serve pops the head  →  row removed  →  cyan clears
 
 ## Verses
 
-- [ ] Verse 1 — Queue table exists: `queue` table migration and sqlc-generated queries land.
+- [x] Verse 1 — Queue table exists: `queue` table migration and sqlc-generated queries land.
   No CLI surface; verifiable by inspecting `bit.db` directly.
   Touches: `db/migrations/` (new migration), `db/queries/queue.sql`, `db/orm/` (sqlc
   regenerated).
@@ -70,5 +82,11 @@ bp serve pops the head  →  row removed  →  cyan clears
 
 - [ ] Verse 4 — Queued items render cyan: the delegate colors queued tasks cyan; the reload
   loop is extended to pull queue state each cycle so the color clears when a row is removed
-  from the queue (manually from `bit.db`, or later by dispatch).
+  from the queue (hand-edited `bit.db` at this point; `clear-queue.sh` from Verse 5, or dispatch,
+  later).
   Touches: `tui/delegate.go`, `tui/model.go` reload loop.
+
+- [ ] Verse 5 — Operator can clear the queue: `clear-queue.sh` at the repo root empties the
+  `queue` table and reports how many rows it removed, so the operator can reset between tracks.
+  Temporary — deleted once dispatch owns dequeuing.
+  Touches: `clear-queue.sh` (new, repo root).

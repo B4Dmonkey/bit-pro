@@ -2,6 +2,7 @@
 id: BIT-33.2
 title: Play-prompt yes calls enqueue stub
 status: todo
+approved: true
 phase: 2
 phase_label: Popup yes enqueues
 ---
@@ -12,7 +13,7 @@ TUI test: pressing `"y"` at the play prompt calls no enqueue stub → fails (fie
 Wire in `cmd/tui.go`: resolve `project_id` from DB at startup, pass closure as `WithEnqueue`.
 
 ## Scope
-- `tui/model.go` — add `enqueue func(subjectID, subjectKind string) error` field; `WithEnqueue(fn func(string, string) error) Option`; in `handlePlayPrompt`: `case "y": m.playPromptOpen = false; if m.enqueue != nil { _ = m.enqueue(selectedTaskID, subjectKind) }`; determine `subjectKind` via `isBar(id)` → `"bar"` else `"track"`
+- `tui/model.go` — add `enqueue func(targetID, targetTyp string) error` field; `WithEnqueue(fn func(string, string) error) Option`; in `handlePlayPrompt`: `case "y": m.playPromptOpen = false; if m.enqueue != nil { _ = m.enqueue(selectedTaskID, targetTyp) }`; determine `targetTyp` via `isBar(id)` → `"bar"` else `"track"`
 - `cmd/tui.go` — `db.Open()` + `orm.New(sqlDB).GetProjectByPath(ctx, cwd)` → `project.ID`; if project not found (unregistered): proceed without setting `WithEnqueue` (no-op per Decision); pass `WithEnqueue(func(sid, kind string) error { return orm.New(sqlDB).EnqueueTask(ctx, orm.EnqueueTaskParams{ProjectID: project.ID, SubjectID: sid, SubjectKind: kind}) })`
 
 ## TDD cycle
@@ -20,7 +21,7 @@ Wire in `cmd/tui.go`: resolve `project_id` from DB at startup, pass closure as `
 1. **Write test (RED):**
    - [ ] `TestHandlePlayPrompt_Yes_CallsEnqueue`
      - **Behavior:** pressing `y` at the play prompt invokes the enqueue callback with the selected task's ID and kind
-     - **Setup:** construct `model` with `playPromptOpen = true`; selected task ID `"BIT-33"` (a track — no dot); inject `WithEnqueue` stub that records `(subjectID, subjectKind)` args
+     - **Setup:** construct `model` with `playPromptOpen = true`; selected task ID `"BIT-33"` (a track — no dot); inject `WithEnqueue` stub that records `(targetID, targetTyp)` args
      - **Assertions:** after `m.Update(tea.KeyPressMsg{Code: tea.KeyRunes, Runes: []rune("y")})`: stub called once; `gotSubjectID == "BIT-33"`; `gotSubjectKind == "track"`
      - **Boundary:** `"y"` key — the one key in `handlePlayPrompt` that should trigger enqueue
    - [ ] Confirm fails: `m.enqueue undefined` (field doesn't exist yet)
@@ -43,7 +44,7 @@ Wire in `cmd/tui.go`: resolve `project_id` from DB at startup, pass closure as `
 - [ ] `just install`
 
 ## User verifies
-- [ ] In `bp tui`, approve the last bar of any track so the play prompt opens; press `y`; run `sqlite3 ~/.local/share/bit-pro/bit.db "SELECT * FROM queue;"` and confirm a row exists with the correct `subject_id`
+- [ ] In `bp tui`, approve the last bar of any track so the play prompt opens; press `y`; run `sqlite3 ~/.local/share/bit-pro/bit.db "SELECT * FROM queue;"` and confirm a row exists with the correct `target_id`
 
 ## Commit (user)
 `feat(tui): enqueue on play-prompt yes`

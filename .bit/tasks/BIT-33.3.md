@@ -2,6 +2,7 @@
 id: BIT-33.3
 title: e key calls enqueue stub for selected task
 status: todo
+approved: true
 phase: 3
 phase_label: TUI shortcut enqueues
 ---
@@ -40,7 +41,7 @@ TUI test: pressing `e` calls no enqueue stub → fails (no `e` handler) → add 
 - [ ] `just install`
 
 ## User verifies
-- [ ] In `bp tui`, navigate to any track and press `e`; in board mode navigate to any bar and press `e`; after each, run `sqlite3 ~/.local/share/bit-pro/bit.db "SELECT * FROM queue;"` and confirm a row was added with the correct `subject_id` and `subject_kind`
+- [ ] In `bp tui`, navigate to any track and press `e`; in board mode navigate to any bar and press `e`; after each, run `sqlite3 ~/.local/share/bit-pro/bit.db "SELECT * FROM queue;"` and confirm a row was added with the correct `target_id` and `target_typ`
 
 ## Commit (user)
 `feat(tui): e key enqueues selected task`
