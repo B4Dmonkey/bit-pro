@@ -2,6 +2,7 @@
 id: BIT-35
 title: MCP server skeleton — task_read over stdio
 status: todo
+approved: true
 ---
 ## Why
 Claude reaches `bp` today through Bash — one of thousands of things a shell can invoke.
