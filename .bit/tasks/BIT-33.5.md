@@ -1,7 +1,7 @@
 ---
 id: BIT-33.5
 title: clear-queue.sh empties the queue table
-status: todo
+status: done
 approved: true
 phase: 5
 phase_label: Operator can clear the queue

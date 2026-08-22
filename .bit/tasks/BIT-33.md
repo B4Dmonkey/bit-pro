@@ -1,7 +1,7 @@
 ---
 id: BIT-33
 title: Queue
-status: doing
+status: done
 ---
 ## Why
 The serve loop (`bp serve`) dispatches bars unattended, but it has no input: nothing tells
@@ -86,7 +86,7 @@ bp serve pops the head  →  row removed  →  cyan clears
   later).
   Touches: `tui/delegate.go`, `tui/model.go` reload loop.
 
-- [ ] Verse 5 — Operator can clear the queue: `clear-queue.sh` at the repo root empties the
+- [x] Verse 5 — Operator can clear the queue: `clear-queue.sh` at the repo root empties the
   `queue` table and reports how many rows it removed, so the operator can reset between tracks.
   Temporary — deleted once dispatch owns dequeuing.
   Touches: `clear-queue.sh` (new, repo root).
