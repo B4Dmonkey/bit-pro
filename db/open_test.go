@@ -38,7 +38,7 @@ func TestOpen_MigratesAFreshDatabase(t *testing.T) {
 		t.Fatalf("counting applied migrations: %v", err)
 	}
 
-	if applied != 3 {
-		t.Errorf("applied migrations = %d, want 3", applied)
+	if applied != 4 {
+		t.Errorf("applied migrations = %d, want 4", applied)
 	}
 }

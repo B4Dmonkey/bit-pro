@@ -67,6 +67,15 @@ see "Scope boundary" under Decisions, and the dispatch step in `automation-notes
 
 ### 5. Skills migration
 
+**Stop here and cut a version tag before the first skill edit.** Steps 1–4 are additive and
+undone by not using them; this is the first step that changes how existing work behaves, and the
+only one whose blast radius is every project on the machine. See "Versioning is deferred to the
+step-5 gate" under Decisions.
+
+- [ ] A tag exists on the last commit where the pipeline is known to work, before any skill is
+      touched.
+      *Done when:* `git describe --tags` on the pre-migration commit names a tag, and
+      `bp --version` prints it rather than a bare hash.
 - [ ] All seven skills under `bit/skills/` and both agents under `bit/agents/` call tools
       instead of shelling out.
       *Done when:* no skill or agent file contains a `bp task` or `bp feedback` bash block.
@@ -173,6 +182,24 @@ see "Scope boundary" under Decisions, and the dispatch step in `automation-notes
   parent; this phase hangs `mcp` off that parent. Whichever lands second inherits it.
 - **"Dispatched sessions need the typed surface most" is a preference, not a constraint.** If
   dispatch ships on Bash, unsupervised sessions reach for `mv` until step 6 closes that path.
+
+**Versioning is deferred to the step-5 gate** — settled 2026-08-22.
+- **No versioning now, one tag at step 5.** The repo has no tags today and does not need them for
+  steps 1–4. The gate sits at step 5 because that is where the additive half ends.
+- **The tag is a bookmark, not a release.** There is one user and no compatibility contract, so a
+  tag asserts exactly one thing: the pipeline worked at this commit. That makes
+  `git checkout <tag> && just install` the undo for the binary half, which is the whole reason to
+  cut it.
+- **The scheme does not need settling in advance.** `v1.0.0` on the pre-MCP commit is enough —
+  semver-*shaped* only because `git describe` sorts it and `plugin.json`'s `version` field expects
+  that shape. MAJOR/MINOR discipline is a promise to consumers that do not exist.
+- **A tag does not cover the skills half.** The binary builds from the local checkout, so `main` is
+  harmless there; the skills ship from the default branch unpinned, so merging is publishing (see
+  Measured facts). Rolling those back means pushing a revert and waiting on the plugin cache.
+  Keeping the migration off `main` until a real cycle has run on it is the protection the tag
+  cannot give.
+- **Step 6 is out of scope for the same window.** It is the only step that removes the Bash
+  fallback, so it stays behind "after a real cycle has run" rather than following step 5 directly.
 
 **Same binary, not a second one**
 - `bp serve mcp` lives in the `bp` binary, like the daemon. One install, one version, no separate
@@ -335,6 +362,16 @@ Notes on the map:
   and bar commands.
 - **`create --after` exists in code and not in the contract.** `cmd/task_create.go:31` versus
   `assets/bit-cli.md`, which covers `--after` only under `task move`.
+- **The repo has no tags, but the version plumbing is already wired.** `justfile:1` computes
+  `git describe --tags --always --dirty` and injects it into `cmd.version` (`cmd/root.go:39`), so
+  `bp --version` prints a bare commit hash today and would print a tag the moment one exists. No
+  code change is needed at the step-5 gate.
+- **The plugin skills track the default branch, unpinned.** `.claude/settings.json` registers the
+  marketplace as `{"source": "github", "repo": "B4Dmonkey/bit-pro"}` with no ref, and
+  `bit/.claude-plugin/plugin.json` carries no `version`, so Claude Code caches the skills by commit
+  hash — three stale copies sit under `~/.claude/plugins/cache/bit-pro/bit/`. Consequence: for the
+  binary `main` is harmless, since `just install` builds the local checkout; for the skills, a merge
+  to `main` reaches every project on the machine.
 
 ### Looked up on 2026-08-22
 

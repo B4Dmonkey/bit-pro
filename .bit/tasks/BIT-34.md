@@ -1,7 +1,7 @@
 ---
 id: BIT-34
 title: The queue holds bars only
-status: todo
+status: doing
 ---
 ## Why
 
@@ -68,7 +68,7 @@ today                                    after
 
 ## Verses
 
-- [ ] Verse 1 — Enqueueing the same bar twice stops corrupting the queue: the operator can press
+- [x] Verse 1 — Enqueueing the same bar twice stops corrupting the queue: the operator can press
   `e` repeatedly, or answer yes twice, and the queue holds one row per bar. Lands first because the
   later verses multiply one gesture into N rows, and doing that before the guarantee exists makes
   the blast radius worse than today.
