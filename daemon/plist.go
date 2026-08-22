@@ -23,6 +23,7 @@ var plistTemplate = template.Must(template.New("plist").Parse(`<?xml version="1.
 	<array>
 		<string>{{.Exe}}</string>
 		<string>serve</string>
+		<string>daemon</string>
 	</array>
 	<key>RunAtLoad</key>
 	<true/>

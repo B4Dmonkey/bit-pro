@@ -84,7 +84,7 @@ func assertEnrollsTheDaemon(t *testing.T, home, plist string) {
 	storeDir := filepath.Join(home, ".local", "share", "bit-pro")
 	logPath := regexp.QuoteMeta(filepath.Join(storeDir, "daemon.log"))
 
-	for _, want := range []string{daemon.Label, exe, "<string>serve</string>"} {
+	for _, want := range []string{daemon.Label, exe, "<string>serve</string>", "<string>daemon</string>"} {
 		if !strings.Contains(plist, want) {
 			t.Errorf("plist does not contain %q:\n%s", want, plist)
 		}
