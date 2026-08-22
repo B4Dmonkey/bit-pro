@@ -186,6 +186,22 @@ func (m model) updateModalBoard(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m model) handleBoardApprove() (tea.Model, tea.Cmd) {
+	if m.approve != nil {
+		if t := m.boardSelected(); t != nil {
+			if !t.Approved && isBar(t.ID) {
+				m.pendingApprovalID = t.ID
+			}
+
+			_ = m.approve(t.ID, !t.Approved)
+
+			return m, m.reloadCmd()
+		}
+	}
+
+	return m, nil
+}
+
 func (m model) updateBoard(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.modalOpen {
 		return m.updateModalBoard(msg)
@@ -200,23 +216,15 @@ func (m model) updateBoard(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	if msg.Code == ' ' && m.approve != nil {
-		if t := m.boardSelected(); t != nil {
-			if !t.Approved && isBar(t.ID) {
-				m.pendingApprovalID = t.ID
-			}
-
-			_ = m.approve(t.ID, !t.Approved)
-
-			return m, m.reloadCmd()
-		}
-
-		return m, nil
+	if msg.Code == ' ' {
+		return m.handleBoardApprove()
 	}
 
 	switch msg.String() {
 	case "q", keyEsc, keyCtrlC:
 		return m, tea.Quit
+	case "e":
+		m.enqueueSelected()
 	case keyRight:
 		if m.activeCol < len(boardColumns)-1 {
 			m.activeCol++

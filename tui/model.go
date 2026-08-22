@@ -378,6 +378,10 @@ func (m model) handleListKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "q", keyEsc, keyCtrlC:
 		return m, tea.Quit
+	case "e":
+		m.enqueueSelected()
+
+		return m, nil
 	case keyRight, "l":
 		if m.detailExpanded {
 			m.Select(min(m.Index()+1, len(m.Items())-1))

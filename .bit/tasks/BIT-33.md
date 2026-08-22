@@ -76,7 +76,7 @@ bp serve pops the head  →  row removed  →  cyan clears
   row for the track. Verifiable by checking `bit.db`.
   Touches: `tui/board.go` (`handlePlayPrompt`), wired to the queue store from Verse 1.
 
-- [ ] Verse 3 — TUI shortcut enqueues: pressing `e` on any track or bar creates a queue
+- [x] Verse 3 — TUI shortcut enqueues: pressing `e` on any track or bar creates a queue
   row without the popup. Works in both list and board modes.
   Touches: `tui/model.go`, `tui/board.go` key dispatch.
 

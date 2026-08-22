@@ -1,7 +1,7 @@
 ---
 id: BIT-33.3
 title: e key calls enqueue stub for selected task
-status: todo
+status: done
 approved: true
 phase: 3
 phase_label: TUI shortcut enqueues

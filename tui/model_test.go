@@ -1518,3 +1518,56 @@ func TestHandlePlayPrompt_No_SkipsEnqueue(t *testing.T) {
 		t.Error("playPromptOpen = true, want false after pressing n")
 	}
 }
+
+func TestUpdate_EKey_EnqueuesTrack(t *testing.T) {
+	t.Parallel()
+
+	calls := 0
+
+	var gotTargetID, gotTargetTyp string
+
+	m := New([]*task.Task{{ID: ttid1, Status: task.StatusDoing, Approved: true}}).
+		WithEnqueue(func(targetID, targetTyp string) error {
+			calls++
+			gotTargetID, gotTargetTyp = targetID, targetTyp
+
+			return nil
+		})
+
+	m.Update(tea.KeyPressMsg{Code: 'e'})
+
+	if calls != 1 {
+		t.Errorf("enqueue calls = %d, want 1", calls)
+	}
+
+	if gotTargetID != ttid1 {
+		t.Errorf("enqueue target id = %q, want %q", gotTargetID, ttid1)
+	}
+
+	if gotTargetTyp != targetTrack {
+		t.Errorf("enqueue target typ = %q, want %q", gotTargetTyp, targetTrack)
+	}
+}
+
+func TestUpdate_EKey_EnqueuesBar(t *testing.T) {
+	t.Parallel()
+
+	var gotTargetID, gotTargetTyp string
+
+	m := New([]*task.Task{{ID: ttid1_1, Status: task.StatusDoing, Approved: true}}).
+		WithEnqueue(func(targetID, targetTyp string) error {
+			gotTargetID, gotTargetTyp = targetID, targetTyp
+
+			return nil
+		})
+
+	m.Update(tea.KeyPressMsg{Code: 'e'})
+
+	if gotTargetID != ttid1_1 {
+		t.Errorf("enqueue target id = %q, want %q", gotTargetID, ttid1_1)
+	}
+
+	if gotTargetTyp != targetBar {
+		t.Errorf("enqueue target typ = %q, want %q", gotTargetTyp, targetBar)
+	}
+}
