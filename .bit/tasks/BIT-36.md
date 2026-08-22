@@ -26,7 +26,7 @@ None — all questions are settled. See Decisions.
 - [x] Verse 1 — `bp serve daemon` runs the loop: `serve` becomes a parent, the daemon body moves to `serve daemon`, the plist template emits `serve daemon`, and tests pass against the two-word form.
   Touches: `cmd/serve.go`, `cmd/root.go`, `daemon/plist.go`, `cmd/serve_test.go`, `daemon/plist_test.go`.
 
-- [ ] Verse 2 — `bp start` repairs a stale plist: on first start after an upgrade, if the on-disk plist differs from what `bp start` would write, it does bootout → rewrite → bootstrap instead of skipping. An already-enrolled machine running a new binary ends up with a daemon on `bp serve daemon`.
+- [x] Verse 2 — `bp start` repairs a stale plist: on first start after an upgrade, if the on-disk plist differs from what `bp start` would write, it does bootout → rewrite → bootstrap instead of skipping. An already-enrolled machine running a new binary ends up with a daemon on `bp serve daemon`.
   Touches: `cmd/start.go`, `daemon/start.go`, `daemon/plist.go`, `cmd/start_test.go`.
 
 ## References

@@ -1,7 +1,7 @@
 ---
 id: BIT-35
 title: MCP server skeleton — task_read over stdio
-status: todo
+status: doing
 approved: true
 ---
 ## Why
