@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -20,7 +22,7 @@ func newStartCmd(lc daemon.Runner) *cobra.Command {
 		Short: "Start the background daemon under launchd",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			path, err := enrollDaemon()
+			path, err := enrollDaemon(cmd.Context(), lc)
 			if err != nil {
 				return err
 			}
@@ -42,7 +44,7 @@ func newStartCmd(lc daemon.Runner) *cobra.Command {
 	}
 }
 
-func enrollDaemon() (string, error) {
+func enrollDaemon(ctx context.Context, lc daemon.Runner) (string, error) {
 	exe, err := os.Executable()
 	if err != nil {
 		return "", fmt.Errorf("locating the running binary: %w", err)
@@ -58,16 +60,20 @@ func enrollDaemon() (string, error) {
 		return "", err
 	}
 
-	_, err = os.Stat(path)
-	if err == nil {
-		return path, nil
-	}
+	canonical := daemon.Plist(exe, filepath.Join(dir, "daemon.log"))
 
-	if !errors.Is(err, fs.ErrNotExist) {
+	existing, err := os.ReadFile(path)
+
+	switch {
+	case err == nil && bytes.Equal(existing, canonical):
+		return path, nil
+	case err == nil:
+		daemon.Bootout(ctx, lc)
+	case !errors.Is(err, fs.ErrNotExist):
 		return "", fmt.Errorf("reading %s: %w", path, err)
 	}
 
-	if err := daemon.WritePlist(path, daemon.Plist(exe, filepath.Join(dir, "daemon.log"))); err != nil {
+	if err := daemon.WritePlist(path, canonical); err != nil {
 		return "", err
 	}
 

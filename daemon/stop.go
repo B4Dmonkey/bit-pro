@@ -5,6 +5,10 @@ import (
 	"fmt"
 )
 
+func Bootout(ctx context.Context, run Runner) {
+	_, _, _ = run(ctx, "launchctl", "bootout", domain()+"/"+Label)
+}
+
 func Stop(ctx context.Context, run Runner) error {
 	if _, _, err := run(ctx, "launchctl", "bootout", domain()+"/"+Label); err != nil {
 		return fmt.Errorf("booting out %s: %w", Label, err)

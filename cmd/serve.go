@@ -15,7 +15,10 @@ import (
 	"github.com/B4Dmonkey/bit-pro/task"
 )
 
-const serveCmdUse = "serve"
+const (
+	serveCmdUse       = "serve"
+	serveDaemonCmdUse = "daemon"
+)
 
 var serveTick = 10 * time.Second
 
@@ -59,11 +62,11 @@ func newHandler(w io.Writer, level slog.Level) slog.Handler {
 	return slog.NewJSONHandler(w, opts)
 }
 
-func newServeCmd() *cobra.Command {
+func newServeDaemonCmd() *cobra.Command {
 	var verbose bool
 
 	cmd := &cobra.Command{
-		Use:   serveCmdUse,
+		Use:   serveDaemonCmdUse,
 		Short: "Run the automation loop in the foreground",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -104,6 +107,17 @@ func newServeCmd() *cobra.Command {
 	}
 
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Log each tick of the loop")
+
+	return cmd
+}
+
+func newServeCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   serveCmdUse,
+		Short: "Run foreground servers",
+	}
+
+	cmd.AddCommand(newServeDaemonCmd())
 
 	return cmd
 }

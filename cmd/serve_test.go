@@ -41,8 +41,8 @@ func TestServeCmd_WritesProjectCounts(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
 	defer cancel()
 
-	if _, err := runWithContext(t, ctx, serveCmdUse); err != nil {
-		t.Fatalf("bp serve returned error: %v", err)
+	if _, err := runWithContext(t, ctx, serveCmdUse, serveDaemonCmdUse); err != nil {
+		t.Fatalf("bp serve daemon returned error: %v", err)
 	}
 
 	sqlDB, err := db.Open()
@@ -96,8 +96,8 @@ func TestServeCmd_CountsBacklogAndTodo(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
 	defer cancel()
 
-	if _, err := runWithContext(t, ctx, serveCmdUse); err != nil {
-		t.Fatalf("bp serve returned error: %v", err)
+	if _, err := runWithContext(t, ctx, serveCmdUse, serveDaemonCmdUse); err != nil {
+		t.Fatalf("bp serve daemon returned error: %v", err)
 	}
 
 	sqlDB, err := db.Open()
@@ -130,21 +130,29 @@ func TestServeCmd_ReturnsWhenContextCancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	out, err := runWithContext(t, ctx, serveCmdUse)
+	out, err := runWithContext(t, ctx, serveCmdUse, serveDaemonCmdUse)
 	if err != nil {
-		t.Fatalf("bp serve returned error: %v", err)
+		t.Fatalf("bp serve daemon returned error: %v", err)
 	}
 
 	if strings.Contains(out, "tick") {
-		t.Errorf("bp serve logged a tick before it was cancelled:\n%s", out)
+		t.Errorf("bp serve daemon logged a tick before it was cancelled:\n%s", out)
+	}
+}
+
+func TestServeCmd_DaemonIsListedInServeHelp(t *testing.T) {
+	out := mustRun(t, "serve", "--help")
+
+	if !strings.Contains(out, "daemon") {
+		t.Errorf("bp serve --help output does not list daemon:\n%s", out)
 	}
 }
 
 func TestServeCmd_IsListedInHelp(t *testing.T) {
-	out := mustRun(t, "--help")
+	out := mustRun(t, "serve", "--help")
 
-	if !strings.Contains(out, "serve") {
-		t.Errorf("bp --help output does not list serve:\n%s", out)
+	if !strings.Contains(out, "daemon") {
+		t.Errorf("bp serve --help output does not list daemon:\n%s", out)
 	}
 }
 
@@ -157,8 +165,8 @@ func TestServeCmd_TicksOnlyWhenVerbose(t *testing.T) {
 		args      []string
 		wantTicks bool
 	}{
-		{name: "verbose logs ticks at debug", args: []string{serveCmdUse, "-v"}, wantTicks: true},
-		{name: "default logs no ticks", args: []string{serveCmdUse}},
+		{name: "verbose logs ticks at debug", args: []string{serveCmdUse, serveDaemonCmdUse, "-v"}, wantTicks: true},
+		{name: "default logs no ticks", args: []string{serveCmdUse, serveDaemonCmdUse}},
 	}
 
 	for _, tt := range tests {
@@ -207,9 +215,9 @@ func TestServeCmd_LogsJSONWhenOutputIsNotATerminal(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
 	defer cancel()
 
-	out, err := runWithContext(t, ctx, serveCmdUse, "-v")
+	out, err := runWithContext(t, ctx, serveCmdUse, serveDaemonCmdUse, "-v")
 	if err != nil {
-		t.Fatalf("bp serve -v returned error: %v", err)
+		t.Fatalf("bp serve daemon -v returned error: %v", err)
 	}
 
 	var ticks int
@@ -308,8 +316,8 @@ func runSkipTest(t *testing.T, setup func(*testing.T, string)) {
 	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
 	defer cancel()
 
-	if _, err := runWithContext(t, ctx, serveCmdUse); err != nil {
-		t.Fatalf("bp serve returned error: %v", err)
+	if _, err := runWithContext(t, ctx, serveCmdUse, serveDaemonCmdUse); err != nil {
+		t.Fatalf("bp serve daemon returned error: %v", err)
 	}
 
 	sqlDB2, err := db.Open()
@@ -401,9 +409,9 @@ func TestServeCmd_LogsStartAndStop(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	out, err := runWithContext(t, ctx, serveCmdUse)
+	out, err := runWithContext(t, ctx, serveCmdUse, serveDaemonCmdUse)
 	if err != nil {
-		t.Fatalf("bp serve returned error: %v", err)
+		t.Fatalf("bp serve daemon returned error: %v", err)
 	}
 
 	var msgs []string
