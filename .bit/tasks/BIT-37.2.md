@@ -1,7 +1,7 @@
 ---
 id: BIT-37.2
 title: task_list returns every task as structured fields
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: Read surface

@@ -15,6 +15,10 @@ const (
 	testTitle   = "mcp test track"
 	testBody    = "the body"
 	testClient  = "test"
+
+	testBarID      = "FOO-1.1"
+	testBarTitle   = "a bar"
+	testPhaseLabel = "Read surface"
 )
 
 func TestServeMCPCmd_TaskReadReturnsStructuredFields(t *testing.T) {
@@ -207,5 +211,95 @@ func TestServeMCPCmd_ResolvesWorktreeRootToMainCheckout(t *testing.T) {
 
 	if got["title"] != testTitle {
 		t.Errorf("title = %v, want %s", got["title"], testTitle)
+	}
+}
+
+func TestServeMCPCmd_TaskListReturnsEveryTaskAsFields(t *testing.T) {
+	dir := t.TempDir()
+
+	store := task.New(filepath.Join(dir, ".bit"))
+	if err := store.Save(&task.Task{
+		ID: testTrackID, Title: testTitle, Status: task.StatusTodo,
+		Approved: true, Order: []string{testBarID},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := store.Save(&task.Task{
+		ID: testBarID, Title: testBarTitle, Status: task.StatusDoing,
+		Phase: 2, PhaseLabel: testPhaseLabel,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(t.Context())
+
+	serverT, clientT := mcp.NewInMemoryTransports()
+
+	errCh := make(chan error, 1)
+	go func() { errCh <- runMCPServer(ctx, dir, serverT) }()
+
+	t.Cleanup(func() {
+		cancel()
+		<-errCh
+	})
+
+	session, err := mcp.NewClient(&mcp.Implementation{Name: testClient, Version: "1"}, nil).Connect(ctx, clientT, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer session.Close()
+
+	result, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name:      taskListTool,
+		Arguments: map[string]any{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if result.IsError {
+		t.Fatalf("task_list returned error: %v", result.Content)
+	}
+
+	b, err := json.Marshal(result.StructuredContent)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var got struct {
+		Tasks []map[string]any `json:"tasks"`
+	}
+
+	if err := json.Unmarshal(b, &got); err != nil {
+		t.Fatal(err)
+	}
+
+	want := []map[string]any{
+		{
+			"id": testTrackID, "title": testTitle, "status": task.StatusTodo,
+			"approved": true, "phase": float64(0), "phase_label": "", "parent": "",
+		},
+		{
+			"id": testBarID, "title": testBarTitle, "status": task.StatusDoing,
+			"approved": false, "phase": float64(2), "phase_label": testPhaseLabel, "parent": testTrackID,
+		},
+	}
+
+	if len(got.Tasks) != len(want) {
+		t.Fatalf("tasks = %d entries, want %d", len(got.Tasks), len(want))
+	}
+
+	for i, w := range want {
+		for key, wantVal := range w {
+			if gotVal := got.Tasks[i][key]; gotVal != wantVal {
+				t.Errorf("tasks[%d][%s] = %v, want %v", i, key, gotVal, wantVal)
+			}
+		}
+
+		if _, ok := got.Tasks[i]["body"]; ok {
+			t.Errorf("tasks[%d] carries a body key", i)
+		}
 	}
 }
