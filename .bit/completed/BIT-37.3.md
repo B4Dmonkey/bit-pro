@@ -1,7 +1,7 @@
 ---
 id: BIT-37.3
 title: parent narrows the list to one track's bars, in order
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: Read surface

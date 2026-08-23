@@ -1,6 +1,6 @@
 # MCP phase — working notes
 
-**Last synced 2026-08-22. Route: `bp serve mcp`, a stdio MCP server in the same binary.**
+**Last synced 2026-08-23. Route: `bp serve mcp`, a stdio MCP server in the same binary.**
 
 `bp` is a CLI designed to be driven by a model, but it is reached through Bash — one of a
 thousand things that can be typed into a shell. The consequences are visible: Claude reaches
@@ -24,7 +24,7 @@ Each line is done when its "done when" clause is true.
 
 ### 1. Server skeleton
 
-- [ ] `bp serve mcp` runs a stdio MCP server exposing exactly one read-only tool, `task_read`.
+- [x] `bp serve mcp` runs a stdio MCP server exposing exactly one read-only tool, `task_read`.
       *Done when:* Claude Code lists the tool in a project wired to it, and a `task_read` on a
       real track returns its body.
       *Depends on:* the `serve` parent existing — see the pending rename in `automation-notes.md`.
@@ -32,7 +32,7 @@ Each line is done when its "done when" clause is true.
       where it ends up.
       *Built on:* `github.com/modelcontextprotocol/go-sdk/mcp` — `NewServer`, the generic
       `AddTool`, `StdioTransport`. See Measured facts for why not hand-rolled.
-- [ ] The server is a plain foreground process speaking stdio on stdin/stdout, so it can be driven
+- [x] The server is a plain foreground process speaking stdio on stdin/stdout, so it can be driven
       by hand.
       *Done when:* running it in a terminal and typing an `initialize` frame gets a response.
 
@@ -41,9 +41,14 @@ code path corrupts the protocol stream. This is the one mechanical hazard of the
 
 ### 2. Read surface
 
-- [ ] `task_read` and `task_list` return structured JSON — no header line, no `--body` flag,
+- [x] `task_read` and `task_list` return structured JSON — no header line, no `--body` flag,
       no tab columns.
       *Done when:* a skill's read step needs no Bash and no tab counting.
+      Landed 2026-08-23 in `cmd/serve_mcp.go`. `task_read` returns the full field set including
+      `body`; `task_list` returns an array of the same minus `body`, and takes `parent` to scope
+      the listing to one track's bars. The domain that `task_list`'s params need — track vs. bar,
+      dotted IDs — rides in the tool description, which is the cheapest of the two answers under
+      "`bp instructions` retires" and the one to keep unless it stops scaling.
 
 ### 3. Write surface
 

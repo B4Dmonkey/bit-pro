@@ -1,8 +1,7 @@
 ---
 id: BIT-37
 title: 'MCP read surface: task_list'
-status: doing
-approved: true
+status: done
 ---
 ## Why
 
@@ -59,7 +58,7 @@ skill                              skill
 
 ## Verses
 
-- [ ] Verse 1 — Claude can read a whole plan without a shell: `task_list` over MCP, with an
+- [x] Verse 1 — Claude can read a whole plan without a shell: `task_list` over MCP, with an
   optional `parent`, returning the same tasks in the same order `bp task list` prints, as
   structured fields instead of tab columns.
   Touches: `cmd/serve_mcp.go`, `cmd/serve_mcp_test.go`, `bitdir/` — the tool registration,

@@ -108,11 +108,21 @@ func taskListHandler(root string) mcp.ToolHandlerFor[taskListInput, taskListOutp
 	return func(
 		_ context.Context,
 		_ *mcp.CallToolRequest,
-		_ taskListInput,
+		in taskListInput,
 	) (*mcp.CallToolResult, taskListOutput, error) {
 		store := task.New(bitdir.ForRoot(root))
 
-		tasks, err := store.List()
+		var (
+			tasks []*task.Task
+			err   error
+		)
+
+		if in.Parent == "" {
+			tasks, err = store.List()
+		} else {
+			tasks, err = store.Children(in.Parent)
+		}
+
 		if err != nil {
 			return nil, taskListOutput{}, fmt.Errorf("listing tasks: %w", err)
 		}

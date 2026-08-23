@@ -19,6 +19,15 @@ const (
 	testBarID      = "FOO-1.1"
 	testBarTitle   = "a bar"
 	testPhaseLabel = "Read surface"
+
+	testSecondBarID    = "FOO-1.2"
+	testSecondBarTitle = "a later bar"
+	testOtherTrackID   = "FOO-2"
+	testOtherTitle     = "another track"
+	testOtherBarID     = "FOO-2.1"
+	testOtherBarTitle  = "another track's bar"
+
+	testParentKey = "parent"
 )
 
 func TestServeMCPCmd_TaskReadReturnsStructuredFields(t *testing.T) {
@@ -279,11 +288,11 @@ func TestServeMCPCmd_TaskListReturnsEveryTaskAsFields(t *testing.T) {
 	want := []map[string]any{
 		{
 			"id": testTrackID, "title": testTitle, "status": task.StatusTodo,
-			"approved": true, "phase": float64(0), "phase_label": "", "parent": "",
+			"approved": true, "phase": float64(0), "phase_label": "", testParentKey: "",
 		},
 		{
 			"id": testBarID, "title": testBarTitle, "status": task.StatusDoing,
-			"approved": false, "phase": float64(2), "phase_label": testPhaseLabel, "parent": testTrackID,
+			"approved": false, "phase": float64(2), "phase_label": testPhaseLabel, testParentKey: testTrackID,
 		},
 	}
 
@@ -300,6 +309,80 @@ func TestServeMCPCmd_TaskListReturnsEveryTaskAsFields(t *testing.T) {
 
 		if _, ok := got.Tasks[i]["body"]; ok {
 			t.Errorf("tasks[%d] carries a body key", i)
+		}
+	}
+}
+
+func TestServeMCPCmd_TaskListParentReturnsOnlyThatTracksBarsInOrder(t *testing.T) {
+	dir := t.TempDir()
+
+	store := task.New(filepath.Join(dir, ".bit"))
+
+	saved := []*task.Task{
+		{ID: testTrackID, Title: testTitle, Status: task.StatusTodo, Order: []string{testSecondBarID, testBarID}},
+		{ID: testBarID, Title: testBarTitle, Status: task.StatusDone},
+		{ID: testSecondBarID, Title: testSecondBarTitle, Status: task.StatusTodo},
+		{ID: testOtherTrackID, Title: testOtherTitle, Status: task.StatusTodo},
+		{ID: testOtherBarID, Title: testOtherBarTitle, Status: task.StatusTodo},
+	}
+	for _, tk := range saved {
+		if err := store.Save(tk); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	ctx, cancel := context.WithCancel(t.Context())
+
+	serverT, clientT := mcp.NewInMemoryTransports()
+
+	errCh := make(chan error, 1)
+	go func() { errCh <- runMCPServer(ctx, dir, serverT) }()
+
+	t.Cleanup(func() {
+		cancel()
+		<-errCh
+	})
+
+	session, err := mcp.NewClient(&mcp.Implementation{Name: testClient, Version: "1"}, nil).Connect(ctx, clientT, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer session.Close()
+
+	result, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name:      taskListTool,
+		Arguments: map[string]string{testParentKey: testTrackID},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if result.IsError {
+		t.Fatalf("task_list returned error: %v", result.Content)
+	}
+
+	b, err := json.Marshal(result.StructuredContent)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var got struct {
+		Tasks []map[string]any `json:"tasks"`
+	}
+
+	if err := json.Unmarshal(b, &got); err != nil {
+		t.Fatal(err)
+	}
+
+	want := []string{testSecondBarID, testBarID}
+	if len(got.Tasks) != len(want) {
+		t.Fatalf("tasks = %d entries, want %d", len(got.Tasks), len(want))
+	}
+
+	for i, wantID := range want {
+		if gotID := got.Tasks[i]["id"]; gotID != wantID {
+			t.Errorf("tasks[%d][id] = %v, want %v", i, gotID, wantID)
 		}
 	}
 }
