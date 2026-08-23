@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
+	"github.com/B4Dmonkey/bit-pro/bitdir"
 	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
@@ -58,7 +58,7 @@ func taskReadHandler(root string) mcp.ToolHandlerFor[taskReadInput, taskReadOutp
 		_ *mcp.CallToolRequest,
 		in taskReadInput,
 	) (*mcp.CallToolResult, taskReadOutput, error) {
-		store := task.New(filepath.Join(root, ".bit"))
+		store := task.New(bitdir.ForRoot(root))
 
 		t, err := store.Load(in.ID)
 		if err != nil {

@@ -26,14 +26,30 @@ func Resolve() {
 }
 
 func Canonical(wd string) string {
-	sep := string(filepath.Separator)
-	segments := strings.Split(wd, sep)
-
-	for i := 0; i+1 < len(segments); i++ {
-		if segments[i] == claudeDir && segments[i+1] == worktreesDir {
-			return filepath.Join(strings.Join(segments[:i], sep), defaultDir)
-		}
+	if dir, ok := worktreeCut(wd); ok {
+		return dir
 	}
 
 	return defaultDir
+}
+
+func ForRoot(root string) string {
+	if dir, ok := worktreeCut(root); ok {
+		return dir
+	}
+
+	return filepath.Join(root, defaultDir)
+}
+
+func worktreeCut(path string) (string, bool) {
+	sep := string(filepath.Separator)
+	segments := strings.Split(path, sep)
+
+	for i := 0; i+1 < len(segments); i++ {
+		if segments[i] == claudeDir && segments[i+1] == worktreesDir {
+			return filepath.Join(strings.Join(segments[:i], sep), defaultDir), true
+		}
+	}
+
+	return "", false
 }

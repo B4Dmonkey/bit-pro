@@ -13,6 +13,8 @@ import (
 const (
 	testTrackID = "FOO-1"
 	testTitle   = "mcp test track"
+	testBody    = "the body"
+	testClient  = "test"
 )
 
 func TestServeMCPCmd_TaskReadReturnsStructuredFields(t *testing.T) {
@@ -20,7 +22,7 @@ func TestServeMCPCmd_TaskReadReturnsStructuredFields(t *testing.T) {
 
 	store := task.New(filepath.Join(dir, ".bit"))
 	if err := store.Save(&task.Task{
-		ID: testTrackID, Title: testTitle, Status: task.StatusTodo, Body: "the body",
+		ID: testTrackID, Title: testTitle, Status: task.StatusTodo, Body: testBody,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +39,7 @@ func TestServeMCPCmd_TaskReadReturnsStructuredFields(t *testing.T) {
 		<-errCh
 	})
 
-	session, err := mcp.NewClient(&mcp.Implementation{Name: "test", Version: "1"}, nil).Connect(ctx, clientT, nil)
+	session, err := mcp.NewClient(&mcp.Implementation{Name: testClient, Version: "1"}, nil).Connect(ctx, clientT, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,8 +85,8 @@ func TestServeMCPCmd_TaskReadReturnsStructuredFields(t *testing.T) {
 		t.Errorf("approved = %v, want false", got["approved"])
 	}
 
-	if got["body"] != "the body" {
-		t.Errorf("body = %v, want the body", got["body"])
+	if got["body"] != testBody {
+		t.Errorf("body = %v, want %s", got["body"], testBody)
 	}
 
 	if got["parent"] != "" {
@@ -116,7 +118,7 @@ func TestServeMCPCmd_TaskReadReturnsParentForBar(t *testing.T) {
 		<-errCh
 	})
 
-	session, err := mcp.NewClient(&mcp.Implementation{Name: "test", Version: "1"}, nil).Connect(ctx, clientT, nil)
+	session, err := mcp.NewClient(&mcp.Implementation{Name: testClient, Version: "1"}, nil).Connect(ctx, clientT, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,5 +150,62 @@ func TestServeMCPCmd_TaskReadReturnsParentForBar(t *testing.T) {
 
 	if got["parent"] != testTrackID {
 		t.Errorf("parent = %v, want %s", got["parent"], testTrackID)
+	}
+}
+
+func TestServeMCPCmd_ResolvesWorktreeRootToMainCheckout(t *testing.T) {
+	dir := t.TempDir()
+
+	store := task.New(filepath.Join(dir, ".bit"))
+	if err := store.Save(&task.Task{
+		ID: testTrackID, Title: testTitle, Status: task.StatusTodo, Body: testBody,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(t.Context())
+
+	serverT, clientT := mcp.NewInMemoryTransports()
+
+	errCh := make(chan error, 1)
+	go func() { errCh <- runMCPServer(ctx, filepath.Join(dir, ".claude", "worktrees", "wt"), serverT) }()
+
+	t.Cleanup(func() {
+		cancel()
+		<-errCh
+	})
+
+	session, err := mcp.NewClient(&mcp.Implementation{Name: testClient, Version: "1"}, nil).Connect(ctx, clientT, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer session.Close()
+
+	result, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name:      taskReadTool,
+		Arguments: map[string]string{"id": testTrackID},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if result.IsError {
+		t.Fatalf("task_read returned error: %v", result.Content)
+	}
+
+	b, err := json.Marshal(result.StructuredContent)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var got map[string]any
+
+	if err := json.Unmarshal(b, &got); err != nil {
+		t.Fatal(err)
+	}
+
+	if got["title"] != testTitle {
+		t.Errorf("title = %v, want %s", got["title"], testTitle)
 	}
 }

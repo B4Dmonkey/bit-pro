@@ -1,7 +1,8 @@
 ---
 id: BIT-37
 title: 'MCP read surface: task_list'
-status: todo
+status: doing
+approved: true
 ---
 ## Why
 
@@ -33,19 +34,6 @@ skill                              skill
           fields, hope                              phase_label, parent}, …]}
 ```
 
-## Risks & unknowns
-
-- **Unknown:** The MCP server resolves the store as `$CLAUDE_PROJECT_DIR/.bit`
-  (`cmd/serve_mcp.go`), while the CLI resolves it through `bitdir.Canonical`, which cuts a
-  `.claude/worktrees/<name>/` path back to the main checkout's `.bit/`. In a worktree session
-  the two disagree, so tools would read a different store than `bp` writes. This contradicts
-  the "How the server finds `.bit/`" decision in `mcp-notes.md`, which assumed the server was
-  already on the BIT-27 cut.
-  **Resolve by:** Operator's call — either a verse in this scope puts the server on
-  `bitdir.Canonical`, or it stays with the automation phase, which is where worktree sessions
-  actually get dispatched.
-  **De-risk before planning?** Yes — it decides whether this scope is one verse or two.
-
 ## Decisions
 
 - **`task_list` returns a wrapper object, `{tasks: [...]}`, not a bare array.** SEP-2106 and
@@ -56,6 +44,12 @@ skill                              skill
   wanted; a caller that needs one calls `task_read`.
 - **`parent` is optional and mirrors the CLI exactly.** Absent lists every task; present lists
   that track's direct bars, in the track's explicit order. No new filtering, no new sorting.
+- **The MCP handlers resolve the store through `bitdir`, not a bare `filepath.Join(root, ".bit")`.**
+  The CLI already cuts a `.claude/worktrees/<name>/` path back to the main checkout's `.bit/`;
+  the server takes the same path so a worktree session's tools and its `bp` calls read one
+  store. `bitdir.Canonical` returns a *relative* `.bit` outside a worktree, so this needs a
+  root-taking form that falls back to joining the given root — not a bare `Canonical(root)`.
+  This is how `task_list` is built, not a verse of its own.
 - **Domain lives in the tool description, per-tool.** `mcp-notes.md` deferred *where* the
   domain half of `bp instructions` lands until tools were being written — this is that point,
   and the cheapest answer holds: `task_list`'s description carries track vs. bar and the
@@ -68,8 +62,8 @@ skill                              skill
 - [ ] Verse 1 — Claude can read a whole plan without a shell: `task_list` over MCP, with an
   optional `parent`, returning the same tasks in the same order `bp task list` prints, as
   structured fields instead of tab columns.
-  Touches: `cmd/serve_mcp.go`, `cmd/serve_mcp_test.go` — the tool registration and its
-  in-memory-transport test.
+  Touches: `cmd/serve_mcp.go`, `cmd/serve_mcp_test.go`, `bitdir/` — the tool registration,
+  its in-memory-transport test, and the shared store lookup.
 
 ## References
 
