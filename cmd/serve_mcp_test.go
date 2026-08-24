@@ -26,6 +26,10 @@ const (
 
 	testParentKey = "parent"
 	testTitleKey  = "title"
+	testStatusKey = "status"
+	testPhaseKey  = "phase"
+
+	testPhaseLabelKey = "phase_label"
 )
 
 func TestServeMCPCmd_TaskReadReturnsStructuredFields(t *testing.T) {
@@ -111,8 +115,8 @@ func TestServeMCPCmd_TaskListReturnsEveryTaskAsFields(t *testing.T) {
 
 	want := []map[string]any{
 		{
-			"id": testTrackID, testTitleKey: testTitle, "status": task.StatusTodo,
-			"approved": true, "phase": float64(0), "phase_label": "", testParentKey: "",
+			"id": testTrackID, testTitleKey: testTitle, testStatusKey: task.StatusTodo,
+			"approved": true, testPhaseKey: float64(0), testPhaseLabelKey: "", testParentKey: "",
 		},
 		{
 			"id": testBarID, testTitleKey: testBarTitle, "status": task.StatusDoing,

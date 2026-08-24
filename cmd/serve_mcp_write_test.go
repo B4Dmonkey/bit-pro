@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/task"
@@ -10,6 +11,14 @@ import (
 const (
 	testCreateBody = "## Why\n\nBecause `sed` owns the file format today.\n\n## Summary\n\nSix tools."
 	testUpdateBody = "## Why\n\nnew reason\n\n## Decisions\n\n- settled"
+
+	testSeedBarTitle       = "Contradiction forces real fan-out"
+	testSeedBarBody        = "## **Verse 2**\n\nstep detail"
+	testSeedPhase          = 2
+	testSeedPhaseLabel     = "Plan writes"
+	testRenamedBarTitle    = "Renamed step"
+	testRetaggedPhase      = 3
+	testRetaggedPhaseLabel = "Run writes"
 )
 
 func seedConfig(t *testing.T, dir string) {
@@ -81,5 +90,71 @@ func TestServeMCPCmd_TaskUpdateRewritesBodyAndReportsRevocation(t *testing.T) {
 
 	if updated.Approved {
 		t.Error("Approved = true, want false")
+	}
+}
+
+func TestServeMCPCmd_TaskUpdateLeavesOmittedFieldsAlone(t *testing.T) {
+	seed := task.Task{
+		ID:         testBarID,
+		Title:      testSeedBarTitle,
+		Status:     task.StatusTodo,
+		Phase:      testSeedPhase,
+		PhaseLabel: testSeedPhaseLabel,
+		Body:       testSeedBarBody,
+	}
+
+	tests := []struct {
+		name string
+		args map[string]any
+		want task.Task
+	}{
+		{
+			name: "status only leaves title, body and phase alone",
+			args: map[string]any{"id": testBarID, testStatusKey: task.StatusDoing},
+			want: task.Task{
+				ID: testBarID, Title: testSeedBarTitle, Status: task.StatusDoing,
+				Phase: testSeedPhase, PhaseLabel: testSeedPhaseLabel, Body: testSeedBarBody,
+			},
+		},
+		{
+			name: "title only leaves body and status alone",
+			args: map[string]any{"id": testBarID, testTitleKey: testRenamedBarTitle},
+			want: task.Task{
+				ID: testBarID, Title: testRenamedBarTitle, Status: task.StatusTodo,
+				Phase: testSeedPhase, PhaseLabel: testSeedPhaseLabel, Body: testSeedBarBody,
+			},
+		},
+		{
+			name: "phase tag only leaves title and body alone",
+			args: map[string]any{"id": testBarID, testPhaseKey: testRetaggedPhase, testPhaseLabelKey: testRetaggedPhaseLabel},
+			want: task.Task{
+				ID: testBarID, Title: testSeedBarTitle, Status: task.StatusTodo,
+				Phase: testRetaggedPhase, PhaseLabel: testRetaggedPhaseLabel, Body: testSeedBarBody,
+			},
+		},
+		{
+			name: "id alone is a no-op",
+			args: map[string]any{"id": testBarID},
+			want: seed,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			seeded := seed
+			seedTasks(t, dir, &seeded)
+
+			callTool(t, mcpSession(t, dir), taskUpdateTool, tt.args)
+
+			got, err := task.New(filepath.Join(dir, ".bit")).Load(testBarID)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if !reflect.DeepEqual(*got, tt.want) {
+				t.Errorf("task = %+v, want %+v", *got, tt.want)
+			}
+		})
 	}
 }

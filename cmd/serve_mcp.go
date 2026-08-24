@@ -32,8 +32,9 @@ A track is a top-level task — one whole scope — and its ID has no dot, as in
 child of a track — one plan step — and its ID is dotted, as in BIT-7.3. This mints a track: the
 returned id is the new task's ID, and its status starts at todo.`
 
-const taskUpdateDescription = `Rewrite a task's body and report whether approval survived.
+const taskUpdateDescription = `Update a task's fields and report whether approval survived.
 
+Every field is optional: one that is omitted is left unchanged, and one that is sent is written.
 The returned approved reflects whether the edit revoked approval: a change to what was reviewed
 revokes it, so a body rewrite of an approved task comes back with approved false.`
 
@@ -69,8 +70,12 @@ type taskCreateOutput struct {
 }
 
 type taskUpdateInput struct {
-	ID   string `json:"id"`
-	Body string `json:"body,omitempty"`
+	ID         string  `json:"id"`
+	Title      *string `json:"title,omitempty"`
+	Body       *string `json:"body,omitempty"`
+	Status     *string `json:"status,omitempty"`
+	Phase      *int    `json:"phase,omitempty"`
+	PhaseLabel *string `json:"phase_label,omitempty"`
 }
 
 type taskUpdateOutput struct {
@@ -203,7 +208,13 @@ func taskUpdateHandler(root string) mcp.ToolHandlerFor[taskUpdateInput, taskUpda
 	) (*mcp.CallToolResult, taskUpdateOutput, error) {
 		store := task.New(bitdir.ForRoot(root))
 
-		t, err := store.Update(in.ID, task.Patch{Body: &in.Body})
+		t, err := store.Update(in.ID, task.Patch{
+			Title:      in.Title,
+			Body:       in.Body,
+			Status:     in.Status,
+			Phase:      in.Phase,
+			PhaseLabel: in.PhaseLabel,
+		})
 		if err != nil {
 			return nil, taskUpdateOutput{}, fmt.Errorf("updating task %s: %w", in.ID, err)
 		}

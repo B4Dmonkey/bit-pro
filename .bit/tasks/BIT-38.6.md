@@ -1,7 +1,7 @@
 ---
 id: BIT-38.6
 title: 'Contradiction: an omitted param leaves its field alone'
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: Scope writes
