@@ -1,7 +1,7 @@
 ---
 id: BIT-38.5
 title: task_update rewrites a body and reports revoked approval
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: Scope writes

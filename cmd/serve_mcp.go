@@ -17,6 +17,7 @@ const (
 	taskReadTool   = "task_read"
 	taskListTool   = "task_list"
 	taskCreateTool = "task_create"
+	taskUpdateTool = "task_update"
 )
 
 const taskListDescription = `List tasks as structured fields, in the order bp prints them.
@@ -30,6 +31,11 @@ const taskCreateDescription = `Create a task and return its minted ID.
 A track is a top-level task — one whole scope — and its ID has no dot, as in BIT-7. A bar is a
 child of a track — one plan step — and its ID is dotted, as in BIT-7.3. This mints a track: the
 returned id is the new task's ID, and its status starts at todo.`
+
+const taskUpdateDescription = `Rewrite a task's body and report whether approval survived.
+
+The returned approved reflects whether the edit revoked approval: a change to what was reviewed
+revokes it, so a body rewrite of an approved task comes back with approved false.`
 
 type taskReadInput struct {
 	ID string `json:"id"`
@@ -62,6 +68,16 @@ type taskCreateOutput struct {
 	ID string `json:"id"`
 }
 
+type taskUpdateInput struct {
+	ID   string `json:"id"`
+	Body string `json:"body,omitempty"`
+}
+
+type taskUpdateOutput struct {
+	ID       string `json:"id"`
+	Approved bool   `json:"approved"`
+}
+
 type taskReadOutput struct {
 	ID         string `json:"id"`
 	Title      string `json:"title"`
@@ -91,6 +107,7 @@ func runMCPServer(ctx context.Context, root string, transport mcp.Transport) err
 	mcp.AddTool(s, &mcp.Tool{Name: taskReadTool, Description: "Read a task by ID"}, taskReadHandler(root))
 	mcp.AddTool(s, &mcp.Tool{Name: taskListTool, Description: taskListDescription}, taskListHandler(root))
 	mcp.AddTool(s, &mcp.Tool{Name: taskCreateTool, Description: taskCreateDescription}, taskCreateHandler(root))
+	mcp.AddTool(s, &mcp.Tool{Name: taskUpdateTool, Description: taskUpdateDescription}, taskUpdateHandler(root))
 
 	return s.Run(ctx, transport)
 }
@@ -175,6 +192,23 @@ func taskCreateHandler(root string) mcp.ToolHandlerFor[taskCreateInput, taskCrea
 		}
 
 		return nil, taskCreateOutput{ID: t.ID}, nil
+	}
+}
+
+func taskUpdateHandler(root string) mcp.ToolHandlerFor[taskUpdateInput, taskUpdateOutput] {
+	return func(
+		_ context.Context,
+		_ *mcp.CallToolRequest,
+		in taskUpdateInput,
+	) (*mcp.CallToolResult, taskUpdateOutput, error) {
+		store := task.New(bitdir.ForRoot(root))
+
+		t, err := store.Update(in.ID, task.Patch{Body: &in.Body})
+		if err != nil {
+			return nil, taskUpdateOutput{}, fmt.Errorf("updating task %s: %w", in.ID, err)
+		}
+
+		return nil, taskUpdateOutput{ID: t.ID, Approved: t.Approved}, nil
 	}
 }
 

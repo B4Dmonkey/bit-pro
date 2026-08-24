@@ -9,6 +9,7 @@ import (
 
 const (
 	testCreateBody = "## Why\n\nBecause `sed` owns the file format today.\n\n## Summary\n\nSix tools."
+	testUpdateBody = "## Why\n\nnew reason\n\n## Decisions\n\n- settled"
 )
 
 func seedConfig(t *testing.T, dir string) {
@@ -47,5 +48,38 @@ func TestServeMCPCmd_TaskCreateMintsATrack(t *testing.T) {
 
 	if created.Body != testCreateBody {
 		t.Errorf("Body = %q, want %q", created.Body, testCreateBody)
+	}
+}
+
+func TestServeMCPCmd_TaskUpdateRewritesBodyAndReportsRevocation(t *testing.T) {
+	dir := t.TempDir()
+	seedTasks(t, dir, &task.Task{
+		ID: testTrackID, Title: testTitle, Status: task.StatusTodo, Approved: true, Body: "## Why\n\nold reason",
+	})
+
+	got := callTool(t, mcpSession(t, dir), taskUpdateTool, map[string]any{
+		"id":   testTrackID,
+		"body": testUpdateBody,
+	})
+
+	if got["id"] != testTrackID {
+		t.Errorf("id = %v, want %s", got["id"], testTrackID)
+	}
+
+	if got["approved"] != false {
+		t.Errorf("approved = %v, want false", got["approved"])
+	}
+
+	updated, err := task.New(filepath.Join(dir, ".bit")).Load(testTrackID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if updated.Body != testUpdateBody {
+		t.Errorf("Body = %q, want %q", updated.Body, testUpdateBody)
+	}
+
+	if updated.Approved {
+		t.Error("Approved = true, want false")
 	}
 }
