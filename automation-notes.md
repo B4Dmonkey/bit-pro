@@ -1,10 +1,9 @@
 # Automation phase — working notes
 
-**Last synced 2026-08-21. Route: daemon.**
+**Last synced 2026-08-24. Route: daemon.**
 
-A long-running `bp serve daemon` process (still spelled `bp serve` in the code — see the pending
-rename) watches registered projects and dispatches queued bars. This
-replaces the earlier chaining design (a `Stop` hook re-invoking `bp dispatch` after every bar).
+A long-running `bp serve daemon` process watches registered projects and dispatches queued bars.
+This replaces the earlier chaining design (a `Stop` hook re-invoking `bp dispatch` after every bar).
 BIT-25 is shelved in `.bit/completed/` at `status: todo` — it is the chaining version and should
 not be planned as written.
 
@@ -78,8 +77,8 @@ Open gaps, both still open.
       *Done when:* enqueue from the popup and enqueue from the shortcut produce the same row shape,
       and the cyan clears when the row leaves the queue.
 
-Shipped in BIT-33 — **still at `.bit/tasks/BIT-33.md`, not yet filed under `.bit/completed/`.** Read
-it there for the full decision list; the parts step 6 inherits:
+Shipped in BIT-33, now filed under `.bit/completed/BIT-33.md`. Read it there for the full decision
+list; the parts step 6 inherits:
 
 - **The pop contract.** `queue` is `id INTEGER PRIMARY KEY`, `project_id` (FK `projects(id)`),
   `target_id TEXT` (BIT-N or BIT-N.M), `target_typ TEXT` (`track` | `bar`) — the shipped column names
@@ -98,54 +97,56 @@ it there for the full decision list; the parts step 6 inherits:
 ### 6. Dispatch
 
 - [ ] The loop pops the head of a project's queue, spawns a background Claude session prompted
-      `/bit_do <BAR>` as `bit:bot-dev` in the track's worktree, and waits for it before dispatching
+      `/bit:do <BAR>` as `bit:bot-dev` in the track's worktree, and waits for it before dispatching
       that project's next bar. Cleanup on completion.
       *Done when:* a three-bar approved track runs bar 1 → 2 → 3 unattended, in order.
-- [ ] **The spawned session gets the MCP server passed inline.** Once `bp serve mcp` exists
-      (`mcp-notes.md`), the dispatch command adds `--mcp-config` with the server as an inline JSON
-      string. `bp init` registers it at local scope, keyed on the main checkout's path, so a
-      session started in `.claude/worktrees/<x>` does not match that entry — the inline form
-      reaches it and mutates nothing. Owned here, not by the MCP phase: it is a change to the
-      dispatch command, and the MCP server needs nothing worktree-aware of its own.
-      *Done when:* a dispatched worktree session lists the `mcp__bit__*` tools.
-      *First verify the premise* — that a worktree session really misses the local-scope entry is
-      documented behaviour, not something observed. If it resolves to the main checkout anyway,
-      this line is unnecessary.
-      *Not a blocker for dispatch itself* — dispatch can ship on Bash and gain this later.
+- [ ] **A dequeue query.** `EnqueueTask` and `ListQueueByProject` are the only queue queries that
+      exist; step 6 writes the first delete. Whether a row goes on dispatch or on completion is
+      undecided — see Open gaps.
 - [ ] Expect gaps here. Revisit this list before planning it.
 
-### Before step 6 can do anything — carried over, still true
+**`--mcp-config` was cut from this step on 2026-08-24.** It sat here as "the spawned session gets
+the MCP server passed inline," and it gives dispatch nothing. A dispatched session runs `/bit:do`
+out of the **plugin** and reaches `bp` through Bash, which works today; the MCP surface changes
+what the *skills call*, not who starts the session. Its premise also looks wrong (see the
+2026-08-24 measurement), and it depends on `bp init` registering the server, which has not landed
+(`mcp-notes.md` step 4) — and on some skill actually calling a tool, which is step 5. Revisit it
+there, after steps 4–5, not here.
 
-- [ ] **`bit_do` commits and pushes.** This is the automation. Today the skill forbids it outright
-      (`bit/skills/do/SKILL.md:77`, `:99`) and all 43 BIT-2x bars say `## Commit (user)`. Mostly
-      skill-creator work, plus dropping the push deny rule. **Nothing runs unattended until this
-      lands.**
+### Before step 6 can do anything — rechecked 2026-08-24
+
+- [x] **`bit_do` commits and pushes** — **done, via `bit:bot-dev`.** The skill itself was left
+      alone; the agent (`bit/agents/bot-dev.md`) wraps it and adds the one delta — it runs the
+      bar's suggested commit message and pushes when `git remote` reports one, but only on a bar
+      with no `## User verifies` items. There is no push deny rule in `.claude/settings.json`.
 - [x] **Fix approval revocation** — **done, BIT-30.** A forward status move
       (`todo → doing → done`) now keeps approval; only a send-back to `todo` revokes it, along with
       title/description/phase edits (`cmd/task_update.go:45-53`). `bp task update <BAR> -s doing` no
       longer unapproves the bar it just started, so `bit_do`'s approval gate can resume it.
-- [ ] **Worktree name recorded at scope time.** bit_scope asks for and stores it; bit_plan and
-      bit_do carry it down. Dispatch cannot run before the name exists.
-- [ ] **`bit:bot-dev` agent definition** — denied `approve`, written for an operator who is not
-      continuously present.
+- [x] **`bit:bot-dev` agent definition** — **done.** `bit/agents/bot-dev.md`, written for an
+      operator who is not present. It *forbids* `bp approve` in prose; nothing enforces it — see
+      the next line.
+- [ ] **Enforce "Claude never approves."** An unattended session can type `bp approve` and clear
+      its own gate. A `Bash(bp approve:*)` deny rule in `.claude/settings.json` gets the property
+      now, and `bp init` already owns that file (`cmd/init.go:48`) — though `claude.merge` assumes
+      an object-shaped section and `permissions.deny` is an array, so it needs a sibling helper.
+      The MCP phase would make the command *absent* instead, but only after all of
+      `mcp-notes.md` steps 4–6.
+- [ ] **Worktree name — where does it come from?** The line here used to say bit_scope must ask
+      for and store it. That is one option, not a settled one: `<track-id>-<slug of title>` derived
+      at dispatch needs no skill change and no new record field. Decide before planning — the
+      scope-time route blocks dispatch on a skill-creator pass, the derived route does not.
 
-### Pending rename — `bp serve` → `bp serve daemon` — needs its own scope track
+### Pending rename — `bp serve` → `bp serve daemon` — **done**
 
-Not a blocker for step 6; listed here so it isn't lost. Decided under "Daemon hosting"; the code has
-not moved yet.
+Landed, and nothing here blocks step 6 any more.
 
-- [ ] `serve` becomes a parent command; the daemon body moves to `bp serve daemon`; the plist's
-      `ProgramArguments` follows.
-      *Done when:* `bp serve` prints help, `bp serve daemon` runs the loop, and a freshly enrolled
-      machine's plist points at the two-word form.
-- [ ] **`bp start` has to rewrite a stale plist.** `enrollDaemon` writes the plist *only when the
-      file is absent* (`cmd/start.go:60-63`), so an already-enrolled machine keeps a plist pointing
-      at bare `bp serve` — which, as a parent with no `RunE`, prints help and **exits 0** (verified
-      against `bp task`). `KeepAlive {SuccessfulExit: false}` therefore does not restart it: the job
-      loads, dies immediately, and nothing anywhere says so. The fix is `bp start` comparing the
-      plist on disk against what it would write and, on a difference, doing **bootout → rewrite →
-      bootstrap** — the "plist contents changed" case under "Two staleness cases", not `kickstart`.
-      *Done when:* upgrading a binary whose plist is stale leaves a running daemon on the new form.
+- [x] `serve` is a parent with `daemon` and `mcp` children (`cmd/serve.go`), and the plist's
+      `ProgramArguments` is the two-word form (`daemon/plist.go`).
+- [x] **`bp start` rewrites a stale plist.** `enrollDaemon` compares the file on disk against what
+      it would write and, on a difference, does bootout → rewrite → bootstrap
+      (`cmd/start.go:66-78`) — the "plist contents changed" case under "Two staleness cases", not
+      `kickstart`.
 
 ---
 
@@ -164,6 +165,24 @@ not moved yet.
   bar 8 reasoning out of bar 1's conversation.
 - **Permission prompts are retained deliberately.** The session pausing for the operator is the
   safety mechanism that replaces the push gate. No permission mode that suppresses it.
+
+**Ordering against the MCP phase** — settled 2026-08-24.
+- **Dispatch goes first; it has no MCP dependency.** The loop spawns a session, polls
+  `claude agents --json`, and re-reads `.bit/` to see whether the bar landed. None of that cares
+  what `bit:do` does internally. `mcp-notes.md` step 5 rewrites the *inside* of the skills
+  (`bp task read` → `task_read`), not the prompt dispatch sends or the ledger state it checks.
+- **Skills come from the plugin, not the MCP.** `bit@bit-pro` in `.claude/settings.json` is what
+  puts `/bit:do` and `bit:bot-dev` in front of a session. The MCP server is a separate tool
+  surface. Easy to conflate because `mcp-notes.md` step 5 is titled "Skills migration" — it
+  rewrites their contents, it does not deliver them.
+- **Why this order and not the reverse.** Step 5 rewrites seven skills and two agents at once,
+  machine-wide. Landing it first means an unattended misbehaviour could be dispatch or the
+  rewrite; landing it second gives the migration a working unattended cycle to prove itself
+  against.
+- **The one real gap this leaves is `bp approve`** on an unattended session, and a deny rule
+  closes it far cheaper than a phase — see "Before step 6 can do anything".
+- **Only `mcp-notes.md` step 6 is genuinely ordered** (deny Bash writes to `.bit/`), and it is
+  already strictly after step 5, internal to that phase.
 
 **Daemon hosting** — settled 2026-08-19, see "Daemons on macOS" for the mechanics.
 - **launchd hosts the daemon**, as a per-user LaunchAgent in `gui/$UID`. `bp` does not fork itself;
@@ -189,6 +208,10 @@ not moved yet.
   string, so a `claude agents` row is directly recognisable. Default `<track-id>-<short-name>`;
   an explicit operator-supplied name passes through verbatim, no truncation.
 - **`bp` removes the worktree on `bp task complete`.**
+- **Recheck when scoping step 6:** `bp` creating the worktree means new git-worktree code in Go
+  (create, reuse-if-exists, remove). Letting `claude -w <name>` create it is zero new code and
+  costs only the forced `worktree-` branch prefix. The decision above stands until deliberately
+  revisited; just confirm it still earns its cost before planning bars against it.
 
 **State**
 - YAML frontmatter for task records; SQLite for global state (registry, queue). Structured state is
@@ -277,8 +300,8 @@ server. Grouped by shape, not by audience: both are plain foreground processes t
 about launchd. `bp start`/`stop`/`status` stay daemon-only and never gain an MCP mode, and nobody
 types `bp serve mcp` by hand — Claude Code's config does.
 
-**The code today is still `bp serve`** (`cmd/serve.go:18`, `daemon/plist.go:25`). The rename is real
-work and needs its own scope track — see the Todo.
+**The rename landed.** `cmd/serve.go` has `serve` as a parent with `daemon` and `mcp` children, and
+`daemon/plist.go` emits the two-word `ProgramArguments`.
 
 **Plist gotchas.** Agents inherit almost no `PATH` or environment, so everything is an absolute path
 and anything the spawned Claude sessions need has to be declared in the plist (`EnvironmentVariables`,
@@ -325,8 +348,15 @@ tags. Not a reason to prefer the self-fork route; it is unsupervised on Linux to
 - **Subscription auth.** `claude -p … --output-format json` works; `--bare` fails without
   `ANTHROPIC_AUTH_TOKEN`. Cold `-p` startup was ~21k tokens in this repo.
 - **`bp init` already writes `.claude/settings.json`** via `claude.WriteSettings`
-  (`cmd/init.go:48`) — the existing seam for anything installed at enrollment. The plugin ships
-  skills and one agent; **there is no MCP server**, so `bp` reaches a model only as Bash.
+  (`cmd/init.go:48`) — the existing seam for anything installed at enrollment. It writes
+  `extraKnownMarketplaces` and `enabledPlugins` only, and `claude.merge` assumes an object-shaped
+  section, so an array like `permissions.deny` needs a sibling helper.
+- **`.claude/settings.json` is tracked**, and `.gitignore` excludes only `.claude/worktrees` — so a
+  worktree checkout carries it, and a dispatched session in `.claude/worktrees/<x>` has
+  `bit@bit-pro` enabled and can run `/bit:do`. **The plugin delivers the skills; the MCP server is
+  a separate tool surface.** `bp serve mcp` now exists with eight tools, but `bp init` does not
+  register it (`mcp-notes.md` step 4) and no skill calls it yet (step 5), so `bp` still reaches a
+  model only as Bash.
 - **BIT-27** — `bp` cuts the path at `.claude/worktrees/` to find the canonical `.bit/`, so any
   invocation from inside a worktree writes to the main checkout. Dispatch passes nothing.
 - **`launchctl list <label>` is a usable status source.** It prints a plist dict including
@@ -372,10 +402,34 @@ Probed in a throwaway git repo. Every 2.1.231 claim above about `-w` held; these
   bar, capped with `--max-turns`" line under Position does not describe anything the CLI offers.
   An unattended bar runs until it finishes, parks, or is stopped by hand.
 
+### Measured 2026-08-24 on Claude Code 2.1.241
+
+- **A `-w` session's config stays keyed on the repo root.** `~/.claude.json` has **zero**
+  worktree-keyed `projects` entries across 59 projects, and the old `-w bit-99-probe` run is
+  recorded under its *repo root* key as `activeWorktreeSession` — `originalCwd` is the repo root,
+  with `worktreePath`, `worktreeName`, `worktreeBranch`, and `sessionId` beside it. Claude Code
+  tracks a worktree session against the original project entry, so the premise that such a session
+  misses a local-scope `mcpServers` entry looks **false**. Not a full test — it observes config
+  *writing*, not MCP resolution — but enough to stop treating the miss as given.
+- **`--mcp-config <configs...>`** loads MCP servers from JSON files or inline strings;
+  **`--strict-mcp-config`** makes them the *only* ones. Without strict, inline servers add to
+  whatever else resolves.
+- **`bp serve daemon` and `bp serve mcp` both exist** (`cmd/serve.go`). The daemon body is still
+  the counts-only tick loop (`writeCounts`, 10s ticker) — step 6 fills it in.
+
 ---
 
 ## Open gaps
 
+- **Dequeue timing.** No delete query exists yet. Deleting **on dispatch** (keyed off the
+  `backgrounded · <id> · <name>` line the spawn prints) is simplest, but a daemon that dies
+  between spawn and completion silently drops the bar. Deleting **on completion** re-dispatches
+  after a crash, which the ledger check makes cheap — an already-`done` bar is skipped rather than
+  re-run. Undecided.
+- **A dispatched session that ends without landing the bar.** The session leaves
+  `working`/`blocked` but the ledger still says `todo` or `doing`. Stall that project's queue and
+  log it, advance to the next row, or retry once? "A parked bar holds its slot" covers a *blocked*
+  session, not a finished-but-failed one. Undecided.
 - **Counts vs. a track whose approval and status disagree.** BIT-32's four count buckets — backlog
   (unapproved), todo (approved and not done), done, completed — partition cleanly only while approval
   and status agree. An unapproved track that is already `doing` or `done` matches more than one
@@ -426,8 +480,10 @@ Explicitly high-touch. Automate only what has earned trust; scoping and planning
 The target is the tail end of implementation. A correct pipeline first — smooth beats fast. The
 permission pause is what makes "high-touch" real rather than aspirational.
 
-Cost model: not "one shot per bar" but **one bounded session per bar**, capped with `--max-turns`.
-A bar whose check fails once is already multi-turn.
+Cost model: not "one shot per bar" but **one session per bar** — a bar whose check fails once is
+already multi-turn. It cannot be *bounded* from the command line: there is no `--max-turns` on
+2.1.241, and `--max-budget-usd` needs `--print`, which `--bg` refuses. An unattended bar runs until
+it finishes, parks, or is stopped by hand.
 
 **Reference points:** *beads* (`gastownhall/beads`) for the data model — bit-pro plays this role;
 *gastown* (`gastownhall/gastown`) for the orchestration, minus the merge queue and escalation
