@@ -34,8 +34,9 @@ const taskCreateDescription = `Create a task and return its minted ID.
 A track is a top-level task — one whole scope — and its ID has no dot, as in BIT-7. A bar is a
 child of a track — one plan step — and its ID is dotted, as in BIT-7.3. Omit parent to mint a
 track; set it to a track ID to mint a dotted bar under that track and append it to the track's
-order. phase and phase_label tag the verse the bar serves. The returned id is the new task's ID,
-and its status starts at todo.`
+order. after names a sibling bar and places the new bar directly after it in that order, and is
+only meaningful together with parent; omit it to append. phase and phase_label tag the verse the
+bar serves. The returned id is the new task's ID, and its status starts at todo.`
 
 const taskUpdateDescription = `Update a task's fields and report whether approval survived.
 
@@ -69,6 +70,7 @@ type taskCreateInput struct {
 	Title      string `json:"title"`
 	Body       string `json:"body,omitempty"`
 	Parent     string `json:"parent,omitempty"`
+	After      string `json:"after,omitempty"`
 	Phase      int    `json:"phase,omitempty"`
 	PhaseLabel string `json:"phase_label,omitempty"`
 }
@@ -224,6 +226,7 @@ func taskCreateHandler(root string) mcp.ToolHandlerFor[taskCreateInput, taskCrea
 			Title:      in.Title,
 			Body:       in.Body,
 			Parent:     in.Parent,
+			After:      in.After,
 			Phase:      in.Phase,
 			PhaseLabel: in.PhaseLabel,
 		})

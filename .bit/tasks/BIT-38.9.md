@@ -1,7 +1,7 @@
 ---
 id: BIT-38.9
 title: after places a new bar mid-track
-status: todo
+status: done
 approved: true
 phase: 2
 phase_label: Plan writes

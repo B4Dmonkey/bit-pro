@@ -25,6 +25,13 @@ const (
 	testFirstBarTitle    = "Store.Create owns ID minting"
 	testCreatePhase      = 1
 	testCreatePhaseLabel = "Scope writes"
+
+	testThirdBarID       = "FOO-1.3"
+	testThirdBarTitle    = "a third bar"
+	testFourthBarID      = "FOO-1.4"
+	testInsertedBarTitle = "Contradiction forces the pointer patch"
+
+	testAfterKey = "after"
 )
 
 func seedConfig(t *testing.T, dir string) {
@@ -279,5 +286,55 @@ func TestServeMCPCmd_TaskCreateMintsABarUnderATrack(t *testing.T) {
 
 	if !reflect.DeepEqual(bars, wantBars) {
 		t.Errorf("bars = %+v, want %+v", bars, wantBars)
+	}
+}
+
+func TestServeMCPCmd_TaskCreateAfterPlacesABarMidTrack(t *testing.T) {
+	dir := t.TempDir()
+	seedConfig(t, dir)
+	seedTasks(t, dir,
+		&task.Task{
+			ID: testTrackID, Title: testTitle, Status: task.StatusTodo,
+			Order: []string{testBarID, testSecondBarID, testThirdBarID},
+		},
+		&task.Task{ID: testBarID, Title: testBarTitle, Status: task.StatusTodo},
+		&task.Task{ID: testSecondBarID, Title: testSecondBarTitle, Status: task.StatusTodo},
+		&task.Task{ID: testThirdBarID, Title: testThirdBarTitle, Status: task.StatusTodo},
+	)
+
+	session := mcpSession(t, dir)
+
+	got := callTool(t, session, taskCreateTool, map[string]any{
+		testTitleKey:      testInsertedBarTitle,
+		testParentKey:     testTrackID,
+		testAfterKey:      testBarID,
+		testPhaseKey:      testCreatePhase,
+		testPhaseLabelKey: testCreatePhaseLabel,
+	})
+
+	if got["id"] != testFourthBarID {
+		t.Fatalf("id = %v, want %s", got["id"], testFourthBarID)
+	}
+
+	track, err := task.New(filepath.Join(dir, ".bit")).Load(testTrackID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wantOrder := []string{testBarID, testFourthBarID, testSecondBarID, testThirdBarID}
+	if !reflect.DeepEqual(track.Order, wantOrder) {
+		t.Fatalf("Order = %v, want %v", track.Order, wantOrder)
+	}
+
+	bars := callToolList(t, session, taskListTool, map[string]any{testParentKey: testTrackID})
+
+	gotIDs := make([]string, len(bars))
+	for i, bar := range bars {
+		id, _ := bar["id"].(string)
+		gotIDs[i] = id
+	}
+
+	if !reflect.DeepEqual(gotIDs, wantOrder) {
+		t.Errorf("listed IDs = %v, want %v", gotIDs, wantOrder)
 	}
 }
