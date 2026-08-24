@@ -21,6 +21,10 @@ const (
 	testRetaggedPhaseLabel = "Run writes"
 
 	testMisspelledStatus = "doen"
+
+	testFirstBarTitle    = "Store.Create owns ID minting"
+	testCreatePhase      = 1
+	testCreatePhaseLabel = "Scope writes"
 )
 
 func seedConfig(t *testing.T, dir string) {
@@ -37,7 +41,7 @@ func TestServeMCPCmd_TaskCreateMintsATrack(t *testing.T) {
 
 	got := callTool(t, mcpSession(t, dir), taskCreateTool, map[string]any{
 		testTitleKey: testTitle,
-		"body":       testCreateBody,
+		testBodyKey:  testCreateBody,
 	})
 
 	if got["id"] != testTrackID {
@@ -69,16 +73,16 @@ func TestServeMCPCmd_TaskUpdateRewritesBodyAndReportsRevocation(t *testing.T) {
 	})
 
 	got := callTool(t, mcpSession(t, dir), taskUpdateTool, map[string]any{
-		"id":   testTrackID,
-		"body": testUpdateBody,
+		"id":        testTrackID,
+		testBodyKey: testUpdateBody,
 	})
 
 	if got["id"] != testTrackID {
 		t.Errorf("id = %v, want %s", got["id"], testTrackID)
 	}
 
-	if got["approved"] != false {
-		t.Errorf("approved = %v, want false", got["approved"])
+	if got[testApprovedKey] != false {
+		t.Errorf("approved = %v, want false", got[testApprovedKey])
 	}
 
 	updated, err := task.New(filepath.Join(dir, ".bit")).Load(testTrackID)
@@ -200,5 +204,80 @@ func TestServeMCPCmd_TaskUpdateRefusesAnUnknownStatus(t *testing.T) {
 				t.Errorf("Status = %q, want %q", got.Status, want)
 			}
 		})
+	}
+}
+
+func TestServeMCPCmd_TaskCreateMintsABarUnderATrack(t *testing.T) {
+	dir := t.TempDir()
+	seedConfig(t, dir)
+	seedTasks(t, dir, &task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusTodo})
+
+	session := mcpSession(t, dir)
+
+	first := callTool(t, session, taskCreateTool, map[string]any{
+		testTitleKey:      testFirstBarTitle,
+		testParentKey:     testTrackID,
+		testPhaseKey:      testCreatePhase,
+		testPhaseLabelKey: testCreatePhaseLabel,
+		testBodyKey:       testSeedBarBody,
+	})
+
+	if first["id"] != testBarID {
+		t.Fatalf("id = %v, want %s", first["id"], testBarID)
+	}
+
+	second := callTool(t, session, taskCreateTool, map[string]any{
+		testTitleKey:      testSecondBarTitle,
+		testParentKey:     testTrackID,
+		testPhaseKey:      testCreatePhase,
+		testPhaseLabelKey: testCreatePhaseLabel,
+	})
+
+	if second["id"] != testSecondBarID {
+		t.Fatalf("id = %v, want %s", second["id"], testSecondBarID)
+	}
+
+	store := task.New(filepath.Join(dir, ".bit"))
+
+	bar, err := store.Load(testBarID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := task.Task{
+		ID: testBarID, Title: testFirstBarTitle, Status: task.StatusTodo,
+		Phase: testCreatePhase, PhaseLabel: testCreatePhaseLabel, Body: testSeedBarBody,
+	}
+
+	if !reflect.DeepEqual(*bar, want) {
+		t.Errorf("task = %+v, want %+v", *bar, want)
+	}
+
+	bodyless, err := store.Load(testSecondBarID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if bodyless.Body != "" {
+		t.Errorf("Body = %q, want empty", bodyless.Body)
+	}
+
+	bars := callToolList(t, session, taskListTool, map[string]any{testParentKey: testTrackID})
+
+	wantBars := []map[string]any{
+		{
+			"id": testBarID, testTitleKey: testFirstBarTitle, testStatusKey: task.StatusTodo,
+			testApprovedKey: false, testPhaseKey: float64(testCreatePhase),
+			testPhaseLabelKey: testCreatePhaseLabel, testParentKey: testTrackID,
+		},
+		{
+			"id": testSecondBarID, testTitleKey: testSecondBarTitle, testStatusKey: task.StatusTodo,
+			testApprovedKey: false, testPhaseKey: float64(testCreatePhase),
+			testPhaseLabelKey: testCreatePhaseLabel, testParentKey: testTrackID,
+		},
+	}
+
+	if !reflect.DeepEqual(bars, wantBars) {
+		t.Errorf("bars = %+v, want %+v", bars, wantBars)
 	}
 }

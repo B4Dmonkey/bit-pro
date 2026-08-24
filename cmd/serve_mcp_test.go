@@ -30,6 +30,8 @@ const (
 	testPhaseKey  = "phase"
 
 	testPhaseLabelKey = "phase_label"
+	testApprovedKey   = "approved"
+	testBodyKey       = "body"
 )
 
 func TestServeMCPCmd_TaskReadReturnsStructuredFields(t *testing.T) {
@@ -53,12 +55,12 @@ func TestServeMCPCmd_TaskReadReturnsStructuredFields(t *testing.T) {
 		t.Errorf("status = %v, want todo", got["status"])
 	}
 
-	if got["approved"] != false {
-		t.Errorf("approved = %v, want false", got["approved"])
+	if got[testApprovedKey] != false {
+		t.Errorf("approved = %v, want false", got[testApprovedKey])
 	}
 
-	if got["body"] != testBody {
-		t.Errorf("body = %v, want %s", got["body"], testBody)
+	if got[testBodyKey] != testBody {
+		t.Errorf("body = %v, want %s", got[testBodyKey], testBody)
 	}
 
 	if got["parent"] != "" {
@@ -116,11 +118,11 @@ func TestServeMCPCmd_TaskListReturnsEveryTaskAsFields(t *testing.T) {
 	want := []map[string]any{
 		{
 			"id": testTrackID, testTitleKey: testTitle, testStatusKey: task.StatusTodo,
-			"approved": true, testPhaseKey: float64(0), testPhaseLabelKey: "", testParentKey: "",
+			testApprovedKey: true, testPhaseKey: float64(0), testPhaseLabelKey: "", testParentKey: "",
 		},
 		{
 			"id": testBarID, testTitleKey: testBarTitle, "status": task.StatusDoing,
-			"approved": false, "phase": float64(2), "phase_label": testPhaseLabel, testParentKey: testTrackID,
+			testApprovedKey: false, "phase": float64(2), "phase_label": testPhaseLabel, testParentKey: testTrackID,
 		},
 	}
 

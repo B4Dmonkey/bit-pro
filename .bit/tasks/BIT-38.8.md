@@ -1,7 +1,7 @@
 ---
 id: BIT-38.8
 title: 'Contradiction: a parent forces dotted-ID minting'
-status: todo
+status: done
 approved: true
 phase: 2
 phase_label: Plan writes

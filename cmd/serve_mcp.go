@@ -32,8 +32,10 @@ to list that track's direct bars in the track's own order; omit it to list every
 const taskCreateDescription = `Create a task and return its minted ID.
 
 A track is a top-level task — one whole scope — and its ID has no dot, as in BIT-7. A bar is a
-child of a track — one plan step — and its ID is dotted, as in BIT-7.3. This mints a track: the
-returned id is the new task's ID, and its status starts at todo.`
+child of a track — one plan step — and its ID is dotted, as in BIT-7.3. Omit parent to mint a
+track; set it to a track ID to mint a dotted bar under that track and append it to the track's
+order. phase and phase_label tag the verse the bar serves. The returned id is the new task's ID,
+and its status starts at todo.`
 
 const taskUpdateDescription = `Update a task's fields and report whether approval survived.
 
@@ -64,8 +66,11 @@ type taskListOutput struct {
 }
 
 type taskCreateInput struct {
-	Title string `json:"title"`
-	Body  string `json:"body,omitempty"`
+	Title      string `json:"title"`
+	Body       string `json:"body,omitempty"`
+	Parent     string `json:"parent,omitempty"`
+	Phase      int    `json:"phase,omitempty"`
+	PhaseLabel string `json:"phase_label,omitempty"`
 }
 
 type taskCreateOutput struct {
@@ -215,7 +220,13 @@ func taskCreateHandler(root string) mcp.ToolHandlerFor[taskCreateInput, taskCrea
 	) (*mcp.CallToolResult, taskCreateOutput, error) {
 		store := task.New(bitdir.ForRoot(root))
 
-		t, err := store.Create(task.CreateParams{Title: in.Title, Body: in.Body})
+		t, err := store.Create(task.CreateParams{
+			Title:      in.Title,
+			Body:       in.Body,
+			Parent:     in.Parent,
+			Phase:      in.Phase,
+			PhaseLabel: in.PhaseLabel,
+		})
 		if err != nil {
 			return nil, taskCreateOutput{}, fmt.Errorf("creating task: %w", err)
 		}
