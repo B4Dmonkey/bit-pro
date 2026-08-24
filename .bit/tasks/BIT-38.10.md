@@ -1,7 +1,7 @@
 ---
 id: BIT-38.10
 title: Store.Move owns the one-anchor rule
-status: todo
+status: done
 approved: true
 phase: 2
 phase_label: Plan writes

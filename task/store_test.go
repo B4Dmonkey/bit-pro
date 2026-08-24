@@ -534,28 +534,25 @@ func TestStoreMove_Resequences(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name   string
-		order  []string
-		id     string
-		anchor string
-		before bool
-		want   []string
+		name          string
+		order         []string
+		id            string
+		before, after string
+		want          []string
 	}{
 		{
 			name:   "materializes then moves to front",
 			order:  nil,
 			id:     tid1_3,
-			anchor: tid1_1,
-			before: true,
+			before: tid1_1,
 			want:   []string{tid1_3, tid1_1, tid1_2},
 		},
 		{
-			name:   "splices an existing order to the back",
-			order:  []string{tid1_1, tid1_2, tid1_3},
-			id:     tid1_1,
-			anchor: tid1_3,
-			before: false,
-			want:   []string{tid1_2, tid1_3, tid1_1},
+			name:  "splices an existing order to the back",
+			order: []string{tid1_1, tid1_2, tid1_3},
+			id:    tid1_1,
+			after: tid1_3,
+			want:  []string{tid1_2, tid1_3, tid1_1},
 		},
 	}
 
@@ -574,7 +571,7 @@ func TestStoreMove_Resequences(t *testing.T) {
 				}
 			}
 
-			if err := s.Move(tt.id, tt.anchor, tt.before); err != nil {
+			if err := s.Move(tt.id, tt.before, tt.after); err != nil {
 				t.Fatalf("Move() returned error: %v", err)
 			}
 
@@ -622,13 +619,57 @@ func TestStoreMove_Rejects(t *testing.T) {
 				}
 			}
 
-			err := s.Move(tt.id, tt.anchor, false)
+			err := s.Move(tt.id, "", tt.anchor)
 			if err == nil {
 				t.Fatalf("Move(%q, %q) returned nil error, want non-nil", tt.id, tt.anchor)
 			}
 
 			if tt.wantNotExist && !errors.Is(err, fs.ErrNotExist) {
 				t.Errorf("Move(%q, %q) error = %v, want it to wrap fs.ErrNotExist", tt.id, tt.anchor, err)
+			}
+		})
+	}
+}
+
+func TestStoreMove_RejectsAnchorPair(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		before, after string
+	}{
+		{name: "both anchors", before: tid1_1, after: tid1_1},
+		{name: "neither anchor"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			seed := []string{tid1_1, tid1_2}
+
+			s := New(t.TempDir())
+			if err := s.Save(&Task{ID: tid1, Title: ttrack, Status: StatusTodo, Order: seed}); err != nil {
+				t.Fatalf("seeding %s: %v", tid1, err)
+			}
+
+			for _, id := range seed {
+				if err := s.Save(&Task{ID: id, Title: tbar, Status: StatusTodo}); err != nil {
+					t.Fatalf("seeding %s: %v", id, err)
+				}
+			}
+
+			if err := s.Move(tid1_2, tt.before, tt.after); err == nil {
+				t.Fatalf("Move(%q, %q, %q) returned nil error, want non-nil", tid1_2, tt.before, tt.after)
+			}
+
+			got, err := s.Load(tid1)
+			if err != nil {
+				t.Fatalf("loading %s: %v", tid1, err)
+			}
+
+			if !slices.Equal(got.Order, seed) {
+				t.Errorf("Order = %v, want %v unchanged", got.Order, seed)
 			}
 		})
 	}

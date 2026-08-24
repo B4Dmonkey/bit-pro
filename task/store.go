@@ -1,6 +1,7 @@
 package task
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -319,7 +320,16 @@ func (s *Store) SetApproved(id string, approved bool) error {
 	return s.Save(t)
 }
 
-func (s *Store) Move(id, anchor string, before bool) error {
+func (s *Store) Move(id, before, after string) error {
+	if (before == "") == (after == "") {
+		return errors.New("specify exactly one of before or after")
+	}
+
+	anchor, isBefore := after, false
+	if before != "" {
+		anchor, isBefore = before, true
+	}
+
 	id, anchor = NormalizeID(id), NormalizeID(anchor)
 	if id == anchor {
 		return fmt.Errorf("cannot move %s relative to itself", id)
@@ -343,7 +353,7 @@ func (s *Store) Move(id, anchor string, before bool) error {
 		return err
 	}
 
-	return s.insertInOrder(parent, id, anchor, before)
+	return s.insertInOrder(parent, id, anchor, isBefore)
 }
 
 // InsertAfter places a newly created bar id into parent's Order immediately

@@ -1,8 +1,6 @@
 package task
 
 import (
-	"errors"
-
 	"github.com/B4Dmonkey/bit-pro/bitdir"
 	taskstore "github.com/B4Dmonkey/bit-pro/task"
 	"github.com/spf13/cobra"
@@ -16,19 +14,7 @@ func newMoveCmd() *cobra.Command {
 		Short: "Resequence a bar within its track",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			hasBefore := cmd.Flags().Changed("before")
-
-			hasAfter := cmd.Flags().Changed("after")
-			if hasBefore == hasAfter {
-				return errors.New("specify exactly one of --before or --after")
-			}
-
-			anchor := after
-			if hasBefore {
-				anchor = before
-			}
-
-			return taskstore.New(bitdir.Current()).Move(args[0], anchor, hasBefore)
+			return taskstore.New(bitdir.Current()).Move(args[0], before, after)
 		},
 	}
 	cmd.Flags().StringVar(&before, "before", "", "move the bar directly before this sibling")
