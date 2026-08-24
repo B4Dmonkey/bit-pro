@@ -1,7 +1,7 @@
 ---
 id: BIT-38.7
 title: The status enum refuses a typo the CLI accepts
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: Scope writes

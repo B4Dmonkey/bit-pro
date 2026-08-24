@@ -57,6 +57,17 @@ func callToolList(t *testing.T, s *mcp.ClientSession, name string, args map[stri
 	return got.Tasks
 }
 
+func callToolResult(t *testing.T, s *mcp.ClientSession, name string, args map[string]any) *mcp.CallToolResult {
+	t.Helper()
+
+	result, err := s.CallTool(t.Context(), &mcp.CallToolParams{Name: name, Arguments: args})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return result
+}
+
 func decodeToolResult(t *testing.T, s *mcp.ClientSession, name string, args map[string]any, into any) {
 	t.Helper()
 

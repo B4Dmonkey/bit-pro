@@ -8,6 +8,7 @@ import (
 
 	"github.com/B4Dmonkey/bit-pro/bitdir"
 	"github.com/B4Dmonkey/bit-pro/task"
+	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
 )
@@ -18,6 +19,8 @@ const (
 	taskListTool   = "task_list"
 	taskCreateTool = "task_create"
 	taskUpdateTool = "task_update"
+
+	statusProperty = "status"
 )
 
 const taskListDescription = `List tasks as structured fields, in the order bp prints them.
@@ -112,9 +115,30 @@ func runMCPServer(ctx context.Context, root string, transport mcp.Transport) err
 	mcp.AddTool(s, &mcp.Tool{Name: taskReadTool, Description: "Read a task by ID"}, taskReadHandler(root))
 	mcp.AddTool(s, &mcp.Tool{Name: taskListTool, Description: taskListDescription}, taskListHandler(root))
 	mcp.AddTool(s, &mcp.Tool{Name: taskCreateTool, Description: taskCreateDescription}, taskCreateHandler(root))
-	mcp.AddTool(s, &mcp.Tool{Name: taskUpdateTool, Description: taskUpdateDescription}, taskUpdateHandler(root))
+
+	updateSchema, err := taskUpdateSchema()
+	if err != nil {
+		return fmt.Errorf("building %s input schema: %w", taskUpdateTool, err)
+	}
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        taskUpdateTool,
+		Description: taskUpdateDescription,
+		InputSchema: updateSchema,
+	}, taskUpdateHandler(root))
 
 	return s.Run(ctx, transport)
+}
+
+func taskUpdateSchema() (*jsonschema.Schema, error) {
+	schema, err := jsonschema.For[taskUpdateInput](nil)
+	if err != nil {
+		return nil, err
+	}
+
+	schema.Properties[statusProperty].Enum = []any{task.StatusTodo, task.StatusDoing, task.StatusDone}
+
+	return schema, nil
 }
 
 func taskReadHandler(root string) mcp.ToolHandlerFor[taskReadInput, taskReadOutput] {

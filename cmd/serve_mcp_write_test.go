@@ -19,6 +19,8 @@ const (
 	testRenamedBarTitle    = "Renamed step"
 	testRetaggedPhase      = 3
 	testRetaggedPhaseLabel = "Run writes"
+
+	testMisspelledStatus = "doen"
 )
 
 func seedConfig(t *testing.T, dir string) {
@@ -154,6 +156,48 @@ func TestServeMCPCmd_TaskUpdateLeavesOmittedFieldsAlone(t *testing.T) {
 
 			if !reflect.DeepEqual(*got, tt.want) {
 				t.Errorf("task = %+v, want %+v", *got, tt.want)
+			}
+		})
+	}
+}
+
+func TestServeMCPCmd_TaskUpdateRefusesAnUnknownStatus(t *testing.T) {
+	tests := []struct {
+		name    string
+		status  string
+		wantErr bool
+	}{
+		{name: "a misspelled status is refused", status: testMisspelledStatus, wantErr: true},
+		{name: "todo is accepted", status: task.StatusTodo},
+		{name: "doing is accepted", status: task.StatusDoing},
+		{name: "done is accepted", status: task.StatusDone},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			seedTasks(t, dir, &task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusTodo})
+
+			result := callToolResult(t, mcpSession(t, dir), taskUpdateTool, map[string]any{
+				"id": testTrackID, testStatusKey: tt.status,
+			})
+
+			if result.IsError != tt.wantErr {
+				t.Fatalf("IsError = %v, want %v (content %v)", result.IsError, tt.wantErr, result.Content)
+			}
+
+			got, err := task.New(filepath.Join(dir, ".bit")).Load(testTrackID)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			want := tt.status
+			if tt.wantErr {
+				want = task.StatusTodo
+			}
+
+			if got.Status != want {
+				t.Errorf("Status = %q, want %q", got.Status, want)
 			}
 		})
 	}

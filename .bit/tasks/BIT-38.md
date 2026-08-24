@@ -2,7 +2,6 @@
 id: BIT-38
 title: MCP write surface
 status: doing
-approved: true
 ---
 ## Why
 
@@ -94,7 +93,7 @@ cmd/serve_mcp.go ──> task.Store (reads only)
 
 ## Verses
 
-- [ ] Verse 1 — Claude can author and refine a scope without a shell: `task_create` mints a track
+- [x] Verse 1 — Claude can author and refine a scope without a shell: `task_create` mints a track
   with a multi-line body, `task_update` rewrites it in place, and the update result says whether
   approval survived the edit. The riskiest rule in the phase moves into the task package first, so
   a wrong reading of it fails on the first verse rather than the last.
