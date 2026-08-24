@@ -14,12 +14,13 @@ import (
 )
 
 const (
-	serveMCPCmdUse = "mcp"
-	taskReadTool   = "task_read"
-	taskListTool   = "task_list"
-	taskCreateTool = "task_create"
-	taskUpdateTool = "task_update"
-	taskMoveTool   = "task_move"
+	serveMCPCmdUse  = "mcp"
+	taskReadTool    = "task_read"
+	taskListTool    = "task_list"
+	taskCreateTool  = "task_create"
+	taskUpdateTool  = "task_update"
+	taskMoveTool    = "task_move"
+	feedbackAddTool = "feedback_add"
 
 	statusProperty = "status"
 )
@@ -51,6 +52,13 @@ bar names the bar to move, and exactly one of before or after names the sibling 
 relative to — a sibling being another bar under the same track. A bar's ID is stable identity, so
 moving it keeps every existing reference to it — a commit message, a feedback note, a plan
 citation — valid.`
+
+const feedbackAddDescription = `Record a feedback note against a track and return its path.
+
+A note keys to a track — a top-level task, whose ID has no dot, as in BIT-7 — and cites the bar it
+happened at in its own prose, because replanning renumbers bars and would orphan a note keyed to
+one. The write is create-only: each note lands in a new file, so adding one can never damage a
+note already recorded. A completed or archived track is accepted as readily as an active one.`
 
 type taskReadInput struct {
 	ID string `json:"id"`
@@ -94,6 +102,15 @@ type taskUpdateInput struct {
 	Status     *string `json:"status,omitempty"`
 	Phase      *int    `json:"phase,omitempty"`
 	PhaseLabel *string `json:"phase_label,omitempty"`
+}
+
+type feedbackAddInput struct {
+	Track string `json:"track"`
+	Body  string `json:"body"`
+}
+
+type feedbackAddOutput struct {
+	Path string `json:"path"`
 }
 
 type taskMoveInput struct {
@@ -153,6 +170,7 @@ func runMCPServer(ctx context.Context, root string, transport mcp.Transport) err
 	}, taskUpdateHandler(root))
 
 	mcp.AddTool(s, &mcp.Tool{Name: taskMoveTool, Description: taskMoveDescription}, taskMoveHandler(root))
+	mcp.AddTool(s, &mcp.Tool{Name: feedbackAddTool, Description: feedbackAddDescription}, feedbackAddHandler(root))
 
 	return s.Run(ctx, transport)
 }
@@ -294,6 +312,23 @@ func taskMoveHandler(root string) mcp.ToolHandlerFor[taskMoveInput, emptyOutput]
 		}
 
 		return nil, emptyOutput{}, nil
+	}
+}
+
+func feedbackAddHandler(root string) mcp.ToolHandlerFor[feedbackAddInput, feedbackAddOutput] {
+	return func(
+		_ context.Context,
+		_ *mcp.CallToolRequest,
+		in feedbackAddInput,
+	) (*mcp.CallToolResult, feedbackAddOutput, error) {
+		store := task.New(bitdir.ForRoot(root))
+
+		path, err := store.AddNote(in.Track, in.Body)
+		if err != nil {
+			return nil, feedbackAddOutput{}, fmt.Errorf("adding note for %s: %w", in.Track, err)
+		}
+
+		return nil, feedbackAddOutput{Path: path}, nil
 	}
 }
 

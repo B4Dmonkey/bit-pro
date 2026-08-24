@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/task"
@@ -31,6 +33,14 @@ const (
 	testThirdBarTitle    = "a third bar"
 	testFourthBarID      = "FOO-1.4"
 	testInsertedBarTitle = "Contradiction forces the pointer patch"
+
+	testFeedbackDir    = "feedback"
+	testTrackKey       = "track"
+	testPathKey        = "path"
+	testUnknownTrackID = "FOO-9"
+	testNoteBody       = "## What the plan said\n\nThe handler validates the anchor pair.\n\n" +
+		"## What the work required\n\nThe rule belongs in the store."
+	testSecondNoteBody = "## What the plan said\n\nA second correction."
 
 	testAfterKey  = "after"
 	testBarKey    = "bar"
@@ -453,4 +463,63 @@ func listedBarIDs(t *testing.T, session *mcp.ClientSession) []string {
 	}
 
 	return ids
+}
+
+func TestServeMCPCmd_FeedbackAddWritesANote(t *testing.T) {
+	dir := t.TempDir()
+	seedTasks(t, dir, &task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusDoing})
+
+	session := mcpSession(t, dir)
+
+	first := callTool(t, session, feedbackAddTool, map[string]any{
+		testTrackKey: testTrackID,
+		testBodyKey:  testNoteBody,
+	})
+
+	wantFirst := filepath.Join(testFeedbackDir, testTrackID+"-001.md")
+	if gotPath, ok := first[testPathKey].(string); !ok || !strings.HasSuffix(gotPath, wantFirst) {
+		t.Fatalf("path = %v, want suffix %s", first[testPathKey], wantFirst)
+	}
+
+	second := callTool(t, session, feedbackAddTool, map[string]any{
+		testTrackKey: testTrackID,
+		testBodyKey:  testSecondNoteBody,
+	})
+
+	wantSecond := filepath.Join(testFeedbackDir, testTrackID+"-002.md")
+	if gotPath, ok := second[testPathKey].(string); !ok || !strings.HasSuffix(gotPath, wantSecond) {
+		t.Fatalf("path = %v, want suffix %s", second[testPathKey], wantSecond)
+	}
+
+	written, err := os.ReadFile(first[testPathKey].(string))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(written) != testNoteBody {
+		t.Errorf("note body = %q, want %q", string(written), testNoteBody)
+	}
+}
+
+func TestServeMCPCmd_FeedbackAddRefusesAnUnknownTrack(t *testing.T) {
+	dir := t.TempDir()
+	seedTasks(t, dir, &task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusDoing})
+
+	result := callToolResult(t, mcpSession(t, dir), feedbackAddTool, map[string]any{
+		testTrackKey: testUnknownTrackID,
+		testBodyKey:  testNoteBody,
+	})
+
+	if !result.IsError {
+		t.Fatalf("IsError = false, want true (content %v)", result.Content)
+	}
+
+	notes, err := filepath.Glob(filepath.Join(dir, ".bit", testFeedbackDir, "*.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(notes) != 0 {
+		t.Errorf("notes = %v, want none", notes)
+	}
 }

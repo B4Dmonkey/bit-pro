@@ -102,7 +102,7 @@ cmd/serve_mcp.go ──> task.Store (reads only)
   phase tags and `after` placement, plus `task_move` to resequence one. This is the step-3 bar in
   `mcp-notes.md` — a scope → plan cycle running start to finish with Bash never touching `.bit/`.
   Touches: `cmd/serve_mcp.go`, `task/store.go` (`Move`, `InsertAfter`).
-- [ ] Verse 3 — Claude can run a bar and record a correction without a shell: `feedback_add`
+- [x] Verse 3 — Claude can run a bar and record a correction without a shell: `feedback_add`
   writes a note against a track; the status writes bit_do makes already ride on `task_update`. The
   bit_do and bit_feedback write paths are now fully covered.
   Touches: `cmd/serve_mcp.go`, `task/feedback.go`.

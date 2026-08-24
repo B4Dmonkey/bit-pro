@@ -1,7 +1,7 @@
 ---
 id: BIT-38.12
 title: feedback_add writes a note against a track
-status: todo
+status: done
 approved: true
 phase: 3
 phase_label: Run writes
