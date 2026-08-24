@@ -1,13 +1,10 @@
 package cmd
 
 import (
-	"context"
-	"encoding/json"
 	"path/filepath"
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/task"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 const (
@@ -33,54 +30,11 @@ const (
 func TestServeMCPCmd_TaskReadReturnsStructuredFields(t *testing.T) {
 	dir := t.TempDir()
 
-	store := task.New(filepath.Join(dir, ".bit"))
-	if err := store.Save(&task.Task{
+	seedTasks(t, dir, &task.Task{
 		ID: testTrackID, Title: testTitle, Status: task.StatusTodo, Body: testBody,
-	}); err != nil {
-		t.Fatal(err)
-	}
-
-	ctx, cancel := context.WithCancel(t.Context())
-
-	serverT, clientT := mcp.NewInMemoryTransports()
-
-	errCh := make(chan error, 1)
-	go func() { errCh <- runMCPServer(ctx, dir, serverT) }()
-
-	t.Cleanup(func() {
-		cancel()
-		<-errCh
 	})
 
-	session, err := mcp.NewClient(&mcp.Implementation{Name: testClient, Version: "1"}, nil).Connect(ctx, clientT, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	defer session.Close()
-
-	result, err := session.CallTool(ctx, &mcp.CallToolParams{
-		Name:      taskReadTool,
-		Arguments: map[string]string{"id": testTrackID},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if result.IsError {
-		t.Fatalf("task_read returned error: %v", result.Content)
-	}
-
-	b, err := json.Marshal(result.StructuredContent)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var got map[string]any
-
-	if err := json.Unmarshal(b, &got); err != nil {
-		t.Fatal(err)
-	}
+	got := callTool(t, mcpSession(t, dir), taskReadTool, map[string]any{"id": testTrackID})
 
 	if got["id"] != testTrackID {
 		t.Errorf("id = %v, want %s", got["id"], testTrackID)
@@ -110,56 +64,12 @@ func TestServeMCPCmd_TaskReadReturnsStructuredFields(t *testing.T) {
 func TestServeMCPCmd_TaskReadReturnsParentForBar(t *testing.T) {
 	dir := t.TempDir()
 
-	store := task.New(filepath.Join(dir, ".bit"))
-	if err := store.Save(&task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusTodo}); err != nil {
-		t.Fatal(err)
-	}
+	seedTasks(t, dir,
+		&task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusTodo},
+		&task.Task{ID: testBarID, Title: testBarTitle, Status: task.StatusTodo},
+	)
 
-	if err := store.Save(&task.Task{ID: "FOO-1.1", Title: "a bar", Status: task.StatusTodo}); err != nil {
-		t.Fatal(err)
-	}
-
-	ctx, cancel := context.WithCancel(t.Context())
-
-	serverT, clientT := mcp.NewInMemoryTransports()
-
-	errCh := make(chan error, 1)
-	go func() { errCh <- runMCPServer(ctx, dir, serverT) }()
-
-	t.Cleanup(func() {
-		cancel()
-		<-errCh
-	})
-
-	session, err := mcp.NewClient(&mcp.Implementation{Name: testClient, Version: "1"}, nil).Connect(ctx, clientT, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	defer session.Close()
-
-	result, err := session.CallTool(ctx, &mcp.CallToolParams{
-		Name:      taskReadTool,
-		Arguments: map[string]string{"id": "FOO-1.1"},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if result.IsError {
-		t.Fatalf("task_read returned error: %v", result.Content)
-	}
-
-	b, err := json.Marshal(result.StructuredContent)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var got map[string]any
-
-	if err := json.Unmarshal(b, &got); err != nil {
-		t.Fatal(err)
-	}
+	got := callTool(t, mcpSession(t, dir), taskReadTool, map[string]any{"id": testBarID})
 
 	if got["parent"] != testTrackID {
 		t.Errorf("parent = %v, want %s", got["parent"], testTrackID)
@@ -169,54 +79,13 @@ func TestServeMCPCmd_TaskReadReturnsParentForBar(t *testing.T) {
 func TestServeMCPCmd_ResolvesWorktreeRootToMainCheckout(t *testing.T) {
 	dir := t.TempDir()
 
-	store := task.New(filepath.Join(dir, ".bit"))
-	if err := store.Save(&task.Task{
+	seedTasks(t, dir, &task.Task{
 		ID: testTrackID, Title: testTitle, Status: task.StatusTodo, Body: testBody,
-	}); err != nil {
-		t.Fatal(err)
-	}
-
-	ctx, cancel := context.WithCancel(t.Context())
-
-	serverT, clientT := mcp.NewInMemoryTransports()
-
-	errCh := make(chan error, 1)
-	go func() { errCh <- runMCPServer(ctx, filepath.Join(dir, ".claude", "worktrees", "wt"), serverT) }()
-
-	t.Cleanup(func() {
-		cancel()
-		<-errCh
 	})
 
-	session, err := mcp.NewClient(&mcp.Implementation{Name: testClient, Version: "1"}, nil).Connect(ctx, clientT, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	session := mcpSession(t, filepath.Join(dir, ".claude", "worktrees", "wt"))
 
-	defer session.Close()
-
-	result, err := session.CallTool(ctx, &mcp.CallToolParams{
-		Name:      taskReadTool,
-		Arguments: map[string]string{"id": testTrackID},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if result.IsError {
-		t.Fatalf("task_read returned error: %v", result.Content)
-	}
-
-	b, err := json.Marshal(result.StructuredContent)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var got map[string]any
-
-	if err := json.Unmarshal(b, &got); err != nil {
-		t.Fatal(err)
-	}
+	got := callTool(t, session, taskReadTool, map[string]any{"id": testTrackID})
 
 	if got["title"] != testTitle {
 		t.Errorf("title = %v, want %s", got["title"], testTitle)
@@ -226,64 +95,18 @@ func TestServeMCPCmd_ResolvesWorktreeRootToMainCheckout(t *testing.T) {
 func TestServeMCPCmd_TaskListReturnsEveryTaskAsFields(t *testing.T) {
 	dir := t.TempDir()
 
-	store := task.New(filepath.Join(dir, ".bit"))
-	if err := store.Save(&task.Task{
-		ID: testTrackID, Title: testTitle, Status: task.StatusTodo,
-		Approved: true, Order: []string{testBarID},
-	}); err != nil {
-		t.Fatal(err)
-	}
+	seedTasks(t, dir,
+		&task.Task{
+			ID: testTrackID, Title: testTitle, Status: task.StatusTodo,
+			Approved: true, Order: []string{testBarID},
+		},
+		&task.Task{
+			ID: testBarID, Title: testBarTitle, Status: task.StatusDoing,
+			Phase: 2, PhaseLabel: testPhaseLabel,
+		},
+	)
 
-	if err := store.Save(&task.Task{
-		ID: testBarID, Title: testBarTitle, Status: task.StatusDoing,
-		Phase: 2, PhaseLabel: testPhaseLabel,
-	}); err != nil {
-		t.Fatal(err)
-	}
-
-	ctx, cancel := context.WithCancel(t.Context())
-
-	serverT, clientT := mcp.NewInMemoryTransports()
-
-	errCh := make(chan error, 1)
-	go func() { errCh <- runMCPServer(ctx, dir, serverT) }()
-
-	t.Cleanup(func() {
-		cancel()
-		<-errCh
-	})
-
-	session, err := mcp.NewClient(&mcp.Implementation{Name: testClient, Version: "1"}, nil).Connect(ctx, clientT, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	defer session.Close()
-
-	result, err := session.CallTool(ctx, &mcp.CallToolParams{
-		Name:      taskListTool,
-		Arguments: map[string]any{},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if result.IsError {
-		t.Fatalf("task_list returned error: %v", result.Content)
-	}
-
-	b, err := json.Marshal(result.StructuredContent)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var got struct {
-		Tasks []map[string]any `json:"tasks"`
-	}
-
-	if err := json.Unmarshal(b, &got); err != nil {
-		t.Fatal(err)
-	}
+	tasks := callToolList(t, mcpSession(t, dir), taskListTool, map[string]any{})
 
 	want := []map[string]any{
 		{
@@ -296,18 +119,18 @@ func TestServeMCPCmd_TaskListReturnsEveryTaskAsFields(t *testing.T) {
 		},
 	}
 
-	if len(got.Tasks) != len(want) {
-		t.Fatalf("tasks = %d entries, want %d", len(got.Tasks), len(want))
+	if len(tasks) != len(want) {
+		t.Fatalf("tasks = %d entries, want %d", len(tasks), len(want))
 	}
 
 	for i, w := range want {
 		for key, wantVal := range w {
-			if gotVal := got.Tasks[i][key]; gotVal != wantVal {
+			if gotVal := tasks[i][key]; gotVal != wantVal {
 				t.Errorf("tasks[%d][%s] = %v, want %v", i, key, gotVal, wantVal)
 			}
 		}
 
-		if _, ok := got.Tasks[i]["body"]; ok {
+		if _, ok := tasks[i]["body"]; ok {
 			t.Errorf("tasks[%d] carries a body key", i)
 		}
 	}
@@ -316,72 +139,23 @@ func TestServeMCPCmd_TaskListReturnsEveryTaskAsFields(t *testing.T) {
 func TestServeMCPCmd_TaskListParentReturnsOnlyThatTracksBarsInOrder(t *testing.T) {
 	dir := t.TempDir()
 
-	store := task.New(filepath.Join(dir, ".bit"))
+	seedTasks(t, dir,
+		&task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusTodo, Order: []string{testSecondBarID, testBarID}},
+		&task.Task{ID: testBarID, Title: testBarTitle, Status: task.StatusDone},
+		&task.Task{ID: testSecondBarID, Title: testSecondBarTitle, Status: task.StatusTodo},
+		&task.Task{ID: testOtherTrackID, Title: testOtherTitle, Status: task.StatusTodo},
+		&task.Task{ID: testOtherBarID, Title: testOtherBarTitle, Status: task.StatusTodo},
+	)
 
-	saved := []*task.Task{
-		{ID: testTrackID, Title: testTitle, Status: task.StatusTodo, Order: []string{testSecondBarID, testBarID}},
-		{ID: testBarID, Title: testBarTitle, Status: task.StatusDone},
-		{ID: testSecondBarID, Title: testSecondBarTitle, Status: task.StatusTodo},
-		{ID: testOtherTrackID, Title: testOtherTitle, Status: task.StatusTodo},
-		{ID: testOtherBarID, Title: testOtherBarTitle, Status: task.StatusTodo},
-	}
-	for _, tk := range saved {
-		if err := store.Save(tk); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	ctx, cancel := context.WithCancel(t.Context())
-
-	serverT, clientT := mcp.NewInMemoryTransports()
-
-	errCh := make(chan error, 1)
-	go func() { errCh <- runMCPServer(ctx, dir, serverT) }()
-
-	t.Cleanup(func() {
-		cancel()
-		<-errCh
-	})
-
-	session, err := mcp.NewClient(&mcp.Implementation{Name: testClient, Version: "1"}, nil).Connect(ctx, clientT, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	defer session.Close()
-
-	result, err := session.CallTool(ctx, &mcp.CallToolParams{
-		Name:      taskListTool,
-		Arguments: map[string]string{testParentKey: testTrackID},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if result.IsError {
-		t.Fatalf("task_list returned error: %v", result.Content)
-	}
-
-	b, err := json.Marshal(result.StructuredContent)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var got struct {
-		Tasks []map[string]any `json:"tasks"`
-	}
-
-	if err := json.Unmarshal(b, &got); err != nil {
-		t.Fatal(err)
-	}
+	tasks := callToolList(t, mcpSession(t, dir), taskListTool, map[string]any{testParentKey: testTrackID})
 
 	want := []string{testSecondBarID, testBarID}
-	if len(got.Tasks) != len(want) {
-		t.Fatalf("tasks = %d entries, want %d", len(got.Tasks), len(want))
+	if len(tasks) != len(want) {
+		t.Fatalf("tasks = %d entries, want %d", len(tasks), len(want))
 	}
 
 	for i, wantID := range want {
-		if gotID := got.Tasks[i]["id"]; gotID != wantID {
+		if gotID := tasks[i]["id"]; gotID != wantID {
 			t.Errorf("tasks[%d][id] = %v, want %v", i, gotID, wantID)
 		}
 	}
