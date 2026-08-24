@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/task"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 const (
@@ -31,7 +32,9 @@ const (
 	testFourthBarID      = "FOO-1.4"
 	testInsertedBarTitle = "Contradiction forces the pointer patch"
 
-	testAfterKey = "after"
+	testAfterKey  = "after"
+	testBarKey    = "bar"
+	testBeforeKey = "before"
 )
 
 func seedConfig(t *testing.T, dir string) {
@@ -337,4 +340,117 @@ func TestServeMCPCmd_TaskCreateAfterPlacesABarMidTrack(t *testing.T) {
 	if !reflect.DeepEqual(gotIDs, wantOrder) {
 		t.Errorf("listed IDs = %v, want %v", gotIDs, wantOrder)
 	}
+}
+
+func TestServeMCPCmd_TaskMoveResequencesABar(t *testing.T) {
+	tests := []struct {
+		name      string
+		args      map[string]any
+		wantOrder []string
+	}{
+		{
+			name:      "before moves a bar to the front",
+			args:      map[string]any{testBarKey: testThirdBarID, testBeforeKey: testBarID},
+			wantOrder: []string{testThirdBarID, testBarID, testSecondBarID},
+		},
+		{
+			name:      "after moves a bar to the back",
+			args:      map[string]any{testBarKey: testBarID, testAfterKey: testThirdBarID},
+			wantOrder: []string{testSecondBarID, testThirdBarID, testBarID},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			seedOrderedTrack(t, dir)
+
+			session := mcpSession(t, dir)
+
+			got := callTool(t, session, taskMoveTool, tt.args)
+			if len(got) != 0 {
+				t.Errorf("structured content = %v, want empty", got)
+			}
+
+			track, err := task.New(filepath.Join(dir, ".bit")).Load(testTrackID)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if !reflect.DeepEqual(track.Order, tt.wantOrder) {
+				t.Fatalf("Order = %v, want %v", track.Order, tt.wantOrder)
+			}
+
+			if gotIDs := listedBarIDs(t, session); !reflect.DeepEqual(gotIDs, tt.wantOrder) {
+				t.Errorf("listed IDs = %v, want %v", gotIDs, tt.wantOrder)
+			}
+		})
+	}
+}
+
+func TestServeMCPCmd_TaskMoveRefusesABadAnchorPair(t *testing.T) {
+	tests := []struct {
+		name string
+		args map[string]any
+	}{
+		{
+			name: "both anchors is refused",
+			args: map[string]any{testBarKey: testThirdBarID, testBeforeKey: testBarID, testAfterKey: testSecondBarID},
+		},
+		{
+			name: "neither anchor is refused",
+			args: map[string]any{testBarKey: testThirdBarID},
+		},
+	}
+
+	wantOrder := []string{testBarID, testSecondBarID, testThirdBarID}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			seedOrderedTrack(t, dir)
+
+			result := callToolResult(t, mcpSession(t, dir), taskMoveTool, tt.args)
+			if !result.IsError {
+				t.Fatalf("IsError = false, want true (content %v)", result.Content)
+			}
+
+			track, err := task.New(filepath.Join(dir, ".bit")).Load(testTrackID)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if !reflect.DeepEqual(track.Order, wantOrder) {
+				t.Errorf("Order = %v, want %v", track.Order, wantOrder)
+			}
+		})
+	}
+}
+
+func seedOrderedTrack(t *testing.T, dir string) {
+	t.Helper()
+
+	seedTasks(t, dir,
+		&task.Task{
+			ID: testTrackID, Title: testTitle, Status: task.StatusTodo,
+			Order: []string{testBarID, testSecondBarID, testThirdBarID},
+		},
+		&task.Task{ID: testBarID, Title: testBarTitle, Status: task.StatusTodo},
+		&task.Task{ID: testSecondBarID, Title: testSecondBarTitle, Status: task.StatusTodo},
+		&task.Task{ID: testThirdBarID, Title: testThirdBarTitle, Status: task.StatusTodo},
+	)
+}
+
+func listedBarIDs(t *testing.T, session *mcp.ClientSession) []string {
+	t.Helper()
+
+	bars := callToolList(t, session, taskListTool, map[string]any{testParentKey: testTrackID})
+
+	ids := make([]string, len(bars))
+	for i, bar := range bars {
+		id, _ := bar["id"].(string)
+		ids[i] = id
+	}
+
+	return ids
 }

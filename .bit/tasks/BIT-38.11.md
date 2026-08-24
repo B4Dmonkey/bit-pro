@@ -1,7 +1,7 @@
 ---
 id: BIT-38.11
 title: task_move resequences a bar
-status: todo
+status: done
 approved: true
 phase: 2
 phase_label: Plan writes

@@ -19,6 +19,7 @@ const (
 	taskListTool   = "task_list"
 	taskCreateTool = "task_create"
 	taskUpdateTool = "task_update"
+	taskMoveTool   = "task_move"
 
 	statusProperty = "status"
 )
@@ -43,6 +44,13 @@ const taskUpdateDescription = `Update a task's fields and report whether approva
 Every field is optional: one that is omitted is left unchanged, and one that is sent is written.
 The returned approved reflects whether the edit revoked approval: a change to what was reviewed
 revokes it, so a body rewrite of an approved task comes back with approved false.`
+
+const taskMoveDescription = `Resequence a bar within its track.
+
+bar names the bar to move, and exactly one of before or after names the sibling it moves
+relative to — a sibling being another bar under the same track. A bar's ID is stable identity, so
+moving it keeps every existing reference to it — a commit message, a feedback note, a plan
+citation — valid.`
 
 type taskReadInput struct {
 	ID string `json:"id"`
@@ -87,6 +95,16 @@ type taskUpdateInput struct {
 	Phase      *int    `json:"phase,omitempty"`
 	PhaseLabel *string `json:"phase_label,omitempty"`
 }
+
+type taskMoveInput struct {
+	Bar    string `json:"bar"`
+	Before string `json:"before,omitempty"`
+	After  string `json:"after,omitempty"`
+}
+
+// emptyOutput is the result of a tool whose success carries no fields. The SDK
+// derives an object schema for it and marshals it to {}.
+type emptyOutput struct{}
 
 type taskUpdateOutput struct {
 	ID       string `json:"id"`
@@ -133,6 +151,8 @@ func runMCPServer(ctx context.Context, root string, transport mcp.Transport) err
 		Description: taskUpdateDescription,
 		InputSchema: updateSchema,
 	}, taskUpdateHandler(root))
+
+	mcp.AddTool(s, &mcp.Tool{Name: taskMoveTool, Description: taskMoveDescription}, taskMoveHandler(root))
 
 	return s.Run(ctx, transport)
 }
@@ -258,6 +278,22 @@ func taskUpdateHandler(root string) mcp.ToolHandlerFor[taskUpdateInput, taskUpda
 		}
 
 		return nil, taskUpdateOutput{ID: t.ID, Approved: t.Approved}, nil
+	}
+}
+
+func taskMoveHandler(root string) mcp.ToolHandlerFor[taskMoveInput, emptyOutput] {
+	return func(
+		_ context.Context,
+		_ *mcp.CallToolRequest,
+		in taskMoveInput,
+	) (*mcp.CallToolResult, emptyOutput, error) {
+		store := task.New(bitdir.ForRoot(root))
+
+		if err := store.Move(in.Bar, in.Before, in.After); err != nil {
+			return nil, emptyOutput{}, fmt.Errorf("moving bar %s: %w", in.Bar, err)
+		}
+
+		return nil, emptyOutput{}, nil
 	}
 }
 

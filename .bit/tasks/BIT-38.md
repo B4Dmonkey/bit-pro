@@ -98,7 +98,7 @@ cmd/serve_mcp.go ──> task.Store (reads only)
   approval survived the edit. The riskiest rule in the phase moves into the task package first, so
   a wrong reading of it fails on the first verse rather than the last.
   Touches: `cmd/serve_mcp.go`, `task/store.go`, `cmd/task/create.go`, `cmd/task/update.go`.
-- [ ] Verse 2 — Claude can lay out a whole plan without a shell: bars created under a track with
+- [x] Verse 2 — Claude can lay out a whole plan without a shell: bars created under a track with
   phase tags and `after` placement, plus `task_move` to resequence one. This is the step-3 bar in
   `mcp-notes.md` — a scope → plan cycle running start to finish with Bash never touching `.bit/`.
   Touches: `cmd/serve_mcp.go`, `task/store.go` (`Move`, `InsertAfter`).
