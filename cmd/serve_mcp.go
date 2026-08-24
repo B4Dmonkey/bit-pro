@@ -14,13 +14,14 @@ import (
 )
 
 const (
-	serveMCPCmdUse  = "mcp"
-	taskReadTool    = "task_read"
-	taskListTool    = "task_list"
-	taskCreateTool  = "task_create"
-	taskUpdateTool  = "task_update"
-	taskMoveTool    = "task_move"
-	feedbackAddTool = "feedback_add"
+	serveMCPCmdUse   = "mcp"
+	taskReadTool     = "task_read"
+	taskListTool     = "task_list"
+	taskCreateTool   = "task_create"
+	taskUpdateTool   = "task_update"
+	taskMoveTool     = "task_move"
+	feedbackAddTool  = "feedback_add"
+	taskCompleteTool = "task_complete"
 
 	statusProperty = "status"
 )
@@ -52,6 +53,14 @@ bar names the bar to move, and exactly one of before or after names the sibling 
 relative to — a sibling being another bar under the same track. A bar's ID is stable identity, so
 moving it keeps every existing reference to it — a commit message, a feedback note, a plan
 citation — valid.`
+
+const taskCompleteDescription = `File a signed-off track and its bars under .bit/completed/.
+
+A track is a top-level task — one whole scope — and its ID has no dot, as in BIT-7. Completing one
+relocates the track and every bar under it out of the active list, so a finished cycle stops
+showing up in task_list. It refuses a track that still has an unfinished bar and there is no
+override — set every bar's status to done first. The ID stays reserved rather than being freed, so
+older commit messages and feedback notes that reference it remain valid.`
 
 const feedbackAddDescription = `Record a feedback note against a track and return its path.
 
@@ -102,6 +111,10 @@ type taskUpdateInput struct {
 	Status     *string `json:"status,omitempty"`
 	Phase      *int    `json:"phase,omitempty"`
 	PhaseLabel *string `json:"phase_label,omitempty"`
+}
+
+type taskCompleteInput struct {
+	ID string `json:"id"`
 }
 
 type feedbackAddInput struct {
@@ -171,6 +184,10 @@ func runMCPServer(ctx context.Context, root string, transport mcp.Transport) err
 
 	mcp.AddTool(s, &mcp.Tool{Name: taskMoveTool, Description: taskMoveDescription}, taskMoveHandler(root))
 	mcp.AddTool(s, &mcp.Tool{Name: feedbackAddTool, Description: feedbackAddDescription}, feedbackAddHandler(root))
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        taskCompleteTool,
+		Description: taskCompleteDescription,
+	}, taskCompleteHandler(root))
 
 	return s.Run(ctx, transport)
 }
@@ -309,6 +326,22 @@ func taskMoveHandler(root string) mcp.ToolHandlerFor[taskMoveInput, emptyOutput]
 
 		if err := store.Move(in.Bar, in.Before, in.After); err != nil {
 			return nil, emptyOutput{}, fmt.Errorf("moving bar %s: %w", in.Bar, err)
+		}
+
+		return nil, emptyOutput{}, nil
+	}
+}
+
+func taskCompleteHandler(root string) mcp.ToolHandlerFor[taskCompleteInput, emptyOutput] {
+	return func(
+		_ context.Context,
+		_ *mcp.CallToolRequest,
+		in taskCompleteInput,
+	) (*mcp.CallToolResult, emptyOutput, error) {
+		store := task.New(bitdir.ForRoot(root))
+
+		if err := store.Complete(in.ID); err != nil {
+			return nil, emptyOutput{}, fmt.Errorf("completing task %s: %w", in.ID, err)
 		}
 
 		return nil, emptyOutput{}, nil

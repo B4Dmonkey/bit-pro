@@ -1,7 +1,7 @@
 ---
 id: BIT-38.13
 title: task_complete files a signed-off track and its bars
-status: todo
+status: done
 approved: true
 phase: 4
 phase_label: Close out

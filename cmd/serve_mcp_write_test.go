@@ -42,6 +42,9 @@ const (
 		"## What the work required\n\nThe rule belongs in the store."
 	testSecondNoteBody = "## What the plan said\n\nA second correction."
 
+	testCompletedDir = "completed"
+	testTasksDir     = "tasks"
+
 	testAfterKey  = "after"
 	testBarKey    = "bar"
 	testBeforeKey = "before"
@@ -521,5 +524,75 @@ func TestServeMCPCmd_FeedbackAddRefusesAnUnknownTrack(t *testing.T) {
 
 	if len(notes) != 0 {
 		t.Errorf("notes = %v, want none", notes)
+	}
+}
+
+func TestServeMCPCmd_TaskCompleteFilesATrackAndItsBars(t *testing.T) {
+	dir := t.TempDir()
+	seedDoneTrack(t, dir, task.StatusDone)
+
+	session := mcpSession(t, dir)
+
+	got := callTool(t, session, taskCompleteTool, map[string]any{"id": testTrackID})
+	if len(got) != 0 {
+		t.Errorf("structured content = %v, want empty", got)
+	}
+
+	for _, id := range []string{testTrackID, testBarID, testSecondBarID} {
+		assertRelocated(t, dir, id, testCompletedDir)
+	}
+
+	if listed := callToolList(t, session, taskListTool, map[string]any{}); len(listed) != 0 {
+		t.Errorf("listed tasks = %v, want none", listed)
+	}
+}
+
+func TestServeMCPCmd_TaskCompleteRefusesUnfinishedBars(t *testing.T) {
+	dir := t.TempDir()
+	seedDoneTrack(t, dir, task.StatusDoing)
+
+	result := callToolResult(t, mcpSession(t, dir), taskCompleteTool, map[string]any{"id": testTrackID})
+	if !result.IsError {
+		t.Fatalf("IsError = false, want true (content %v)", result.Content)
+	}
+
+	for _, id := range []string{testTrackID, testBarID, testSecondBarID} {
+		if _, err := os.Stat(filepath.Join(dir, ".bit", testTasksDir, id+".md")); err != nil {
+			t.Errorf("%s missing from %s: %v", id, testTasksDir, err)
+		}
+	}
+
+	completed, err := filepath.Glob(filepath.Join(dir, ".bit", testCompletedDir, "*.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(completed) != 0 {
+		t.Errorf("completed = %v, want none", completed)
+	}
+}
+
+func seedDoneTrack(t *testing.T, dir, lastBarStatus string) {
+	t.Helper()
+
+	seedTasks(t, dir,
+		&task.Task{
+			ID: testTrackID, Title: testTitle, Status: task.StatusDone,
+			Order: []string{testBarID, testSecondBarID},
+		},
+		&task.Task{ID: testBarID, Title: testBarTitle, Status: task.StatusDone},
+		&task.Task{ID: testSecondBarID, Title: testSecondBarTitle, Status: lastBarStatus},
+	)
+}
+
+func assertRelocated(t *testing.T, dir, id, into string) {
+	t.Helper()
+
+	if _, err := os.Stat(filepath.Join(dir, ".bit", into, id+".md")); err != nil {
+		t.Errorf("%s missing from %s: %v", id, into, err)
+	}
+
+	if _, err := os.Stat(filepath.Join(dir, ".bit", testTasksDir, id+".md")); !os.IsNotExist(err) {
+		t.Errorf("%s still under %s (err %v)", id, testTasksDir, err)
 	}
 }
