@@ -283,7 +283,7 @@ func TestStoreNextID(t *testing.T) {
 				}
 			}
 
-			got, err := s.NextID("BIT")
+			got, err := s.NextID(tprefix)
 			if err != nil {
 				t.Fatalf("NextID() returned error: %v", err)
 			}
@@ -343,7 +343,7 @@ func TestStoreNextID_ReservesArchivedIDs(t *testing.T) {
 		t.Fatalf("Relocate(BIT-2): %v", err)
 	}
 
-	got, err := s.NextID("BIT")
+	got, err := s.NextID(tprefix)
 	if err != nil {
 		t.Fatalf("NextID() returned error: %v", err)
 	}
@@ -395,7 +395,7 @@ func TestStoreNextID_ReservesCompletedIDs(t *testing.T) {
 		t.Fatalf("Complete(BIT-2): %v", err)
 	}
 
-	got, err := s.NextID("BIT")
+	got, err := s.NextID(tprefix)
 	if err != nil {
 		t.Fatalf("NextID() returned error: %v", err)
 	}
@@ -638,7 +638,7 @@ func TestStoreConfig_RoundTrips(t *testing.T) {
 	t.Parallel()
 
 	s := New(t.TempDir())
-	if err := s.SaveConfig(&Config{Prefix: "BIT"}); err != nil {
+	if err := s.SaveConfig(&Config{Prefix: tprefix}); err != nil {
 		t.Fatalf("SaveConfig() returned error: %v", err)
 	}
 
@@ -647,8 +647,8 @@ func TestStoreConfig_RoundTrips(t *testing.T) {
 		t.Fatalf("Config() returned error: %v", err)
 	}
 
-	if got.Prefix != "BIT" {
-		t.Errorf("Config().Prefix = %q, want %q", got.Prefix, "BIT")
+	if got.Prefix != tprefix {
+		t.Errorf("Config().Prefix = %q, want %q", got.Prefix, tprefix)
 	}
 }
 
@@ -692,5 +692,129 @@ func TestStoreConfig_ErrorsWhenAbsent(t *testing.T) {
 
 	if _, err := New(t.TempDir()).Config(); !errors.Is(err, fs.ErrNotExist) {
 		t.Fatalf("Config() error = %v, want an error wrapping fs.ErrNotExist", err)
+	}
+}
+
+func TestStoreCreate(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		seed      []*Task
+		params    CreateParams
+		wantID    string
+		wantOrder []string
+	}{
+		{
+			name:   "mints the first track in an empty store",
+			params: CreateParams{Title: ttrack, Body: "why\n\nbecause"},
+			wantID: tid1,
+		},
+		{
+			name:   "mints past an existing track",
+			seed:   []*Task{{ID: tid1, Title: tseed, Status: StatusTodo}},
+			params: CreateParams{Title: ttrack, Body: "why\n\nbecause"},
+			wantID: tid2,
+		},
+		{
+			name:   "mints a dotted child under a parent",
+			seed:   []*Task{{ID: tid1, Title: tseed, Status: StatusTodo}},
+			params: CreateParams{Title: tbar, Parent: tid1, Phase: 2, PhaseLabel: "Plan writes"},
+			wantID: tid1_1,
+		},
+		{
+			name: "splices a child into an explicit order",
+			seed: []*Task{
+				{ID: tid1, Title: tseed, Status: StatusTodo, Order: []string{tid1_1, tid1_2}},
+				{ID: tid1_1, Title: tbar, Status: StatusTodo},
+				{ID: tid1_2, Title: tbar, Status: StatusTodo},
+			},
+			params:    CreateParams{Title: tbar, Parent: tid1, After: tid1_1},
+			wantID:    tid1_3,
+			wantOrder: []string{tid1_1, tid1_3, tid1_2},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			s := New(t.TempDir())
+			if err := s.SaveConfig(&Config{Prefix: tprefix}); err != nil {
+				t.Fatalf("SaveConfig() returned error: %v", err)
+			}
+
+			for _, seed := range tt.seed {
+				if err := s.Save(seed); err != nil {
+					t.Fatalf("seeding %s: %v", seed.ID, err)
+				}
+			}
+
+			got, err := s.Create(tt.params)
+			if err != nil {
+				t.Fatalf("Create() returned error: %v", err)
+			}
+
+			loaded, err := s.Load(tt.wantID)
+			if err != nil {
+				t.Fatalf("loading %s: %v", tt.wantID, err)
+			}
+
+			assertCreated(t, "Create()", got, tt.params, tt.wantID)
+			assertCreated(t, "Load()", loaded, tt.params, tt.wantID)
+
+			if tt.wantOrder == nil {
+				return
+			}
+
+			track, err := s.Load(tt.params.Parent)
+			if err != nil {
+				t.Fatalf("loading %s: %v", tt.params.Parent, err)
+			}
+
+			if !slices.Equal(track.Order, tt.wantOrder) {
+				t.Errorf("Order = %v, want %v", track.Order, tt.wantOrder)
+			}
+		})
+	}
+}
+
+func TestStoreCreate_RejectsUnknownParent(t *testing.T) {
+	t.Parallel()
+
+	s := New(t.TempDir())
+
+	_, err := s.Create(CreateParams{Title: tbar, Parent: tid1_9})
+
+	if !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("Create() error = %v, want an error wrapping fs.ErrNotExist", err)
+	}
+}
+
+func assertCreated(t *testing.T, what string, got *Task, want CreateParams, wantID string) {
+	t.Helper()
+
+	if got.ID != wantID {
+		t.Errorf("%s ID = %q, want %q", what, got.ID, wantID)
+	}
+
+	if got.Status != StatusTodo {
+		t.Errorf("%s Status = %q, want %q", what, got.Status, StatusTodo)
+	}
+
+	if got.Title != want.Title {
+		t.Errorf("%s Title = %q, want %q", what, got.Title, want.Title)
+	}
+
+	if got.Body != want.Body {
+		t.Errorf("%s Body = %q, want %q", what, got.Body, want.Body)
+	}
+
+	if got.Phase != want.Phase {
+		t.Errorf("%s Phase = %d, want %d", what, got.Phase, want.Phase)
+	}
+
+	if got.PhaseLabel != want.PhaseLabel {
+		t.Errorf("%s PhaseLabel = %q, want %q", what, got.PhaseLabel, want.PhaseLabel)
 	}
 }

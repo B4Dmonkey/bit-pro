@@ -1,7 +1,7 @@
 ---
 id: BIT-38.2
 title: Store.Create owns ID minting and order insertion
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: Scope writes

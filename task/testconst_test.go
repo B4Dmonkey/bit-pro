@@ -11,7 +11,8 @@ const (
 	tid3   = "BIT-3"
 	tid4   = "BIT-4"
 
-	acme1 = "ACME-1"
+	acme1   = "ACME-1"
+	tprefix = "BIT"
 
 	tseed  = "seed"
 	tbar   = "bar"

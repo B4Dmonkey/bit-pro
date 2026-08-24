@@ -186,6 +186,72 @@ func (s *Store) Save(t *Task) error {
 	return nil
 }
 
+// CreateParams carries everything a new task needs. An empty Parent mints a
+// top-level track; a set Parent mints a dotted bar under it. After names a
+// sibling to splice the new bar in behind, and is only meaningful with Parent.
+type CreateParams struct {
+	Title      string
+	Body       string
+	Parent     string
+	After      string
+	Phase      int
+	PhaseLabel string
+}
+
+// Create mints the next ID for p, writes the task, and maintains the parent's
+// explicit order. A bad After anchor fails before anything is written, so a
+// rejected placement never leaves an orphan task file behind.
+func (s *Store) Create(p CreateParams) (*Task, error) {
+	var (
+		id  string
+		err error
+	)
+
+	if p.Parent != "" {
+		id, err = s.NextChildID(p.Parent)
+	} else {
+		var cfg *Config
+
+		cfg, err = s.Config()
+		if err != nil {
+			return nil, err
+		}
+
+		id, err = s.NextID(cfg.Prefix)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	if p.After != "" {
+		if err := s.InsertAfter(p.Parent, id, p.After); err != nil {
+			return nil, err
+		}
+	}
+
+	t := &Task{
+		ID:         id,
+		Title:      p.Title,
+		Status:     StatusTodo,
+		Phase:      p.Phase,
+		PhaseLabel: p.PhaseLabel,
+		Body:       p.Body,
+	}
+
+	if err := s.Save(t); err != nil {
+		return nil, err
+	}
+
+	if p.Parent != "" && p.After == "" {
+		if err := s.AppendToOrder(p.Parent, id); err != nil {
+			return nil, err
+		}
+	}
+
+	return t, nil
+}
+
 func (s *Store) SetApproved(id string, approved bool) error {
 	t, err := s.Load(id)
 	if err != nil {

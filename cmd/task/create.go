@@ -39,54 +39,19 @@ func runCreate(
 	parent, after, description string,
 	phase int, phaseLabel string,
 ) error {
-	s := taskstore.New(bitdir.Current())
-
-	var (
-		id  string
-		err error
-	)
-
-	if parent != "" {
-		id, err = s.NextChildID(parent)
-	} else {
-		var cfg *taskstore.Config
-
-		cfg, err = s.Config()
-		if err != nil {
-			return err
-		}
-
-		id, err = s.NextID(cfg.Prefix)
-	}
-
+	t, err := taskstore.New(bitdir.Current()).Create(taskstore.CreateParams{
+		Title:      args[0],
+		Body:       description,
+		Parent:     parent,
+		After:      after,
+		Phase:      phase,
+		PhaseLabel: phaseLabel,
+	})
 	if err != nil {
 		return err
 	}
 
-	if after != "" {
-		if err := s.InsertAfter(parent, id, after); err != nil {
-			return err
-		}
-	}
-
-	if err := s.Save(&taskstore.Task{
-		ID:         id,
-		Title:      args[0],
-		Status:     taskstore.StatusTodo,
-		Phase:      phase,
-		PhaseLabel: phaseLabel,
-		Body:       description,
-	}); err != nil {
-		return err
-	}
-
-	if parent != "" && after == "" {
-		if err := s.AppendToOrder(parent, id); err != nil {
-			return err
-		}
-	}
-
-	_, err = fmt.Fprintln(cmd.OutOrStdout(), id)
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), t.ID)
 
 	return err
 }
