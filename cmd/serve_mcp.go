@@ -16,6 +16,7 @@ const (
 	serveMCPCmdUse = "mcp"
 	taskReadTool   = "task_read"
 	taskListTool   = "task_list"
+	taskCreateTool = "task_create"
 )
 
 const taskListDescription = `List tasks as structured fields, in the order bp prints them.
@@ -23,6 +24,12 @@ const taskListDescription = `List tasks as structured fields, in the order bp pr
 A track is a top-level task — one whole scope — and its ID has no dot, as in BIT-7. A bar is a
 child of a track — one plan step — and its ID is dotted, as in BIT-7.3. Set parent to a track ID
 to list that track's direct bars in the track's own order; omit it to list every task.`
+
+const taskCreateDescription = `Create a task and return its minted ID.
+
+A track is a top-level task — one whole scope — and its ID has no dot, as in BIT-7. A bar is a
+child of a track — one plan step — and its ID is dotted, as in BIT-7.3. This mints a track: the
+returned id is the new task's ID, and its status starts at todo.`
 
 type taskReadInput struct {
 	ID string `json:"id"`
@@ -44,6 +51,15 @@ type taskSummary struct {
 
 type taskListOutput struct {
 	Tasks []taskSummary `json:"tasks"`
+}
+
+type taskCreateInput struct {
+	Title string `json:"title"`
+	Body  string `json:"body,omitempty"`
+}
+
+type taskCreateOutput struct {
+	ID string `json:"id"`
 }
 
 type taskReadOutput struct {
@@ -74,6 +90,7 @@ func runMCPServer(ctx context.Context, root string, transport mcp.Transport) err
 	s := mcp.NewServer(&mcp.Implementation{Name: "bp", Version: "1"}, nil)
 	mcp.AddTool(s, &mcp.Tool{Name: taskReadTool, Description: "Read a task by ID"}, taskReadHandler(root))
 	mcp.AddTool(s, &mcp.Tool{Name: taskListTool, Description: taskListDescription}, taskListHandler(root))
+	mcp.AddTool(s, &mcp.Tool{Name: taskCreateTool, Description: taskCreateDescription}, taskCreateHandler(root))
 
 	return s.Run(ctx, transport)
 }
@@ -141,6 +158,23 @@ func taskListHandler(root string) mcp.ToolHandlerFor[taskListInput, taskListOutp
 		}
 
 		return nil, out, nil
+	}
+}
+
+func taskCreateHandler(root string) mcp.ToolHandlerFor[taskCreateInput, taskCreateOutput] {
+	return func(
+		_ context.Context,
+		_ *mcp.CallToolRequest,
+		in taskCreateInput,
+	) (*mcp.CallToolResult, taskCreateOutput, error) {
+		store := task.New(bitdir.ForRoot(root))
+
+		t, err := store.Create(task.CreateParams{Title: in.Title, Body: in.Body})
+		if err != nil {
+			return nil, taskCreateOutput{}, fmt.Errorf("creating task: %w", err)
+		}
+
+		return nil, taskCreateOutput{ID: t.ID}, nil
 	}
 }
 

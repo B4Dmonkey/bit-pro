@@ -1,7 +1,7 @@
 ---
 id: BIT-38.3
 title: task_create mints a track through the protocol
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: Scope writes

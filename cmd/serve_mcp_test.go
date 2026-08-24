@@ -25,6 +25,7 @@ const (
 	testOtherBarTitle  = "another track's bar"
 
 	testParentKey = "parent"
+	testTitleKey  = "title"
 )
 
 func TestServeMCPCmd_TaskReadReturnsStructuredFields(t *testing.T) {
@@ -40,8 +41,8 @@ func TestServeMCPCmd_TaskReadReturnsStructuredFields(t *testing.T) {
 		t.Errorf("id = %v, want %s", got["id"], testTrackID)
 	}
 
-	if got["title"] != testTitle {
-		t.Errorf("title = %v, want %s", got["title"], testTitle)
+	if got[testTitleKey] != testTitle {
+		t.Errorf("title = %v, want %s", got[testTitleKey], testTitle)
 	}
 
 	if got["status"] != "todo" {
@@ -87,8 +88,8 @@ func TestServeMCPCmd_ResolvesWorktreeRootToMainCheckout(t *testing.T) {
 
 	got := callTool(t, session, taskReadTool, map[string]any{"id": testTrackID})
 
-	if got["title"] != testTitle {
-		t.Errorf("title = %v, want %s", got["title"], testTitle)
+	if got[testTitleKey] != testTitle {
+		t.Errorf("title = %v, want %s", got[testTitleKey], testTitle)
 	}
 }
 
@@ -110,11 +111,11 @@ func TestServeMCPCmd_TaskListReturnsEveryTaskAsFields(t *testing.T) {
 
 	want := []map[string]any{
 		{
-			"id": testTrackID, "title": testTitle, "status": task.StatusTodo,
+			"id": testTrackID, testTitleKey: testTitle, "status": task.StatusTodo,
 			"approved": true, "phase": float64(0), "phase_label": "", testParentKey: "",
 		},
 		{
-			"id": testBarID, "title": testBarTitle, "status": task.StatusDoing,
+			"id": testBarID, testTitleKey: testBarTitle, "status": task.StatusDoing,
 			"approved": false, "phase": float64(2), "phase_label": testPhaseLabel, testParentKey: testTrackID,
 		},
 	}
