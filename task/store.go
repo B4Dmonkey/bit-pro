@@ -252,6 +252,62 @@ func (s *Store) Create(p CreateParams) (*Task, error) {
 	return t, nil
 }
 
+// Patch carries a partial update to a task. A nil field leaves the stored
+// value alone; a non-nil field writes it, including an empty string or a zero
+// phase. That distinction is the store's version of Cobra's Changed() check —
+// without it an update that never mentioned a field would blank it.
+type Patch struct {
+	Title      *string
+	Body       *string
+	Status     *string
+	Phase      *int
+	PhaseLabel *string
+}
+
+// Update applies p to the task and saves it, returning the updated task.
+// Approval is revoked when the patch changes what was reviewed — title, body,
+// phase, or phase-label — or sends the task back to todo. A forward status move
+// is the act of doing approved work, so it keeps the flag.
+func (s *Store) Update(id string, p Patch) (*Task, error) {
+	t, err := s.Load(id)
+	if err != nil {
+		return nil, err
+	}
+
+	if p.Title != nil {
+		t.Title = *p.Title
+	}
+
+	if p.Body != nil {
+		t.Body = *p.Body
+	}
+
+	if p.Status != nil {
+		t.Status = *p.Status
+	}
+
+	if p.Phase != nil {
+		t.Phase = *p.Phase
+	}
+
+	if p.PhaseLabel != nil {
+		t.PhaseLabel = *p.PhaseLabel
+	}
+
+	contentChanged := p.Title != nil || p.Body != nil || p.Phase != nil || p.PhaseLabel != nil
+	sentBack := p.Status != nil && *p.Status == StatusTodo
+
+	if t.Approved && (contentChanged || sentBack) {
+		t.Approved = false
+	}
+
+	if err := s.Save(t); err != nil {
+		return nil, err
+	}
+
+	return t, nil
+}
+
 func (s *Store) SetApproved(id string, approved bool) error {
 	t, err := s.Load(id)
 	if err != nil {

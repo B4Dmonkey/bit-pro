@@ -818,3 +818,143 @@ func assertCreated(t *testing.T, what string, got *Task, want CreateParams, want
 		t.Errorf("%s PhaseLabel = %q, want %q", what, got.PhaseLabel, want.PhaseLabel)
 	}
 }
+
+func TestStoreUpdate_AppliesOnlySetFields(t *testing.T) {
+	t.Parallel()
+
+	const (
+		oldTitle = "Old title"
+		oldLabel = "Old label"
+		oldBody  = "Old body."
+	)
+
+	seed := Task{
+		ID:         tid1,
+		Title:      oldTitle,
+		Status:     StatusTodo,
+		Phase:      3,
+		PhaseLabel: oldLabel,
+		Body:       oldBody,
+	}
+
+	tests := []struct {
+		name  string
+		patch Patch
+		want  Task
+	}{
+		{
+			name:  "an empty patch changes nothing",
+			patch: Patch{},
+			want:  seed,
+		},
+		{
+			name:  "a set title is written",
+			patch: Patch{Title: ptr("New title")},
+			want:  Task{ID: tid1, Title: "New title", Status: StatusTodo, Phase: 3, PhaseLabel: oldLabel, Body: oldBody},
+		},
+		{
+			name:  "body and status are written together",
+			patch: Patch{Body: ptr("New body."), Status: ptr(StatusDoing)},
+			want:  Task{ID: tid1, Title: oldTitle, Status: StatusDoing, Phase: 3, PhaseLabel: oldLabel, Body: "New body."},
+		},
+		{
+			name:  "an explicitly empty title is written",
+			patch: Patch{Title: ptr("")},
+			want:  Task{ID: tid1, Title: "", Status: StatusTodo, Phase: 3, PhaseLabel: oldLabel, Body: oldBody},
+		},
+		{
+			name:  "a zero phase and empty label are written",
+			patch: Patch{Phase: ptr(0), PhaseLabel: ptr("")},
+			want:  Task{ID: tid1, Title: oldTitle, Status: StatusTodo, Phase: 0, PhaseLabel: "", Body: oldBody},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			s := New(t.TempDir())
+
+			s0 := seed
+			if err := s.Save(&s0); err != nil {
+				t.Fatalf("seeding %s: %v", seed.ID, err)
+			}
+
+			got, err := s.Update(tid1, tt.patch)
+			if err != nil {
+				t.Fatalf("Update() returned error: %v", err)
+			}
+
+			loaded, err := s.Load(tid1)
+			if err != nil {
+				t.Fatalf("loading %s: %v", tid1, err)
+			}
+
+			if !reflect.DeepEqual(*got, tt.want) {
+				t.Errorf("Update() = %+v, want %+v", *got, tt.want)
+			}
+
+			if !reflect.DeepEqual(*loaded, tt.want) {
+				t.Errorf("Load() = %+v, want %+v", *loaded, tt.want)
+			}
+		})
+	}
+}
+
+func TestStoreUpdate_ApprovalRevocation(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		approved     bool
+		patch        Patch
+		wantApproved bool
+	}{
+		{name: "a title change revokes", approved: true, patch: Patch{Title: ptr("x")}},
+		{name: "a body change revokes", approved: true, patch: Patch{Body: ptr("x")}},
+		{name: "a phase change revokes", approved: true, patch: Patch{Phase: ptr(2)}},
+		{name: "a phase-label change revokes", approved: true, patch: Patch{PhaseLabel: ptr("x")}},
+		{name: "sending a task back to todo revokes", approved: true, patch: Patch{Status: ptr(StatusTodo)}},
+		{
+			name:         "a forward status move keeps approval",
+			approved:     true,
+			patch:        Patch{Status: ptr(StatusDone)},
+			wantApproved: true,
+		},
+		{name: "an empty patch keeps approval", approved: true, patch: Patch{}, wantApproved: true},
+		{name: "an unapproved task stays unapproved", approved: false, patch: Patch{Title: ptr("x")}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			s := New(t.TempDir())
+			if err := s.Save(&Task{ID: tid1, Title: "T", Status: StatusDoing, Approved: tt.approved}); err != nil {
+				t.Fatalf("seeding %s: %v", tid1, err)
+			}
+
+			got, err := s.Update(tid1, tt.patch)
+			if err != nil {
+				t.Fatalf("Update() returned error: %v", err)
+			}
+
+			loaded, err := s.Load(tid1)
+			if err != nil {
+				t.Fatalf("loading %s: %v", tid1, err)
+			}
+
+			if got.Approved != tt.wantApproved {
+				t.Errorf("Update() Approved = %v, want %v", got.Approved, tt.wantApproved)
+			}
+
+			if loaded.Approved != tt.wantApproved {
+				t.Errorf("Load() Approved = %v, want %v", loaded.Approved, tt.wantApproved)
+			}
+		})
+	}
+}
+
+func ptr[T any](v T) *T {
+	return &v
+}

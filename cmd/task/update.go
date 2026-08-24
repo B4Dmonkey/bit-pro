@@ -18,42 +18,31 @@ func newUpdateCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s := taskstore.New(bitdir.Current())
 
-			t, err := s.Load(args[0])
-			if err != nil {
-				return err
-			}
+			var p taskstore.Patch
 
 			if cmd.Flags().Changed("title") {
-				t.Title = title
+				p.Title = &title
 			}
 
 			if cmd.Flags().Changed("description") {
-				t.Body = description
+				p.Body = &description
 			}
 
 			if cmd.Flags().Changed("status") {
-				t.Status = status
+				p.Status = &status
 			}
 
 			if cmd.Flags().Changed("phase") {
-				t.Phase = phase
+				p.Phase = &phase
 			}
 
 			if cmd.Flags().Changed("phase-label") {
-				t.PhaseLabel = phaseLabel
+				p.PhaseLabel = &phaseLabel
 			}
 
-			anyChanged := cmd.Flags().Changed("title") ||
-				cmd.Flags().Changed("description") ||
-				cmd.Flags().Changed("phase") ||
-				cmd.Flags().Changed("phase-label")
-			sentBack := cmd.Flags().Changed("status") && status == taskstore.StatusTodo
+			_, err := s.Update(args[0], p)
 
-			if t.Approved && (anyChanged || sentBack) {
-				t.Approved = false
-			}
-
-			return s.Save(t)
+			return err
 		},
 	}
 	cmd.Flags().StringVarP(&title, "title", "t", "", "new task title")

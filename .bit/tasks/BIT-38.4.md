@@ -1,7 +1,7 @@
 ---
 id: BIT-38.4
 title: Store.Update owns approval revocation
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: Scope writes
