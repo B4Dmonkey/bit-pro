@@ -1,7 +1,7 @@
 ---
 id: BIT-38
 title: MCP write surface
-status: doing
+status: done
 ---
 ## Why
 
@@ -106,7 +106,7 @@ cmd/serve_mcp.go ──> task.Store (reads only)
   writes a note against a track; the status writes bit_do makes already ride on `task_update`. The
   bit_do and bit_feedback write paths are now fully covered.
   Touches: `cmd/serve_mcp.go`, `task/feedback.go`.
-- [ ] Verse 4 — Claude can close a track out: `task_complete` files a signed-off track and its
+- [x] Verse 4 — Claude can close a track out: `task_complete` files a signed-off track and its
   bars under `.bit/completed/`, and `task_delete` removes one, with `force` for a track that still
   has unfinished bars. With this the pipeline has no remaining write that needs a shell.
   Touches: `cmd/serve_mcp.go`, `task/store.go` (`Complete`, `Relocate`).

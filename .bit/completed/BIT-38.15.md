@@ -1,7 +1,7 @@
 ---
 id: BIT-38.15
 title: 'Contradiction: force overrides unfinished bars'
-status: todo
+status: done
 approved: true
 phase: 4
 phase_label: Close out

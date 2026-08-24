@@ -639,3 +639,59 @@ func TestServeMCPCmd_TaskDeleteRelocatesAndReservesTheID(t *testing.T) {
 		t.Errorf("id = %v, want %s", replacement["id"], testThirdBarID)
 	}
 }
+
+func TestServeMCPCmd_TaskDeleteForceOverridesUnfinishedBars(t *testing.T) {
+	archivedTasksDir := filepath.Join(testArchiveDir, testTasksDir)
+	seeded := []string{testTrackID, testBarID, testSecondBarID}
+
+	tests := []struct {
+		name     string
+		args     map[string]any
+		archived bool
+	}{
+		{"force true", map[string]any{"id": testTrackID, "force": true}, true},
+		{"force false", map[string]any{"id": testTrackID, "force": false}, false},
+		{"force omitted", map[string]any{"id": testTrackID}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			seedDoneTrack(t, dir, task.StatusDoing)
+
+			session := mcpSession(t, dir)
+
+			if tt.archived {
+				if got := callTool(t, session, taskDeleteTool, tt.args); len(got) != 0 {
+					t.Errorf("structured content = %v, want empty", got)
+				}
+
+				for _, id := range seeded {
+					assertRelocated(t, dir, id, archivedTasksDir)
+				}
+
+				return
+			}
+
+			result := callToolResult(t, session, taskDeleteTool, tt.args)
+			if !result.IsError {
+				t.Fatalf("IsError = false, want true (content %v)", result.Content)
+			}
+
+			for _, id := range seeded {
+				if _, err := os.Stat(filepath.Join(dir, ".bit", testTasksDir, id+".md")); err != nil {
+					t.Errorf("%s missing from %s: %v", id, testTasksDir, err)
+				}
+			}
+
+			archived, err := filepath.Glob(filepath.Join(dir, ".bit", archivedTasksDir, "*.md"))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if len(archived) != 0 {
+				t.Errorf("archived = %v, want none", archived)
+			}
+		})
+	}
+}

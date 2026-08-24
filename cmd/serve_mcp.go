@@ -69,7 +69,8 @@ The task file is relocated rather than destroyed, so it stays recoverable on dis
 reserved rather than being freed — a commit message or feedback note that cites it remains valid,
 and the ID is never re-minted onto a different task. Deleting a bar — a child of a track, whose ID
 is dotted, as in BIT-7.3 — also removes it from its track's order, which is what makes dropping one
-mid-plan safe.`
+mid-plan safe. Setting force deletes a track that still has unfinished bars; without it such a
+track is refused.`
 
 const feedbackAddDescription = `Record a feedback note against a track and return its path.
 
@@ -127,7 +128,8 @@ type taskCompleteInput struct {
 }
 
 type taskDeleteInput struct {
-	ID string `json:"id"`
+	ID    string `json:"id"`
+	Force bool   `json:"force,omitempty"`
 }
 
 type feedbackAddInput struct {
@@ -373,7 +375,7 @@ func taskDeleteHandler(root string) mcp.ToolHandlerFor[taskDeleteInput, emptyOut
 	) (*mcp.CallToolResult, emptyOutput, error) {
 		store := task.New(bitdir.ForRoot(root))
 
-		if err := store.Relocate(in.ID, false); err != nil {
+		if err := store.Relocate(in.ID, in.Force); err != nil {
 			return nil, emptyOutput{}, fmt.Errorf("deleting task %s: %w", in.ID, err)
 		}
 

@@ -1,6 +1,6 @@
 # MCP phase — working notes
 
-**Last synced 2026-08-23. Route: `bp serve mcp`, a stdio MCP server in the same binary.**
+**Last synced 2026-08-24. Route: `bp serve mcp`, a stdio MCP server in the same binary.**
 
 `bp` is a CLI designed to be driven by a model, but it is reached through Bash — one of a
 thousand things that can be typed into a shell. The consequences are visible: Claude reaches
@@ -52,10 +52,18 @@ code path corrupts the protocol stream. This is the one mechanical hazard of the
 
 ### 3. Write surface
 
-- [ ] `task_create`, `task_update`, `task_move`, `task_complete`, `task_delete`, `feedback_add`.
+- [x] `task_create`, `task_update`, `task_move`, `task_complete`, `task_delete`, `feedback_add`.
       *Done when:* a full scope → plan cycle runs start to finish without Bash touching
       `.bit/` once.
-- [ ] `task_update` preserves the approval-revocation rule exactly (see Decisions).
+      Landed 2026-08-24 as BIT-38 in `cmd/serve_mcp.go`, taking the tool count to eight. The
+      three domain rules the Cobra layer owned moved down into the task package with it —
+      `Store.Create` mints IDs and inserts into the order, `Store.Update` revokes approval, and
+      `Store.Move` takes the anchor pair so it owns the one-anchor rule — so the CLI and the
+      handlers are both thin callers over one implementation. `task_delete` carries `force` and
+      drops `-y`; `task_update` returns `{id, approved}` so revocation is observable. Every verse
+      is proven end to end through the protocol by `cmd/serve_mcp_write_test.go` over
+      `mcp.NewInMemoryTransports()`.
+- [x] `task_update` preserves the approval-revocation rule exactly (see Decisions).
       *Done when:* a body edit through the tool revokes approval and a `doing → done` move
       does not.
 
