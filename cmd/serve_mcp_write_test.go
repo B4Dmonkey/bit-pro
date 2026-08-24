@@ -44,6 +44,9 @@ const (
 
 	testCompletedDir = "completed"
 	testTasksDir     = "tasks"
+	testArchiveDir   = "archive"
+
+	testReplacementBarTitle = "A replacement step"
 
 	testAfterKey  = "after"
 	testBarKey    = "bar"
@@ -594,5 +597,45 @@ func assertRelocated(t *testing.T, dir, id, into string) {
 
 	if _, err := os.Stat(filepath.Join(dir, ".bit", testTasksDir, id+".md")); !os.IsNotExist(err) {
 		t.Errorf("%s still under %s (err %v)", id, testTasksDir, err)
+	}
+}
+
+func TestServeMCPCmd_TaskDeleteRelocatesAndReservesTheID(t *testing.T) {
+	dir := t.TempDir()
+	seedConfig(t, dir)
+	seedTasks(t, dir,
+		&task.Task{
+			ID: testTrackID, Title: testTitle, Status: task.StatusDoing,
+			Order: []string{testBarID, testSecondBarID},
+		},
+		&task.Task{ID: testBarID, Title: testBarTitle, Status: task.StatusDone},
+		&task.Task{ID: testSecondBarID, Title: testSecondBarTitle, Status: task.StatusTodo},
+	)
+
+	session := mcpSession(t, dir)
+
+	got := callTool(t, session, taskDeleteTool, map[string]any{"id": testSecondBarID})
+	if len(got) != 0 {
+		t.Errorf("structured content = %v, want empty", got)
+	}
+
+	assertRelocated(t, dir, testSecondBarID, filepath.Join(testArchiveDir, testTasksDir))
+
+	track, err := task.New(filepath.Join(dir, ".bit")).Load(testTrackID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if wantOrder := []string{testBarID}; !reflect.DeepEqual(track.Order, wantOrder) {
+		t.Fatalf("Order = %v, want %v", track.Order, wantOrder)
+	}
+
+	replacement := callTool(t, session, taskCreateTool, map[string]any{
+		testTitleKey:  testReplacementBarTitle,
+		testParentKey: testTrackID,
+	})
+
+	if replacement["id"] != testThirdBarID {
+		t.Errorf("id = %v, want %s", replacement["id"], testThirdBarID)
 	}
 }

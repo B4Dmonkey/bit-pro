@@ -1,7 +1,7 @@
 ---
 id: BIT-38.14
 title: task_delete archives a task and reserves its ID
-status: todo
+status: done
 approved: true
 phase: 4
 phase_label: Close out

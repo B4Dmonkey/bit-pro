@@ -22,6 +22,7 @@ const (
 	taskMoveTool     = "task_move"
 	feedbackAddTool  = "feedback_add"
 	taskCompleteTool = "task_complete"
+	taskDeleteTool   = "task_delete"
 
 	statusProperty = "status"
 )
@@ -61,6 +62,14 @@ relocates the track and every bar under it out of the active list, so a finished
 showing up in task_list. It refuses a track that still has an unfinished bar and there is no
 override — set every bar's status to done first. The ID stays reserved rather than being freed, so
 older commit messages and feedback notes that reference it remain valid.`
+
+const taskDeleteDescription = `Remove a task from the active list by relocating it to .bit/archive/tasks/.
+
+The task file is relocated rather than destroyed, so it stays recoverable on disk, and its ID stays
+reserved rather than being freed — a commit message or feedback note that cites it remains valid,
+and the ID is never re-minted onto a different task. Deleting a bar — a child of a track, whose ID
+is dotted, as in BIT-7.3 — also removes it from its track's order, which is what makes dropping one
+mid-plan safe.`
 
 const feedbackAddDescription = `Record a feedback note against a track and return its path.
 
@@ -114,6 +123,10 @@ type taskUpdateInput struct {
 }
 
 type taskCompleteInput struct {
+	ID string `json:"id"`
+}
+
+type taskDeleteInput struct {
 	ID string `json:"id"`
 }
 
@@ -188,6 +201,10 @@ func runMCPServer(ctx context.Context, root string, transport mcp.Transport) err
 		Name:        taskCompleteTool,
 		Description: taskCompleteDescription,
 	}, taskCompleteHandler(root))
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        taskDeleteTool,
+		Description: taskDeleteDescription,
+	}, taskDeleteHandler(root))
 
 	return s.Run(ctx, transport)
 }
@@ -342,6 +359,22 @@ func taskCompleteHandler(root string) mcp.ToolHandlerFor[taskCompleteInput, empt
 
 		if err := store.Complete(in.ID); err != nil {
 			return nil, emptyOutput{}, fmt.Errorf("completing task %s: %w", in.ID, err)
+		}
+
+		return nil, emptyOutput{}, nil
+	}
+}
+
+func taskDeleteHandler(root string) mcp.ToolHandlerFor[taskDeleteInput, emptyOutput] {
+	return func(
+		_ context.Context,
+		_ *mcp.CallToolRequest,
+		in taskDeleteInput,
+	) (*mcp.CallToolResult, emptyOutput, error) {
+		store := task.New(bitdir.ForRoot(root))
+
+		if err := store.Relocate(in.ID, false); err != nil {
+			return nil, emptyOutput{}, fmt.Errorf("deleting task %s: %w", in.ID, err)
 		}
 
 		return nil, emptyOutput{}, nil
