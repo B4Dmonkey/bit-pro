@@ -1,18 +1,16 @@
 package cmd
 
 import (
-	"context"
 	"io"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
 
+	"github.com/B4Dmonkey/bit-pro/daemon"
 	"github.com/B4Dmonkey/bit-pro/db"
 	"github.com/B4Dmonkey/bit-pro/db/orm"
-	"github.com/B4Dmonkey/bit-pro/task"
 )
 
 const (
@@ -21,34 +19,6 @@ const (
 )
 
 var serveTick = 10 * time.Second
-
-func writeCounts(ctx context.Context, queries *orm.Queries, log *slog.Logger) {
-	projects, err := queries.ListProjects(ctx)
-	if err != nil {
-		log.Error("listing projects", "err", err)
-
-		return
-	}
-
-	for _, p := range projects {
-		counts, err := task.New(filepath.Join(p.Path, ".bit")).Counts()
-		if err != nil {
-			log.Warn("reading counts", "project", p.Code, "path", p.Path, "err", err)
-
-			continue
-		}
-
-		if err := queries.UpdateProjectCounts(ctx, orm.UpdateProjectCountsParams{
-			Backlog:   int64(counts.Backlog),
-			Todo:      int64(counts.Todo),
-			Done:      int64(counts.Done),
-			Completed: int64(counts.Completed),
-			ID:        p.ID,
-		}); err != nil {
-			log.Error("updating project counts", "project", p.Code, "err", err)
-		}
-	}
-}
 
 func newHandler(w io.Writer, level slog.Level) slog.Handler {
 	opts := &slog.HandlerOptions{Level: level}
@@ -100,7 +70,7 @@ func newServeDaemonCmd() *cobra.Command {
 					return nil
 				case <-ticker.C:
 					log.Debug("tick")
-					writeCounts(ctx, queries, log)
+					daemon.Tick(ctx, queries, log)
 				}
 			}
 		},
