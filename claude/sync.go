@@ -18,6 +18,14 @@ func ExecRunner(ctx context.Context, name string, args ...string) error {
 	return nil
 }
 
+func RegisterMCP(ctx context.Context, run Runner) error {
+	if err := run(ctx, "claude", "mcp", "add", "bit", "--", "bp", "serve", "mcp"); err != nil {
+		return fmt.Errorf("registering bit MCP server: %w", err)
+	}
+
+	return nil
+}
+
 func SyncPlugin(ctx context.Context, run Runner) error {
 	if err := run(ctx, "claude", "plugin", "marketplace", "update", "bit-pro"); err != nil {
 		return fmt.Errorf("refreshing the bit-pro marketplace: %w", err)

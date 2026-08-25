@@ -82,13 +82,17 @@ func TestAddCmd_InitialisesAProjectWithoutBit(t *testing.T) {
 		t.Fatalf("Execute() returned error: %v", err)
 	}
 
-	wantOut := "Project code: Bringing the bit plugin current...\nadded BIT " + want + "\n"
+	wantOut := "Project code: Bringing the bit plugin current...\n" +
+		"Registering bit MCP server...\n" +
+		"bit MCP server registered (local scope).\n" +
+		"added BIT " + want + "\n"
 	if out != wantOut {
 		t.Errorf("output = %q, want %q", out, wantOut)
 	}
 
-	if strings.Contains(out, "(") {
-		t.Errorf("prompt = %q, want no %q", out, "(")
+	prompt := strings.SplitN(out, "Bringing", 2)[0]
+	if strings.Contains(prompt, "(") {
+		t.Errorf("prompt = %q, want no %q", prompt, "(")
 	}
 
 	data, err := os.ReadFile(filepath.Join(".claude", "settings.json"))

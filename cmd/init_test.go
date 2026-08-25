@@ -135,8 +135,9 @@ func TestInitCmd_PromptShowsExistingPrefix(t *testing.T) {
 				t.Errorf("prompt = %q, want it to contain %q", out, tt.wantShown)
 			}
 
-			if !tt.wantParen && strings.Contains(out, "(") {
-				t.Errorf("prompt = %q, want no %q", out, "(")
+			prompt := strings.SplitN(out, "Bringing", 2)[0]
+			if !tt.wantParen && strings.Contains(prompt, "(") {
+				t.Errorf("prompt = %q, want no %q", prompt, "(")
 			}
 		})
 	}
@@ -215,6 +216,41 @@ func TestInitCmd_RejectsBadInvocations(t *testing.T) {
 				t.Errorf("os.Stat(.bit/config.toml) error = %v, want fs.ErrNotExist", err)
 			}
 		})
+	}
+}
+
+func TestInitCmd_RegistersMCPServer(t *testing.T) {
+	t.Chdir(t.TempDir())
+
+	var calls [][]string
+
+	runner := func(_ context.Context, name string, args ...string) error {
+		calls = append(calls, append([]string{name}, args...))
+		return nil
+	}
+
+	out, err := runWithRunner(t, runner, "", initCmdUse, prefixFlag, testPrefix)
+	if err != nil {
+		t.Fatalf("Execute() returned error: %v", err)
+	}
+
+	mcpCall := []string{claudeBin, serveMCPCmdUse, "add", "bit", "--", "bp", "serve", serveMCPCmdUse}
+
+	found := false
+
+	for _, call := range calls {
+		if slices.Equal(call, mcpCall) {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Errorf("calls = %v, want it to contain %v", calls, mcpCall)
+	}
+
+	if !strings.Contains(out, "bit MCP server registered") {
+		t.Errorf("out = %q, want it to contain %q", out, "bit MCP server registered")
 	}
 }
 

@@ -98,6 +98,7 @@ func pluginSyncCalls() [][]string {
 	return [][]string{
 		{claudeBin, "plugin", "marketplace", updateCmd, "bit-pro"},
 		{claudeBin, "plugin", updateCmd, "bit@bit-pro", "--scope", "project"},
+		{claudeBin, serveMCPCmdUse, "add", "bit", "--", "bp", "serve", serveMCPCmdUse},
 	}
 }
 
