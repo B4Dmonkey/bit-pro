@@ -94,11 +94,15 @@ func initProject(t *testing.T, prefix string) string {
 	return dir
 }
 
+func mcpRegisterCall() []string {
+	return []string{claudeBin, serveMCPCmdUse, addCmdUse, "bit", "--", "bp", "serve", serveMCPCmdUse}
+}
+
 func pluginSyncCalls() [][]string {
 	return [][]string{
 		{claudeBin, "plugin", "marketplace", updateCmd, "bit-pro"},
 		{claudeBin, "plugin", updateCmd, "bit@bit-pro", "--scope", "project"},
-		{claudeBin, serveMCPCmdUse, "add", "bit", "--", "bp", "serve", serveMCPCmdUse},
+		mcpRegisterCall(),
 	}
 }
 

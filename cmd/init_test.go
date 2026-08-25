@@ -234,7 +234,7 @@ func TestInitCmd_RegistersMCPServer(t *testing.T) {
 		t.Fatalf("Execute() returned error: %v", err)
 	}
 
-	mcpCall := []string{claudeBin, serveMCPCmdUse, "add", "bit", "--", "bp", "serve", serveMCPCmdUse}
+	mcpCall := mcpRegisterCall()
 
 	found := false
 
@@ -251,6 +251,34 @@ func TestInitCmd_RegistersMCPServer(t *testing.T) {
 
 	if !strings.Contains(out, "bit MCP server registered") {
 		t.Errorf("out = %q, want it to contain %q", out, "bit MCP server registered")
+	}
+}
+
+func TestInitCmd_MCPRegistrationIsIdempotent(t *testing.T) {
+	t.Chdir(t.TempDir())
+
+	mcpCall := mcpRegisterCall()
+
+	for i := range 2 {
+		var calls [][]string
+
+		runner := func(_ context.Context, name string, args ...string) error {
+			calls = append(calls, append([]string{name}, args...))
+			return nil
+		}
+
+		out, err := runWithRunner(t, runner, "", initCmdUse, prefixFlag, testPrefix)
+		if err != nil {
+			t.Fatalf("run %d: Execute() returned error: %v", i+1, err)
+		}
+
+		if !slices.ContainsFunc(calls, func(call []string) bool { return slices.Equal(call, mcpCall) }) {
+			t.Errorf("run %d: calls = %v, want it to contain %v", i+1, calls, mcpCall)
+		}
+
+		if !strings.Contains(out, "bit MCP server registered") {
+			t.Errorf("run %d: out = %q, want it to contain %q", i+1, out, "bit MCP server registered")
+		}
 	}
 }
 
