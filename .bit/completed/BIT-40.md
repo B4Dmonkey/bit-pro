@@ -1,7 +1,7 @@
 ---
 id: BIT-40
 title: bp init registers the MCP server
-status: todo
+status: done
 ---
 ## Why
 
@@ -76,11 +76,11 @@ bp init
 
 ## Verses
 
-- [ ] Verse 1 — An operator who runs `bp init` gets the bit tools in their next session: init
+- [x] Verse 1 — An operator who runs `bp init` gets the bit tools in their next session: init
   registers the server at local scope, and the tools appear without anyone hand-editing config.
   Touches: `cmd/init.go` (`writeClaudeWiring`) and the `claude` package alongside `sync.go` —
   where to look to verify.
-- [ ] Verse 2 — Re-running `bp init` stays safe: the routine `just install` → `bp init` loop leaves
+- [x] Verse 2 — Re-running `bp init` stays safe: the routine `just install` → `bp init` loop leaves
   exactly one correct `bit` entry and the rest of `~/.claude.json` untouched, rather than erroring
   or duplicating.
   Touches: the same registration path in the `claude` package — where to look to verify.

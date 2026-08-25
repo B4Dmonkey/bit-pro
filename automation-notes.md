@@ -417,19 +417,49 @@ Probed in a throwaway git repo. Every 2.1.231 claim above about `-w` held; these
 - **`bp serve daemon` and `bp serve mcp` both exist** (`cmd/serve.go`). The daemon body is still
   the counts-only tick loop (`writeCounts`, 10s ticker) — step 6 fills it in.
 
+### Measured 2026-08-25 on Claude Code 2.1.245 (dispatch cwd + liveness filter)
+
+- **`claude` has no cwd/`-C` flag.** Confirmed against `claude --help` in full. `--cwd <path>`
+  exists only on the `claude agents` subcommand, where it filters the listing. A spawned session
+  therefore takes its working directory from the **calling process** — `cd "$DIR" && claude --bg
+  -n "$NAME" '<prompt>'` produced a registry row reading `"cwd": "<DIR>"` and wrote its file
+  there. In Go this is `exec.Cmd.Dir`, so any runner shape used for dispatch must carry a
+  directory. `probe-dispatch.sh` in the repo root is the ten-line bash form.
+- **`claude agents --json --cwd <path>` returns interactive rows too**, contradicting its `--help`
+  text ("Show only background sessions started under `<path>`"). Listing bit-pro by `--cwd`
+  returned this repo's own `kind: interactive` session alongside the background one.
+- **No folder-trust park in a never-opened, non-git directory.** The probe target
+  (`tools/temp`) was neither a git repo nor a directory the operator had ever opened in Claude
+  Code, and the session went straight to `state: working`, `waitingFor: null`, writing its file
+  4s after spawn. This widens the 2026-08-24 trust finding past enrolled projects and leaves the
+  2026-08-21 scratch-repo parking **unexplained** — "the directory is new to the operator" is not
+  the cause.
+- **`--json` without `--all` excludes completed background sessions**, and `claude agents --help`
+  says so outright: `--all` is documented "With --json: also include completed background sessions".
+  So a row present without `--all` is by definition not a completed session.
+- **`state` is transient, not terminal — do not filter on it.** A background row read `state: done`,
+  `status: idle`, and ten minutes later the *same* row (same name, same session) read
+  `state: blocked`. `done` means "finished this turn", not "finished for good". This kills the
+  2026-08-24 `state ∈ {working, blocked}` filter: it would have treated that mid-flight session as
+  free and let a second bar be dispatched on top of it. **Presence in the default `--json` listing
+  is the whole liveness test** — see BIT-39's Decisions.
+- **Unmeasured, and now off the critical path:** whether `--cwd <repo>` reaches into
+  `<repo>/.claude/worktrees/<name>`. BIT-39 matches a row to a project by testing whether its
+  `cwd` is at or beneath the project path, which covers the worktree case without depending on
+  this.
+
 ---
 
 ## Open gaps
 
-- **Dequeue timing.** No delete query exists yet. Deleting **on dispatch** (keyed off the
-  `backgrounded · <id> · <name>` line the spawn prints) is simplest, but a daemon that dies
-  between spawn and completion silently drops the bar. Deleting **on completion** re-dispatches
-  after a crash, which the ledger check makes cheap — an already-`done` bar is skipped rather than
-  re-run. Undecided.
-- **A dispatched session that ends without landing the bar.** The session leaves
-  `working`/`blocked` but the ledger still says `todo` or `doing`. Stall that project's queue and
-  log it, advance to the next row, or retry once? "A parked bar holds its slot" covers a *blocked*
-  session, not a finished-but-failed one. Undecided.
+- ~~**Dequeue timing.**~~ Settled by BIT-39: delete **on dispatch, after confirming the session
+  appears in `claude agents --json` under its `-n` name** — not off the `backgrounded · <id> ·
+  <name>` stdout line, which needs a TTY the launchd-hosted daemon does not have and is only
+  human-readable. A spawn that cannot be confirmed leaves its row for the next tick.
+- ~~**A dispatched session that ends without landing the bar.**~~ Settled by BIT-39: not the
+  loop's problem. Ownership passes to Claude at spawn; the slot frees and the next row goes. The
+  accepted consequence is that bar N+1 can start on a tree bar N left half-finished, and the
+  operator finds out by reading the ledger.
 - **Counts vs. a track whose approval and status disagree.** BIT-32's four count buckets — backlog
   (unapproved), todo (approved and not done), done, completed — partition cleanly only while approval
   and status agree. An unapproved track that is already `doing` or `done` matches more than one
