@@ -55,7 +55,19 @@ func writeClaudeWiring(cmd *cobra.Command, run claude.Runner, dir string) error 
 
 	fmt.Fprintln(cmd.OutOrStdout(), "Bringing the bit plugin current...")
 
-	return claude.SyncPlugin(cmd.Context(), run)
+	if err := claude.SyncPlugin(cmd.Context(), run); err != nil {
+		return err
+	}
+
+	fmt.Fprintln(cmd.OutOrStdout(), "Registering bit MCP server...")
+
+	if err := claude.RegisterMCP(cmd.Context(), run); err != nil {
+		return err
+	}
+
+	fmt.Fprintln(cmd.OutOrStdout(), "bit MCP server registered (local scope).")
+
+	return nil
 }
 
 func readInteractivePrefix(cmd *cobra.Command) (string, error) {

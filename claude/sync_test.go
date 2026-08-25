@@ -80,6 +80,32 @@ func TestSyncPlugin_StopsWhenTheCatalogRefreshFails(t *testing.T) {
 	}
 }
 
+func TestRegisterMCP_CallsClaudeMCPAdd(t *testing.T) {
+	rec := newRecorder(nil)
+
+	if err := RegisterMCP(t.Context(), rec.Run); err != nil {
+		t.Fatalf("RegisterMCP returned error: %v", err)
+	}
+
+	want := [][]string{{"claude", "mcp", "add", "bit", "--", "bp", "serve", "mcp"}}
+	if !slices.EqualFunc(rec.calls, want, slices.Equal) {
+		t.Errorf("calls = %v, want %v", rec.calls, want)
+	}
+}
+
+func TestRegisterMCP_ReturnsErrorWhenClaudeFails(t *testing.T) {
+	rec := newRecorder(map[int]error{0: errors.New("mcp add failed")})
+
+	err := RegisterMCP(t.Context(), rec.Run)
+	if err == nil {
+		t.Fatal("RegisterMCP returned nil error, want non-nil")
+	}
+
+	if !strings.Contains(err.Error(), "mcp add failed") {
+		t.Errorf("err = %v, want it to contain %q", err, "mcp add failed")
+	}
+}
+
 func TestSyncPlugin_FallsBackToInstall(t *testing.T) {
 	rec := newRecorder(map[int]error{1: errors.New("plugin bit@bit-pro is not installed")})
 
