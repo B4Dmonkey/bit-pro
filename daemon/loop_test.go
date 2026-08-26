@@ -171,7 +171,11 @@ func logMessages(t *testing.T, out string) []string {
 	return msgs
 }
 
-func TestTick_DispatchesTheQueuedBar(t *testing.T) {
+const bgFlag = "--bg"
+
+func queuedBar(t *testing.T) (*orm.Queries, orm.GetProjectByPathRow) {
+	t.Helper()
+
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("XDG_DATA_HOME", "")
 
@@ -191,7 +195,7 @@ func TestTick_DispatchesTheQueuedBar(t *testing.T) {
 		t.Fatalf("db.Open() returned error: %v", err)
 	}
 
-	defer sqlDB.Close()
+	t.Cleanup(func() { sqlDB.Close() })
 
 	queries := orm.New(sqlDB)
 
@@ -212,6 +216,14 @@ func TestTick_DispatchesTheQueuedBar(t *testing.T) {
 		t.Fatalf("EnqueueTask() returned error: %v", err)
 	}
 
+	return queries, project
+}
+
+func TestTick_DispatchesTheQueuedBar(t *testing.T) {
+	queries, project := queuedBar(t)
+
+	dir := project.Path
+
 	calls, run := recordingRunner()
 
 	Tick(t.Context(), queries, slog.New(slog.NewJSONHandler(io.Discard, nil)), run)
@@ -219,7 +231,7 @@ func TestTick_DispatchesTheQueuedBar(t *testing.T) {
 	var spawns []call
 
 	for _, c := range *calls {
-		if len(c.args) > 0 && c.args[0] == "--bg" {
+		if len(c.args) > 0 && c.args[0] == bgFlag {
 			spawns = append(spawns, c)
 		}
 	}
@@ -244,6 +256,29 @@ func TestTick_DispatchesTheQueuedBar(t *testing.T) {
 
 	if !slices.Equal(spawns[0].args, wantArgs) {
 		t.Errorf("Tick() spawned with args %q, want %q", spawns[0].args, wantArgs)
+	}
+}
+
+func TestTick_DequeuesAConfirmedDispatch(t *testing.T) {
+	queries, project := queuedBar(t)
+
+	run := func(_ context.Context, _, _ string, args ...string) (string, int, error) {
+		if len(args) > 0 && args[0] == bgFlag {
+			return "", 0, nil
+		}
+
+		return `[{"name":"ACME-1-a-track","cwd":"/somewhere/else"}]`, 0, nil
+	}
+
+	Tick(t.Context(), queries, slog.New(slog.NewJSONHandler(io.Discard, nil)), run)
+
+	rows, err := queries.ListQueueByProject(t.Context(), project.ID)
+	if err != nil {
+		t.Fatalf("ListQueueByProject() returned error: %v", err)
+	}
+
+	if len(rows) != 0 {
+		t.Errorf("Tick() left %d queue rows, want 0: %+v", len(rows), rows)
 	}
 }
 

@@ -1,6 +1,53 @@
 package claude
 
-import "testing"
+import (
+	"context"
+	"os"
+	"slices"
+	"testing"
+)
+
+func TestAgents_ParsesTheRealPayload(t *testing.T) {
+	payload, err := os.ReadFile("testdata/agents.json")
+	if err != nil {
+		t.Fatalf("ReadFile() returned error: %v", err)
+	}
+
+	var got call
+
+	run := func(_ context.Context, dir, name string, args ...string) (string, int, error) {
+		got = call{dir: dir, name: name, args: args}
+
+		return string(payload), 0, nil
+	}
+
+	agents, err := Agents(t.Context(), run)
+	if err != nil {
+		t.Fatalf("Agents() returned error: %v", err)
+	}
+
+	want := []Agent{
+		{Name: "acme-7b", Cwd: "/tmp/acme"},
+		{Name: "ACME-1-a-track", Cwd: "/tmp/acme/.claude/worktrees/ACME-1-a-track"},
+		{Name: "6a4a7973", Cwd: "/tmp/other"},
+	}
+
+	if !slices.Equal(agents, want) {
+		t.Errorf("Agents() = %+v, want %+v", agents, want)
+	}
+
+	wantCall := call{dir: "", name: "claude", args: []string{"agents", "--json"}}
+
+	if got.dir != wantCall.dir || got.name != wantCall.name || !slices.Equal(got.args, wantCall.args) {
+		t.Errorf("Agents() ran %+v, want %+v", got, wantCall)
+	}
+}
+
+type call struct {
+	dir  string
+	name string
+	args []string
+}
 
 func TestWorktreeName(t *testing.T) {
 	tests := []struct {

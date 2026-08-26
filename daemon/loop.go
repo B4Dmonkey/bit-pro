@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/B4Dmonkey/bit-pro/claude"
@@ -93,33 +94,63 @@ func dispatch(
 
 	head := rows[0]
 
-	bar, err := store.Load(head.TargetID)
-	if err != nil {
-		log.Warn("loading the queued bar", "project", p.Code, "bar", head.TargetID, "err", err)
+	barID, name, ok := worktreeFor(log, store, p, head.TargetID)
+	if !ok {
+		return
+	}
+
+	if err := claude.Spawn(ctx, run, p.Path, name, barID); err != nil {
+		log.Error("dispatching the queued bar", "project", p.Code, "bar", barID, "err", err)
 
 		return
+	}
+
+	log.Info("dispatched", "project", p.Code, "bar", barID, "worktree", name)
+
+	agents, err := claude.Agents(ctx, run)
+	if err != nil {
+		log.Error("confirming the dispatched session", "project", p.Code, "bar", barID, "err", err)
+
+		return
+	}
+
+	if !slices.ContainsFunc(agents, func(a claude.Agent) bool { return a.Name == name }) {
+		log.Warn("dispatched session not visible yet", "project", p.Code, "bar", barID, "worktree", name)
+
+		return
+	}
+
+	if err := queries.DeleteQueueRow(ctx, head.ID); err != nil {
+		log.Error("dequeueing the dispatched bar", "project", p.Code, "bar", barID, "err", err)
+	}
+}
+
+func worktreeFor(
+	log *slog.Logger,
+	store *task.Store,
+	p orm.Project,
+	targetID string,
+) (barID, name string, ok bool) {
+	bar, err := store.Load(targetID)
+	if err != nil {
+		log.Warn("loading the queued bar", "project", p.Code, "bar", targetID, "err", err)
+
+		return "", "", false
 	}
 
 	parent, ok := task.ParentID(bar.ID)
 	if !ok {
 		log.Warn("queued target is not a bar", "project", p.Code, "bar", bar.ID)
 
-		return
+		return "", "", false
 	}
 
 	track, err := store.Load(parent)
 	if err != nil {
 		log.Warn("loading the bar's track", "project", p.Code, "track", parent, "err", err)
 
-		return
+		return "", "", false
 	}
 
-	name := claude.WorktreeName(track.ID, track.Title)
-	if err := claude.Spawn(ctx, run, p.Path, name, bar.ID); err != nil {
-		log.Error("dispatching the queued bar", "project", p.Code, "bar", bar.ID, "err", err)
-
-		return
-	}
-
-	log.Info("dispatched", "project", p.Code, "bar", bar.ID, "worktree", name)
+	return bar.ID, claude.WorktreeName(track.ID, track.Title), true
 }
