@@ -18,7 +18,7 @@ const (
 	serveDaemonCmdUse = "daemon"
 )
 
-var serveTick = 10 * time.Second
+var serveTick = 5 * time.Second
 
 func newHandler(w io.Writer, level slog.Level) slog.Handler {
 	opts := &slog.HandlerOptions{Level: level}
@@ -56,23 +56,7 @@ func newServeDaemonCmd() *cobra.Command {
 
 			queries := orm.New(sqlDB)
 
-			log.Info("started")
-			defer log.Info("stopped")
-
-			ticker := time.NewTicker(serveTick)
-			defer ticker.Stop()
-
-			ctx := cmd.Context()
-
-			for {
-				select {
-				case <-ctx.Done():
-					return nil
-				case <-ticker.C:
-					log.Debug("tick")
-					daemon.Tick(ctx, queries, log)
-				}
-			}
+			return daemon.Loop(cmd.Context(), queries, log, serveTick)
 		},
 	}
 

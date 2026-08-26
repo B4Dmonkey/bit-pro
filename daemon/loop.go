@@ -4,10 +4,34 @@ import (
 	"context"
 	"log/slog"
 	"path/filepath"
+	"time"
 
 	"github.com/B4Dmonkey/bit-pro/db/orm"
 	"github.com/B4Dmonkey/bit-pro/task"
 )
+
+const (
+	msgStarted = "started"
+	msgStopped = "stopped"
+)
+
+func Loop(ctx context.Context, queries *orm.Queries, log *slog.Logger, interval time.Duration) error {
+	log.Info(msgStarted)
+	defer log.Info(msgStopped)
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ticker.C:
+			log.Debug("tick")
+			Tick(ctx, queries, log)
+		}
+	}
+}
 
 func Tick(ctx context.Context, queries *orm.Queries, log *slog.Logger) {
 	projects, err := queries.ListProjects(ctx)
