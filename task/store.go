@@ -545,6 +545,10 @@ func compareByOrder(pos map[string]map[string]int, a, b string) (int, bool) {
 	return ia - ib, true
 }
 
+func ParentID(id string) (string, bool) {
+	return barParent(id)
+}
+
 func barParent(id string) (string, bool) {
 	i := strings.LastIndex(id, ".")
 	if i == -1 {

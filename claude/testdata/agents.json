@@ -1,0 +1,33 @@
+[
+  {
+    "pid": 5021,
+    "cwd": "/tmp/acme",
+    "kind": "interactive",
+    "startedAt": 1786204238707,
+    "sessionId": "5f1ddbc5-b14d-46c0-81a0-39011a2d4bbd",
+    "name": "acme-7b",
+    "status": "idle"
+  },
+  {
+    "pid": 63627,
+    "id": "0040eb49",
+    "cwd": "/tmp/acme/.claude/worktrees/ACME-1-a-track",
+    "kind": "background",
+    "startedAt": 1787653738406,
+    "sessionId": "04899cd7-468a-4a72-b25c-6113fad17dd0",
+    "name": "ACME-1-a-track",
+    "status": "busy",
+    "state": "working"
+  },
+  {
+    "pid": 97349,
+    "id": "6a4a7973",
+    "cwd": "/tmp/other",
+    "kind": "background",
+    "startedAt": 1787738508779,
+    "sessionId": "6a4a7973-3d78-4454-b88f-c4173273b457",
+    "name": "6a4a7973",
+    "status": "idle",
+    "state": "blocked"
+  }
+]
