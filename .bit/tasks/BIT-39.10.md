@@ -1,7 +1,8 @@
 ---
 id: BIT-39.10
 title: The cycle runs under launchd
-status: todo
+status: doing
+approved: true
 phase: 4
 phase_label: Works with the terminal closed
 ---
@@ -41,11 +42,17 @@ suspect — a LaunchAgent's is not the operator's login `PATH`, and `claude` liv
   like every other.
 
 ## User verifies
-- [ ] Whole slice: with the terminal closed and no interactive session in the repo, the enqueued
-  bar's session appears in `claude agents --json`, the queue row clears, and the bar's work is
-  committed on the track's worktree branch. The daemon's log shows the tick records — not a
-  `claude: executable file not found in $PATH` error, which is the specific failure the `PATH`
-  assumption would produce.
+- [ ] Whole slice, in `tools/example`, with the terminal closed. `./reset.sh last`, approve `EX-2`'s
+  three bars, answer `y` at the play prompt, then `bp start` and **close the terminal**.
+
+  With no interactive session in `tools/example`, the bars still drain: `claude agents --json` shows
+  each session come up, the queue rows clear, and `./check.sh EX-2` ends with three commits on
+  `worktree-EX-2-shout-dispatch-drain-workload`. Then read `~/.local/share/bit-pro/daemon.log` — it
+  holds the tick records, and specifically *not* `claude: executable file not found in $PATH`, which
+  is the exact failure the plist's no-`EnvironmentVariables` assumption would produce.
+
+  Finish with `bp stop`. A daemon left running will dispatch whatever is queued next, which is not
+  what you want while planning the following track.
 
 ## Report back
 - [ ] If it fails on `PATH`, take that to bit_scope: how the daemon locates `claude` becomes a

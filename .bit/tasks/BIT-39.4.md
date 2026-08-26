@@ -1,7 +1,8 @@
 ---
 id: BIT-39.4
 title: A punctuated title forces real slugging
-status: todo
+status: done
+approved: true
 phase: 2
 phase_label: Bar runs unattended
 ---

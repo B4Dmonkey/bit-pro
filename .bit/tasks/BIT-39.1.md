@@ -1,7 +1,8 @@
 ---
 id: BIT-39.1
 title: Tick moves the counts write into daemon
-status: todo
+status: done
+approved: true
 phase: 1
 phase_label: Loop lives in daemon
 ---

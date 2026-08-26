@@ -1,7 +1,8 @@
 ---
 id: BIT-39.7
 title: The ledger drops a row it must not run
-status: todo
+status: done
+approved: true
 phase: 2
 phase_label: Bar runs unattended
 ---

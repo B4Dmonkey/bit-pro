@@ -1,7 +1,7 @@
 ---
 id: BIT-39
 title: Dispatch — the daemon works queued bars unattended
-status: todo
+status: doing
 ---
 ## Why
 Every part of the automation phase is built except the part that does work. BIT-28 gave us a
@@ -118,6 +118,12 @@ tick
 - **The loop body belongs in `daemon/`.** `cmd/serve.go` keeps flag parsing and wiring only;
   `writeCounts` and the tick loop move to `daemon`, beside `Start`/`Stop`/`Status`, which
   supervise the same process.
+- **The daemon ticks every 5 seconds, not 10.** Halves the interval inherited from BIT-28.
+  Deliberately a step rather than a final value: the intent is to keep cutting it — 1s or less is
+  plausible — with each cut gated on watching what a faster loop costs, since from Verse 2 every
+  tick shells out to `claude agents --json` once per registered project. 5s is what BIT-39 ships
+  and the next cut is a later call. It stays a hardcoded `cmd` package var under the "no new
+  operator surface" Decision — no flag, no config.
 - **The `claude` binary calls go in `claude/`, not `daemon/`.** `claude/sync.go` already shells
   out to `claude` there; spawn and `agents --json` join it, which keeps `daemon` free of
   external-tool plumbing.
@@ -158,21 +164,22 @@ tick
 
 ## Verses
 
-- [ ] Verse 1 — The loop lives where the rest can be built: `writeCounts` and the tick loop move
+- [x] Verse 1 — The loop lives where the rest can be built: `writeCounts` and the tick loop move
   out of `cmd/serve.go` into `daemon/`, beside `Start`/`Stop`/`Status`; the command keeps flag
-  parsing and wiring. Nothing changes for the operator — `bp serve daemon -v` still ticks and
-  `bp list` still shows refreshed counts — and every verse after this adds to a package instead
-  of to a command body.
+  parsing and wiring, and the tick drops to 5s. The move itself changes nothing for the operator —
+  `bp serve daemon -v` still ticks and `bp list` still shows refreshed counts — the one visible
+  difference is the faster cadence, and every verse after this adds to a package instead of to a
+  command body.
   Touches: `cmd/serve.go`, `daemon/`.
 
-- [ ] Verse 2 — A queued bar runs unattended: with the daemon running in a terminal, an operator
+- [x] Verse 2 — A queued bar runs unattended: with the daemon running in a terminal, an operator
   queues one approved bar, walks away, and comes back to a commit on the track's worktree branch
   and an empty queue row. Includes the guard that stops the loop dispatching a second bar while
   that project has a live session — without it the next tick stampedes the rest of the queue.
   Touches: `daemon/` (pop, spawn, confirm, dequeue), `claude/` (spawn and `agents --json`),
   `db/queries/queue.sql` (the first delete query).
 
-- [ ] Verse 3 — A whole approved track runs bar-by-bar: several queued bars drain in FIFO order,
+- [x] Verse 3 — A whole approved track runs bar-by-bar: several queued bars drain in FIFO order,
   one at a time, each session landing in the same per-track worktree so bar 3 builds on bar 1.
   An operator approves a three-bar track, answers "yes" at the play prompt, and the track is done
   without them touching it.

@@ -1,7 +1,8 @@
 ---
 id: BIT-39.3
 title: Tick dispatches the queued bar
-status: todo
+status: done
+approved: true
 phase: 2
 phase_label: Bar runs unattended
 ---
@@ -11,6 +12,19 @@ phase_label: Bar runs unattended
 session in that project's directory running `/bit:do <BAR>` as `bit:bot-dev`. Forced by a test
 that hands `Tick` a fake runner and asserts the argv — the counts-only `Tick` from Verse 1
 records no call at all.
+
+## Preflight
+- [ ] `./clear-queue.sh` — it prints `cleared N queue rows`. Then
+  `sqlite3 "${XDG_DATA_HOME:-$HOME/.local/share}/bit-pro/bit.db" 'SELECT count(*) FROM queue;'`
+  returns `0`.
+
+  This bar is where the queue gets its first consumer, and the live table still holds rows enqueued
+  during earlier tracks — bars that are long done and whose files `bp task complete` has since
+  moved to `.bit/completed/`. `Store.Load` reads `.bit/tasks/` only, so such a row errors on load,
+  never dispatches, and never gets deleted either: dequeue lands in BIT-39.5 and only on a
+  confirmed spawn, and the ledger check in BIT-39.7 runs *after* the load. Sitting at the head of a
+  FIFO, one of them wedges the project's queue against everything queued behind it. Note the script
+  clears every row in the table, for all registered projects, not just this one.
 
 ## Scope
 - `claude/dispatch.go` — new file: `DirRunner` (the second runner shape), `ExecDirRunner`,
