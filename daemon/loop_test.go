@@ -171,7 +171,10 @@ func logMessages(t *testing.T, out string) []string {
 	return msgs
 }
 
-const bgFlag = "--bg"
+const (
+	bgFlag      = "--bg"
+	queuedBarID = "ACME-1.1"
+)
 
 func queuedBar(t *testing.T) (*orm.Queries, orm.GetProjectByPathRow) {
 	t.Helper()
@@ -186,7 +189,8 @@ func queuedBar(t *testing.T) (*orm.Queries, orm.GetProjectByPathRow) {
 		t.Fatalf("Save() returned error: %v", err)
 	}
 
-	if err := store.Save(&task.Task{ID: "ACME-1.1", Title: "a bar", Status: task.StatusTodo, Approved: true}); err != nil {
+	bar := &task.Task{ID: queuedBarID, Title: "a bar", Status: task.StatusTodo, Approved: true}
+	if err := store.Save(bar); err != nil {
 		t.Fatalf("Save() returned error: %v", err)
 	}
 
@@ -210,7 +214,7 @@ func queuedBar(t *testing.T) (*orm.Queries, orm.GetProjectByPathRow) {
 
 	if err := queries.EnqueueTask(t.Context(), orm.EnqueueTaskParams{
 		ProjectID: project.ID,
-		TargetID:  "ACME-1.1",
+		TargetID:  queuedBarID,
 		TargetTyp: "bar",
 	}); err != nil {
 		t.Fatalf("EnqueueTask() returned error: %v", err)
@@ -280,6 +284,54 @@ func TestTick_DequeuesAConfirmedDispatch(t *testing.T) {
 	if len(rows) != 0 {
 		t.Errorf("Tick() left %d queue rows, want 0: %+v", len(rows), rows)
 	}
+}
+
+func TestTick_KeepsTheRowWhenTheSessionCannotBeConfirmed(t *testing.T) {
+	queries, project := queuedBar(t)
+
+	var buf bytes.Buffer
+
+	log := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	Tick(t.Context(), queries, log, idleRunner())
+
+	rows, err := queries.ListQueueByProject(t.Context(), project.ID)
+	if err != nil {
+		t.Fatalf("ListQueueByProject() returned error: %v", err)
+	}
+
+	if len(rows) != 1 {
+		t.Fatalf("Tick() left %d queue rows, want 1: %+v", len(rows), rows)
+	}
+
+	if rows[0].TargetID != queuedBarID {
+		t.Errorf("Tick() left a row for %q, want %q", rows[0].TargetID, queuedBarID)
+	}
+
+	if !warnedAbout(t, buf.String(), queuedBarID) {
+		t.Errorf("Tick() logged no warning naming ACME-1.1:\n%s", buf.String())
+	}
+}
+
+func warnedAbout(t *testing.T, out, bar string) bool {
+	t.Helper()
+
+	for line := range strings.SplitSeq(out, "\n") {
+		if line == "" {
+			continue
+		}
+
+		record := map[string]any{}
+		if err := json.Unmarshal([]byte(line), &record); err != nil {
+			t.Fatalf("line %q is not JSON: %v", line, err)
+		}
+
+		if record["level"] == "WARN" && record["bar"] == bar {
+			return true
+		}
+	}
+
+	return false
 }
 
 type call struct {
