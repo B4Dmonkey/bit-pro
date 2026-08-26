@@ -94,63 +94,89 @@ func dispatch(
 
 	head := rows[0]
 
-	barID, name, ok := worktreeFor(log, store, p, head.TargetID)
+	bar, err := store.Load(head.TargetID)
+	if err != nil {
+		log.Warn("loading the queued bar", "project", p.Code, "bar", head.TargetID, "err", err)
+
+		return
+	}
+
+	if dropped(ctx, queries, log, p, head.ID, bar) {
+		return
+	}
+
+	name, ok := worktreeFor(log, store, p, bar)
 	if !ok {
 		return
 	}
 
-	if err := claude.Spawn(ctx, run, p.Path, name, barID); err != nil {
-		log.Error("dispatching the queued bar", "project", p.Code, "bar", barID, "err", err)
+	if err := claude.Spawn(ctx, run, p.Path, name, bar.ID); err != nil {
+		log.Error("dispatching the queued bar", "project", p.Code, "bar", bar.ID, "err", err)
 
 		return
 	}
 
-	log.Info("dispatched", "project", p.Code, "bar", barID, "worktree", name)
+	log.Info("dispatched", "project", p.Code, "bar", bar.ID, "worktree", name)
 
 	agents, err := claude.Agents(ctx, run)
 	if err != nil {
-		log.Error("confirming the dispatched session", "project", p.Code, "bar", barID, "err", err)
+		log.Error("confirming the dispatched session", "project", p.Code, "bar", bar.ID, "err", err)
 
 		return
 	}
 
 	if !slices.ContainsFunc(agents, func(a claude.Agent) bool { return a.Name == name }) {
-		log.Warn("dispatched session not visible yet", "project", p.Code, "bar", barID, "worktree", name)
+		log.Warn("dispatched session not visible yet", "project", p.Code, "bar", bar.ID, "worktree", name)
 
 		return
 	}
 
 	if err := queries.DeleteQueueRow(ctx, head.ID); err != nil {
-		log.Error("dequeueing the dispatched bar", "project", p.Code, "bar", barID, "err", err)
+		log.Error("dequeueing the dispatched bar", "project", p.Code, "bar", bar.ID, "err", err)
 	}
+}
+
+func dropped(
+	ctx context.Context,
+	queries *orm.Queries,
+	log *slog.Logger,
+	p orm.Project,
+	rowID int64,
+	bar *task.Task,
+) bool {
+	if bar.Status != task.StatusDone && bar.Approved {
+		return false
+	}
+
+	log.Info("dropping a queued bar the ledger says must not run",
+		"project", p.Code, "bar", bar.ID, "status", bar.Status, "approved", bar.Approved)
+
+	if err := queries.DeleteQueueRow(ctx, rowID); err != nil {
+		log.Error("dropping the queue row", "project", p.Code, "bar", bar.ID, "err", err)
+	}
+
+	return true
 }
 
 func worktreeFor(
 	log *slog.Logger,
 	store *task.Store,
 	p orm.Project,
-	targetID string,
-) (barID, name string, ok bool) {
-	bar, err := store.Load(targetID)
-	if err != nil {
-		log.Warn("loading the queued bar", "project", p.Code, "bar", targetID, "err", err)
-
-		return "", "", false
-	}
-
+	bar *task.Task,
+) (name string, ok bool) {
 	parent, ok := task.ParentID(bar.ID)
 	if !ok {
 		log.Warn("queued target is not a bar", "project", p.Code, "bar", bar.ID)
 
-		return "", "", false
+		return "", false
 	}
 
 	track, err := store.Load(parent)
 	if err != nil {
 		log.Warn("loading the bar's track", "project", p.Code, "track", parent, "err", err)
 
-		return "", "", false
+		return "", false
 	}
 
-	return bar.ID, claude.WorktreeName(track.ID, track.Title), true
+	return claude.WorktreeName(track.ID, track.Title), true
 }

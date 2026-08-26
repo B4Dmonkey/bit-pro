@@ -172,8 +172,9 @@ func logMessages(t *testing.T, out string) []string {
 }
 
 const (
-	bgFlag      = "--bg"
-	queuedBarID = "ACME-1.1"
+	bgFlag         = "--bg"
+	queuedBarID    = "ACME-1.1"
+	queuedBarTitle = "a bar"
 )
 
 func queuedBar(t *testing.T) (*orm.Queries, orm.GetProjectByPathRow) {
@@ -189,7 +190,7 @@ func queuedBar(t *testing.T) (*orm.Queries, orm.GetProjectByPathRow) {
 		t.Fatalf("Save() returned error: %v", err)
 	}
 
-	bar := &task.Task{ID: queuedBarID, Title: "a bar", Status: task.StatusTodo, Approved: true}
+	bar := &task.Task{ID: queuedBarID, Title: queuedBarTitle, Status: task.StatusTodo, Approved: true}
 	if err := store.Save(bar); err != nil {
 		t.Fatalf("Save() returned error: %v", err)
 	}
@@ -308,12 +309,66 @@ func TestTick_KeepsTheRowWhenTheSessionCannotBeConfirmed(t *testing.T) {
 		t.Errorf("Tick() left a row for %q, want %q", rows[0].TargetID, queuedBarID)
 	}
 
-	if !warnedAbout(t, buf.String(), queuedBarID) {
+	if !loggedAbout(t, buf.String(), "WARN", queuedBarID) {
 		t.Errorf("Tick() logged no warning naming ACME-1.1:\n%s", buf.String())
 	}
 }
 
-func warnedAbout(t *testing.T, out, bar string) bool {
+func TestTick_DropsARowItMustNotDispatch(t *testing.T) {
+	tests := []struct {
+		name string
+		bar  task.Task
+	}{
+		{
+			name: "already done",
+			bar:  task.Task{ID: queuedBarID, Title: queuedBarTitle, Status: task.StatusDone, Approved: true},
+		},
+		{
+			name: "approval revoked",
+			bar:  task.Task{ID: queuedBarID, Title: queuedBarTitle, Status: task.StatusTodo, Approved: false},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			queries, project := queuedBar(t)
+
+			store := task.New(filepath.Join(project.Path, ".bit"))
+			if err := store.Save(&tt.bar); err != nil {
+				t.Fatalf("Save() returned error: %v", err)
+			}
+
+			var buf bytes.Buffer
+
+			log := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+			calls, run := recordingRunner()
+
+			Tick(t.Context(), queries, log, run)
+
+			for _, c := range *calls {
+				if len(c.args) > 0 && c.args[0] == bgFlag {
+					t.Errorf("Tick() spawned with args %q, want no %s call", c.args, bgFlag)
+				}
+			}
+
+			rows, err := queries.ListQueueByProject(t.Context(), project.ID)
+			if err != nil {
+				t.Fatalf("ListQueueByProject() returned error: %v", err)
+			}
+
+			if len(rows) != 0 {
+				t.Errorf("Tick() left %d queue rows, want 0: %+v", len(rows), rows)
+			}
+
+			if !loggedAbout(t, buf.String(), "INFO", queuedBarID) {
+				t.Errorf("Tick() logged nothing naming %s:\n%s", queuedBarID, buf.String())
+			}
+		})
+	}
+}
+
+func loggedAbout(t *testing.T, out, level, bar string) bool {
 	t.Helper()
 
 	for line := range strings.SplitSeq(out, "\n") {
@@ -326,7 +381,7 @@ func warnedAbout(t *testing.T, out, bar string) bool {
 			t.Fatalf("line %q is not JSON: %v", line, err)
 		}
 
-		if record["level"] == "WARN" && record["bar"] == bar {
+		if record["level"] == level && record["bar"] == bar {
 			return true
 		}
 	}
