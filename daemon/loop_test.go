@@ -13,10 +13,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/B4Dmonkey/bit-pro/claude"
 	"github.com/B4Dmonkey/bit-pro/db"
 	"github.com/B4Dmonkey/bit-pro/db/orm"
 	"github.com/B4Dmonkey/bit-pro/task"
 )
+
+func idleRunner() claude.DirRunner {
+	return func(_ context.Context, _, _ string, _ ...string) (string, int, error) {
+		return "[]", 0, nil
+	}
+}
 
 func TestTick_WritesProjectCounts(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
@@ -44,7 +51,7 @@ func TestTick_WritesProjectCounts(t *testing.T) {
 
 	log := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
-	Tick(t.Context(), queries, log)
+	Tick(t.Context(), queries, log, idleRunner())
 
 	var backlog, todo, done, completed int64
 	if err := sqlDB.QueryRowContext(t.Context(),
@@ -82,7 +89,7 @@ func TestLoop_LogsStartedAndStoppedAroundItsTicks(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
 	defer cancel()
 
-	if err := Loop(ctx, queries, log, 5*time.Millisecond); err != nil {
+	if err := Loop(ctx, queries, log, 5*time.Millisecond, idleRunner()); err != nil {
 		t.Fatalf("Loop() returned error: %v", err)
 	}
 
@@ -133,7 +140,7 @@ func TestLoop_ReturnsWithoutTickingWhenTheContextIsAlreadyCancelled(t *testing.T
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	if err := Loop(ctx, queries, log, 5*time.Millisecond); err != nil {
+	if err := Loop(ctx, queries, log, 5*time.Millisecond, idleRunner()); err != nil {
 		t.Fatalf("Loop() returned error: %v", err)
 	}
 
@@ -162,4 +169,96 @@ func logMessages(t *testing.T, out string) []string {
 	}
 
 	return msgs
+}
+
+func TestTick_DispatchesTheQueuedBar(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", "")
+
+	dir := t.TempDir()
+
+	store := task.New(filepath.Join(dir, ".bit"))
+	if err := store.Save(&task.Task{ID: "ACME-1", Title: "a track", Status: task.StatusTodo, Approved: true}); err != nil {
+		t.Fatalf("Save() returned error: %v", err)
+	}
+
+	if err := store.Save(&task.Task{ID: "ACME-1.1", Title: "a bar", Status: task.StatusTodo, Approved: true}); err != nil {
+		t.Fatalf("Save() returned error: %v", err)
+	}
+
+	sqlDB, err := db.Open()
+	if err != nil {
+		t.Fatalf("db.Open() returned error: %v", err)
+	}
+
+	defer sqlDB.Close()
+
+	queries := orm.New(sqlDB)
+
+	if err := queries.CreateProject(t.Context(), orm.CreateProjectParams{Path: dir, Code: "ACME"}); err != nil {
+		t.Fatalf("CreateProject() returned error: %v", err)
+	}
+
+	project, err := queries.GetProjectByPath(t.Context(), dir)
+	if err != nil {
+		t.Fatalf("GetProjectByPath() returned error: %v", err)
+	}
+
+	if err := queries.EnqueueTask(t.Context(), orm.EnqueueTaskParams{
+		ProjectID: project.ID,
+		TargetID:  "ACME-1.1",
+		TargetTyp: "bar",
+	}); err != nil {
+		t.Fatalf("EnqueueTask() returned error: %v", err)
+	}
+
+	calls, run := recordingRunner()
+
+	Tick(t.Context(), queries, slog.New(slog.NewJSONHandler(io.Discard, nil)), run)
+
+	var spawns []call
+
+	for _, c := range *calls {
+		if len(c.args) > 0 && c.args[0] == "--bg" {
+			spawns = append(spawns, c)
+		}
+	}
+
+	if len(spawns) != 1 {
+		t.Fatalf("Tick() made %d --bg calls, want 1: %+v", len(spawns), *calls)
+	}
+
+	wantArgs := []string{
+		"--bg", "--agent", "bit:bot-dev",
+		"-w", "ACME-1-a-track", "-n", "ACME-1-a-track",
+		"/bit:do ACME-1.1",
+	}
+
+	if spawns[0].dir != dir {
+		t.Errorf("Tick() spawned in %q, want %q", spawns[0].dir, dir)
+	}
+
+	if spawns[0].name != "claude" {
+		t.Errorf("Tick() spawned %q, want %q", spawns[0].name, "claude")
+	}
+
+	if !slices.Equal(spawns[0].args, wantArgs) {
+		t.Errorf("Tick() spawned with args %q, want %q", spawns[0].args, wantArgs)
+	}
+}
+
+type call struct {
+	dir  string
+	name string
+	args []string
+}
+
+func recordingRunner() (*[]call, claude.DirRunner) {
+	var calls []call
+
+	return &calls, func(_ context.Context, dir, name string, args ...string) (string, int, error) {
+		calls = append(calls, call{dir: dir, name: name, args: args})
+
+		return "[]", 0, nil
+	}
 }

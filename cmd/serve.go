@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/B4Dmonkey/bit-pro/claude"
 	"github.com/B4Dmonkey/bit-pro/daemon"
 	"github.com/B4Dmonkey/bit-pro/db"
 	"github.com/B4Dmonkey/bit-pro/db/orm"
@@ -56,7 +57,7 @@ func newServeDaemonCmd() *cobra.Command {
 
 			queries := orm.New(sqlDB)
 
-			return daemon.Loop(cmd.Context(), queries, log, serveTick)
+			return daemon.Loop(cmd.Context(), queries, log, serveTick, claude.ExecDirRunner)
 		},
 	}
 
