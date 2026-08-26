@@ -368,6 +368,37 @@ func TestTick_DropsARowItMustNotDispatch(t *testing.T) {
 	}
 }
 
+func TestTick_HoldsAProjectThatHasALiveSession(t *testing.T) {
+	queries, project := queuedBar(t)
+
+	live := `[{"name":"6a4a7973","cwd":"` + filepath.Join(project.Path, "cmd") + `"}]`
+
+	var calls []call
+
+	run := func(_ context.Context, dir, name string, args ...string) (string, int, error) {
+		calls = append(calls, call{dir: dir, name: name, args: args})
+
+		return live, 0, nil
+	}
+
+	Tick(t.Context(), queries, slog.New(slog.NewJSONHandler(io.Discard, nil)), run)
+
+	for _, c := range calls {
+		if len(c.args) > 0 && c.args[0] == bgFlag {
+			t.Errorf("Tick() spawned with args %q, want no %s call", c.args, bgFlag)
+		}
+	}
+
+	rows, err := queries.ListQueueByProject(t.Context(), project.ID)
+	if err != nil {
+		t.Fatalf("ListQueueByProject() returned error: %v", err)
+	}
+
+	if len(rows) != 1 {
+		t.Fatalf("Tick() left %d queue rows, want 1: %+v", len(rows), rows)
+	}
+}
+
 func loggedAbout(t *testing.T, out, level, bar string) bool {
 	t.Helper()
 

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"unicode"
 )
@@ -61,6 +62,13 @@ func slug(s string) string {
 type Agent struct {
 	Name string `json:"name"`
 	Cwd  string `json:"cwd"`
+}
+
+func (a Agent) Under(root string) bool {
+	cwd := filepath.Clean(a.Cwd)
+	root = filepath.Clean(root)
+
+	return cwd == root || strings.HasPrefix(cwd, root+string(filepath.Separator))
 }
 
 func Agents(ctx context.Context, run DirRunner) ([]Agent, error) {

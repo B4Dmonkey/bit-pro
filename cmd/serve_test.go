@@ -20,6 +20,19 @@ import (
 	"github.com/B4Dmonkey/bit-pro/task"
 )
 
+func fastTick(t *testing.T) {
+	t.Helper()
+
+	tick, runner := serveTick, serveRunner
+
+	serveTick = 5 * time.Millisecond
+	serveRunner = func(context.Context, string, string, ...string) (string, int, error) {
+		return "[]", 0, nil
+	}
+
+	t.Cleanup(func() { serveTick, serveRunner = tick, runner })
+}
+
 func TestServeCmd_WritesProjectCounts(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("XDG_DATA_HOME", "")
@@ -33,10 +46,7 @@ func TestServeCmd_WritesProjectCounts(t *testing.T) {
 
 	seedProject(t, orm.CreateProjectParams{Path: dir, Code: "ACME"})
 
-	original := serveTick
-	serveTick = 5 * time.Millisecond
-
-	t.Cleanup(func() { serveTick = original })
+	fastTick(t)
 
 	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
 	defer cancel()
@@ -88,10 +98,7 @@ func TestServeCmd_CountsBacklogAndTodo(t *testing.T) {
 
 	seedProject(t, orm.CreateProjectParams{Path: dir, Code: "ACME"})
 
-	original := serveTick
-	serveTick = 5 * time.Millisecond
-
-	t.Cleanup(func() { serveTick = original })
+	fastTick(t)
 
 	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
 	defer cancel()
@@ -179,10 +186,7 @@ func TestServeCmd_TicksOnlyWhenVerbose(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			original := serveTick
-			serveTick = 5 * time.Millisecond
-
-			t.Cleanup(func() { serveTick = original })
+			fastTick(t)
 
 			ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
 			defer cancel()
@@ -215,10 +219,7 @@ func TestServeCmd_LogsJSONWhenOutputIsNotATerminal(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("XDG_DATA_HOME", "")
 
-	original := serveTick
-	serveTick = 5 * time.Millisecond
-
-	t.Cleanup(func() { serveTick = original })
+	fastTick(t)
 
 	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
 	defer cancel()
@@ -316,10 +317,7 @@ func runSkipTest(t *testing.T, setup func(*testing.T, string)) {
 
 	sqlDB.Close()
 
-	original := serveTick
-	serveTick = 5 * time.Millisecond
-
-	t.Cleanup(func() { serveTick = original })
+	fastTick(t)
 
 	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
 	defer cancel()

@@ -19,7 +19,10 @@ const (
 	serveDaemonCmdUse = "daemon"
 )
 
-var serveTick = 5 * time.Second
+var (
+	serveTick   = 5 * time.Second
+	serveRunner = claude.DirRunner(claude.ExecDirRunner)
+)
 
 func newHandler(w io.Writer, level slog.Level) slog.Handler {
 	opts := &slog.HandlerOptions{Level: level}
@@ -57,7 +60,7 @@ func newServeDaemonCmd() *cobra.Command {
 
 			queries := orm.New(sqlDB)
 
-			return daemon.Loop(cmd.Context(), queries, log, serveTick, claude.ExecDirRunner)
+			return daemon.Loop(cmd.Context(), queries, log, serveTick, serveRunner)
 		},
 	}
 

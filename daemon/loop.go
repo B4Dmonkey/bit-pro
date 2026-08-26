@@ -49,6 +49,13 @@ func Tick(ctx context.Context, queries *orm.Queries, log *slog.Logger, run claud
 		return
 	}
 
+	live, err := claude.Agents(ctx, run)
+
+	mayDispatch := err == nil
+	if err != nil {
+		log.Error("listing live sessions", "err", err)
+	}
+
 	for _, p := range projects {
 		store := task.New(filepath.Join(p.Path, ".bit"))
 
@@ -67,6 +74,16 @@ func Tick(ctx context.Context, queries *orm.Queries, log *slog.Logger, run claud
 			ID:        p.ID,
 		}); err != nil {
 			log.Error("updating project counts", "project", p.Code, "err", err)
+		}
+
+		if !mayDispatch {
+			continue
+		}
+
+		if slices.ContainsFunc(live, func(a claude.Agent) bool { return a.Under(p.Path) }) {
+			log.Debug("holding a project that has a live session", "project", p.Code)
+
+			continue
 		}
 
 		dispatch(ctx, queries, log, run, p, store)

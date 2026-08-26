@@ -49,6 +49,31 @@ type call struct {
 	args []string
 }
 
+func TestAgent_Under(t *testing.T) {
+	const root = "/p/foo"
+
+	tests := []struct {
+		cwd  string
+		want bool
+	}{
+		{"/p/foo", true},
+		{"/p/foo/.claude/worktrees/BIT-1-a-track", true},
+		{"/p/foo/cmd", true},
+		{"/p/foobar", false},
+		{"/p", false},
+		{"/q/foo", false},
+		{"/p/foo/", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.cwd, func(t *testing.T) {
+			if got := (Agent{Cwd: tt.cwd}).Under(root); got != tt.want {
+				t.Errorf("Agent{Cwd: %q}.Under(%q) = %v, want %v", tt.cwd, root, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestWorktreeName(t *testing.T) {
 	tests := []struct {
 		trackID string
