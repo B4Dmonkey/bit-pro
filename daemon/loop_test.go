@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"path/filepath"
@@ -433,5 +434,161 @@ func recordingRunner() (*[]call, claude.DirRunner) {
 		calls = append(calls, call{dir: dir, name: name, args: args})
 
 		return "[]", 0, nil
+	}
+}
+
+type spawned struct {
+	dir  string
+	tree string
+	bar  string
+}
+
+type fakeSessions struct {
+	live   map[string]string
+	spawns []spawned
+}
+
+func (f *fakeSessions) run(_ context.Context, dir, _ string, args ...string) (string, int, error) {
+	if len(args) == 0 || args[0] != bgFlag {
+		agents := make([]claude.Agent, 0, len(f.live))
+		for name, cwd := range f.live {
+			agents = append(agents, claude.Agent{Name: name, Cwd: cwd})
+		}
+
+		out, err := json.Marshal(agents)
+		if err != nil {
+			return "", 0, fmt.Errorf("marshalling live sessions: %w", err)
+		}
+
+		return string(out), 0, nil
+	}
+
+	tree := flagValue(args, "-n")
+	f.live[tree] = dir
+	f.spawns = append(f.spawns, spawned{
+		dir:  dir,
+		tree: tree,
+		bar:  strings.TrimPrefix(args[len(args)-1], "/bit:do "),
+	})
+
+	return "", 0, nil
+}
+
+func (f *fakeSessions) take() []spawned {
+	out := f.spawns
+	f.spawns = nil
+
+	return out
+}
+
+func flagValue(args []string, flag string) string {
+	for i, a := range args {
+		if a == flag && i+1 < len(args) {
+			return args[i+1]
+		}
+	}
+
+	return ""
+}
+
+func enrolled(t *testing.T, queries *orm.Queries, code, title string, bars int) orm.GetProjectByPathRow {
+	t.Helper()
+
+	dir := t.TempDir()
+	store := task.New(filepath.Join(dir, ".bit"))
+	track := code + "-1"
+
+	if err := store.Save(&task.Task{ID: track, Title: title, Status: task.StatusTodo, Approved: true}); err != nil {
+		t.Fatalf("Save() returned error: %v", err)
+	}
+
+	if err := queries.CreateProject(t.Context(), orm.CreateProjectParams{Path: dir, Code: code}); err != nil {
+		t.Fatalf("CreateProject() returned error: %v", err)
+	}
+
+	project, err := queries.GetProjectByPath(t.Context(), dir)
+	if err != nil {
+		t.Fatalf("GetProjectByPath() returned error: %v", err)
+	}
+
+	for i := 1; i <= bars; i++ {
+		bar := fmt.Sprintf("%s.%d", track, i)
+
+		if err := store.Save(&task.Task{
+			ID:       bar,
+			Title:    fmt.Sprintf("bar %d", i),
+			Status:   task.StatusTodo,
+			Approved: true,
+		}); err != nil {
+			t.Fatalf("Save() returned error: %v", err)
+		}
+
+		if err := queries.EnqueueTask(t.Context(), orm.EnqueueTaskParams{
+			ProjectID: project.ID,
+			TargetID:  bar,
+			TargetTyp: "bar",
+		}); err != nil {
+			t.Fatalf("EnqueueTask() returned error: %v", err)
+		}
+	}
+
+	return project
+}
+
+func TestTick_DrainsATrackOneBarPerTick(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", "")
+
+	sqlDB, err := db.Open()
+	if err != nil {
+		t.Fatalf("db.Open() returned error: %v", err)
+	}
+
+	defer sqlDB.Close()
+
+	queries := orm.New(sqlDB)
+
+	const treeA, treeB = "ACME-1-a-track", "ZULU-1-other-track"
+
+	projectA := enrolled(t, queries, "ACME", "a track", 3)
+	projectB := enrolled(t, queries, "ZULU", "other track", 1)
+
+	sessions := &fakeSessions{live: map[string]string{}}
+	log := slog.New(slog.NewJSONHandler(io.Discard, nil))
+
+	ticks := []struct {
+		name string
+		want []spawned
+	}{
+		{
+			name: "tick 1",
+			want: []spawned{
+				{dir: projectA.Path, tree: treeA, bar: "ACME-1.1"},
+				{dir: projectB.Path, tree: treeB, bar: "ZULU-1.1"},
+			},
+		},
+		{name: "tick 2", want: []spawned{{dir: projectA.Path, tree: treeA, bar: "ACME-1.2"}}},
+		{name: "tick 3", want: []spawned{{dir: projectA.Path, tree: treeA, bar: "ACME-1.3"}}},
+	}
+
+	for _, tt := range ticks {
+		Tick(t.Context(), queries, log, sessions.run)
+
+		if got := sessions.take(); !slices.Equal(got, tt.want) {
+			t.Fatalf("%s spawned %+v, want %+v", tt.name, got, tt.want)
+		}
+
+		delete(sessions.live, treeA)
+	}
+
+	for _, project := range []orm.GetProjectByPathRow{projectA, projectB} {
+		rows, err := queries.ListQueueByProject(t.Context(), project.ID)
+		if err != nil {
+			t.Fatalf("ListQueueByProject() returned error: %v", err)
+		}
+
+		if len(rows) != 0 {
+			t.Errorf("%s kept %d queue rows, want 0: %+v", project.Code, len(rows), rows)
+		}
 	}
 }
