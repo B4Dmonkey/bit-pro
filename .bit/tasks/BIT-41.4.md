@@ -1,7 +1,7 @@
 ---
 id: BIT-41.4
 title: just release-push publishes the tag
-status: doing
+status: done
 phase: 2
 phase_label: publish
 ---

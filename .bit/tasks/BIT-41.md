@@ -145,7 +145,7 @@ just release-push -------------------------------------+--> origin
   a dirty tree anywhere in the repo.
   Touches: `Justfile`, `bit/.claude-plugin/plugin.json`, `cmd/root.go`.
 
-- [ ] Verse 2 — Publish a release deliberately: `just release-push` sends the tag to origin
+- [x] Verse 2 — Publish a release deliberately: `just release-push` sends the tag to origin
   as a separate, guarded step, refusing when tracked changes are uncommitted and ignoring
   untracked files. Its first real use publishes `v0.1.0`, the baseline Verse 3 observes
   against.
