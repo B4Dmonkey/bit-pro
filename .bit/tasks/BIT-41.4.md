@@ -2,7 +2,6 @@
 id: BIT-41.4
 title: just release-push publishes the tag
 status: doing
-approved: true
 phase: 2
 phase_label: publish
 ---
@@ -10,7 +9,7 @@ phase_label: publish
 
 `just release-push` publishes the tag as a separate, deliberate invocation. A local tag is
 trivially deletable; a pushed one is not, so the irreversible half gets its own command. Its
-first real use publishes `bit--v0.1.0` — the baseline BIT-41.5 observes against.
+first real use publishes `v0.1.0` — the baseline BIT-41.5 observes against.
 
 It pushes the **tag only**. Moving `origin/main` stays the operator's own `git push`.
 
@@ -20,10 +19,10 @@ It pushes the **tag only**. Moving `origin/main` stays the operator's own `git p
 ## Steps
 - [ ] Dirty guard, same semantics as `release`: `git diff-index --quiet HEAD` refuses on tracked
       changes and ignores untracked files.
-- [ ] Resolve the tag from `plugin.json`'s current version — `bit--v$version`. Refuse if that tag
-      does not exist locally (`git rev-parse -q --verify "refs/tags/bit--v$version"`), naming the
+- [ ] Resolve the tag from `plugin.json`'s current version — `v$version`. Refuse if that tag
+      does not exist locally (`git rev-parse -q --verify "refs/tags/v$version"`), naming the
       missing tag: that's the case of running `release-push` before `release`.
-- [ ] `git push origin "bit--v$version"` — the tag only. This recipe deliberately does not move
+- [ ] `git push origin "v$version"` — the tag only. This recipe deliberately does not move
       `origin/main`.
 - [ ] Print the pushed tag.
 
@@ -36,7 +35,7 @@ It pushes the **tag only**. Moving `origin/main` stays the operator's own `git p
 ## User verifies
 - [ ] `git push` first (the branch — the recipe doesn't move it), then `just release-push`. This
       is the step that publishes, so it's yours to run. Confirm
-      `git ls-remote --tags origin 'bit--v*'` lists `bit--v0.1.0`, and
+      `git ls-remote --tags origin 'v*'` lists `v0.1.0`, and
       `git ls-remote origin refs/heads/main` points at the `release: v0.1.0` commit.
 
 ## Commit (user)

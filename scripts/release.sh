@@ -38,9 +38,9 @@ else
     esac
 fi
 
-tags="$(git tag --list 'bit--v*' --sort=-v:refname)"
+tags="$(git tag --list 'v*' --sort=-v:refname)"
 highest="${tags%%$'\n'*}"
-highest="${highest#bit--v}"
+highest="${highest#v}"
 if [ -n "$highest" ]; then
     top="$(printf '%s\n%s\n' "$highest" "$next" | sort -V | tail -1)"
     if [ "$top" != "$next" ] || [ "$next" = "$highest" ]; then
@@ -59,6 +59,6 @@ claude plugin validate bit --strict
 
 git commit -q -m "release: v$next" "$manifest"
 
-claude plugin tag bit
+git tag -a "v$next" -m "bit $next"
 
-echo "bit--v$next"
+echo "v$next"

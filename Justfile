@@ -1,4 +1,4 @@
-version := `git describe --tags --match 'bit--v*' --always --dirty 2>/dev/null | sed 's/^bit--v//' || echo dev`
+version := `git describe --tags --match 'v*' --always --dirty 2>/dev/null | sed 's/^v//' || echo dev`
 
 MIGRATIONS_DIR := justfile_directory() / "db" / "migrations"
 

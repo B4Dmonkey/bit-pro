@@ -32,7 +32,7 @@ version→version needs the explicit update, or the reverse.
       whether the two transitions behave identically.
 
 ## Claude verifies
-- [ ] `git tag --list 'bit--v*'` → both `bit--v0.1.0` and `bit--v0.2.0`; after `just install`,
+- [ ] `git tag --list 'v*'` → both `v0.1.0` and `v0.2.0`; after `just install`,
       `bp --version` → `bp version 0.2.0`.
 - [ ] Both transitions are recorded in the `## Observed` section with an explicit same/different
       verdict.

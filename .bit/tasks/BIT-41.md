@@ -32,11 +32,11 @@ just release <level>
       +-- bumps   bit/.claude-plugin/plugin.json    <- source of truth
       |             (no version yet -> establishes 0.1.0)
       +-- commits "release: v0.1.0"
-      +-- claude plugin tag ------------------> git tag bit--v0.1.0  (local)
+      +-- tags -------------------------------> git tag v0.1.0  (local)
                                                        |
 just release-push -------------------------------------+--> origin
                                                        |
-                          git describe --match 'bit--v*'
+                          git describe --match 'v*'
                                        |
                             ldflags -> cmd.version
                                        |
@@ -51,7 +51,7 @@ just release-push -------------------------------------+--> origin
   `list` shows what is installed, `update` just performs one and says "restart required to
   apply". So the notice in Verse 4 has no built-in source to ask.
   **Resolve by:** Verse 3 (spike). Observe an already-installed consumer against the
-  `bit--v0.1.0` that Verses 1–2 cut and pushed — it currently reports the git sha
+  `v0.1.0` that Verses 1–2 cut and pushed — it currently reports the git sha
   `4ebbe7cd5eff`, so it is already behind. Answer is **yes/automatic** if `claude plugin list
   --json` starts reporting `"version": "0.1.0"` without an explicit command; **yes/manual** if
   it only changes after `claude plugin update bit@bit-pro`; **no** if it stays pinned at the
@@ -83,7 +83,7 @@ just release-push -------------------------------------+--> origin
   the level fits the reason. The owner's judgement overrides it; reaching 1.0.0, below, is the
   first such case.
 - **The recipe cuts its own baseline; no version is ever hand-typed.** There is no
-  pre-existing `bit--v*` tag, and none gets created by hand. Verse 1's first real use of
+  pre-existing `v*` tag, and none gets created by hand. Verse 1's first real use of
   `just release` is what establishes 0.1.0 — with no prior version in plugin.json the
   invocation produces 0.1.0 regardless of the level passed, since there is nothing to bump.
   The monotonic guard passes trivially in that one case (no tag to be greater than) and
@@ -101,23 +101,31 @@ just release-push -------------------------------------+--> origin
   a stable number would be asserting something untrue. It happens exactly once; every release
   after it follows the guideline again, so BIT-39 lands as 1.1.0.
 - **`plugin.json` is the source of truth; the git tag is the derived marker.** It is what a
-  consumer sees when installed from an untagged commit, and `claude plugin tag` already
-  reads it to build the tag name. `.claude-plugin/marketplace.json` carries no version
+  consumer sees when installed from an untagged commit, and the release recipe reads it to
+  build the tag name. `.claude-plugin/marketplace.json` carries no version
   field, so plugin.json is the only file a release writes.
 - **The recipe takes a level, never a version string.** `major` / `minor` / `patch` only, so
   `0.2.0 -> 0.1.0` is unrepresentable rather than merely discouraged. Backed by a monotonic
   guard: the computed next version must be strictly greater than the highest existing
-  `bit--v*` tag.
-- **Never pass `-f` to `claude plugin tag`.** Its dirty-tree and tag-exists checks are the
-  protection; `-f` is the only thing that removes them.
+  `v*` tag.
+- **The tag is `v<version>`, and the recipe cuts it with `git tag -a`, not `claude plugin
+  tag`.** That command mints `{name}--v{version}` — `bit--v0.1.0` here — with no flag to
+  change the shape, and the plugin-name prefix buys nothing on a repo publishing one plugin
+  while making every tag read oddly. Dropping it costs three things, each already covered:
+  its dirty-tree check (the recipes' own repo-wide guard is strictly broader), its
+  tag-exists check (`git tag` fails on an existing tag anyway), and its check that
+  plugin.json agrees with the enclosing marketplace entry (marketplace.json carries no
+  version field, so there is nothing to disagree with). `claude plugin validate bit
+  --strict` stays in the recipe. The tag stays annotated, message `bit <version>`, matching
+  what `claude plugin tag` produced.
 - **Creating a tag and pushing it are separate recipes.** A local tag is trivially
   deletable; a pushed one is not. The irreversible step gets its own deliberate invocation.
-- **Dirty means tracked-and-uncommitted; untracked files are ignored.** Measured: this is
-  already `claude plugin tag`'s exact behaviour — an untracked file passes, a modified
-  tracked file is refused with "Uncommitted changes affecting this release". **But its check
-  is scoped to the plugin directory only** — a dirty `cmd/root.go` sails straight through.
-  Under lockstep that is a hole, so the recipes add a repo-wide guard with the same
-  tracked/untracked semantics.
+- **Dirty means tracked-and-uncommitted; untracked files are ignored.** Measured on
+  `claude plugin tag` before it was dropped — an untracked file passes, a modified tracked
+  file is refused — and **its check was scoped to the plugin directory only**, so a dirty
+  `cmd/root.go` sailed straight through. Under lockstep that is a hole, so the recipes own a
+  repo-wide guard (`git diff-index --quiet HEAD --`) with the same tracked/untracked
+  semantics. It is now the only dirty check in the path.
 - **Add an `author` field to plugin.json.** Measured: with `version` present, the lone
   remaining warning is `author`, and `validate --strict` exits 1 on it. The marketplace
   already declares owner `josiah`, so this costs nothing and lets the recipe validate
@@ -139,7 +147,7 @@ just release-push -------------------------------------+--> origin
 
 - [ ] Verse 2 — Publish a release deliberately: `just release-push` sends the tag to origin
   as a separate, guarded step, refusing when tracked changes are uncommitted and ignoring
-  untracked files. Its first real use publishes `bit--v0.1.0`, the baseline Verse 3 observes
+  untracked files. Its first real use publishes `v0.1.0`, the baseline Verse 3 observes
   against.
   Touches: `Justfile`.
 

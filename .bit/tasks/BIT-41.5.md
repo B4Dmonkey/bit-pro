@@ -2,7 +2,6 @@
 id: BIT-41.5
 title: Observe a consumer against the pushed 0.1.0
 status: todo
-approved: true
 phase: 3
 phase_label: 'spike: update'
 ---
@@ -29,9 +28,9 @@ producing, not a failure — it means Verse 4 must source "latest" itself.
   a version bump once we start versioning? Unverified" — is exactly this bar.
 
 ## Method
-- [ ] Precondition: `bit--v0.1.0` is on origin (BIT-41.4) **and** the release commit is on
+- [ ] Precondition: `v0.1.0` is on origin (BIT-41.4) **and** the release commit is on
       `origin/main` (`git push` — `release-push` deliberately doesn't move it). Confirm with
-      `git ls-remote --tags origin 'bit--v*'` and `git ls-remote origin refs/heads/main`.
+      `git ls-remote --tags origin 'v*'` and `git ls-remote origin refs/heads/main`.
 - [ ] Record the before state: `claude plugin list --json` for `bit@bit-pro`, and the cache
       directory name under `~/.claude/plugins/cache/bit-pro/bit/`. Today that name is a git sha
       (`4ebbe7cd5eff`, `fb11adeb8621`), while a versioned plugin caches under its version instead
@@ -44,7 +43,7 @@ producing, not a failure — it means Verse 4 must source "latest" itself.
       reported version — these are two separate events, and `claude/sync.go` already runs them in
       that order.
 - [ ] Inventory the candidate "latest" sources and time each: `git ls-remote --tags origin
-      'bit--v*'`, the `marketplace.json` entry, the plugin cache directory name, and
+      'v*'`, the `marketplace.json` entry, the plugin cache directory name, and
       `claude plugin list --json`. Record cost and whether each works offline — the Decision that
       the notice must never block, delay or fail `bp` makes cost part of the answer, not a
       footnote.

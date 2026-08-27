@@ -2,7 +2,6 @@
 id: BIT-41.3
 title: just release cuts the baseline
 status: done
-approved: true
 phase: 1
 phase_label: cut a version
 ---
@@ -30,22 +29,23 @@ here cover the recipe's shape and that BIT-41.2's guards still refuse.
       The path-limited form keeps an unrelated staged change out of the release commit. Note the
       repo's pre-commit hooks run `just fmt`, `just lint` and `just test` at this point — a
       failure aborts the release, which is the correct outcome.
-- [ ] `claude plugin tag bit` — creates `bit--v$next` on the release commit and revalidates that
-      `plugin.json` and the enclosing `marketplace.json` entry agree. **Never pass `-f`**: its
-      dirty-tree and tag-exists checks are the protection. No `--push` either — publishing is
-      BIT-41.4's separate, deliberate step.
+- [ ] `git tag -a "v$next" -m "bit $next"` — an annotated tag on the release commit. Not
+      `claude plugin tag`, which hardcodes a `{name}--v` prefix; the recipe's own repo-wide dirty
+      guard is broader than that command's plugin-scoped one, `git tag` refuses an existing tag on
+      its own, and `claude plugin validate bit --strict` above already covers the manifest. Tag
+      only — publishing is BIT-41.4's separate, deliberate step.
 - [ ] Print the tag that was created.
 
 ## Claude verifies
-- [ ] `just --list` still shows `release`, and `claude plugin tag bit --dry-run` prints the tag
-      it would create without creating it.
+- [ ] `just --list` still shows `release`, and the recipe names the tag it would create before
+      creating it.
 - [ ] BIT-41.2's guards still refuse: bad level, off-main, dirty tracked tree, and the
-      throwaway-`bit--v9.0.0` monotonic case. Nothing regressed by adding the action.
+      throwaway-`v9.0.0` monotonic case. Nothing regressed by adding the action.
 
 ## User verifies
 - [ ] Commit this bar first, then run `just release minor` yourself on a clean main — it writes a
       commit and a tag to your history, which is why it's yours to run. Then confirm:
-      `git tag --list 'bit--v*'` → `bit--v0.1.0`; `git log -1 --format=%s` → `release: v0.1.0`;
+      `git tag --list 'v*'` → `v0.1.0`; `git log -1 --format=%s` → `release: v0.1.0`;
       `git show --stat HEAD` touches only `bit/.claude-plugin/plugin.json`;
       `claude plugin validate bit --strict` exits 0; and `just install` followed by `bp --version`
       → `bp version 0.1.0`. Whole slice: a version got cut and reported, and you typed no version

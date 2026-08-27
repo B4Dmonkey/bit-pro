@@ -11,7 +11,7 @@ if ! git diff-index --quiet HEAD --; then
 fi
 
 version="$(jq -r '.version // empty' bit/.claude-plugin/plugin.json)"
-tag="bit--v$version"
+tag="v$version"
 
 if ! git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
     echo "release-push: no local tag $tag — run 'just release <level>' first" >&2

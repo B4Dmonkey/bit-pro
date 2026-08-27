@@ -2,7 +2,6 @@
 id: BIT-41.2
 title: just release computes and guards, without acting
 status: done
-approved: true
 phase: 1
 phase_label: cut a version
 ---
@@ -27,7 +26,7 @@ and this bar has no side effects to undo if a guard is wrong.
       main is invisible to the build that reads it while still visible to the monotonic guard's
       `git tag --list` — the two would disagree.
 - [ ] Dirty guard, repo-wide: `git diff-index --quiet HEAD`. Tracked-and-uncommitted refuses;
-      untracked files pass. This matches `claude plugin tag`'s own semantics but covers the whole
+      untracked files pass. This matches the semantics measured on `claude plugin tag`, but covers the whole
       repo — its check is scoped to the plugin directory, so a modified `cmd/root.go` currently
       sails through. (Measured today: `git status --porcelain -uno` shows ` M .bit/tasks/BIT-39.md`,
       so this guard fires as the repo stands.)
@@ -36,8 +35,8 @@ and this bar has no side effects to undo if a guard is wrong.
 - [ ] Compute the next version: no prior version → `0.1.0` regardless of level (the baseline
       case); otherwise bump the named component and zero the components below it.
 - [ ] Monotonic guard: highest existing tag is
-      `git tag --list 'bit--v*' --sort=-v:refname | head -1` — git's own version sort, so
-      `0.10.0` outranks `0.9.0`. Strip `bit--v`, then require the computed version to sort
+      `git tag --list 'v*' --sort=-v:refname | head -1` — git's own version sort, so
+      `0.10.0` outranks `0.9.0`. Strip `v`, then require the computed version to sort
       strictly above it: `printf '%s\n%s\n' "$highest" "$next" | sort -V | tail -1` must equal
       `$next`, and `$next` must differ from `$highest`. `sort -V` verified working on this
       machine. With no tags the guard passes trivially, which is the baseline case.
@@ -50,9 +49,9 @@ and this bar has no side effects to undo if a guard is wrong.
       dirty; with only untracked files present it does not refuse.
 - [ ] On a clean tree, `just release minor`, `just release major` and `just release patch` each
       print `0.1.0` — with no prior version the level cannot change the answer.
-- [ ] Monotonic guard fires: `git tag bit--v9.0.0` (local, throwaway), then `just release minor`
+- [ ] Monotonic guard fires: `git tag v9.0.0` (local, throwaway), then `just release minor`
       exits non-zero naming both the computed `0.1.0` and the existing `9.0.0`. Clean up with
-      `git tag -d bit--v9.0.0`.
+      `git tag -d v9.0.0`.
 - [ ] `git status --porcelain -uno`, `git tag` and `git log -1` are unchanged after every run
       above. This bar's whole claim is that it has no side effects.
 
