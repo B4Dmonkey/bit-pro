@@ -49,4 +49,16 @@ if [ -n "$highest" ]; then
     fi
 fi
 
-echo "$next"
+manifest="bit/.claude-plugin/plugin.json"
+tmp="$(mktemp)"
+trap 'rm -f "$tmp"' EXIT
+jq --arg v "$next" '.version = $v' "$manifest" >"$tmp"
+mv "$tmp" "$manifest"
+
+claude plugin validate bit --strict
+
+git commit -q -m "release: v$next" "$manifest"
+
+claude plugin tag bit
+
+echo "bit--v$next"

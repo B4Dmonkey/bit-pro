@@ -26,7 +26,7 @@ db-status:
 install: db-gen-queries
     "{{justfile_directory()}}/scripts/install.sh"
 
-# compute the next version for a bump level and check every release guard, without acting
+# cut a release: compute the next version for a bump level, guard, write plugin.json, commit and tag
 release level:
     "{{justfile_directory()}}/scripts/release.sh" {{level}}
 

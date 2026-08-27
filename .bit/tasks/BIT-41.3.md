@@ -1,7 +1,7 @@
 ---
 id: BIT-41.3
 title: just release cuts the baseline
-status: todo
+status: doing
 approved: true
 phase: 1
 phase_label: cut a version
