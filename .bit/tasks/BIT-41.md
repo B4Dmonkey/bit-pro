@@ -2,7 +2,6 @@
 id: BIT-41
 title: Versioning for bp and the bit plugin
 status: doing
-approved: true
 ---
 ## Why
 
@@ -132,7 +131,7 @@ just release-push -------------------------------------+--> origin
 
 ## Verses
 
-- [ ] Verse 1 — Cut a version without typing one: `just release <level>` bumps plugin.json,
+- [x] Verse 1 — Cut a version without typing one: `just release <level>` bumps plugin.json,
   commits, and creates the local tag. Its first real use is this project's baseline — run it
   and `bp version` reports `0.1.0` instead of a git sha. Refuses to go backwards and refuses
   a dirty tree anywhere in the repo.
