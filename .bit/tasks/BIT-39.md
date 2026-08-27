@@ -65,7 +65,11 @@ tick
 - **One identifier for the worktree and the session.** The same derived string goes to `-w` and
   to `-n`, so a `claude agents --json` row is directly attributable to a track.
 - **Bars of a track share one worktree.** The name is per-track, so bar 2 lands on bar 1's tree
-  rather than restarting from `main`.
+  rather than restarting from `main`. Measured cost, 2026-08-26: sharing means bar N+1 inherits
+  whatever bar N left, including wreckage. A session that dies at startup still creates the
+  worktree, branches it, and `git worktree lock`s it before it fails — so every later bar of that
+  track lands on a tree locked by a dead pid, and `git worktree remove` refuses until it is
+  unlocked by hand. The decision stands; it is not free, and BIT-39.13 prices it.
 - **The loop never tears down a worktree.** After the last bar the tree holds committed work on
   `worktree-<name>`, and `claude rm` deletes the branch along with it. Reaping is the operator's,
   after they have merged. Measured 2026-08-24: `claude rm` refuses outright while the worktree
