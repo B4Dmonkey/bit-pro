@@ -30,6 +30,10 @@ install: db-gen-queries
 release level:
     "{{justfile_directory()}}/scripts/release.sh" {{level}}
 
+# publish the current version's tag to origin (tag only — push the branch yourself)
+release-push:
+    "{{justfile_directory()}}/scripts/release-push.sh"
+
 run *ARGS: db-gen-queries
     go run . {{ARGS}}
 
