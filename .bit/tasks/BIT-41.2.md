@@ -1,7 +1,7 @@
 ---
 id: BIT-41.2
 title: just release computes and guards, without acting
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: cut a version

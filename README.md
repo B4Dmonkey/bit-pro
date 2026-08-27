@@ -18,7 +18,7 @@ human's window onto the same files. The TUI never becomes a second source of tru
 ## Install
 
 ```
-./install.sh
+./scripts/install.sh
 ```
 
 Builds `bp` into your Go bin dir (`$(go env GOBIN)`, else `$(go env GOPATH)/bin`) and
@@ -149,7 +149,7 @@ This project tracks its own work in `.bit/` — browse it with `bp task list` or
 
 **Backlog — needs definition before scoping:**
 
-- **Homebrew packaging** — `install.sh` assumes a Go toolchain. Open: personal tap vs.
+- **Homebrew packaging** — `scripts/install.sh` assumes a Go toolchain. Open: personal tap vs.
   homebrew-core, and GoReleaser binaries vs. a from-source formula.
 - **Search** — quickly target a task by text.
 - **Broader filtering** — closer to kanban-md; which dimensions matter is still open.

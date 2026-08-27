@@ -24,9 +24,11 @@ db-status:
     dbmate --migrations-dir "{{MIGRATIONS_DIR}}" status
 
 install: db-gen-queries
-    #!/usr/bin/env sh
-    dir="$(go env GOBIN)"; [ -n "$dir" ] || dir="$(go env GOPATH)/bin"
-    go build -ldflags="-X 'github.com/B4Dmonkey/bit-pro/cmd.version={{version}}'" -o "$dir/bp" .
+    "{{justfile_directory()}}/scripts/install.sh"
+
+# compute the next version for a bump level and check every release guard, without acting
+release level:
+    "{{justfile_directory()}}/scripts/release.sh" {{level}}
 
 run *ARGS: db-gen-queries
     go run . {{ARGS}}

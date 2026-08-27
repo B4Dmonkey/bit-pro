@@ -1,7 +1,9 @@
 #!/usr/bin/env sh
 set -eu
 
-version="$(git describe --tags --always --dirty 2>/dev/null || echo dev)"
+cd "$(dirname "$0")/.."
+
+version="$(git describe --tags --match 'bit--v*' --always --dirty 2>/dev/null | sed 's/^bit--v//' || echo dev)"
 
 dir="$(go env GOBIN)"
 [ -n "$dir" ] || dir="$(go env GOPATH)/bin"
