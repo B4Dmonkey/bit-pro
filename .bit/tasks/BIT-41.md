@@ -134,8 +134,16 @@ just release-push -------------------------------------+--> origin
   an offline machine, a slow network, or a missing remote produces silence — not an error,
   not a hang. `claude plugin list --json` was measured at ~0.3s, which is the upper bound of
   what is acceptable even on a session-shaped entry point.
-- **Skew comparison uses the base version, not the describe string.** A mid-work build
-  reports `0.1.0-3-gabc123-dirty` while plugin.json reads `0.1.0`; those agree.
+- **`bp -v` prints the bare version — `0.1.0`, never `0.1.0-4-gdf72130`.** The commit
+  distance and sha that `git describe` appends are build-time trivia; the number an operator
+  reads has one job, which is to be comparable against a published version, and the tail only
+  makes that harder. So the printed string is the version `plugin.json` declares — already
+  this scope's source of truth — which means what `bp` reports and what the release declares
+  cannot drift apart by construction. Accepted cost: a build between releases reports the same
+  string as the release itself, so `bp -v` alone no longer says "you are 4 commits past the
+  tag". That was never the question this track exists to answer, and git still answers it for
+  anyone standing in the repo. This also settles skew comparison for Verse 4 — with only base
+  versions in play, there is no describe string to normalise away.
 
 ## Verses
 
@@ -158,10 +166,11 @@ just release-push -------------------------------------+--> origin
   Touches: `.claude-plugin/marketplace.json`, the installed plugin cache, `claude plugin
   list --json`.
 
-- [ ] Verse 4 — Know you are behind without going looking: running bare `bp` prints a notice
-  when a newer version is available, shaped by whatever Verse 3 found, and stays silent
+- [ ] Verse 4 — Know what you are running, and know when you are behind: `bp -v` reports a
+  clean `0.1.0` that can be compared against a release, and running bare `bp` prints a notice
+  when a newer version is available, shaped by whatever Verse 3 found, staying silent
   otherwise.
-  Touches: `cmd/root.go`.
+  Touches: `cmd/root.go`, `scripts/install.sh`.
 
 ## References
 
