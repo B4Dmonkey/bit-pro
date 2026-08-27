@@ -2,6 +2,7 @@
 id: BIT-41.1
 title: Justfile reads the v* tag namespace
 status: done
+approved: true
 phase: 1
 phase_label: cut a version
 ---

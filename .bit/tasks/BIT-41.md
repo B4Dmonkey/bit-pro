@@ -2,6 +2,7 @@
 id: BIT-41
 title: Versioning for bp and the bit plugin
 status: doing
+approved: true
 ---
 ## Why
 
