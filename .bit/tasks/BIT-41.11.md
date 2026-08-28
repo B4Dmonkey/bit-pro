@@ -1,7 +1,7 @@
 ---
 id: BIT-41.11
 title: The installed version comes from this project's record
-status: todo
+status: done
 approved: true
 phase: 5
 phase_label: stale notice
