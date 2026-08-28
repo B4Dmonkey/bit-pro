@@ -1,7 +1,7 @@
 ---
 id: BIT-39.16
 title: Agents and Spawn run the binary they are given
-status: todo
+status: done
 approved: true
 phase: 4
 phase_label: Works with the terminal closed
