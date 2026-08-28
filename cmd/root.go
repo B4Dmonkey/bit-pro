@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/B4Dmonkey/bit-pro/bitdir"
@@ -34,7 +36,7 @@ func Execute() error {
 func execute(ctx context.Context, root *cobra.Command) error {
 	cmd, err := root.ExecuteContextC(ctx)
 
-	if installed, latest, ok := pluginState(); ok && installed != latest {
+	if installed, latest, ok := pluginState(); ok && behind(installed, latest) {
 		if cmd == nil {
 			cmd = root
 		}
@@ -43,6 +45,46 @@ func execute(ctx context.Context, root *cobra.Command) error {
 	}
 
 	return err
+}
+
+func behind(installed, latest string) bool {
+	from, ok := parseVersion(installed)
+	if !ok {
+		return false
+	}
+
+	to, ok := parseVersion(latest)
+	if !ok {
+		return false
+	}
+
+	for i := range from {
+		if from[i] != to[i] {
+			return from[i] < to[i]
+		}
+	}
+
+	return false
+}
+
+func parseVersion(v string) ([3]int, bool) {
+	var parts [3]int
+
+	fields := strings.Split(v, ".")
+	if len(fields) != len(parts) {
+		return parts, false
+	}
+
+	for i, f := range fields {
+		n, err := strconv.Atoi(f)
+		if err != nil {
+			return parts, false
+		}
+
+		parts[i] = n
+	}
+
+	return parts, true
 }
 
 func notice(installed, latest string) string {

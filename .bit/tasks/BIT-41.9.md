@@ -1,7 +1,7 @@
 ---
 id: BIT-41.9
 title: Ordering is numeric, and only behind fires
-status: todo
+status: done
 approved: true
 phase: 5
 phase_label: stale notice

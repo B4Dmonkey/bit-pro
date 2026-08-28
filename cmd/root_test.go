@@ -123,7 +123,7 @@ func TestExecute_BehindPluginWritesNoticeToStderr(t *testing.T) {
 	createTask(t, "Track", "...")
 
 	prev := pluginState
-	pluginState = func() (string, string, bool) { return "0.1.0", "0.2.0", true }
+	pluginState = func() (string, string, bool) { return v010, v020, true }
 
 	t.Cleanup(func() { pluginState = prev })
 
@@ -161,5 +161,31 @@ func TestExecute_NoPluginStateIsSilent(t *testing.T) {
 
 	if !strings.Contains(stdout, "BIT-1") {
 		t.Errorf("stdout = %q, want it to contain BIT-1", stdout)
+	}
+}
+
+func TestBehind(t *testing.T) {
+	tests := []struct {
+		name      string
+		installed string
+		latest    string
+		want      bool
+	}{
+		{name: "minor below", installed: v010, latest: v020, want: true},
+		{name: "equal", installed: v010, latest: v010, want: false},
+		{name: "minor above", installed: v020, latest: v010, want: false},
+		{name: "two-digit minor below", installed: v090, latest: "0.10.0", want: true},
+		{name: "two-digit minor above", installed: "0.10.0", latest: v090, want: false},
+		{name: "major above", installed: "1.0.0", latest: v090, want: false},
+		{name: "unparseable installed", installed: "4ebbe7cd5eff", latest: v010, want: false},
+		{name: "empty latest", installed: v010, latest: "", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := behind(tt.installed, tt.latest); got != tt.want {
+				t.Errorf("behind(%q, %q) = %v, want %v", tt.installed, tt.latest, got, tt.want)
+			}
+		})
 	}
 }
