@@ -448,6 +448,18 @@ Probed in a throwaway git repo. Every 2.1.231 claim above about `-w` held; these
   `cwd` is at or beneath the project path, which covers the worktree case without depending on
   this.
 
+### Measured 2026-08-28 on Claude Code 2.1.250 (launchd dispatch, terminal closed)
+
+- **The cycle runs with the terminal closed.** With the launchd-hosted daemon started by `bp start`
+  and every session under the project gone, a queued bar dispatched on its own. The log at
+  `~/.local/share/bit-pro/daemon.log` holds JSON tick records and **no** `exec: "claude": executable
+  file not found in $PATH` — the failure the `BP_CLAUDE` pinning exists to remove. `./check.sh EX-2`
+  showed the bar's commit on its worktree branch. Verse 4's capability is real: launchd alone hosts
+  the loop.
+- **One bar, not a drain.** One session was dispatched and the queue rows behind it stayed put. With
+  nobody deleting sessions the project's slot never frees, so the next row waits — the slot Decision
+  behaving as designed rather than a stalled loop.
+
 ---
 
 ## Open gaps
