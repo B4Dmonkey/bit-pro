@@ -18,7 +18,14 @@ import (
 
 var version = "dev"
 
-var pluginState = func() (installed, latest string, ok bool) { return "", "", false }
+var pluginState = func() (installed, latest string, ok bool) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", "", false
+	}
+
+	return claude.PluginState(home, bitdir.Root())
+}
 
 const claudeDir = ".claude"
 

@@ -54,3 +54,17 @@ func LatestVersion(home string) (string, bool) {
 
 	return manifest.Version, true
 }
+
+func PluginState(home, projectRoot string) (installed, latest string, ok bool) {
+	installed, ok = InstalledVersion(home, projectRoot)
+	if !ok {
+		return "", "", false
+	}
+
+	latest, ok = LatestVersion(home)
+	if !ok {
+		return "", "", false
+	}
+
+	return installed, latest, true
+}

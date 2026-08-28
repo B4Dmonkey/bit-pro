@@ -6,11 +6,13 @@ import (
 	"testing"
 )
 
-func writeInstalledPlugins(t *testing.T, contents string) string {
-	t.Helper()
+const (
+	verInstalled = "0.1.0"
+	verLatest    = "0.2.0"
+)
 
-	home := t.TempDir()
-	path := filepath.Join(home, ".claude", "plugins", "installed_plugins.json")
+func writeFixture(t *testing.T, path, contents string) {
+	t.Helper()
 
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatalf("os.MkdirAll(%q) returned error: %v", filepath.Dir(path), err)
@@ -19,6 +21,19 @@ func writeInstalledPlugins(t *testing.T, contents string) string {
 	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
 		t.Fatalf("os.WriteFile(%q) returned error: %v", path, err)
 	}
+}
+
+func installRecordAt(t *testing.T, home, contents string) {
+	t.Helper()
+
+	writeFixture(t, filepath.Join(home, ".claude", "plugins", "installed_plugins.json"), contents)
+}
+
+func writeInstalledPlugins(t *testing.T, contents string) string {
+	t.Helper()
+
+	home := t.TempDir()
+	installRecordAt(t, home, contents)
 
 	return home
 }
@@ -45,8 +60,8 @@ func TestInstalledVersion(t *testing.T) {
 		want        string
 		wantOK      bool
 	}{
-		{"this project", twoProjects, thisProject, "0.1.0", true},
-		{"another project", twoProjects, "/p/b", "0.2.0", true},
+		{"this project", twoProjects, thisProject, verInstalled, true},
+		{"another project", twoProjects, "/p/b", verLatest, true},
 		{"no matching project", twoProjects, "/p/c", "", false},
 		{"file absent", missing, thisProject, "", false},
 		{"file malformed", malformed, thisProject, "", false},
@@ -65,19 +80,18 @@ func TestInstalledVersion(t *testing.T) {
 	}
 }
 
+func marketplaceManifestAt(t *testing.T, home, contents string) {
+	t.Helper()
+
+	writeFixture(t, filepath.Join(home, ".claude", "plugins", "marketplaces", "bit-pro",
+		"bit", ".claude-plugin", "plugin.json"), contents)
+}
+
 func writeMarketplaceManifest(t *testing.T, contents string) string {
 	t.Helper()
 
 	home := t.TempDir()
-	path := filepath.Join(home, ".claude", "plugins", "marketplaces", "bit-pro", "bit", ".claude-plugin", "plugin.json")
-
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("os.MkdirAll(%q) returned error: %v", filepath.Dir(path), err)
-	}
-
-	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
-		t.Fatalf("os.WriteFile(%q) returned error: %v", path, err)
-	}
+	marketplaceManifestAt(t, home, contents)
 
 	return home
 }
@@ -94,7 +108,7 @@ func TestLatestVersion(t *testing.T) {
 		want   string
 		wantOK bool
 	}{
-		{"manifest declares a version", versioned, "0.2.0", true},
+		{"manifest declares a version", versioned, verLatest, true},
 		{"manifest declares no version", unversioned, "", false},
 		{"manifest malformed", malformed, "", false},
 		{"manifest absent", missing, "", false},
@@ -106,6 +120,56 @@ func TestLatestVersion(t *testing.T) {
 
 			if got != tt.want || ok != tt.wantOK {
 				t.Errorf("LatestVersion(%q) = (%q, %v), want (%q, %v)", tt.home, got, ok, tt.want, tt.wantOK)
+			}
+		})
+	}
+}
+
+func installRecordFor(projectRoot string) string {
+	return `{"plugins": {"bit@bit-pro": [
+		{"scope": "project", "projectPath": "` + projectRoot + `", "version": "0.1.0"}
+	]}}`
+}
+
+func TestPluginState_ReportsThisProject(t *testing.T) {
+	home := t.TempDir()
+	projectRoot := t.TempDir()
+
+	installRecordAt(t, home, installRecordFor(projectRoot))
+	marketplaceManifestAt(t, home, `{"name": "bit", "version": "0.2.0"}`)
+
+	installed, latest, ok := PluginState(home, projectRoot)
+
+	if installed != verInstalled || latest != verLatest || !ok {
+		t.Errorf("PluginState(%q, %q) = (%q, %q, %v), want (%q, %q, %v)",
+			home, projectRoot, installed, latest, ok, verInstalled, verLatest, true)
+	}
+}
+
+func TestPluginState_SilentWhenEitherReadFails(t *testing.T) {
+	projectRoot := t.TempDir()
+
+	noClone := t.TempDir()
+	installRecordAt(t, noClone, installRecordFor(projectRoot))
+
+	noRecord := t.TempDir()
+	marketplaceManifestAt(t, noRecord, `{"name": "bit", "version": "0.2.0"}`)
+
+	tests := []struct {
+		name string
+		home string
+	}{
+		{"no marketplace clone", noClone},
+		{"no install record", noRecord},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			installed, latest, ok := PluginState(tt.home, projectRoot)
+
+			if installed != "" || latest != "" || ok {
+				t.Errorf("PluginState(%q, %q) = (%q, %q, %v), want (%q, %q, %v)",
+					tt.home, projectRoot, installed, latest, ok, "", "", false)
 			}
 		})
 	}

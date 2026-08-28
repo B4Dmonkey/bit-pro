@@ -1,7 +1,7 @@
 ---
 id: BIT-41.13
 title: Real state replaces the hardcoded reader
-status: todo
+status: done
 approved: true
 phase: 5
 phase_label: stale notice
