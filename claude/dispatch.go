@@ -89,16 +89,16 @@ func Agents(ctx context.Context, run DirRunner, bin string) ([]Agent, error) {
 	return agents, nil
 }
 
-func Spawn(ctx context.Context, run DirRunner, bin, dir, name, bar string) error {
+func Spawn(ctx context.Context, run DirRunner, bin, dir, name, bar string) (string, error) {
 	out, code, err := run(ctx, dir, bin,
 		"--bg", "--agent", "bit:bot-dev", "-w", name, "-n", name, "/bit:do "+bar)
 	if err != nil {
-		return fmt.Errorf("spawning a session for %s: %w", bar, err)
+		return "", fmt.Errorf("spawning a session for %s: %w", bar, err)
 	}
 
 	if code != 0 {
-		return fmt.Errorf("spawning a session for %s: claude exited %d: %s", bar, code, out)
+		return "", fmt.Errorf("spawning a session for %s: claude exited %d: %s", bar, code, out)
 	}
 
-	return nil
+	return out, nil
 }

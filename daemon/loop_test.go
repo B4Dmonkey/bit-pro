@@ -178,6 +178,7 @@ const (
 	queuedBarID    = "ACME-1.1"
 	queuedBarTitle = "a bar"
 	queuedBarTree  = "ACME-1-a-track"
+	targetTypBar   = "bar"
 )
 
 func queuedBar(t *testing.T) (*orm.Queries, orm.GetProjectByPathRow) {
@@ -219,7 +220,7 @@ func queuedBar(t *testing.T) (*orm.Queries, orm.GetProjectByPathRow) {
 	if err := queries.EnqueueTask(t.Context(), orm.EnqueueTaskParams{
 		ProjectID: project.ID,
 		TargetID:  queuedBarID,
-		TargetTyp: "bar",
+		TargetTyp: targetTypBar,
 	}); err != nil {
 		t.Fatalf("EnqueueTask() returned error: %v", err)
 	}
@@ -564,7 +565,7 @@ func enrolled(t *testing.T, queries *orm.Queries, code, title string, bars int) 
 		if err := queries.EnqueueTask(t.Context(), orm.EnqueueTaskParams{
 			ProjectID: project.ID,
 			TargetID:  bar,
-			TargetTyp: "bar",
+			TargetTyp: targetTypBar,
 		}); err != nil {
 			t.Fatalf("EnqueueTask() returned error: %v", err)
 		}
@@ -690,4 +691,52 @@ func logRecords(t *testing.T, out, msg string) []map[string]any {
 	}
 
 	return records
+}
+
+func TestTick_LogsWhatTheSpawnPrinted(t *testing.T) {
+	queries, _ := queuedBar(t)
+
+	const warning = "warning: no agent named 'bit:bot-dev' — spawning with default template"
+
+	run := func(_ context.Context, _, _ string, args ...string) (string, int, error) {
+		if len(args) > 0 && args[0] == bgFlag {
+			return warning, 0, nil
+		}
+
+		return "[]", 0, nil
+	}
+
+	var buf bytes.Buffer
+
+	log := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	Tick(t.Context(), queries, log, run, "claude")
+
+	records := logRecords(t, buf.String(), msgDispatching)
+
+	if len(records) != 1 {
+		t.Fatalf("Tick() logged %d %q records, want 1:\n%s", len(records), msgDispatching, buf.String())
+	}
+
+	record := records[0]
+
+	for _, want := range []struct {
+		key, value string
+	}{
+		{"bar", queuedBarID},
+		{"worktree", queuedBarTree},
+	} {
+		if got := record[want.key]; got != want.value {
+			t.Errorf("Tick() logged %s = %v, want %q", want.key, got, want.value)
+		}
+	}
+
+	out, _ := record["out"].(string)
+	if !strings.Contains(out, "no agent named 'bit:bot-dev'") {
+		t.Errorf("Tick() logged out = %q, want it to carry what the spawn printed", out)
+	}
+
+	if got := len(logRecords(t, buf.String(), "dispatched")); got != 0 {
+		t.Errorf("Tick() logged %d dispatched records, want 0:\n%s", got, buf.String())
+	}
 }

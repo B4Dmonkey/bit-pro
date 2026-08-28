@@ -16,6 +16,7 @@ const (
 	msgStarted        = "started"
 	msgStopped        = "stopped"
 	msgNotDispatching = "not dispatching"
+	msgDispatching    = "dispatching"
 )
 
 func Loop(
@@ -129,29 +130,42 @@ func dispatch(
 		return
 	}
 
-	if err := claude.Spawn(ctx, run, bin, p.Path, name, bar.ID); err != nil {
+	out, err := claude.Spawn(ctx, run, bin, p.Path, name, bar.ID)
+	if err != nil {
 		log.Error("dispatching the queued bar", "project", p.Code, "bar", bar.ID, "err", err)
 
 		return
 	}
 
-	log.Info("dispatched", "project", p.Code, "bar", bar.ID, "worktree", name)
+	log.Info(msgDispatching, "project", p.Code, "bar", bar.ID, "worktree", name, "out", out)
 
+	dequeue(ctx, queries, log, run, bin, p, head.ID, bar.ID, name)
+}
+
+func dequeue(
+	ctx context.Context,
+	queries *orm.Queries,
+	log *slog.Logger,
+	run claude.DirRunner, bin string,
+	p orm.Project,
+	rowID int64,
+	barID, name string,
+) {
 	agents, err := claude.Agents(ctx, run, bin)
 	if err != nil {
-		log.Error("confirming the dispatched session", "project", p.Code, "bar", bar.ID, "err", err)
+		log.Error("confirming the dispatched session", "project", p.Code, "bar", barID, "err", err)
 
 		return
 	}
 
 	if !slices.ContainsFunc(agents, func(a claude.Agent) bool { return a.Name == name }) {
-		log.Warn("dispatched session not visible yet", "project", p.Code, "bar", bar.ID, "worktree", name)
+		log.Warn("dispatched session not visible yet", "project", p.Code, "bar", barID, "worktree", name)
 
 		return
 	}
 
-	if err := queries.DeleteQueueRow(ctx, head.ID); err != nil {
-		log.Error("dequeueing the dispatched bar", "project", p.Code, "bar", bar.ID, "err", err)
+	if err := queries.DeleteQueueRow(ctx, rowID); err != nil {
+		log.Error("dequeueing the dispatched bar", "project", p.Code, "bar", barID, "err", err)
 	}
 }
 
