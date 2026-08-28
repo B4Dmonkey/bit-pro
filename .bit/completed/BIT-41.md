@@ -1,7 +1,7 @@
 ---
 id: BIT-41
 title: Versioning for bp and the bit plugin
-status: doing
+status: done
 ---
 ## Why
 
@@ -224,7 +224,7 @@ just release-push -----+--> origin                |     -> latest seen (free, of
   accurate. Never blocks, delays, or fails `bp`.
   Touches: `cmd/root.go`, `claude/`.
 
-- [ ] Verse 6 — Declare the machinery stable: cut and publish `v1.0.0` with the same recipes
+- [x] Verse 6 — Declare the machinery stable: cut and publish `v1.0.0` with the same recipes
   the earlier verses built, so the project's version is one an operator can trust and compare.
   This is the deliberate major described in Decisions, and it is the last thing the track does.
   Touches: `Justfile`, `bit/.claude-plugin/plugin.json`.

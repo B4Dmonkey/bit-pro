@@ -1,7 +1,7 @@
 ---
 id: BIT-41.15
 title: Cut and publish v1.0.0
-status: todo
+status: done
 approved: true
 phase: 6
 phase_label: declare stable
