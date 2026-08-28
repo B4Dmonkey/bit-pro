@@ -1,7 +1,7 @@
 ---
 id: BIT-39.10
 title: The cycle runs under launchd
-status: todo
+status: done
 approved: true
 phase: 4
 phase_label: Works with the terminal closed

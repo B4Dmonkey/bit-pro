@@ -1,7 +1,7 @@
 ---
 id: BIT-39.11
 title: The daemon's hold message says what it means
-status: todo
+status: doing
 approved: true
 phase: 5
 phase_label: Cleanup

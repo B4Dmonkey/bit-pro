@@ -1,7 +1,7 @@
 ---
 id: BIT-39.17
 title: The daemon runs the claude bp start pinned
-status: todo
+status: done
 approved: true
 phase: 4
 phase_label: Works with the terminal closed
