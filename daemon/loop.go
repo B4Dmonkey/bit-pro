@@ -13,8 +13,9 @@ import (
 )
 
 const (
-	msgStarted = "started"
-	msgStopped = "stopped"
+	msgStarted        = "started"
+	msgStopped        = "stopped"
+	msgNotDispatching = "not dispatching"
 )
 
 func Loop(
@@ -81,8 +82,8 @@ func Tick(ctx context.Context, queries *orm.Queries, log *slog.Logger, run claud
 			continue
 		}
 
-		if slices.ContainsFunc(live, func(a claude.Agent) bool { return a.Under(p.Path) }) {
-			log.Debug("holding a project that has a live session", "project", p.Code)
+		if i := slices.IndexFunc(live, func(a claude.Agent) bool { return a.Under(p.Path) }); i >= 0 {
+			log.Info(msgNotDispatching, "project", p.Code, "session", live[i].Name, "cwd", live[i].Cwd)
 
 			continue
 		}

@@ -46,7 +46,7 @@ func TestTick_WritesProjectCounts(t *testing.T) {
 
 	queries := orm.New(sqlDB)
 
-	if err := queries.CreateProject(t.Context(), orm.CreateProjectParams{Path: dir, Code: "ACME"}); err != nil {
+	if err := queries.CreateProject(t.Context(), orm.CreateProjectParams{Path: dir, Code: codeACME}); err != nil {
 		t.Fatalf("CreateProject() returned error: %v", err)
 	}
 
@@ -56,7 +56,7 @@ func TestTick_WritesProjectCounts(t *testing.T) {
 
 	var backlog, todo, done, completed int64
 	if err := sqlDB.QueryRowContext(t.Context(),
-		"SELECT backlog, todo, done, completed FROM projects WHERE code = ?", "ACME",
+		"SELECT backlog, todo, done, completed FROM projects WHERE code = ?", codeACME,
 	).Scan(&backlog, &todo, &done, &completed); err != nil {
 		if err == sql.ErrNoRows {
 			t.Fatal("project row not found")
@@ -174,6 +174,7 @@ func logMessages(t *testing.T, out string) []string {
 
 const (
 	bgFlag         = "--bg"
+	codeACME       = "ACME"
 	queuedBarID    = "ACME-1.1"
 	queuedBarTitle = "a bar"
 	queuedBarTree  = "ACME-1-a-track"
@@ -206,7 +207,7 @@ func queuedBar(t *testing.T) (*orm.Queries, orm.GetProjectByPathRow) {
 
 	queries := orm.New(sqlDB)
 
-	if err := queries.CreateProject(t.Context(), orm.CreateProjectParams{Path: dir, Code: "ACME"}); err != nil {
+	if err := queries.CreateProject(t.Context(), orm.CreateProjectParams{Path: dir, Code: codeACME}); err != nil {
 		t.Fatalf("CreateProject() returned error: %v", err)
 	}
 
@@ -587,7 +588,7 @@ func TestTick_DrainsATrackOneBarPerTick(t *testing.T) {
 
 	const treeA, treeB = "ACME-1-a-track", "ZULU-1-other-track"
 
-	projectA := enrolled(t, queries, "ACME", "a track", 3)
+	projectA := enrolled(t, queries, codeACME, "a track", 3)
 	projectB := enrolled(t, queries, "ZULU", "other track", 1)
 
 	sessions := &fakeSessions{live: map[string]string{}}
@@ -628,4 +629,65 @@ func TestTick_DrainsATrackOneBarPerTick(t *testing.T) {
 			t.Errorf("%s kept %d queue rows, want 0: %+v", project.Code, len(rows), rows)
 		}
 	}
+}
+
+func TestTick_NamesTheSessionHoldingAProject(t *testing.T) {
+	queries, project := queuedBar(t)
+
+	cwd := filepath.Join(project.Path, "cmd")
+	live := `[{"name":"6a4a7973","cwd":"` + cwd + `"}]`
+
+	run := func(_ context.Context, _, _ string, _ ...string) (string, int, error) {
+		return live, 0, nil
+	}
+
+	var buf bytes.Buffer
+
+	log := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	Tick(t.Context(), queries, log, run, "claude")
+
+	records := logRecords(t, buf.String(), msgNotDispatching)
+
+	if len(records) != 1 {
+		t.Fatalf("Tick() logged %d %q records, want 1:\n%s", len(records), msgNotDispatching, buf.String())
+	}
+
+	record := records[0]
+
+	for _, want := range []struct {
+		key, value string
+	}{
+		{"level", "INFO"},
+		{"project", codeACME},
+		{"session", "6a4a7973"},
+		{"cwd", cwd},
+	} {
+		if got := record[want.key]; got != want.value {
+			t.Errorf("Tick() logged %s = %v, want %q", want.key, got, want.value)
+		}
+	}
+}
+
+func logRecords(t *testing.T, out, msg string) []map[string]any {
+	t.Helper()
+
+	var records []map[string]any
+
+	for line := range strings.SplitSeq(out, "\n") {
+		if line == "" {
+			continue
+		}
+
+		record := map[string]any{}
+		if err := json.Unmarshal([]byte(line), &record); err != nil {
+			t.Fatalf("line %q is not JSON: %v", line, err)
+		}
+
+		if record["msg"] == msg {
+			records = append(records, record)
+		}
+	}
+
+	return records
 }
