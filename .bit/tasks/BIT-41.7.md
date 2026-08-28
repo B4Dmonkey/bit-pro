@@ -1,7 +1,7 @@
 ---
 id: BIT-41.7
 title: bp -v reports the released version
-status: todo
+status: done
 approved: true
 phase: 4
 phase_label: read a version

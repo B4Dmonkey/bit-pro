@@ -2,7 +2,6 @@
 id: BIT-41
 title: Versioning for bp and the bit plugin
 status: doing
-approved: true
 ---
 ## Why
 
@@ -212,7 +211,7 @@ just release-push -----+--> origin                |     -> latest seen (free, of
   only. Findings are the "Settled by Verse 3" decisions above.
   Touches: the installed plugin cache, `claude plugin list --json`.
 
-- [ ] Verse 4 — Read a version that means something: `bp -v` reports the number
+- [x] Verse 4 — Read a version that means something: `bp -v` reports the number
   `plugin.json` declares — `0.1.0` — instead of the `git describe` sha it prints today, so what
   the operator reads can be compared against what the release published. The build stops
   deriving a version from git at all.

@@ -1,5 +1,3 @@
-version := `git describe --tags --match 'v*' --always --dirty 2>/dev/null | sed 's/^v//' || echo dev`
-
 MIGRATIONS_DIR := justfile_directory() / "db" / "migrations"
 
 export DATABASE_URL := "sqlite:" + justfile_directory() / "db" / "bit.db"

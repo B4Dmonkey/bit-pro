@@ -3,7 +3,7 @@ set -eu
 
 cd "$(dirname "$0")/.."
 
-version="$(git describe --tags --match 'v*' --always --dirty 2>/dev/null | sed 's/^v//' || echo dev)"
+version="$(jq -r '.version // "dev"' bit/.claude-plugin/plugin.json)"
 
 dir="$(go env GOBIN)"
 [ -n "$dir" ] || dir="$(go env GOPATH)/bin"
