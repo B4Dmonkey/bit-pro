@@ -252,3 +252,32 @@ func TestExecute_SuppressedCommandWritesNoNotice(t *testing.T) {
 		t.Errorf("stderr = %q, want empty", stderr.String())
 	}
 }
+
+func TestExecute_FiresTheRefresh(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Track", "...")
+
+	fired := 0
+
+	prev := refreshMarketplace
+	refreshMarketplace = func() { fired++ }
+
+	t.Cleanup(func() { refreshMarketplace = prev })
+
+	stdout, stderr, err := runSplit(t, "task", "list")
+	if err != nil {
+		t.Fatalf("bp task list returned error: %v", err)
+	}
+
+	if fired != 1 {
+		t.Errorf("refresh fired %d times, want 1", fired)
+	}
+
+	if stderr != "" {
+		t.Errorf("stderr = %q, want it empty", stderr)
+	}
+
+	if !strings.Contains(stdout, "BIT-1") {
+		t.Errorf("stdout = %q, want it to contain BIT-1", stdout)
+	}
+}

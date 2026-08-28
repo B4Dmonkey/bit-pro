@@ -3,6 +3,7 @@ package claude
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 )
 
@@ -67,4 +68,14 @@ func PluginState(home, projectRoot string) (installed, latest string, ok bool) {
 	}
 
 	return installed, latest, true
+}
+
+func RefreshMarketplace() {
+	_ = start("claude", "plugin", "marketplace", "update", marketplaceName)
+}
+
+func start(name string, args ...string) error {
+	_ = exec.Command(name, args...).Start()
+
+	return nil
 }

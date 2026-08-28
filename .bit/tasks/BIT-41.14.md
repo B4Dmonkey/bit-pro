@@ -1,7 +1,7 @@
 ---
 id: BIT-41.14
 title: Every run kicks a detached marketplace refresh
-status: todo
+status: doing
 approved: true
 phase: 5
 phase_label: stale notice

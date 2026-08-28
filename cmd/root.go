@@ -27,6 +27,8 @@ var pluginState = func() (installed, latest string, ok bool) {
 	return claude.PluginState(home, bitdir.Root())
 }
 
+var refreshMarketplace = claude.RefreshMarketplace
+
 const claudeDir = ".claude"
 
 const (
@@ -51,6 +53,8 @@ func execute(ctx context.Context, root *cobra.Command) error {
 	if suppressed(cmd) {
 		return err
 	}
+
+	refreshMarketplace()
 
 	if installed, latest, ok := pluginState(); ok && behind(installed, latest) {
 		if cmd == nil {

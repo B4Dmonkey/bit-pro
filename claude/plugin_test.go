@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 const (
@@ -172,5 +173,23 @@ func TestPluginState_SilentWhenEitherReadFails(t *testing.T) {
 					tt.home, projectRoot, installed, latest, ok, "", "", false)
 			}
 		})
+	}
+}
+
+func TestStart_DoesNotWaitForTheChild(t *testing.T) {
+	began := time.Now()
+
+	if err := start("sleep", "3"); err != nil {
+		t.Fatalf("start(sleep 3) returned error: %v", err)
+	}
+
+	if elapsed := time.Since(began); elapsed >= time.Second {
+		t.Errorf("start took %v, want it to return without waiting for the child", elapsed)
+	}
+}
+
+func TestStart_MissingBinaryIsSilent(t *testing.T) {
+	if err := start("bp-no-such-binary-exists"); err != nil {
+		t.Errorf("start of a missing binary returned error %v, want nil", err)
 	}
 }

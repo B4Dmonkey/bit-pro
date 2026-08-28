@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"os"
 	"strings"
 	"testing"
 
@@ -109,6 +110,12 @@ func pluginSyncCalls() [][]string {
 func createTask(t *testing.T, title, description string) {
 	t.Helper()
 	mustRun(t, "task", "create", title, "--description", description)
+}
+
+func TestMain(m *testing.M) {
+	refreshMarketplace = func() {}
+
+	os.Exit(m.Run())
 }
 
 func runSplit(t *testing.T, args ...string) (string, string, error) {
