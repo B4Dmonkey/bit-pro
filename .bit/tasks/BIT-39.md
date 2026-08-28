@@ -2,6 +2,23 @@
 id: BIT-39
 title: Dispatch — the daemon works queued bars unattended
 status: doing
+order:
+    - BIT-39.1
+    - BIT-39.2
+    - BIT-39.3
+    - BIT-39.4
+    - BIT-39.5
+    - BIT-39.6
+    - BIT-39.7
+    - BIT-39.8
+    - BIT-39.9
+    - BIT-39.15
+    - BIT-39.16
+    - BIT-39.17
+    - BIT-39.10
+    - BIT-39.11
+    - BIT-39.12
+    - BIT-39.18
 ---
 ## Why
 Every part of the automation phase is built except the part that does work. BIT-28 gave us a
@@ -218,21 +235,60 @@ tick
 - **An unknown `--agent` no longer fails; it silently substitutes the default.** Measured 2026-08-27
   on 2.1.250: `claude --bg --agent 'definitely-not-an-agent' …` printed `warning: no agent named
   '…' — spawning with default template`, exited 0, and spawned a session. This supersedes the
-  2026-08-26 observation that such a spawn errored and produced nothing, and the consequence is
-  worse rather than better: a project missing the bit plugin runs `/bit:do` under the default agent
-  instead of `bit:bot-dev`, so it will not commit and will not honour the approval gate. That makes
-  fixing `bp add` a correctness matter, not an ergonomic one.
-- **`bp add`'s directory problem is fixed with the existing `DirRunner`, not by widening `Runner`.**
-  `claude plugin install --scope project` and `claude mcp add` both resolve against the working
-  directory and `claude.Runner` carries none, so those two call sites move to `claude.DirRunner`,
-  which already takes one. This keeps the standing two-runner-shapes Decision intact and touches two
-  call sites instead of six files.
+  2026-08-26 observation that such a spawn errored and produced nothing, and it means a project
+  where the plugin does not resolve runs `/bit:do` under the default agent instead of `bit:bot-dev`,
+  so it will not commit and will not honour the approval gate. What no longer follows is the
+  conclusion this Decision originally drew — that fixing `bp add` is therefore a correctness matter
+  for dispatch. BIT-41 measured that cause away; see the next Decision.
+- **`bp add`'s readiness defects are out of scope; a follow-up track owns them.** Verse 5 originally
+  carried them because an unresolvable `--agent` silently ran `/bit:do` as the default agent, which
+  made a broken `bp add` a correctness matter for dispatch. BIT-41 measured that cause away (see
+  References): it was upstream bug anthropics/claude-code#27257, a project-scope install in one
+  project making the same plugin uninstallable at project scope in another, fixed in Claude Code
+  2.1.248 and confirmed resolving `bit:bot-dev` in `tools/example`. Three real defects remain, and
+  they are recorded here so the follow-up track does not re-derive them: `cmd/add.go:45-48`
+  short-circuits on an already-enrolled project, so re-running `bp add .` to repair a project does
+  nothing; `cmd/add.go:66-70` gates the wiring on `.bit/` being absent, so a project that ran
+  `bp init` first never gets the wiring at all; and `claude.SyncPlugin`/`claude.RegisterMCP` take
+  `claude.Runner`, which carries no working directory, so `claude plugin install --scope project`
+  and `claude mcp add` resolve against wherever the operator was standing rather than the path
+  `bp add` was given — with `SyncPlugin` trying `plugin update` before `install`, so a succeeding
+  update swallows the install. None of the three blocks a working daemon, which is what BIT-39 is
+  for.
+
+- **Deferred with the above, and kept rather than deleted: `bp add`'s directory problem is fixed
+  with the existing `DirRunner`, not by widening `Runner`.** `claude plugin install --scope project`
+  and `claude mcp add` both resolve against the working directory and `claude.Runner` carries none,
+  so those two call sites move to `claude.DirRunner`, which already takes one — two call sites
+  instead of the six files widening `claude.Runner` would churn (`cmd/root.go`, `cmd/add.go`,
+  `cmd/init.go`, `cmd/cmd_test.go`, `claude/sync.go`, `claude/sync_test.go`). One end is left open
+  for that track rather than settled here: `claude.Runner` has no consumer other than those two
+  functions, so moving both to `DirRunner` leaves it dead — which is in tension with the
+  two-runner-shapes Decision above, and is a call for whoever plans it.
 - **A stale locked worktree gets no work of its own.** Dropped 2026-08-27 (was BIT-39.13). Every
   instance observed came from a spawn that died at startup, and that cause is `bp add` leaving the
   plugin unresolvable in the project. Once a failed spawn is loud and keeps its row, a poisoned tree
   shows up as a bar that visibly refuses to start; clearing the leftover is `git worktree unlock &&
   git worktree remove`, which the fixture's `reset.sh` already does. Inheriting a broken tree is in
   any case already an accepted cost under "Bars of a track share one worktree."
+
+- **The spawn record says `dispatching`; `dispatched` is logged only once the session is
+  confirmed.** The spawn and the dequeue now land on different ticks, so one record cannot honestly
+  mean both. `dispatching` carries the bar, the worktree name, and the spawn's captured output,
+  which `claude.Spawn` currently discards — that output is the only place a failure diagnostic can
+  reach the log, since a spawn that produced no session still exits 0 and neither `--all` nor
+  parsing the `backgrounded ·` line is available. `dispatched` is logged on the later tick that
+  finds the session in the plain listing, beside the dequeue. Consequence, and the point of the
+  wording: a project where every spawn dies logs `dispatching` forever and never `dispatched`, with
+  the diagnostic in the record.
+
+- **The loop keeps no state between ticks, so an unconfirmed row is retried, not diagnosed.** A row
+  with no matching session is either a bar never dispatched or a bar whose session died at startup,
+  and nothing available to the loop tells the two apart. Rather than add a marker to the queue row,
+  the loop re-spawns — which the existing "a spawn that cannot be confirmed leaves its row in place"
+  Decision already prescribes. Accepted cost: a permanently broken project re-spawns every tick.
+  That is the loud signal, because every one of those ticks logs `dispatching` with claude's own
+  diagnostic attached.
 
 ## Verses
 
@@ -271,19 +327,22 @@ tick
   Touches: `cmd/start.go` (resolve, fail loudly), `daemon/plist.go` (carry the resolved path),
   `claude/` (invoke it instead of a bare `claude`).
 
-- [ ] Verse 5 — The operator can trust what the loop tells them: the three defects found while
-  verifying Verses 1–3 are closed, so a held project says which session holds it and why; a spawn
-  that produced no working session is loud and keeps its row instead of silently dropping a bar; and
-  `bp add` makes a project actually ready — plugin and MCP registered against *that* project — so a
-  dispatched session resolves `bit:bot-dev` rather than silently running as the default agent.
-  Touches: `daemon/loop.go` (the guard's log record, the hold-and-dequeue sequence), `cmd/add.go`,
-  `cmd/init.go`, `claude/sync.go`.
+- [ ] Verse 5 — The operator can trust what the loop tells them: the two daemon defects found while
+  verifying Verses 1–3 are closed, so a held project says which session holds it and why, and a
+  spawn that produced no working session is loud and keeps its row instead of silently dropping a
+  bar. `bp add`'s readiness defects were the third and are now out of scope — see Decisions.
+  Touches: `daemon/loop.go` (the guard's log record, the hold-and-dequeue sequence),
+  `claude/dispatch.go` (the discarded spawn output).
 
 ## References
 
 - `probe-dispatch.sh` — the bash spelling of the spawn-and-confirm surface, ten lines: `cd` into
   the project, `claude --bg -n <name> '<prompt>'`, then confirm the row in `claude agents --json`.
   The Go in Verses 2–3 is this, with `exec.Cmd.Dir` doing the `cd`.
+- `BIT-41` track body, `## Decisions` — "Versioning was never what blocked BIT-39." The measurement
+  that took `bp add` out of Verse 5: the agent-resolution failure was upstream bug
+  anthropics/claude-code#27257, fixed in Claude Code 2.1.248 and confirmed resolving `bit:bot-dev`
+  in `tools/example`. It settles the *cause* only — `bp add`'s own three defects are untouched by it.
 - `automation-notes.md` — the working notes this scope is step 6 of. Its Decisions, Measured
   facts, and Open gaps sections are the source for everything above; the 2026-08-21 and
   2026-08-24 spawn-surface measurements inform all four verses.

@@ -217,7 +217,7 @@ just release-push -----+--> origin                |     -> latest seen (free, of
   deriving a version from git at all.
   Touches: `scripts/install.sh`, `Justfile`, `cmd/root.go`.
 
-- [ ] Verse 5 — Know when the plugin behind you is stale: running `bp` in any project prints a
+- [x] Verse 5 — Know when the plugin behind you is stale: running `bp` in any project prints a
   short notice when the installed bit plugin is behind the latest published, naming the exact
   command to fix it, and stays silent otherwise. The comparison reads local files only; the
   same run also kicks off a detached marketplace refresh it never waits on, so the next run is

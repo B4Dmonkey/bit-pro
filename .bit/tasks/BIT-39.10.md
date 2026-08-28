@@ -1,62 +1,63 @@
 ---
 id: BIT-39.10
 title: The cycle runs under launchd
-status: doing
+status: todo
 approved: true
 phase: 4
 phase_label: Works with the terminal closed
 ---
 ## **Verse 4**
 
-The same cycle under the launchd-hosted daemon, so `bp start` and closing the terminal is enough.
-**No code is planned here.** Two things the verse worried about are already settled: `claude
-agents --json` needs no TTY (its `--help` says so outright), and `newHandler`
-(`cmd/serve.go:53`) already picks the JSON handler when stdout is not a character device, which is
-what launchd gives it. And the environment question was decided away — `claude` is assumed to be on
-the `PATH`, so the plist names no absolute path and gets no `EnvironmentVariables`. Nothing in the
-loop reads a relative path either, so `WorkingDirectory` stays unset.
+The observation that closes the verse: the cycle still runs when the terminal that started it is
+gone. Everything automatable is done by the three bars before this one — `bp start` resolves
+`claude` and pins it, and the daemon runs what was pinned. What is left cannot be tested, only
+watched.
 
-This bar is therefore the observation that closes the verse. If it fails, `PATH` is the first
-suspect — a LaunchAgent's is not the operator's login `PATH`, and `claude` lives in
-`~/.local/bin` on this machine — and the fix is a new Decision in the track, not an edit here.
+Two of the verse's original worries were already settled and need no checking here: `claude agents
+--json` needs no TTY (its own `--help` says so), and `newHandler` (`cmd/serve.go:26`) already
+switches to the JSON handler when stdout is not a character device, which is what launchd gives it.
+The third worry — the environment — was the one that failed on first contact, and the bars above are
+the fix.
+
+**This bar observes ONE bar running, not a drain.** With the terminal closed nobody is deleting
+sessions, and under the slot Decision a project's slot frees only when its session is gone. So the
+first bar dispatches and the second correctly does not. A second bar going would be the defect, not
+the success.
 
 ## Scope
-- Nothing expected. Any file this turns out to need is a signal the verse was mis-scoped — stop and
-  say so rather than patching it in.
+- No production code. Any file this turns out to need means the three bars above missed something —
+  stop and say so rather than patching it in here.
 
 ## References
-- `automation-notes.md` — "Daemon hosting" (settled 2026-08-19) for the plist mechanics, and the
-  2026-08-21 entry establishing `claude agents --json` as the only poll surface without a TTY.
+- `automation-notes.md` — "Daemon hosting" (settled 2026-08-19) for the plist mechanics.
 
 ## Method
-- [ ] `just install`, then `bp stop` and `bp start` so the plist is rewritten from the current
-  binary. `bp status` reports running.
-- [ ] Enqueue one real approved, not-done bar from `bp tui`.
-- [ ] Close every Claude session in this repo, including the interactive one — the Verse 2 guard
-  counts an operator's own session as live and will hold the project otherwise. Close the terminal.
-- [ ] Come back and read `~/Library/Logs/` (or wherever the plist's `StandardOutPath` points —
-  check `daemon.Plist`) for the daemon's JSON records.
+- [ ] `just install`, then `bp stop` and `bp start`, so the plist is rewritten from the current
+  binary and carries `BP_CLAUDE`. `bp status` reports running.
+- [ ] Confirm the log path before walking away: read `StandardOutPath` out of
+  `~/Library/LaunchAgents/com.github.b4dmonkey.bit-pro.plist`. It is
+  `~/.local/share/bit-pro/daemon.log` unless `XDG_DATA_HOME` is set.
+- [ ] Close every Claude session whose cwd is at or beneath the project you are testing, including
+  your own interactive one — the guard counts it as live and will hold the project otherwise.
+- [ ] Close the terminal. Come back and read the log.
 
 ## Claude verifies
-- [ ] `just test` and `just lint` still pass — a no-op here, recorded so the bar has a green gate
-  like every other.
+- [ ] `just test` and `just lint` still pass — a no-op here, recorded so this bar has the same green
+  gate as every other.
 
 ## User verifies
-- [ ] Whole slice, in `tools/example`, with the terminal closed. `./reset.sh last`, approve `EX-2`'s
-  three bars, answer `y` at the play prompt, then `bp start` and **close the terminal**.
+- [ ] In `tools/example`, with the terminal closed. `./reset.sh last`, approve `EX-2`'s bars, answer
+  `y` at the play prompt, then `bp start` and **close the terminal**.
 
-  With no interactive session in `tools/example`, the bars still drain: `claude agents --json` shows
-  each session come up, the queue rows clear, and `./check.sh EX-2` ends with three commits on
-  `worktree-EX-2-shout-dispatch-drain-workload`. Then read `~/.local/share/bit-pro/daemon.log` — it
-  holds the tick records, and specifically *not* `claude: executable file not found in $PATH`, which
-  is the exact failure the plist's no-`EnvironmentVariables` assumption would produce.
-
-  Finish with `bp stop`. A daemon left running will dispatch whatever is queued next, which is not
-  what you want while planning the following track.
-
-## Report back
-- [ ] If it fails on `PATH`, take that to bit_scope: how the daemon locates `claude` becomes a
-  Decision, and this verse gets a real bar.
+  Come back and read `~/.local/share/bit-pro/daemon.log`. It holds tick records in JSON — not text —
+  and specifically **not** `exec: "claude": executable file not found in $PATH`, which is the exact
+  failure the bars above exist to remove. `claude agents --json` shows one session named
+  `EX-2-<slug>`, and `EX-2.1`'s queue row is gone while `EX-2.2`'s and `EX-2.3`'s remain.
+- [ ] Whole slice: `./check.sh EX-2` shows one commit on
+  `worktree-EX-2-shout-dispatch-drain-workload`. One bar's worth of work landed with nothing but
+  launchd hosting the loop — which is the capability Verse 4 exists to deliver.
+- [ ] Finish with `bp stop`. A daemon left running will dispatch whatever is queued next, which is
+  not what you want while planning the following track.
 
 ## Commit (user)
 `docs(daemon): record the launchd dispatch check`
