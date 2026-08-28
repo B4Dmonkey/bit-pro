@@ -1,7 +1,7 @@
 ---
 id: BIT-39.15
 title: bp start resolves claude and pins it in the plist
-status: todo
+status: done
 approved: true
 phase: 4
 phase_label: Works with the terminal closed
