@@ -12,11 +12,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const tuiCmdUse = "tui"
+
 func newTUICmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "tui",
-		Short: "Browse tasks in a terminal UI",
-		Args:  cobra.NoArgs,
+		Use:         tuiCmdUse,
+		Short:       "Browse tasks in a terminal UI",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{quietAnnotation: quietEnabled},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			s := task.New(bitdir.Current())
 

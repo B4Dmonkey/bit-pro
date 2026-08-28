@@ -1,7 +1,7 @@
 ---
 id: BIT-41.10
 title: The full-screen commands are exempt
-status: todo
+status: done
 approved: true
 phase: 5
 phase_label: stale notice

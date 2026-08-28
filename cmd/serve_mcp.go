@@ -169,9 +169,10 @@ type taskReadOutput struct {
 
 func newServeMCPCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   serveMCPCmdUse,
-		Short: "Run the MCP server in the foreground",
-		Args:  cobra.NoArgs,
+		Use:         serveMCPCmdUse,
+		Short:       "Run the MCP server in the foreground",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{quietAnnotation: quietEnabled},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			root := os.Getenv("CLAUDE_PROJECT_DIR")
 

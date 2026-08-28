@@ -22,6 +22,11 @@ var pluginState = func() (installed, latest string, ok bool) { return "", "", fa
 
 const claudeDir = ".claude"
 
+const (
+	quietAnnotation = "bit.quiet"
+	quietEnabled    = "true"
+)
+
 func signalContext() (context.Context, context.CancelFunc) {
 	return signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 }
@@ -36,6 +41,10 @@ func Execute() error {
 func execute(ctx context.Context, root *cobra.Command) error {
 	cmd, err := root.ExecuteContextC(ctx)
 
+	if suppressed(cmd) {
+		return err
+	}
+
 	if installed, latest, ok := pluginState(); ok && behind(installed, latest) {
 		if cmd == nil {
 			cmd = root
@@ -45,6 +54,14 @@ func execute(ctx context.Context, root *cobra.Command) error {
 	}
 
 	return err
+}
+
+func suppressed(cmd *cobra.Command) bool {
+	if cmd == nil {
+		return false
+	}
+
+	return cmd.Annotations[quietAnnotation] != ""
 }
 
 func behind(installed, latest string) bool {

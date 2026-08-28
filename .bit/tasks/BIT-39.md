@@ -35,32 +35,6 @@ tick
                             no  ────────────────────────► leave row, log, retry next tick
 ```
 
-## Risks & unknowns
-
-- **Unknown:** What makes a finished session leave `claude agents --json`? The loop needs a moment
-  at which a bar's session is over — to dequeue its row, and for the liveness guard to release the
-  project — and nothing produces one today. Measured 2026-08-27 on 2.1.250: a `--bg` session that
-  completed its turn stayed in the plain listing at `state: done` / `status: idle` across 24 polls
-  over two minutes, process alive, until `claude stop` was run by hand. No Go code in this repo
-  runs `claude stop`, and `bit:bot-dev`'s "one bar per session" ends the *turn*, not the process.
-  Under the standing "Liveness is presence" Decision that means the guard holds a project forever
-  after its first bar and a track cannot drain. The only drain observed so far — the two dispatches
-  15s apart in the 2026-08-26 log — happened because both sessions *died* and dropped off the
-  listing, so Verse 3's `[x]` may rest on BIT-39.9's fake-runner unit test rather than on an
-  observed real drain.
-  **Resolve by:** Verse 5 (spike). Dispatch one real approved bar into an enrolled project and
-  watch its row until the turn ends. Answer is *a session ends on its own* if the row leaves
-  `claude agents --json` without intervention, or reaches a state the loop can treat as terminal;
-  *it does not* if the row persists indefinitely the way the 2026-08-27 probe did.
-  **Downstream:** Verses 3, 4, and 6 all depend on it. Verse 3's drain claim is unverified until
-  it is settled; Verse 4's terminal-closed observation cannot succeed if the guard never releases;
-  and Verse 6's hold-and-dequeue work is the direct consequence of the answer. Verse 6's other two
-  items do not depend on it.
-  **Artifact:** thrown away — it is an observation, not code.
-  **De-risk before planning?** Yes. If a session never ends on its own the loop needs a disposal
-  mechanism — `claude stop` once a session reaches a terminal state, or reading `state` after all —
-  and that reverses the "`state` is not read at all" Decision and reshapes Verse 6.
-
 ## Decisions
 
 - **A dispatched session does not park on a folder-trust prompt.** Measured 2026-08-24 on
@@ -215,12 +189,27 @@ tick
   audience, and under launchd a `DEBUG` record may not be written at all. The record carries the
   matched session's name and `cwd` alongside `project`, and states the consequence — not
   dispatching — rather than the condition, so the operator can tell which session to close.
+- **A project's slot frees when its session is gone, and clearing it is the operator's job.** The
+  guard already implements this and needs no change: hold while any live row's `cwd` is at or
+  beneath the project path, dispatch again once none is. So the operator dispatches a bar, works
+  with that session in Claude — answering prompts, reviewing, whatever it needs — and deletes it
+  when they are finished, which is what lets the next bar go. Explicitly rejected reading the bar's
+  ledger status as the release signal: what `done` should mean for a dispatched session is
+  unexplored, and guessing it here would dispatch bar 2 on top of work that is not actually
+  finished. That exploration is a future track; until then the release is manual on purpose.
 - **The queue row is not deleted at spawn time.** The row and the spawn are held across ticks, and
   the dequeue decision is made on a later tick once the session's fate is legible. Reverses
   "Dequeue on dispatch, after confirming the session exists": measured 2026-08-27 on 2.1.250, a good
   spawn and a failed one both exit 0, and the sub-second confirm poll catches a doomed process while
-  it is still registering — which is what deleted `EX-2.1`'s row for a bar that never ran. Exactly
-  what marks a session finished is still open; see Risks & unknowns.
+  it is still registering — which is what deleted `EX-2.1`'s row for a bar that never ran. The row
+  is held instead, and the dequeue decision is made on a later tick.
+- **A dispatch is confirmed by presence in the plain listing; `done` and `idle` both confirm
+  it.** Settled 2026-08-27. A session that has not failed is a good dispatch whatever it is
+  currently doing, so a bar mid-turn, a bar parked on a permission prompt, and a bar already
+  finished all count and all dequeue. This needs no `state` read and so leaves the "`state` is
+  not read at all" Decision intact, because the plain listing already excludes failures on its
+  own — see the next Decision. Rejected the earlier "dequeue once the session is gone" reading:
+  measured the same day, a finished session never goes away, so that rule would never fire.
 - **Presence in the plain listing is the honest success signal; `--all` is not used.** Measured
   2026-08-27 on 2.1.250: a session that ran and finished stayed in `claude agents --json` at
   `state: done` / `status: idle` across 24 polls over two minutes, while a session that died at
@@ -262,10 +251,11 @@ tick
   Touches: `daemon/` (pop, spawn, confirm, dequeue), `claude/` (spawn and `agents --json`),
   `db/queries/queue.sql` (the first delete query).
 
-- [x] Verse 3 — A whole approved track runs bar-by-bar: several queued bars drain in FIFO order,
-  one at a time, each session landing in the same per-track worktree so bar 3 builds on bar 1.
-  An operator approves a three-bar track, answers "yes" at the play prompt, and the track is done
-  without them touching it.
+- [x] Verse 3 — A track's bars run in order, one at a time: queued bars drain FIFO, never more than
+  one in flight per project, each session landing in the same per-track worktree so bar 3 builds on
+  bar 1. An operator approves a three-bar track and answers "yes" at the play prompt; each bar then
+  runs unattended, and deleting its session is what releases the slot for the next. A fully
+  unattended multi-bar drain is deliberately not this verse — see the slot Decision.
   Touches: `daemon/` (FIFO drain, ledger check), `claude/` (worktree name derivation).
 
 - [ ] Verse 4 — It works with the terminal closed: the same cycle runs under the launchd-hosted
@@ -275,19 +265,13 @@ tick
   assumption failed on first contact and nothing dispatched (see Decisions), so this verse now
   carries code as well as an observation — `bp start` resolves `claude` where it can still see the
   operator's shell and hands the daemon a binary it can actually execute. What remains
-  unautomatable is the observation itself: that the cycle survives losing its terminal.
+  unautomatable is the observation itself: that the cycle survives losing its terminal. The cycle
+  observed here is **one bar** — with the terminal closed nobody is deleting sessions, so the slot
+  never frees and a second bar is not expected to go.
   Touches: `cmd/start.go` (resolve, fail loudly), `daemon/plist.go` (carry the resolved path),
   `claude/` (invoke it instead of a bare `claude`).
 
-- [ ] Verse 5 (spike) — Settle whether a dispatched session ever ends on its own: dispatch one real
-  approved bar into an enrolled project and watch its row until the turn finishes. The answer decides
-  whether the loop can dequeue a row and release a project without the operator, which is the
-  assumption Verses 2–4 were all written on. Despite its number it runs **before** Verse 4's
-  terminal-closed observation and before Verse 6's dequeue work, because both are shaped by the
-  answer.
-  Touches: nothing — an observation against the running daemon and `claude agents --json`.
-
-- [ ] Verse 6 — The operator can trust what the loop tells them: the three defects found while
+- [ ] Verse 5 — The operator can trust what the loop tells them: the three defects found while
   verifying Verses 1–3 are closed, so a held project says which session holds it and why; a spawn
   that produced no working session is loud and keeps its row instead of silently dropping a bar; and
   `bp add` makes a project actually ready — plugin and MCP registered against *that* project — so a

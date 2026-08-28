@@ -1,12 +1,16 @@
 package cmd
 
 import (
+	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/spf13/cobra"
 )
 
 func TestRootCmd_Help(t *testing.T) {
@@ -187,5 +191,64 @@ func TestBehind(t *testing.T) {
 				t.Errorf("behind(%q, %q) = %v, want %v", tt.installed, tt.latest, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestSuppressed_FullScreenCommands(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want bool
+	}{
+		{name: tuiCmdUse, args: []string{tuiCmdUse}, want: true},
+		{name: "serve mcp", args: []string{serveCmdUse, serveMCPCmdUse}, want: true},
+		{name: "serve daemon", args: []string{serveCmdUse, serveDaemonCmdUse}, want: false},
+		{name: "task list", args: []string{"task", "list"}, want: false},
+		{name: "root", args: nil, want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := newRootCmd(func(context.Context, string, ...string) error { return nil }, nothingLoaded)
+
+			cmd, _, err := root.Find(tt.args)
+			if err != nil {
+				t.Fatalf("Find(%v) returned error: %v", tt.args, err)
+			}
+
+			if got := suppressed(cmd); got != tt.want {
+				t.Errorf("suppressed(%q) = %v, want %v", cmd.CommandPath(), got, tt.want)
+			}
+		})
+	}
+}
+
+func TestExecute_SuppressedCommandWritesNoNotice(t *testing.T) {
+	prev := pluginState
+	pluginState = func() (string, string, bool) { return v010, v020, true }
+
+	t.Cleanup(func() { pluginState = prev })
+
+	root := newRootCmd(func(context.Context, string, ...string) error { return nil }, nothingLoaded)
+	root.AddCommand(&cobra.Command{
+		Use:         "quiet",
+		Annotations: map[string]string{quietAnnotation: quietEnabled},
+		RunE:        func(*cobra.Command, []string) error { return nil },
+	})
+
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+
+	root.SetOut(stdout)
+	root.SetErr(stderr)
+	root.SetIn(strings.NewReader(""))
+	root.SetArgs([]string{"quiet"})
+
+	if err := execute(context.Background(), root); err != nil {
+		t.Fatalf("execute returned error: %v", err)
+	}
+
+	if stderr.String() != "" {
+		t.Errorf("stderr = %q, want empty", stderr.String())
 	}
 }

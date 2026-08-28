@@ -95,7 +95,7 @@ func initProject(t *testing.T, prefix string) string {
 }
 
 func mcpRegisterCall() []string {
-	return []string{claudeBin, serveMCPCmdUse, addCmdUse, "bit", "--", "bp", "serve", serveMCPCmdUse}
+	return []string{claudeBin, serveMCPCmdUse, addCmdUse, "bit", "--", "bp", serveCmdUse, serveMCPCmdUse}
 }
 
 func pluginSyncCalls() [][]string {
