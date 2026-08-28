@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/B4Dmonkey/bit-pro/daemon"
@@ -50,6 +51,11 @@ func enrollDaemon(ctx context.Context, lc daemon.Runner) (string, error) {
 		return "", fmt.Errorf("locating the running binary: %w", err)
 	}
 
+	claudeBin, err := exec.LookPath("claude")
+	if err != nil {
+		return "", fmt.Errorf("locating the claude binary: %w", err)
+	}
+
 	dir, err := store.Dir()
 	if err != nil {
 		return "", err
@@ -60,7 +66,7 @@ func enrollDaemon(ctx context.Context, lc daemon.Runner) (string, error) {
 		return "", err
 	}
 
-	canonical := daemon.Plist(exe, filepath.Join(dir, "daemon.log"))
+	canonical := daemon.Plist(exe, filepath.Join(dir, "daemon.log"), claudeBin)
 
 	existing, err := os.ReadFile(path)
 
