@@ -31,3 +31,26 @@ func InstalledVersion(home, projectRoot string) (string, bool) {
 
 	return "", false
 }
+
+func LatestVersion(home string) (string, bool) {
+	path := filepath.Join(home, ".claude", "plugins", "marketplaces", marketplaceName,
+		"bit", ".claude-plugin", "plugin.json")
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", false
+	}
+
+	var manifest struct {
+		Version string `json:"version"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return "", false
+	}
+
+	if manifest.Version == "" {
+		return "", false
+	}
+
+	return manifest.Version, true
+}

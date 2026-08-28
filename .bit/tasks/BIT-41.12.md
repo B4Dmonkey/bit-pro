@@ -1,7 +1,7 @@
 ---
 id: BIT-41.12
 title: The latest version comes from the marketplace clone
-status: todo
+status: done
 approved: true
 phase: 5
 phase_label: stale notice

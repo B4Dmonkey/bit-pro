@@ -64,3 +64,49 @@ func TestInstalledVersion(t *testing.T) {
 		})
 	}
 }
+
+func writeMarketplaceManifest(t *testing.T, contents string) string {
+	t.Helper()
+
+	home := t.TempDir()
+	path := filepath.Join(home, ".claude", "plugins", "marketplaces", "bit-pro", "bit", ".claude-plugin", "plugin.json")
+
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("os.MkdirAll(%q) returned error: %v", filepath.Dir(path), err)
+	}
+
+	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+		t.Fatalf("os.WriteFile(%q) returned error: %v", path, err)
+	}
+
+	return home
+}
+
+func TestLatestVersion(t *testing.T) {
+	versioned := writeMarketplaceManifest(t, `{"name": "bit", "version": "0.2.0"}`)
+	unversioned := writeMarketplaceManifest(t, `{"name": "bit", "author": {"name": "josiah"}}`)
+	malformed := writeMarketplaceManifest(t, `{`)
+	missing := t.TempDir()
+
+	tests := []struct {
+		name   string
+		home   string
+		want   string
+		wantOK bool
+	}{
+		{"manifest declares a version", versioned, "0.2.0", true},
+		{"manifest declares no version", unversioned, "", false},
+		{"manifest malformed", malformed, "", false},
+		{"manifest absent", missing, "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := LatestVersion(tt.home)
+
+			if got != tt.want || ok != tt.wantOK {
+				t.Errorf("LatestVersion(%q) = (%q, %v), want (%q, %v)", tt.home, got, ok, tt.want, tt.wantOK)
+			}
+		})
+	}
+}

@@ -9,7 +9,10 @@ import (
 	"path/filepath"
 )
 
-const pluginKey = "bit@bit-pro"
+const (
+	pluginKey       = "bit@bit-pro"
+	marketplaceName = "bit-pro"
+)
 
 var marketplace = json.RawMessage(`{"source": {"source": "github", "repo": "B4Dmonkey/bit-pro"}}`)
 
@@ -19,7 +22,7 @@ func WriteSettings(path string) error {
 		return err
 	}
 
-	if err := merge(doc, "extraKnownMarketplaces", "bit-pro", marketplace); err != nil {
+	if err := merge(doc, "extraKnownMarketplaces", marketplaceName, marketplace); err != nil {
 		return fmt.Errorf("parsing %s: %w", path, err)
 	}
 
