@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -15,6 +16,8 @@ import (
 
 var version = "dev"
 
+var pluginState = func() (installed, latest string, ok bool) { return "", "", false }
+
 const claudeDir = ".claude"
 
 func signalContext() (context.Context, context.CancelFunc) {
@@ -25,7 +28,27 @@ func Execute() error {
 	ctx, stop := signalContext()
 	defer stop()
 
-	return NewRootCmd().ExecuteContext(ctx)
+	return execute(ctx, NewRootCmd())
+}
+
+func execute(ctx context.Context, root *cobra.Command) error {
+	cmd, err := root.ExecuteContextC(ctx)
+
+	if installed, latest, ok := pluginState(); ok && installed != latest {
+		if cmd == nil {
+			cmd = root
+		}
+
+		fmt.Fprintln(cmd.ErrOrStderr(), notice(installed, latest))
+	}
+
+	return err
+}
+
+func notice(installed, latest string) string {
+	const format = "bp: bit plugin %s → %s available — run: claude plugin update bit@bit-pro --scope project"
+
+	return fmt.Sprintf(format, installed, latest)
 }
 
 func NewRootCmd() *cobra.Command {

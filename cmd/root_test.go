@@ -117,3 +117,49 @@ func TestSignalContext_CancelsOnTerminationSignals(t *testing.T) {
 		})
 	}
 }
+
+func TestExecute_BehindPluginWritesNoticeToStderr(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Track", "...")
+
+	prev := pluginState
+	pluginState = func() (string, string, bool) { return "0.1.0", "0.2.0", true }
+
+	t.Cleanup(func() { pluginState = prev })
+
+	stdout, stderr, err := runSplit(t, "task", "list")
+	if err != nil {
+		t.Fatalf("bp task list returned error: %v", err)
+	}
+
+	want := "bp: bit plugin 0.1.0 → 0.2.0 available — run: claude plugin update bit@bit-pro --scope project\n"
+	if stderr != want {
+		t.Errorf("stderr = %q, want %q", stderr, want)
+	}
+
+	if !strings.Contains(stdout, "BIT-1") {
+		t.Errorf("stdout = %q, want it to contain BIT-1", stdout)
+	}
+
+	if strings.Contains(stdout, "bp: bit plugin") {
+		t.Errorf("stdout = %q, want the notice to stay off stdout", stdout)
+	}
+}
+
+func TestExecute_NoPluginStateIsSilent(t *testing.T) {
+	initProject(t, "BIT")
+	createTask(t, "Track", "...")
+
+	stdout, stderr, err := runSplit(t, "task", "list")
+	if err != nil {
+		t.Fatalf("bp task list returned error: %v", err)
+	}
+
+	if stderr != "" {
+		t.Errorf("stderr = %q, want empty", stderr)
+	}
+
+	if !strings.Contains(stdout, "BIT-1") {
+		t.Errorf("stdout = %q, want it to contain BIT-1", stdout)
+	}
+}

@@ -1,7 +1,7 @@
 ---
 id: BIT-41.8
 title: A behind plugin prints the notice on stderr
-status: todo
+status: done
 approved: true
 phase: 5
 phase_label: stale notice

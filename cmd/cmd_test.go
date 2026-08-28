@@ -110,3 +110,20 @@ func createTask(t *testing.T, title, description string) {
 	t.Helper()
 	mustRun(t, "task", "create", title, "--description", description)
 }
+
+func runSplit(t *testing.T, args ...string) (string, string, error) {
+	t.Helper()
+
+	root := newRootCmd(func(context.Context, string, ...string) error { return nil }, nothingLoaded)
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+
+	root.SetOut(stdout)
+	root.SetErr(stderr)
+	root.SetIn(strings.NewReader(""))
+	root.SetArgs(args)
+
+	err := execute(context.Background(), root)
+
+	return stdout.String(), stderr.String(), err
+}
