@@ -146,12 +146,19 @@ tick
   churns six files (`cmd/root.go`, `cmd/add.go`, `cmd/init.go`, `cmd/cmd_test.go`,
   `claude/sync.go`, `claude/sync_test.go`) so that every existing caller can discard a parameter
   and two return values it has no use for.
-- **The daemon finds `claude` on the `PATH`; nothing names its absolute path.** So the plist gets no
-  `EnvironmentVariables`, and no `WorkingDirectory` either — nothing in the loop reads a relative
-  path. The accepted risk is measured and specific: `claude` is `~/.local/bin/claude` on this
-  machine and a LaunchAgent does not inherit the operator's login `PATH`. Verse 4 is where this
-  either holds or fails with `claude: executable file not found in $PATH`; that failure would buy
-  the Decision, whereas guessing at an absolute path now does not.
+- **`bp start` resolves `claude` to an absolute path; the daemon never relies on a `PATH`.**
+  Reverses "the daemon finds `claude` on the `PATH`, so the plist gets no `EnvironmentVariables`",
+  whose accepted risk was measured and then hit. Measured 2026-08-27: `bp start` with one approved
+  bar queued logged `listing live sessions … exec: "claude": executable file not found in $PATH`
+  on every tick and dispatched nothing. `launchctl getenv PATH` is empty, so a LaunchAgent gets
+  launchd's default `/usr/bin:/bin:/usr/sbin:/sbin`, while `claude` is `~/.local/bin/claude`.
+  `bp start` is the one place that can resolve this, because it runs in the operator's shell: it
+  looks the binary up there, fails loudly if it cannot find it, and the resolved path travels to
+  the daemon in the plist `bp start` already writes. Chosen over giving the plist an
+  `EnvironmentVariables` `PATH` because it puts the failure at `bp start`, where an operator is
+  watching, rather than at tick time in a log nobody reads. Accepted cost: the path is pinned at
+  enrollment, so moving or reinstalling `claude` needs another `bp start`. `WorkingDirectory`
+  stays unset — nothing in the loop reads a relative path.
 - **No new package.** `dispatch/` was considered and rejected — it would split "the daemon"
   across two names for one process's job.
 - **Queue rows are bar rows, full stop.** `target_typ` exists but the TUI only ever writes
@@ -164,7 +171,11 @@ tick
   particular is a real safety gap — `bit:bot-dev` forbids `bp approve` in prose and nothing
   enforces it — and it is deliberately left open rather than folded in here.
 - **Permission prompts stay.** No permission mode that suppresses them. A session pausing for the
-  operator is the safety mechanism that replaces the push gate.
+  operator is the safety mechanism that replaces the push gate. Measured 2026-08-27, and it is the
+  mechanism working rather than a defect: a dispatched `bit:bot-dev` session took `EX-2.1` to
+  green, marked the bar `done`, and then parked at `state: blocked` on `Bash(git add *)` — an
+  `ask` rule in the operator's own settings — without committing. Dispatch's job ends at handing
+  the bar to Claude; answering the prompt and carrying that session on is the operator's.
 
 ## Verses
 
@@ -190,12 +201,15 @@ tick
   Touches: `daemon/` (FIFO drain, ledger check), `claude/` (worktree name derivation).
 
 - [ ] Verse 4 — It works with the terminal closed: the same cycle runs under the launchd-hosted
-  daemon, so `bp start` and closing the terminal is enough. No code is expected. The TTY worry is
-  already covered — `claude agents --json` needs none by its own documentation, and the daemon's
-  logger already switches to JSON when stdout is not a terminal — and the environment worry was
-  decided away above. What is left is the observation that the unattended cycle survives losing its
-  terminal, which no test can make.
-  Touches: nothing expected; `daemon/plist.go` only if the `PATH` assumption fails.
+  daemon, so `bp start` and closing the terminal is enough. The TTY worry was already covered —
+  `claude agents --json` needs none by its own documentation, and the daemon's logger already
+  switches to JSON when stdout is not a terminal. The environment worry was not: the `PATH`
+  assumption failed on first contact and nothing dispatched (see Decisions), so this verse now
+  carries code as well as an observation — `bp start` resolves `claude` where it can still see the
+  operator's shell and hands the daemon a binary it can actually execute. What remains
+  unautomatable is the observation itself: that the cycle survives losing its terminal.
+  Touches: `cmd/start.go` (resolve, fail loudly), `daemon/plist.go` (carry the resolved path),
+  `claude/` (invoke it instead of a bare `claude`).
 
 ## References
 

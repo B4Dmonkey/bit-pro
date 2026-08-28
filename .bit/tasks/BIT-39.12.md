@@ -2,6 +2,7 @@
 id: BIT-39.12
 title: A spawn that produced no session is not a dispatch
 status: todo
+approved: true
 ---
 ## Collected, not planned
 

@@ -2,6 +2,7 @@
 id: BIT-39.11
 title: The daemon's hold message says what it means
 status: todo
+approved: true
 ---
 ## Collected, not planned
 

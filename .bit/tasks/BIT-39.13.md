@@ -2,6 +2,7 @@
 id: BIT-39.13
 title: A failed session leaves a locked worktree behind
 status: todo
+approved: true
 ---
 ## Collected, not planned
 

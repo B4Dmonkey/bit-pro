@@ -2,6 +2,7 @@
 id: BIT-39.10
 title: The cycle runs under launchd
 status: doing
+approved: true
 phase: 4
 phase_label: Works with the terminal closed
 ---

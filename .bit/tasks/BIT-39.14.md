@@ -2,6 +2,7 @@
 id: BIT-39.14
 title: bp add makes a project ready even when it is already added
 status: todo
+approved: true
 ---
 ## Why
 

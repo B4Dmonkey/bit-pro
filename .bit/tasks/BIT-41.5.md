@@ -1,7 +1,8 @@
 ---
 id: BIT-41.5
 title: Observe a consumer against the pushed 0.1.0
-status: doing
+status: done
+approved: true
 phase: 3
 phase_label: 'spike: update'
 ---
