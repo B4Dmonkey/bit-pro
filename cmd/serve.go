@@ -60,7 +60,7 @@ func newServeDaemonCmd() *cobra.Command {
 
 			queries := orm.New(sqlDB)
 
-			return daemon.Loop(cmd.Context(), queries, log, serveTick, serveRunner)
+			return daemon.Loop(cmd.Context(), queries, log, serveTick, serveRunner, "claude")
 		},
 	}
 

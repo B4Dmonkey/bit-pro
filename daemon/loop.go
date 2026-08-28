@@ -23,6 +23,7 @@ func Loop(
 	log *slog.Logger,
 	interval time.Duration,
 	run claude.DirRunner,
+	bin string,
 ) error {
 	log.Info(msgStarted)
 	defer log.Info(msgStopped)
@@ -36,12 +37,12 @@ func Loop(
 			return nil
 		case <-ticker.C:
 			log.Debug("tick")
-			Tick(ctx, queries, log, run)
+			Tick(ctx, queries, log, run, bin)
 		}
 	}
 }
 
-func Tick(ctx context.Context, queries *orm.Queries, log *slog.Logger, run claude.DirRunner) {
+func Tick(ctx context.Context, queries *orm.Queries, log *slog.Logger, run claude.DirRunner, bin string) {
 	projects, err := queries.ListProjects(ctx)
 	if err != nil {
 		log.Error("listing projects", "err", err)
@@ -49,7 +50,7 @@ func Tick(ctx context.Context, queries *orm.Queries, log *slog.Logger, run claud
 		return
 	}
 
-	live, err := claude.Agents(ctx, run)
+	live, err := claude.Agents(ctx, run, bin)
 
 	mayDispatch := err == nil
 	if err != nil {
@@ -86,7 +87,7 @@ func Tick(ctx context.Context, queries *orm.Queries, log *slog.Logger, run claud
 			continue
 		}
 
-		dispatch(ctx, queries, log, run, p, store)
+		dispatch(ctx, queries, log, run, bin, p, store)
 	}
 }
 
@@ -94,7 +95,7 @@ func dispatch(
 	ctx context.Context,
 	queries *orm.Queries,
 	log *slog.Logger,
-	run claude.DirRunner,
+	run claude.DirRunner, bin string,
 	p orm.Project,
 	store *task.Store,
 ) {
@@ -127,7 +128,7 @@ func dispatch(
 		return
 	}
 
-	if err := claude.Spawn(ctx, run, p.Path, name, bar.ID); err != nil {
+	if err := claude.Spawn(ctx, run, bin, p.Path, name, bar.ID); err != nil {
 		log.Error("dispatching the queued bar", "project", p.Code, "bar", bar.ID, "err", err)
 
 		return
@@ -135,7 +136,7 @@ func dispatch(
 
 	log.Info("dispatched", "project", p.Code, "bar", bar.ID, "worktree", name)
 
-	agents, err := claude.Agents(ctx, run)
+	agents, err := claude.Agents(ctx, run, bin)
 	if err != nil {
 		log.Error("confirming the dispatched session", "project", p.Code, "bar", bar.ID, "err", err)
 

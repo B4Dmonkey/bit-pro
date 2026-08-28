@@ -52,7 +52,7 @@ func TestTick_WritesProjectCounts(t *testing.T) {
 
 	log := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
-	Tick(t.Context(), queries, log, idleRunner())
+	Tick(t.Context(), queries, log, idleRunner(), "claude")
 
 	var backlog, todo, done, completed int64
 	if err := sqlDB.QueryRowContext(t.Context(),
@@ -90,7 +90,7 @@ func TestLoop_LogsStartedAndStoppedAroundItsTicks(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
 	defer cancel()
 
-	if err := Loop(ctx, queries, log, 5*time.Millisecond, idleRunner()); err != nil {
+	if err := Loop(ctx, queries, log, 5*time.Millisecond, idleRunner(), "claude"); err != nil {
 		t.Fatalf("Loop() returned error: %v", err)
 	}
 
@@ -141,7 +141,7 @@ func TestLoop_ReturnsWithoutTickingWhenTheContextIsAlreadyCancelled(t *testing.T
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	if err := Loop(ctx, queries, log, 5*time.Millisecond, idleRunner()); err != nil {
+	if err := Loop(ctx, queries, log, 5*time.Millisecond, idleRunner(), "claude"); err != nil {
 		t.Fatalf("Loop() returned error: %v", err)
 	}
 
@@ -176,6 +176,7 @@ const (
 	bgFlag         = "--bg"
 	queuedBarID    = "ACME-1.1"
 	queuedBarTitle = "a bar"
+	queuedBarTree  = "ACME-1-a-track"
 )
 
 func queuedBar(t *testing.T) (*orm.Queries, orm.GetProjectByPathRow) {
@@ -232,7 +233,7 @@ func TestTick_DispatchesTheQueuedBar(t *testing.T) {
 
 	calls, run := recordingRunner()
 
-	Tick(t.Context(), queries, slog.New(slog.NewJSONHandler(io.Discard, nil)), run)
+	Tick(t.Context(), queries, slog.New(slog.NewJSONHandler(io.Discard, nil)), run, "claude")
 
 	var spawns []call
 
@@ -248,8 +249,8 @@ func TestTick_DispatchesTheQueuedBar(t *testing.T) {
 
 	wantArgs := []string{
 		"--bg", "--agent", "bit:bot-dev",
-		"-w", "ACME-1-a-track", "-n", "ACME-1-a-track",
-		"/bit:do ACME-1.1",
+		"-w", queuedBarTree, "-n", queuedBarTree,
+		"/bit:do " + queuedBarID,
 	}
 
 	if spawns[0].dir != dir {
@@ -258,6 +259,42 @@ func TestTick_DispatchesTheQueuedBar(t *testing.T) {
 
 	if spawns[0].name != "claude" {
 		t.Errorf("Tick() spawned %q, want %q", spawns[0].name, "claude")
+	}
+
+	if !slices.Equal(spawns[0].args, wantArgs) {
+		t.Errorf("Tick() spawned with args %q, want %q", spawns[0].args, wantArgs)
+	}
+}
+
+func TestTick_SpawnsWithTheBinaryItIsGiven(t *testing.T) {
+	const bin = "/opt/homebrew/bin/claude"
+
+	queries, _ := queuedBar(t)
+
+	calls, run := recordingRunner()
+
+	Tick(t.Context(), queries, slog.New(slog.NewJSONHandler(io.Discard, nil)), run, bin)
+
+	var spawns []call
+
+	for _, c := range *calls {
+		if len(c.args) > 0 && c.args[0] == bgFlag {
+			spawns = append(spawns, c)
+		}
+	}
+
+	if len(spawns) != 1 {
+		t.Fatalf("Tick() made %d %s calls, want 1: %+v", len(spawns), bgFlag, *calls)
+	}
+
+	wantArgs := []string{
+		"--bg", "--agent", "bit:bot-dev",
+		"-w", queuedBarTree, "-n", queuedBarTree,
+		"/bit:do " + queuedBarID,
+	}
+
+	if spawns[0].name != bin {
+		t.Errorf("Tick() spawned %q, want %q", spawns[0].name, bin)
 	}
 
 	if !slices.Equal(spawns[0].args, wantArgs) {
@@ -276,7 +313,7 @@ func TestTick_DequeuesAConfirmedDispatch(t *testing.T) {
 		return `[{"name":"ACME-1-a-track","cwd":"/somewhere/else"}]`, 0, nil
 	}
 
-	Tick(t.Context(), queries, slog.New(slog.NewJSONHandler(io.Discard, nil)), run)
+	Tick(t.Context(), queries, slog.New(slog.NewJSONHandler(io.Discard, nil)), run, "claude")
 
 	rows, err := queries.ListQueueByProject(t.Context(), project.ID)
 	if err != nil {
@@ -295,7 +332,7 @@ func TestTick_KeepsTheRowWhenTheSessionCannotBeConfirmed(t *testing.T) {
 
 	log := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	Tick(t.Context(), queries, log, idleRunner())
+	Tick(t.Context(), queries, log, idleRunner(), "claude")
 
 	rows, err := queries.ListQueueByProject(t.Context(), project.ID)
 	if err != nil {
@@ -345,7 +382,7 @@ func TestTick_DropsARowItMustNotDispatch(t *testing.T) {
 
 			calls, run := recordingRunner()
 
-			Tick(t.Context(), queries, log, run)
+			Tick(t.Context(), queries, log, run, "claude")
 
 			for _, c := range *calls {
 				if len(c.args) > 0 && c.args[0] == bgFlag {
@@ -382,7 +419,7 @@ func TestTick_HoldsAProjectThatHasALiveSession(t *testing.T) {
 		return live, 0, nil
 	}
 
-	Tick(t.Context(), queries, slog.New(slog.NewJSONHandler(io.Discard, nil)), run)
+	Tick(t.Context(), queries, slog.New(slog.NewJSONHandler(io.Discard, nil)), run, "claude")
 
 	for _, c := range calls {
 		if len(c.args) > 0 && c.args[0] == bgFlag {
@@ -572,7 +609,7 @@ func TestTick_DrainsATrackOneBarPerTick(t *testing.T) {
 	}
 
 	for _, tt := range ticks {
-		Tick(t.Context(), queries, log, sessions.run)
+		Tick(t.Context(), queries, log, sessions.run, "claude")
 
 		if got := sessions.take(); !slices.Equal(got, tt.want) {
 			t.Fatalf("%s spawned %+v, want %+v", tt.name, got, tt.want)
