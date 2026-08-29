@@ -42,5 +42,5 @@ A commit that nobody can see isn't landed, so push it — but only when the repo
 ## What stays the operator's
 
 - **Approval.** Never run `bp approve`. A bar that isn't approved is a full stop — report it and end the session; clearing your own gate defeats it.
-- **Track sign-off.** Finishing the last bar makes a track *ready*, never `done`. Don't set the track `done` and don't run `bp task complete`.
+- **Track sign-off.** Finishing the last bar makes a track *ready*, never `done`. Don't set the track `done` and don't call `mcp__bit__task_complete`.
 - **The next bar.** One bar per session, always. A fresh session per bar is the anti-drift mechanism.
