@@ -27,6 +27,13 @@ const (
 	statusProperty = "status"
 )
 
+const taskReadDescription = `Read one task by ID, returning its fields and its body together.
+
+A track is a top-level task — one whole scope — and its ID has no dot, as in BIT-7. A bar is a
+child of a track — one plan step — and its ID is dotted, as in BIT-7.3. The result carries body
+alongside id, title, status, approved, phase, phase_label and parent, so reading a task's prose and
+reading its summary are the same call rather than two.`
+
 const taskListDescription = `List tasks as structured fields, in the order bp prints them.
 
 A track is a top-level task — one whole scope — and its ID has no dot, as in BIT-7. A bar is a
@@ -183,7 +190,7 @@ func newServeMCPCmd() *cobra.Command {
 
 func runMCPServer(ctx context.Context, root string, transport mcp.Transport) error {
 	s := mcp.NewServer(&mcp.Implementation{Name: "bp", Version: "1"}, nil)
-	mcp.AddTool(s, &mcp.Tool{Name: taskReadTool, Description: "Read a task by ID"}, taskReadHandler(root))
+	mcp.AddTool(s, &mcp.Tool{Name: taskReadTool, Description: taskReadDescription}, taskReadHandler(root))
 	mcp.AddTool(s, &mcp.Tool{Name: taskListTool, Description: taskListDescription}, taskListHandler(root))
 	mcp.AddTool(s, &mcp.Tool{Name: taskCreateTool, Description: taskCreateDescription}, taskCreateHandler(root))
 
