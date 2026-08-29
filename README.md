@@ -65,7 +65,6 @@ without a prompt to answer.
 | `bp task complete <id>` | File a signed-off track and its bars under `.bit/completed/` |
 | `bp task delete <id>` | Soft-delete into `.bit/archive/tasks/`. `-y` skips confirm, `-f` overrides the guard |
 | `bp feedback add <track>` | Record a correction as a note in `.bit/feedback/` |
-| `bp instructions` | Print the CLI contract the skills drive |
 | `bp tui` | Terminal UI |
 
 Notes on behavior worth knowing:

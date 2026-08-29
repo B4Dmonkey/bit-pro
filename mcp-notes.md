@@ -93,7 +93,8 @@ step-5 gate" under Decisions.
       instead of shelling out.
       *Done when:* no skill or agent file contains a `bp task` or `bp feedback` bash block.
 - [ ] The domain half of `assets/bit-cli.md` lands on the MCP surface; `bp instructions` retires
-      with the other Claude-only commands in step 7 (see Decisions).
+      here, not with the other Claude-only commands in step 7 — the command and the embedded
+      contract are deleted as part of this step (see Decisions).
       *Done when:* no skill runs `bp instructions` and no skill has lost the domain it taught.
 - [ ] This is skill-creator work, not code — and it ships through the plugin, so remember the
       GitHub coupling under "Relationship to the automation phase".
@@ -181,7 +182,7 @@ step-5 gate" under Decisions.
 - **Schemas absorb the how**, so the shell-technique half of `assets/bit-cli.md` simply stops
   existing. The domain half — track vs. bar, approval as an axis separate from status,
   rollup-is-skill-logic, IDs reserved rather than freed on delete — moves onto the MCP surface, and
-  `bp instructions` is deleted with the other Claude-only commands.
+  `bp instructions` is deleted once no skill calls it, ahead of the other Claude-only commands.
 - **Where exactly on the surface is deferred to the point the tools are written.** The cheapest
   answer is that the tool descriptions carry it per-tool and nothing separate ships; the fallback is
   a single `get_instructions` tool. An MCP *resource* is the wrong shape — a resource has to be
@@ -281,7 +282,8 @@ The full surface as of 2026-08-22, split by who actually runs it.
 | | commands | fate |
 | --- | --- | --- |
 | **Operator-only** | `tui`, `approve`, `unapprove`, `init`, `add`, `list`, `start`, `stop`, `status`, `serve daemon` | stay CLI; **never** become MCP tools |
-| **Claude-only** | `task read`, `task list`, `task create`, `task update`, `task move`, `feedback add`, `instructions` | become tools, then delete from the CLI (step 7) |
+| **Claude-only** | `task read`, `task list`, `task create`, `task update`, `task move`, `feedback add` | become tools, then delete from the CLI (step 7) |
+| **Retired** | `instructions` | deleted in step 5 along with `assets/bit-cli.md`; the domain it taught rides the tool descriptions |
 | **Both** | `task complete`, `task delete` | become tools **and** stay CLI — one task-package implementation, two callers |
 
 `completion` and `help` are Cobra's and are nobody's decision. `serve mcp` is in neither column — it

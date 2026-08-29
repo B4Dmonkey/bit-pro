@@ -30,6 +30,17 @@ func TestRootCmd_Version(t *testing.T) {
 	}
 }
 
+func TestRootCmd_HasNoInstructionsCommand(t *testing.T) {
+	out, err := run(t, "instructions")
+	if err == nil {
+		t.Fatalf("bp instructions returned nil error, want an unknown-command error; output:\n%s", out)
+	}
+
+	if !strings.Contains(err.Error(), "unknown command") {
+		t.Errorf("error = %q, want it to contain %q", err, "unknown command")
+	}
+}
+
 func TestBitDir_OutsideWorktreeUsesRelativeDotBit(t *testing.T) {
 	initProject(t, "BIT")
 	createTask(t, "Track", "...")
