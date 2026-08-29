@@ -39,7 +39,7 @@ List the track's bars (`mcp__bit__task_list` with `parent` set to the track ID).
 
 ### 2. Scope/plan sync
 
-The scope phases live as a checklist in the **track body**; the bars carry the phase they serve (`--phase`). Reconcile them:
+The scope phases live as a checklist in the **track body**; the bars carry the phase they serve (their `phase` field). Reconcile them:
 - Every phase whose bars are all `done` should be checked off (`- [x] Phase N`) in the track body
 - Every phase with an unfinished bar should be unchecked
 - If they're out of sync, fix the track body (`mcp__bit__task_update` with the corrected `body`) and record a finding

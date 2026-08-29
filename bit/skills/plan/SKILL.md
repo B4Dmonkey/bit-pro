@@ -1,11 +1,11 @@
 ---
 name: bit_plan
-description: Create or refine an implementation plan for a large task — bug fix, refactor, or new feature. Use when the user says "make a plan", "let's plan this out", "let's revise the plan", names a scope track to plan, or describes a change that is too large to implement in one session. Also triggers on casual phrasing like "let's think through this" or "how should we approach X" when the scope is clearly multi-step. This skill authors and refines the plan only — one bar (child task) per step under the scope's track in `.bit/`, through the `bp` CLI. When the user wants to frame the high-level WHY and delivery order first, use bit_scope; when they want to carry out an existing plan ("implement the plan", "continue our implementation", "do the next step"), use bit_do instead. Produces contradiction-driven step bars (each one red-green cycle and one commit) tagged with the verse they serve, TDD-first checklists, and an explicit split between what Claude verifies and what the user verifies. If the scope marks a verse `(spike)` — work whose deliverable is an answer to an open unknown — this skill plans every spike first and then either stops there or proposes splitting the scope, depending on whether the remaining verses depend on the answer.
+description: Create or refine an implementation plan for a large task — bug fix, refactor, or new feature. Use when the user says "make a plan", "let's plan this out", "let's revise the plan", names a scope track to plan, or describes a change that is too large to implement in one session. Also triggers on casual phrasing like "let's think through this" or "how should we approach X" when the scope is clearly multi-step. This skill authors and refines the plan only — one bar (child task) per step under the scope's track in `.bit/`, through the `mcp__bit__*` tools. When the user wants to frame the high-level WHY and delivery order first, use bit_scope; when they want to carry out an existing plan ("implement the plan", "continue our implementation", "do the next step"), use bit_do instead. Produces contradiction-driven step bars (each one red-green cycle and one commit) tagged with the verse they serve, TDD-first checklists, and an explicit split between what Claude verifies and what the user verifies. If the scope marks a verse `(spike)` — work whose deliverable is an answer to an open unknown — this skill plans every spike first and then either stops there or proposes splitting the scope, depending on whether the remaining verses depend on the answer.
 ---
 
 # Implementation Plan Creator
 
-You create and refine implementation plans. A plan is a set of **bars** (child tasks) under a scope's **track** in `.bit/`, authored through the `bp` CLI — one bar per step, detailed enough to work from autonomously across sessions, minimal enough not to waste tokens.
+You create and refine implementation plans. A plan is a set of **bars** (child tasks) under a scope's **track** in `.bit/`, authored through the `mcp__bit__*` tools — one bar per step, detailed enough to work from autonomously across sessions, minimal enough not to waste tokens.
 
 Five tools cover everything this skill does: `mcp__bit__task_read` to read the scope from its track body, `mcp__bit__task_list` to walk the bars already under a track, `mcp__bit__task_create` to mint a bar, `mcp__bit__task_update` to reword one, and `mcp__bit__task_move` to reorder one. Never hand-edit `.bit/tasks/*.md` — that rule is the one the whole tool surface exists to enforce.
 
@@ -217,7 +217,7 @@ Bad: "Implement child workflow"
 
 ### Tag each bar with its verse
 
-Every bar carries the verse it serves as CLI metadata: `--phase <N>` (the verse number from the scope's checklist) and `--phase-label "<label>"` (the verse's short name — the flag keeps the name `phase`, the scope's slice is a verse). This metadata is what lets progress roll up: bit_do checks off a verse in the track body once all the bars tagged to it are done — so the `--phase` value, not any body text, is the source of truth for rollup. The bar body *also* opens by naming that verse (`## **Verse N**`) so a reader can place the step at a glance, but if the two ever disagree, trust `--phase`. A bar serves exactly one verse; if a step seems to span two, it's probably two bars. Create the bars in the scope's delivery order, so the walking skeleton lands first.
+Every bar carries the verse it serves as metadata: `phase` (the verse number from the scope's checklist) and `phase_label` (the verse's short name — the field keeps the name `phase`, the scope's slice is a verse). This metadata is what lets progress roll up: bit_do checks off a verse in the track body once all the bars tagged to it are done — so the `phase` value, not any body text, is the source of truth for rollup. The bar body *also* opens by naming that verse (`## **Verse N**`) so a reader can place the step at a glance, but if the two ever disagree, trust `phase`. A bar serves exactly one verse; if a step seems to span two, it's probably two bars. Create the bars in the scope's delivery order, so the walking skeleton lands first.
 
 **Do not put rollup or status instructions in the bar bodies.** Naming the verse the bar serves in its opening line is fine — that's context for the reader, not a rollup instruction. But a bar body describes only its own step beyond that (the TDD cycle and checks): no "verse rollup" notes, no `**Status:**` lines — the bar's status *field* is the progress marker, and keeping the scope in sync is bit_do's job. Writing that into the body just burns tokens on what the executor already knows.
 
@@ -315,7 +315,7 @@ Each step is **one bar** under the scope's track. The bar's **title** is the ste
 
 Report the bar IDs (or just the count and the track) back to the user when you're done.
 
-The **bar body** uses this structure. It opens with the verse the bar serves (`## **Verse N**`) so a reader knows the slice at a glance — the same verse the `--phase` metadata carries. After that: no `## Step N` heading (the title is the step name) and no `**Status:**` line (the status field is the marker). The step's sections are `##` headings so they stand apart when the body is read on its own:
+The **bar body** uses this structure. It opens with the verse the bar serves (`## **Verse N**`) so a reader knows the slice at a glance — the same verse the `phase` metadata carries. After that: no `## Step N` heading (the title is the step name) and no `**Status:**` line (the status field is the marker). The step's sections are `##` headings so they stand apart when the body is read on its own:
 
 ```markdown
 ## **Verse 1**
@@ -371,7 +371,7 @@ The throughline that used to live in a plan's "How this plan works" section — 
 
 ### A spike bar's body
 
-Same frame, different middle: the TDD cycle is replaced by the question and how it gets settled. Prefix the phase label with `spike:` so it's visible wherever bars are listed — `--phase 1 --phase-label "spike: delivery"` — since a reader scanning the board should be able to tell which bars produce knowledge and which produce capability.
+Same frame, different middle: the TDD cycle is replaced by the question and how it gets settled. Prefix the phase label with `spike:` so it's visible wherever bars are listed — `phase: 1`, `phase_label: "spike: delivery"` — since a reader scanning the board should be able to tell which bars produce knowledge and which produce capability.
 
 ```markdown
 ## **Verse 1 (spike)**
@@ -407,7 +407,7 @@ The `Report back` item is what closes the loop — without it a spike's answer l
 
 1. Read the whole plan first: the track body (`mcp__bit__task_read`) and every bar in order (`mcp__bit__task_list` with `parent` set to the track ID, then `mcp__bit__task_read` on each bar for its `body`).
 2. Compute what this change actually invalidates — don't just edit what you came to touch. If a bar being edited already contains a factual/architectural claim (a deployment mechanism, a build choice), verify it against the track's current Decisions and the codebase's actual precedent before keeping it — inherited text isn't pre-vetted just because it's already there. If the track's Decisions changed, list every bar in the track (`mcp__bit__task_list` with `parent` set to the track ID), not just the ones this pass is touching, and reset to `todo` any non-`done` bar that no longer matches.
-3. Check the verse tags: is each bar tagged to a verse (`--phase`/`--phase-label`), and do the tags follow the scope's delivery order? An untagged bar, or one that jumps ahead of the walking skeleton, is a flag.
+3. Check the verse tags: is each bar tagged to a verse (`phase`/`phase_label`), and do the tags follow the scope's delivery order? An untagged bar, or one that jumps ahead of the walking skeleton, is a flag.
 4. Check that the bar bodies don't duplicate the WHY the track owns, or carry stray `**Status:**` lines — that's drift waiting to happen.
 5. Check the throughline: can you trace *why* each bar exists? Every bar after the first should be forced by a contradiction or dependency. If a bar says "now implement X" without a test that demands it, flag it — something is missing.
 6. Review each bar: does it start with a test? Is it one red-green cycle?
