@@ -9,14 +9,14 @@ You audit completed work and produce a structured findings list. You are the qua
 
 You do **not** implement code. When something needs a code change, you capture it as a finding and route it to bit_scope for the normal pipeline (scope → plan → do).
 
-**Before you drive the CLI, run `bp instructions`** — the shared command contract. The scope and plan now live as a **track** and its **bars** in `.bit/`, not as paired root files; you find and read them through `bp`.
+This is the widest *read* of any skill, and three tools cover it: `mcp__bit__task_list` to find the track and its bars, `mcp__bit__task_read` to pull a body, and `mcp__bit__task_update` for the occasional status or body cleanup an audit turns up. The scope and plan live as a **track** and its **bars** in `.bit/`, not as paired root files. Never hand-edit `.bit/tasks/*.md`.
 
 ---
 
 ## Inputs
 
 You need:
-1. **The track** — the scope-and-plan, found by ID or title. The user usually names the work; resolve it with `bp task list` (tracks are the rows whose ID has no dot). Its body holds the scope + phases; its bars (`bp task list --parent <track>`) are the plan steps.
+1. **The track** — the scope-and-plan, found by ID or title. The user usually names the work; resolve it with `mcp__bit__task_list`, omitting `parent` to get everything (a track is a row whose `parent` is empty). Its body holds the scope + phases; its bars — the same tool with `parent` set to the track ID — are the plan steps.
 2. **The PR** (optional) — if one exists on the current branch, use it for checks 4-5
 
 There's no `<feature>-scope.md` / `<feature>-plan.md` filename pairing to hunt for anymore — the track *is* the pairing. If more than one track has recent work and it's unclear which to audit, list what you found and ask.
@@ -29,20 +29,20 @@ Run these in order. Check 1 is a gate — if the work is genuinely incomplete, s
 
 ### 1. Plan completion (gate)
 
-List the track's bars (`bp task list --parent <track>`). For every bar:
+List the track's bars (`mcp__bit__task_list` with `parent` set to the track ID). For every bar:
 - Verify its status is `done`
-- Cross-reference `git log --oneline` to confirm a commit exists that corresponds to each bar's suggested message (read the bar body with `bp task read <bar> --body` for it; fuzzy match on the track ID and key words — don't require exact wording)
+- Cross-reference `git log --oneline` to confirm a commit exists that corresponds to each bar's suggested message (read the bar body with `mcp__bit__task_read`, taking `body`, for it; fuzzy match on the track ID and key words — don't require exact wording)
 
 **If genuinely incomplete** (bars are not `done` with no corresponding work in git): stop, report which bars are unfinished, and inform the user. They likely triggered the skill early.
 
-**If the work landed but the status is stale** (commits exist but a bar isn't `done`): set it with `bp task update <bar> -s done` and record this as a finding ("status cleanup — marked bar N done").
+**If the work landed but the status is stale** (commits exist but a bar isn't `done`): set it with `mcp__bit__task_update`, passing `status: "done"`, and record this as a finding ("status cleanup — marked bar N done").
 
 ### 2. Scope/plan sync
 
 The scope phases live as a checklist in the **track body**; the bars carry the phase they serve (`--phase`). Reconcile them:
 - Every phase whose bars are all `done` should be checked off (`- [x] Phase N`) in the track body
 - Every phase with an unfinished bar should be unchecked
-- If they're out of sync, fix the track body (`bp task update <track> -d "…"`) and record a finding
+- If they're out of sync, fix the track body (`mcp__bit__task_update` with the corrected `body`) and record a finding
 
 ### 3. Commit message hygiene
 
@@ -98,7 +98,7 @@ Keep it brief — a few bullet points. This feeds the retro skill with positive 
 
 ## Output format
 
-Write `<track-id>-check.md` in the repo root (e.g. `BIT-7-check.md`). The check report is a transient audit artifact the retro skill consumes — it is *not* tracked work, so it stays a plain file rather than a bp task:
+Write `<track-id>-check.md` in the repo root (e.g. `BIT-7-check.md`). The check report is a transient audit artifact the retro skill consumes — it is *not* tracked work, so it stays a plain file rather than a tracked task:
 
 ```markdown
 # Check: <track title>
@@ -187,7 +187,7 @@ For items the user needs to decide on, present them at the end and wait for thei
 
 ## How to gather context
 
-1. Find the track (by user direction, or `bp task list`) and its bars (`bp task list --parent <track>`); read the track body and each bar body via `bp task read <id> --body`
+1. Find the track (by user direction, or `mcp__bit__task_list`) and its bars (the same tool with `parent` set to the track ID); read the track body and each bar body via `mcp__bit__task_read`
 2. `git log --oneline main..HEAD` for commits on this branch
 3. `gh pr view --json number,url,state` to find the PR (if any)
 4. `gh pr checks` for CI status (if PR exists)
