@@ -9,6 +9,11 @@ import (
 	"path/filepath"
 )
 
+const (
+	pluginKey       = "bit@bit-pro"
+	marketplaceName = "bit-pro"
+)
+
 var marketplace = json.RawMessage(`{"source": {"source": "github", "repo": "B4Dmonkey/bit-pro"}}`)
 
 func WriteSettings(path string) error {
@@ -17,11 +22,11 @@ func WriteSettings(path string) error {
 		return err
 	}
 
-	if err := merge(doc, "extraKnownMarketplaces", "bit-pro", marketplace); err != nil {
+	if err := merge(doc, "extraKnownMarketplaces", marketplaceName, marketplace); err != nil {
 		return fmt.Errorf("parsing %s: %w", path, err)
 	}
 
-	if err := merge(doc, "enabledPlugins", "bit@bit-pro", json.RawMessage(`true`)); err != nil {
+	if err := merge(doc, "enabledPlugins", pluginKey, json.RawMessage(`true`)); err != nil {
 		return fmt.Errorf("parsing %s: %w", path, err)
 	}
 

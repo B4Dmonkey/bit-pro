@@ -1,7 +1,8 @@
 ---
 id: BIT-39.6
 title: An unconfirmed spawn keeps its row
-status: todo
+status: done
+approved: true
 phase: 2
 phase_label: Bar runs unattended
 ---

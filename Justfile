@@ -1,5 +1,3 @@
-version := `git describe --tags --always --dirty 2>/dev/null || echo dev`
-
 MIGRATIONS_DIR := justfile_directory() / "db" / "migrations"
 
 export DATABASE_URL := "sqlite:" + justfile_directory() / "db" / "bit.db"
@@ -24,9 +22,15 @@ db-status:
     dbmate --migrations-dir "{{MIGRATIONS_DIR}}" status
 
 install: db-gen-queries
-    #!/usr/bin/env sh
-    dir="$(go env GOBIN)"; [ -n "$dir" ] || dir="$(go env GOPATH)/bin"
-    go build -ldflags="-X 'github.com/B4Dmonkey/bit-pro/cmd.version={{version}}'" -o "$dir/bp" .
+    "{{justfile_directory()}}/scripts/install.sh"
+
+# cut a release: compute the next version for a bump level, guard, write plugin.json, commit and tag
+release level:
+    "{{justfile_directory()}}/scripts/release.sh" {{level}}
+
+# publish the current version's tag to origin (tag only — push the branch yourself)
+release-push:
+    "{{justfile_directory()}}/scripts/release-push.sh"
 
 run *ARGS: db-gen-queries
     go run . {{ARGS}}

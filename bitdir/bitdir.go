@@ -25,6 +25,19 @@ func Resolve() {
 	}
 }
 
+func Root() string {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "."
+	}
+
+	if dir, ok := worktreeCut(wd); ok {
+		return filepath.Dir(dir)
+	}
+
+	return wd
+}
+
 func Canonical(wd string) string {
 	if dir, ok := worktreeCut(wd); ok {
 		return dir

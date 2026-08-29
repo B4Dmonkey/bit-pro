@@ -1,7 +1,9 @@
 #!/usr/bin/env sh
 set -eu
 
-version="$(git describe --tags --always --dirty 2>/dev/null || echo dev)"
+cd "$(dirname "$0")/.."
+
+version="$(jq -r '.version // "dev"' bit/.claude-plugin/plugin.json)"
 
 dir="$(go env GOBIN)"
 [ -n "$dir" ] || dir="$(go env GOPATH)/bin"

@@ -1,7 +1,8 @@
 ---
 id: BIT-39.9
 title: A whole track drains one bar per tick
-status: todo
+status: done
+approved: true
 phase: 3
 phase_label: Track runs bar-by-bar
 ---
@@ -50,12 +51,22 @@ than incidental. If it goes red, that is a Verse 2 defect, not new work — fix 
 - [ ] `just lint`
 
 ## User verifies
-- [ ] Whole slice: `just install`, take a real three-bar approved track on this repo, open `bp tui`,
-  select the **track** row and answer `y` at the play prompt — three queue rows appear. Run
-  `bp serve daemon -v` with no other Claude session open in bit-pro and leave it. Each bar's
-  session comes up, commits, and exits before the next starts; `claude agents --json` never shows
-  two rows under this repo at once. When the queue is empty, `git log worktree-<name>` on the
-  track's branch shows the three commits in bar order. The track built itself.
+- [ ] Whole slice, in `tools/example`. Reset first so the track is clean: `./reset.sh last` returns
+  to the `ck/ex2` checkpoint — `EX-1` and `EX-2` written and unapproved, no worktrees, no run
+  branches, no leftover sessions. (Stamp your own `./checkpoint.sh <label>` once the bars are
+  approved and `reset.sh last` will come back approved, which saves re-approving on every re-run.)
+
+  In `bp tui`, approve all three `EX-2` bars. Approving the last one opens the play prompt — answer
+  `y`, and three queue rows appear. `just install`, then run `bp serve daemon -v` with **no Claude
+  session open in `tools/example`** and leave it.
+
+  Each bar's session comes up, commits, and exits before the next one starts. While it runs,
+  `claude agents --json` never shows two rows under `tools/example` at once — that is BIT-39.8's
+  guard doing its job on a real queue rather than a fake runner. When the queue is empty,
+  `./check.sh EX-2` shows all three bars `done` and
+  `git log --oneline worktree-EX-2-shout-dispatch-drain-workload` shows three commits in bar order:
+  the shouted greeting, then the contradiction that forces real upper-casing, then the trim. The
+  track built itself.
 
 ## Commit (user)
 `test(daemon): pin the one-bar-per-tick drain across a whole track`

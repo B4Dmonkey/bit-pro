@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"os"
 	"strings"
 	"testing"
 
@@ -95,7 +96,7 @@ func initProject(t *testing.T, prefix string) string {
 }
 
 func mcpRegisterCall() []string {
-	return []string{claudeBin, serveMCPCmdUse, addCmdUse, "bit", "--", "bp", "serve", serveMCPCmdUse}
+	return []string{claudeBin, serveMCPCmdUse, addCmdUse, "bit", "--", "bp", serveCmdUse, serveMCPCmdUse}
 }
 
 func pluginSyncCalls() [][]string {
@@ -109,4 +110,27 @@ func pluginSyncCalls() [][]string {
 func createTask(t *testing.T, title, description string) {
 	t.Helper()
 	mustRun(t, "task", "create", title, "--description", description)
+}
+
+func TestMain(m *testing.M) {
+	refreshMarketplace = func() {}
+
+	os.Exit(m.Run())
+}
+
+func runSplit(t *testing.T, args ...string) (string, string, error) {
+	t.Helper()
+
+	root := newRootCmd(func(context.Context, string, ...string) error { return nil }, nothingLoaded)
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+
+	root.SetOut(stdout)
+	root.SetErr(stderr)
+	root.SetIn(strings.NewReader(""))
+	root.SetArgs(args)
+
+	err := execute(context.Background(), root)
+
+	return stdout.String(), stderr.String(), err
 }

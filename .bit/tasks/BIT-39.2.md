@@ -1,7 +1,8 @@
 ---
 id: BIT-39.2
 title: Loop owns the ticker; serve keeps only wiring
-status: todo
+status: done
+approved: true
 phase: 1
 phase_label: Loop lives in daemon
 ---
@@ -10,14 +11,15 @@ phase_label: Loop lives in daemon
 The ticker, the started/stopped logging, and the cancellation check move into `daemon.Loop`,
 leaving `cmd/serve.go` with flag parsing and wiring only. Forced by a test that drives the loop
 directly from the `daemon` package — it cannot compile while the loop is a closure inside
-`newServeDaemonCmd`'s `RunE`.
+`newServeDaemonCmd`'s `RunE`. This bar also carries the one deliberate behaviour change the move
+is allowed: `serveTick` drops from 10s to 5s, per the BIT-39 Decision.
 
 ## Scope
 - `daemon/loop.go` — add `Loop(ctx, queries, log, interval) error` above `Tick`.
 - `daemon/loop_test.go` — add the two RED tests.
 - `cmd/serve.go` — `RunE` reduces to level → handler → `db.Open` → `orm.New` →
   `return daemon.Loop(cmd.Context(), queries, log, serveTick)`. `serveTick` stays a `cmd` package
-  var so the existing tests keep shortening it.
+  var so the existing tests keep shortening it, and its value drops to `5 * time.Second`.
 
 ## TDD cycle
 
@@ -53,20 +55,32 @@ directly from the `daemon` package — it cannot compile while the loop is a clo
      log.Debug("tick"); Tick(ctx, queries, log) } }` body moved from `RunE`. Add the `time` import.
    - [ ] In `cmd/serve.go`, replace everything in `RunE` after `queries := orm.New(sqlDB)` with
      `return daemon.Loop(cmd.Context(), queries, log, serveTick)`. Keep the `time` import —
-     `serveTick = 10 * time.Second` still needs it. `newHandler` stays in `cmd`; it shapes the
-     logger, it is not part of the loop.
+     `serveTick` still needs it. `newHandler` stays in `cmd`; it shapes the logger, it is not part
+     of the loop.
+   - [ ] Change `cmd/serve.go:23` to `var serveTick = 5 * time.Second`. No test drives this line:
+     all five tests in `cmd/serve_test.go` override `serveTick` to `5 * time.Millisecond`, and the
+     two RED tests above hand `Loop` an explicit interval — so a test asserting the constant would
+     only restate it. It is a decided value, checked by the operator below.
 
 ## Claude verifies
 - [ ] `just test` — in particular `TestServeCmd_LogsStartAndStop`, `TestServeCmd_TicksOnlyWhenVerbose`,
   `TestServeCmd_ReturnsWhenContextCancelled` and `TestNewHandler_PicksEncodingFromTheWriter` all still
-  pass unchanged: the command's observable behaviour is what this move must not alter
+  pass unchanged: the *move* must not alter the command's observable behaviour, and the cadence
+  change is invisible to them because every one overrides `serveTick` before running
 - [ ] `just lint`
 
 ## User verifies
 - [ ] Whole slice: `just install`, then run `bp serve daemon -v` in one terminal and leave it ~30s.
-  It logs `started` once and a `tick` line about every 10s. In a second terminal, `bp list` now shows
-  non-zero `backlog:`/`todo:` counts for `BIT` that match what `bp task list` reports — the refresh
-  still runs, and nothing about the operator's view changed when the loop moved packages.
+  It logs `started` once and a `tick` line about every 5s — roughly 6 ticks in 30s, not 3. In a
+  second terminal, `bp list` shows non-zero counts for **both** registered projects: `BIT`, matching
+  what `bp task list` reports in this repo, and `EX`, showing the `tools/example` tracks. So the
+  refresh still runs, it runs for every registered project, and nothing about the operator's view
+  changed when the loop moved packages.
+
+  Safe to run as-is — the loop is counts-only until BIT-39.3, so there is no dispatch code that
+  could fire at anything in the queue.
 
 ## Commit (user)
 `refactor(daemon): move the tick loop out of the serve command`
+
+Body line: `Also drops serveTick from 10s to 5s (BIT-39 Decision).`

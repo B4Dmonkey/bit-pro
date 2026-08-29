@@ -1,7 +1,24 @@
 ---
 id: BIT-39
 title: Dispatch — the daemon works queued bars unattended
-status: todo
+status: doing
+order:
+    - BIT-39.1
+    - BIT-39.2
+    - BIT-39.3
+    - BIT-39.4
+    - BIT-39.5
+    - BIT-39.6
+    - BIT-39.7
+    - BIT-39.8
+    - BIT-39.9
+    - BIT-39.15
+    - BIT-39.16
+    - BIT-39.17
+    - BIT-39.10
+    - BIT-39.11
+    - BIT-39.12
+    - BIT-39.18
 ---
 ## Why
 Every part of the automation phase is built except the part that does work. BIT-28 gave us a
@@ -65,7 +82,11 @@ tick
 - **One identifier for the worktree and the session.** The same derived string goes to `-w` and
   to `-n`, so a `claude agents --json` row is directly attributable to a track.
 - **Bars of a track share one worktree.** The name is per-track, so bar 2 lands on bar 1's tree
-  rather than restarting from `main`.
+  rather than restarting from `main`. Measured cost, 2026-08-26: sharing means bar N+1 inherits
+  whatever bar N left, including wreckage. A session that dies at startup still creates the
+  worktree, branches it, and `git worktree lock`s it before it fails — so every later bar of that
+  track lands on a tree locked by a dead pid, and `git worktree remove` refuses until it is
+  unlocked by hand. The decision stands; it is not free, and BIT-39.13 prices it.
 - **The loop never tears down a worktree.** After the last bar the tree holds committed work on
   `worktree-<name>`, and `claude rm` deletes the branch along with it. Reaping is the operator's,
   after they have merged. Measured 2026-08-24: `claude rm` refuses outright while the worktree
@@ -118,6 +139,12 @@ tick
 - **The loop body belongs in `daemon/`.** `cmd/serve.go` keeps flag parsing and wiring only;
   `writeCounts` and the tick loop move to `daemon`, beside `Start`/`Stop`/`Status`, which
   supervise the same process.
+- **The daemon ticks every 5 seconds, not 10.** Halves the interval inherited from BIT-28.
+  Deliberately a step rather than a final value: the intent is to keep cutting it — 1s or less is
+  plausible — with each cut gated on watching what a faster loop costs, since from Verse 2 every
+  tick shells out to `claude agents --json` once per registered project. 5s is what BIT-39 ships
+  and the next cut is a later call. It stays a hardcoded `cmd` package var under the "no new
+  operator surface" Decision — no flag, no config.
 - **The `claude` binary calls go in `claude/`, not `daemon/`.** `claude/sync.go` already shells
   out to `claude` there; spawn and `agents --json` join it, which keeps `daemon` free of
   external-tool plumbing.
@@ -136,12 +163,19 @@ tick
   churns six files (`cmd/root.go`, `cmd/add.go`, `cmd/init.go`, `cmd/cmd_test.go`,
   `claude/sync.go`, `claude/sync_test.go`) so that every existing caller can discard a parameter
   and two return values it has no use for.
-- **The daemon finds `claude` on the `PATH`; nothing names its absolute path.** So the plist gets no
-  `EnvironmentVariables`, and no `WorkingDirectory` either — nothing in the loop reads a relative
-  path. The accepted risk is measured and specific: `claude` is `~/.local/bin/claude` on this
-  machine and a LaunchAgent does not inherit the operator's login `PATH`. Verse 4 is where this
-  either holds or fails with `claude: executable file not found in $PATH`; that failure would buy
-  the Decision, whereas guessing at an absolute path now does not.
+- **`bp start` resolves `claude` to an absolute path; the daemon never relies on a `PATH`.**
+  Reverses "the daemon finds `claude` on the `PATH`, so the plist gets no `EnvironmentVariables`",
+  whose accepted risk was measured and then hit. Measured 2026-08-27: `bp start` with one approved
+  bar queued logged `listing live sessions … exec: "claude": executable file not found in $PATH`
+  on every tick and dispatched nothing. `launchctl getenv PATH` is empty, so a LaunchAgent gets
+  launchd's default `/usr/bin:/bin:/usr/sbin:/sbin`, while `claude` is `~/.local/bin/claude`.
+  `bp start` is the one place that can resolve this, because it runs in the operator's shell: it
+  looks the binary up there, fails loudly if it cannot find it, and the resolved path travels to
+  the daemon in the plist `bp start` already writes. Chosen over giving the plist an
+  `EnvironmentVariables` `PATH` because it puts the failure at `bp start`, where an operator is
+  watching, rather than at tick time in a log nobody reads. Accepted cost: the path is pinned at
+  enrollment, so moving or reinstalling `claude` needs another `bp start`. `WorkingDirectory`
+  stays unset — nothing in the loop reads a relative path.
 - **No new package.** `dispatch/` was considered and rejected — it would split "the daemon"
   across two names for one process's job.
 - **Queue rows are bar rows, full stop.** `target_typ` exists but the TUI only ever writes
@@ -154,43 +188,161 @@ tick
   particular is a real safety gap — `bit:bot-dev` forbids `bp approve` in prose and nothing
   enforces it — and it is deliberately left open rather than folded in here.
 - **Permission prompts stay.** No permission mode that suppresses them. A session pausing for the
-  operator is the safety mechanism that replaces the push gate.
+  operator is the safety mechanism that replaces the push gate. Measured 2026-08-27, and it is the
+  mechanism working rather than a defect: a dispatched `bit:bot-dev` session took `EX-2.1` to
+  green, marked the bar `done`, and then parked at `state: blocked` on `Bash(git add *)` — an
+  `ask` rule in the operator's own settings — without committing. Dispatch's job ends at handing
+  the bar to Claude; answering the prompt and carrying that session on is the operator's.
+
+- **The plist carries the resolved path as an `EnvironmentVariables` entry, not a flag.** `bp start`
+  writes `BP_CLAUDE=<absolute path>` into the plist it already writes; the daemon reads it and falls
+  back to a bare `claude` when it is unset, so a foreground `bp serve daemon` in a terminal is
+  unchanged. Chosen over adding a `--claude` flag to `serve daemon`, which would breach the "no new
+  operator surface" Decision that already forbids a flag for the tick interval. Nothing is
+  hardcoded — `exec.LookPath` reads whatever `PATH` the operator actually has — so this works on any
+  machine, at the already-accepted cost of re-running `bp start` if `claude` moves.
+- **The hold message logs at `INFO` and names the session holding the project.** `DEBUG` is wrong
+  for it: an operator running `bp serve daemon -v` to find out why nothing dispatches is the exact
+  audience, and under launchd a `DEBUG` record may not be written at all. The record carries the
+  matched session's name and `cwd` alongside `project`, and states the consequence — not
+  dispatching — rather than the condition, so the operator can tell which session to close.
+- **A project's slot frees when its session is gone, and clearing it is the operator's job.** The
+  guard already implements this and needs no change: hold while any live row's `cwd` is at or
+  beneath the project path, dispatch again once none is. So the operator dispatches a bar, works
+  with that session in Claude — answering prompts, reviewing, whatever it needs — and deletes it
+  when they are finished, which is what lets the next bar go. Explicitly rejected reading the bar's
+  ledger status as the release signal: what `done` should mean for a dispatched session is
+  unexplored, and guessing it here would dispatch bar 2 on top of work that is not actually
+  finished. That exploration is a future track; until then the release is manual on purpose.
+- **The queue row is not deleted at spawn time.** The row and the spawn are held across ticks, and
+  the dequeue decision is made on a later tick once the session's fate is legible. Reverses
+  "Dequeue on dispatch, after confirming the session exists": measured 2026-08-27 on 2.1.250, a good
+  spawn and a failed one both exit 0, and the sub-second confirm poll catches a doomed process while
+  it is still registering — which is what deleted `EX-2.1`'s row for a bar that never ran. The row
+  is held instead, and the dequeue decision is made on a later tick.
+- **A dispatch is confirmed by presence in the plain listing; `done` and `idle` both confirm
+  it.** Settled 2026-08-27. A session that has not failed is a good dispatch whatever it is
+  currently doing, so a bar mid-turn, a bar parked on a permission prompt, and a bar already
+  finished all count and all dequeue. This needs no `state` read and so leaves the "`state` is
+  not read at all" Decision intact, because the plain listing already excludes failures on its
+  own — see the next Decision. Rejected the earlier "dequeue once the session is gone" reading:
+  measured the same day, a finished session never goes away, so that rule would never fire.
+- **Presence in the plain listing is the honest success signal; `--all` is not used.** Measured
+  2026-08-27 on 2.1.250: a session that ran and finished stayed in `claude agents --json` at
+  `state: done` / `status: idle` across 24 polls over two minutes, while a session that died at
+  startup was absent from that listing and appeared only under `claude agents --all --json` with
+  `state: failed`. The existing name check is therefore the right check — only its timing was wrong.
+- **An unknown `--agent` no longer fails; it silently substitutes the default.** Measured 2026-08-27
+  on 2.1.250: `claude --bg --agent 'definitely-not-an-agent' …` printed `warning: no agent named
+  '…' — spawning with default template`, exited 0, and spawned a session. This supersedes the
+  2026-08-26 observation that such a spawn errored and produced nothing, and it means a project
+  where the plugin does not resolve runs `/bit:do` under the default agent instead of `bit:bot-dev`,
+  so it will not commit and will not honour the approval gate. What no longer follows is the
+  conclusion this Decision originally drew — that fixing `bp add` is therefore a correctness matter
+  for dispatch. BIT-41 measured that cause away; see the next Decision.
+- **`bp add`'s readiness defects are out of scope; a follow-up track owns them.** Verse 5 originally
+  carried them because an unresolvable `--agent` silently ran `/bit:do` as the default agent, which
+  made a broken `bp add` a correctness matter for dispatch. BIT-41 measured that cause away (see
+  References): it was upstream bug anthropics/claude-code#27257, a project-scope install in one
+  project making the same plugin uninstallable at project scope in another, fixed in Claude Code
+  2.1.248 and confirmed resolving `bit:bot-dev` in `tools/example`. Three real defects remain, and
+  they are recorded here so the follow-up track does not re-derive them: `cmd/add.go:45-48`
+  short-circuits on an already-enrolled project, so re-running `bp add .` to repair a project does
+  nothing; `cmd/add.go:66-70` gates the wiring on `.bit/` being absent, so a project that ran
+  `bp init` first never gets the wiring at all; and `claude.SyncPlugin`/`claude.RegisterMCP` take
+  `claude.Runner`, which carries no working directory, so `claude plugin install --scope project`
+  and `claude mcp add` resolve against wherever the operator was standing rather than the path
+  `bp add` was given — with `SyncPlugin` trying `plugin update` before `install`, so a succeeding
+  update swallows the install. None of the three blocks a working daemon, which is what BIT-39 is
+  for.
+
+- **Deferred with the above, and kept rather than deleted: `bp add`'s directory problem is fixed
+  with the existing `DirRunner`, not by widening `Runner`.** `claude plugin install --scope project`
+  and `claude mcp add` both resolve against the working directory and `claude.Runner` carries none,
+  so those two call sites move to `claude.DirRunner`, which already takes one — two call sites
+  instead of the six files widening `claude.Runner` would churn (`cmd/root.go`, `cmd/add.go`,
+  `cmd/init.go`, `cmd/cmd_test.go`, `claude/sync.go`, `claude/sync_test.go`). One end is left open
+  for that track rather than settled here: `claude.Runner` has no consumer other than those two
+  functions, so moving both to `DirRunner` leaves it dead — which is in tension with the
+  two-runner-shapes Decision above, and is a call for whoever plans it.
+- **A stale locked worktree gets no work of its own.** Dropped 2026-08-27 (was BIT-39.13). Every
+  instance observed came from a spawn that died at startup, and that cause is `bp add` leaving the
+  plugin unresolvable in the project. Once a failed spawn is loud and keeps its row, a poisoned tree
+  shows up as a bar that visibly refuses to start; clearing the leftover is `git worktree unlock &&
+  git worktree remove`, which the fixture's `reset.sh` already does. Inheriting a broken tree is in
+  any case already an accepted cost under "Bars of a track share one worktree."
+
+- **The spawn record says `dispatching`; `dispatched` is logged only once the session is
+  confirmed.** The spawn and the dequeue now land on different ticks, so one record cannot honestly
+  mean both. `dispatching` carries the bar, the worktree name, and the spawn's captured output,
+  which `claude.Spawn` currently discards — that output is the only place a failure diagnostic can
+  reach the log, since a spawn that produced no session still exits 0 and neither `--all` nor
+  parsing the `backgrounded ·` line is available. `dispatched` is logged on the later tick that
+  finds the session in the plain listing, beside the dequeue. Consequence, and the point of the
+  wording: a project where every spawn dies logs `dispatching` forever and never `dispatched`, with
+  the diagnostic in the record.
+
+- **The loop keeps no state between ticks, so an unconfirmed row is retried, not diagnosed.** A row
+  with no matching session is either a bar never dispatched or a bar whose session died at startup,
+  and nothing available to the loop tells the two apart. Rather than add a marker to the queue row,
+  the loop re-spawns — which the existing "a spawn that cannot be confirmed leaves its row in place"
+  Decision already prescribes. Accepted cost: a permanently broken project re-spawns every tick.
+  That is the loud signal, because every one of those ticks logs `dispatching` with claude's own
+  diagnostic attached.
 
 ## Verses
 
-- [ ] Verse 1 — The loop lives where the rest can be built: `writeCounts` and the tick loop move
+- [x] Verse 1 — The loop lives where the rest can be built: `writeCounts` and the tick loop move
   out of `cmd/serve.go` into `daemon/`, beside `Start`/`Stop`/`Status`; the command keeps flag
-  parsing and wiring. Nothing changes for the operator — `bp serve daemon -v` still ticks and
-  `bp list` still shows refreshed counts — and every verse after this adds to a package instead
-  of to a command body.
+  parsing and wiring, and the tick drops to 5s. The move itself changes nothing for the operator —
+  `bp serve daemon -v` still ticks and `bp list` still shows refreshed counts — the one visible
+  difference is the faster cadence, and every verse after this adds to a package instead of to a
+  command body.
   Touches: `cmd/serve.go`, `daemon/`.
 
-- [ ] Verse 2 — A queued bar runs unattended: with the daemon running in a terminal, an operator
+- [x] Verse 2 — A queued bar runs unattended: with the daemon running in a terminal, an operator
   queues one approved bar, walks away, and comes back to a commit on the track's worktree branch
   and an empty queue row. Includes the guard that stops the loop dispatching a second bar while
   that project has a live session — without it the next tick stampedes the rest of the queue.
   Touches: `daemon/` (pop, spawn, confirm, dequeue), `claude/` (spawn and `agents --json`),
   `db/queries/queue.sql` (the first delete query).
 
-- [ ] Verse 3 — A whole approved track runs bar-by-bar: several queued bars drain in FIFO order,
-  one at a time, each session landing in the same per-track worktree so bar 3 builds on bar 1.
-  An operator approves a three-bar track, answers "yes" at the play prompt, and the track is done
-  without them touching it.
+- [x] Verse 3 — A track's bars run in order, one at a time: queued bars drain FIFO, never more than
+  one in flight per project, each session landing in the same per-track worktree so bar 3 builds on
+  bar 1. An operator approves a three-bar track and answers "yes" at the play prompt; each bar then
+  runs unattended, and deleting its session is what releases the slot for the next. A fully
+  unattended multi-bar drain is deliberately not this verse — see the slot Decision.
   Touches: `daemon/` (FIFO drain, ledger check), `claude/` (worktree name derivation).
 
 - [ ] Verse 4 — It works with the terminal closed: the same cycle runs under the launchd-hosted
-  daemon, so `bp start` and closing the terminal is enough. No code is expected. The TTY worry is
-  already covered — `claude agents --json` needs none by its own documentation, and the daemon's
-  logger already switches to JSON when stdout is not a terminal — and the environment worry was
-  decided away above. What is left is the observation that the unattended cycle survives losing its
-  terminal, which no test can make.
-  Touches: nothing expected; `daemon/plist.go` only if the `PATH` assumption fails.
+  daemon, so `bp start` and closing the terminal is enough. The TTY worry was already covered —
+  `claude agents --json` needs none by its own documentation, and the daemon's logger already
+  switches to JSON when stdout is not a terminal. The environment worry was not: the `PATH`
+  assumption failed on first contact and nothing dispatched (see Decisions), so this verse now
+  carries code as well as an observation — `bp start` resolves `claude` where it can still see the
+  operator's shell and hands the daemon a binary it can actually execute. What remains
+  unautomatable is the observation itself: that the cycle survives losing its terminal. The cycle
+  observed here is **one bar** — with the terminal closed nobody is deleting sessions, so the slot
+  never frees and a second bar is not expected to go.
+  Touches: `cmd/start.go` (resolve, fail loudly), `daemon/plist.go` (carry the resolved path),
+  `claude/` (invoke it instead of a bare `claude`).
+
+- [ ] Verse 5 — The operator can trust what the loop tells them: the two daemon defects found while
+  verifying Verses 1–3 are closed, so a held project says which session holds it and why, and a
+  spawn that produced no working session is loud and keeps its row instead of silently dropping a
+  bar. `bp add`'s readiness defects were the third and are now out of scope — see Decisions.
+  Touches: `daemon/loop.go` (the guard's log record, the hold-and-dequeue sequence),
+  `claude/dispatch.go` (the discarded spawn output).
 
 ## References
 
 - `probe-dispatch.sh` — the bash spelling of the spawn-and-confirm surface, ten lines: `cd` into
   the project, `claude --bg -n <name> '<prompt>'`, then confirm the row in `claude agents --json`.
   The Go in Verses 2–3 is this, with `exec.Cmd.Dir` doing the `cd`.
+- `BIT-41` track body, `## Decisions` — "Versioning was never what blocked BIT-39." The measurement
+  that took `bp add` out of Verse 5: the agent-resolution failure was upstream bug
+  anthropics/claude-code#27257, fixed in Claude Code 2.1.248 and confirmed resolving `bit:bot-dev`
+  in `tools/example`. It settles the *cause* only — `bp add`'s own three defects are untouched by it.
 - `automation-notes.md` — the working notes this scope is step 6 of. Its Decisions, Measured
   facts, and Open gaps sections are the source for everything above; the 2026-08-21 and
   2026-08-24 spawn-surface measurements inform all four verses.

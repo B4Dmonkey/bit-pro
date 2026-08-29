@@ -1,7 +1,8 @@
 ---
 id: BIT-39.8
 title: A live session holds the project
-status: todo
+status: done
+approved: true
 phase: 2
 phase_label: Bar runs unattended
 ---
@@ -72,13 +73,24 @@ queue.
 - [ ] `just lint`
 
 ## User verifies
-- [ ] Whole slice: `just install`. Pick a real approved, not-done bar on this repo and enqueue it
-  from `bp tui` (select it, press the enqueue key), confirm `bp list` shows the project, then run
-  `bp serve daemon -v` in a terminal with **no other Claude session open in bit-pro** and walk
-  away. Within a couple of ticks `claude agents --json` shows a background row named
-  `BIT-39-dispatch-the-daemon-works-queued-bars-unattended`, and the queue row is gone. Come back:
-  the bar's own work is committed on `worktree-BIT-39-dispatch-the-daemon-works-queued-bars-unattended`.
-  A bar ran with nobody watching, which is the whole point of the verse.
+- [ ] Whole slice, run against `tools/example` (registered as `EX`) — **not** this repo. The only
+  track in bit-pro's `.bit/tasks/` is BIT-39 itself, so dispatching here would spawn a session
+  rewriting `daemon/loop.go` underneath you, and the BIT-27 path cut would let it mark these bars
+  done in your checkout.
+
+  The workload is already written: `EX-2` "Shout (dispatch drain workload)", three bars, none of
+  them carrying `User verifies` — which is what makes `bit:bot-dev` commit each bar instead of
+  parking it. In `tools/example`, open `bp tui` and approve **only `EX-2.1`**, leaving `EX-2.2` and
+  `EX-2.3` unapproved so exactly one bar is eligible. Select `EX-2.1` and press `e` to enqueue it.
+  Confirm `bp list` shows the `EX` row.
+
+  `just install`, then run `bp serve daemon -v` in a terminal with **no Claude session open in
+  `tools/example`** and walk away. Within a couple of ticks `claude agents --json` shows a
+  background row named `EX-2-shout-dispatch-drain-workload`, and the queue row is gone *while that
+  row is still live* — dequeue is on confirmed spawn, not on completion. Come back and run
+  `./check.sh EX-2` in `tools/example`: `EX-2.1` reads `done`, and its commit is on branch
+  `worktree-EX-2-shout-dispatch-drain-workload`. A bar ran with nobody watching, which is the whole
+  point of the verse.
 
 ## Commit (user)
 `feat(daemon): hold a project that already has a live session`
