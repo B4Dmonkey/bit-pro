@@ -71,8 +71,8 @@ func (a Agent) Under(root string) bool {
 	return cwd == root || strings.HasPrefix(cwd, root+string(filepath.Separator))
 }
 
-func Agents(ctx context.Context, run DirRunner) ([]Agent, error) {
-	out, code, err := run(ctx, "", "claude", "agents", "--json")
+func Agents(ctx context.Context, run DirRunner, bin string) ([]Agent, error) {
+	out, code, err := run(ctx, "", bin, "agents", "--json")
 	if err != nil {
 		return nil, fmt.Errorf("listing sessions: %w", err)
 	}
@@ -89,16 +89,16 @@ func Agents(ctx context.Context, run DirRunner) ([]Agent, error) {
 	return agents, nil
 }
 
-func Spawn(ctx context.Context, run DirRunner, dir, name, bar string) error {
-	out, code, err := run(ctx, dir, "claude",
+func Spawn(ctx context.Context, run DirRunner, bin, dir, name, bar string) (string, error) {
+	out, code, err := run(ctx, dir, bin,
 		"--bg", "--agent", "bit:bot-dev", "-w", name, "-n", name, "/bit:do "+bar)
 	if err != nil {
-		return fmt.Errorf("spawning a session for %s: %w", bar, err)
+		return "", fmt.Errorf("spawning a session for %s: %w", bar, err)
 	}
 
 	if code != 0 {
-		return fmt.Errorf("spawning a session for %s: claude exited %d: %s", bar, code, out)
+		return "", fmt.Errorf("spawning a session for %s: claude exited %d: %s", bar, code, out)
 	}
 
-	return nil
+	return out, nil
 }

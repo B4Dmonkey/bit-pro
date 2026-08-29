@@ -444,3 +444,29 @@ func TestServeCmd_LogsStartAndStop(t *testing.T) {
 		t.Errorf("bp serve logged %v, want %v:\n%s", msgs, want, out)
 	}
 }
+
+func TestClaudePath(t *testing.T) {
+	tests := []struct {
+		name string
+		env  string
+		want string
+	}{
+		{
+			name: "the absolute path the plist pinned",
+			env:  "/Users/x/.local/bin/claude",
+			want: "/Users/x/.local/bin/claude",
+		},
+		{name: "unset", env: "", want: "claude"},
+		{name: "set but empty", env: "", want: "claude"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("BP_CLAUDE", tt.env)
+
+			if got := claudePath(); got != tt.want {
+				t.Errorf("claudePath() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}

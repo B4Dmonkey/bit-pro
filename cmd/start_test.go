@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"context"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -42,6 +44,8 @@ func TestStartCmd_EnrollsOrRepairsThePlist(t *testing.T) {
 			home := t.TempDir()
 			t.Setenv("HOME", home)
 			t.Setenv("XDG_DATA_HOME", "")
+
+			stubClaudeOnPath(t)
 
 			path := filepath.Join(home, "Library", "LaunchAgents", daemon.Label+".plist")
 			if tt.existing != "" {
@@ -112,6 +116,8 @@ func TestStartCmd_RepairsAStalePlist(t *testing.T) {
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_DATA_HOME", "")
 
+	stubClaudeOnPath(t)
+
 	path := filepath.Join(home, "Library", "LaunchAgents", daemon.Label+".plist")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatalf("os.MkdirAll(%q) returned error: %v", filepath.Dir(path), err)
@@ -152,6 +158,8 @@ func TestStartCmd_LogPathFollowsXDGDataHome(t *testing.T) {
 	data := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_DATA_HOME", data)
+
+	stubClaudeOnPath(t)
 
 	if _, err := runWithDaemon(t, nothingLoaded, startCmdUse); err != nil {
 		t.Fatalf("bp start returned error: %v", err)
@@ -218,6 +226,8 @@ func TestStartCmd_EnablesBeforeBootstrapping(t *testing.T) {
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_DATA_HOME", "")
 
+	stubClaudeOnPath(t)
+
 	var calls []string
 
 	out, err := runWithDaemon(t, recordingLaunchctl(&calls, bootstrapCall(home), "", 113), startCmdUse)
@@ -274,6 +284,8 @@ func TestStartCmd_ReconcilesTheStateItFinds(t *testing.T) {
 			t.Setenv("HOME", home)
 			t.Setenv("XDG_DATA_HOME", "")
 
+			stubClaudeOnPath(t)
+
 			var action string
 			if tt.action != nil {
 				action = tt.action(home)
@@ -300,5 +312,70 @@ func TestStartCmd_ReconcilesTheStateItFinds(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func stubClaudeOnPath(t *testing.T) string {
+	t.Helper()
+
+	dir := t.TempDir()
+
+	bin := filepath.Join(dir, "claude")
+	if err := os.WriteFile(bin, []byte("#!/bin/sh\n"), 0o600); err != nil {
+		t.Fatalf("os.WriteFile(%q) returned error: %v", bin, err)
+	}
+
+	if err := os.Chmod(bin, 0o700); err != nil {
+		t.Fatalf("os.Chmod(%q) returned error: %v", bin, err)
+	}
+
+	t.Setenv("PATH", dir)
+
+	return bin
+}
+
+func TestStartCmd_PinsTheResolvedClaudeInThePlist(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_DATA_HOME", "")
+
+	bin := stubClaudeOnPath(t)
+
+	if _, err := runWithDaemon(t, nothingLoaded, startCmdUse); err != nil {
+		t.Fatalf("bp start returned error: %v", err)
+	}
+
+	path := filepath.Join(home, "Library", "LaunchAgents", daemon.Label+".plist")
+
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("os.ReadFile(%q) returned error: %v", path, err)
+	}
+
+	want := regexp.MustCompile(`<key>EnvironmentVariables</key>\s*<dict>\s*<key>BP_CLAUDE</key>\s*<string>` +
+		regexp.QuoteMeta(bin) + `</string>\s*</dict>`)
+	if !want.MatchString(string(contents)) {
+		t.Errorf("plist does not match %s:\n%s", want, contents)
+	}
+}
+
+func TestStartCmd_FailsWhenClaudeIsNotOnThePath(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_DATA_HOME", "")
+	t.Setenv("PATH", t.TempDir())
+
+	_, err := runWithDaemon(t, nothingLoaded, startCmdUse)
+	if err == nil {
+		t.Fatal("bp start returned nil error, want an error naming claude")
+	}
+
+	if !strings.Contains(err.Error(), "claude") {
+		t.Errorf("bp start error = %q, want it to name claude", err)
+	}
+
+	path := filepath.Join(home, "Library", "LaunchAgents", daemon.Label+".plist")
+	if _, err := os.Stat(path); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("os.Stat(%q) error = %v, want fs.ErrNotExist", path, err)
 	}
 }

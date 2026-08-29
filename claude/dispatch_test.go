@@ -21,7 +21,7 @@ func TestAgents_ParsesTheRealPayload(t *testing.T) {
 		return string(payload), 0, nil
 	}
 
-	agents, err := Agents(t.Context(), run)
+	agents, err := Agents(t.Context(), run, "claude")
 	if err != nil {
 		t.Fatalf("Agents() returned error: %v", err)
 	}
@@ -47,6 +47,28 @@ type call struct {
 	dir  string
 	name string
 	args []string
+}
+
+func TestAgents_RunsTheBinaryItIsGiven(t *testing.T) {
+	const bin = "/opt/homebrew/bin/claude"
+
+	var got call
+
+	run := func(_ context.Context, dir, name string, args ...string) (string, int, error) {
+		got = call{dir: dir, name: name, args: args}
+
+		return "[]", 0, nil
+	}
+
+	if _, err := Agents(t.Context(), run, bin); err != nil {
+		t.Fatalf("Agents() returned error: %v", err)
+	}
+
+	want := call{dir: "", name: bin, args: []string{"agents", "--json"}}
+
+	if got.dir != want.dir || got.name != want.name || !slices.Equal(got.args, want.args) {
+		t.Errorf("Agents() ran %+v, want %+v", got, want)
+	}
 }
 
 func TestAgent_Under(t *testing.T) {

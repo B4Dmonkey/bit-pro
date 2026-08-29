@@ -7,7 +7,7 @@ import (
 )
 
 func TestPlist_ProgramArgumentsIncludesDaemon(t *testing.T) {
-	plist := string(Plist("/usr/local/bin/bp", "/tmp/daemon.log"))
+	plist := string(Plist("/usr/local/bin/bp", "/tmp/daemon.log", "/usr/local/bin/claude"))
 
 	for _, want := range []string{"<string>serve</string>", "<string>daemon</string>"} {
 		if !strings.Contains(plist, want) {
@@ -29,7 +29,7 @@ func TestPlist_ProgramArgumentsIncludesDaemon(t *testing.T) {
 }
 
 func TestPlist_KeepAliveRestartsOnCrashOnly(t *testing.T) {
-	plist := string(Plist("/usr/local/bin/bp", "/tmp/daemon.log"))
+	plist := string(Plist("/usr/local/bin/bp", "/tmp/daemon.log", "/usr/local/bin/claude"))
 
 	onCrashOnly := regexp.MustCompile(`<key>KeepAlive</key>\s*<dict>\s*<key>SuccessfulExit</key>\s*<false/>\s*</dict>`)
 	if !onCrashOnly.MatchString(plist) {

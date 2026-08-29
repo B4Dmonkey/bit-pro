@@ -36,6 +36,11 @@ var plistTemplate = template.Must(template.New("plist").Parse(`<?xml version="1.
 	<string>{{.LogPath}}</string>
 	<key>StandardErrorPath</key>
 	<string>{{.LogPath}}</string>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>BP_CLAUDE</key>
+		<string>{{.ClaudeBin}}</string>
+	</dict>
 </dict>
 </plist>
 `))
@@ -54,12 +59,13 @@ func PlistPath() (string, error) {
 	return filepath.Join(dir, Label+".plist"), nil
 }
 
-func Plist(exe, logPath string) []byte {
+func Plist(exe, logPath, claudeBin string) []byte {
 	fields := struct {
-		Label   string
-		Exe     string
-		LogPath string
-	}{Label: Label, Exe: exe, LogPath: logPath}
+		Label     string
+		Exe       string
+		LogPath   string
+		ClaudeBin string
+	}{Label: Label, Exe: exe, LogPath: logPath, ClaudeBin: claudeBin}
 
 	var rendered bytes.Buffer
 

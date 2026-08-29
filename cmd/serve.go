@@ -17,12 +17,23 @@ import (
 const (
 	serveCmdUse       = "serve"
 	serveDaemonCmdUse = "daemon"
+
+	claudeBinEnv      = "BP_CLAUDE"
+	claudeBinFallback = "claude"
 )
 
 var (
 	serveTick   = 5 * time.Second
 	serveRunner = claude.DirRunner(claude.ExecDirRunner)
 )
+
+func claudePath() string {
+	if bin := os.Getenv(claudeBinEnv); bin != "" {
+		return bin
+	}
+
+	return claudeBinFallback
+}
 
 func newHandler(w io.Writer, level slog.Level) slog.Handler {
 	opts := &slog.HandlerOptions{Level: level}
@@ -60,7 +71,7 @@ func newServeDaemonCmd() *cobra.Command {
 
 			queries := orm.New(sqlDB)
 
-			return daemon.Loop(cmd.Context(), queries, log, serveTick, serveRunner)
+			return daemon.Loop(cmd.Context(), queries, log, serveTick, serveRunner, claudePath())
 		},
 	}
 
