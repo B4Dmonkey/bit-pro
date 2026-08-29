@@ -17,14 +17,14 @@ A **verse** is one value slice in the delivery order (the checklist you write he
 
 Because bit_scope owns the WHY, the plan won't repeat it — the bars live under this track, so a reader gets the WHY by reading the track body. That makes the motivation in this document load-bearing: get it right.
 
-**Before you drive the CLI, run `bp instructions`** — the shared command contract (create a track, read/write a body, list bars). Every write goes through `bp`; never hand-edit `.bit/tasks/*.md`.
+Three tools cover everything this skill does: `mcp__bit__task_create` to mint the track, `mcp__bit__task_read` to read a body back, and `mcp__bit__task_update` to write a refined one. Never hand-edit `.bit/tasks/*.md` — that rule is the one the whole tool surface exists to enforce.
 
 ---
 
 ## Two modes
 
 **Create** — start from a feature request or problem description and build the scope from scratch as a new track.
-**Refine** — improve an existing scope. The user names the track (by ID like `BIT-7`, or by title); read its body with `bp task read <id> --body`, then write the refined body back. The user will typically loop here several times, tightening the verses and resolving unknowns into decisions, until they're satisfied enough to move to bit_plan. Refine is also where a **spike's result** lands: the user runs the spike, comes back with the answer, and the scope is revised around it — see *Refining after a spike*.
+**Refine** — improve an existing scope. The user names the track (by ID like `BIT-7`, or by title); read its body with `mcp__bit__task_read`, taking the `body` field, then write the refined body back. The user will typically loop here several times, tightening the verses and resolving unknowns into decisions, until they're satisfied enough to move to bit_plan. Refine is also where a **spike's result** lands: the user runs the spike, comes back with the answer, and the scope is revised around it — see *Refining after a spike*.
 
 ---
 
@@ -124,13 +124,9 @@ Don't over-research. If you find yourself reading function bodies to design the 
 
 ## Scope format
 
-The scope is authored as a **track body**. Draft the body (the markdown below), then create the track with it in one call — `task create` prints the new track ID, which is how bit_plan and bit_do later find this work:
+The scope is authored as a **track body**. Draft the body (the markdown below), then create the track with it in one call: `mcp__bit__task_create`, passing the scope title as `title` and the drafted prose directly as `body`. It returns the new track's `id`, which is how bit_plan and bit_do later find this work.
 
-```bash
-TRACK=$(bp task create "<scope title>" -d "$(cat scope-body.md)")
-```
-
-Refining an existing track means reading its body, editing, and writing it back with `bp task update <id> -d "…"`. Report the track ID to the user — it's the handle they'll name when they move to bit_plan.
+Refining an existing track means reading its body, editing, and writing it back with `mcp__bit__task_update`. Report the track ID to the user — it's the handle they'll name when they move to bit_plan.
 
 The order below is deliberate: the **pitch** first (why, what, and a picture of it), then the **problems still open**, then **what's been settled**, and only last **how the work breaks up**. A reader should be sold on the change and know what's undecided before they read the delivery order.
 
