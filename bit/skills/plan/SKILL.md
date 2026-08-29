@@ -7,7 +7,7 @@ description: Create or refine an implementation plan for a large task — bug fi
 
 You create and refine implementation plans. A plan is a set of **bars** (child tasks) under a scope's **track** in `.bit/`, authored through the `bp` CLI — one bar per step, detailed enough to work from autonomously across sessions, minimal enough not to waste tokens.
 
-**Before you drive the CLI, run `bp instructions`** — the shared command contract (read the scope from its track body, create bars under the track, tag each bar's verse). Every write goes through `bp`; never hand-edit `.bit/tasks/*.md`.
+Five tools cover everything this skill does: `mcp__bit__task_read` to read the scope from its track body, `mcp__bit__task_list` to walk the bars already under a track, `mcp__bit__task_create` to mint a bar, `mcp__bit__task_update` to reword one, and `mcp__bit__task_move` to reorder one. Never hand-edit `.bit/tasks/*.md` — that rule is the one the whole tool surface exists to enforce.
 
 ## Two modes
 
@@ -18,7 +18,7 @@ You create and refine implementation plans. A plan is a set of **bars** (child t
 
 ## Context — defer to the scope
 
-The WHY lives in the **scope** — the track body (bit_scope's work), not here. Because the bars you create live *under* that track, the linkage is structural: a reader opening a bar reads the parent track (`bp task read <track> --body`) for the WHY. You don't repeat the motivation in each bar, and there's no separate Context pointer to maintain — the parent relationship is the pointer.
+The WHY lives in the **scope** — the track body (bit_scope's work), not here. Because the bars you create live *under* that track, the linkage is structural: a reader opening a bar reads the parent track (`mcp__bit__task_read` on the bar's `parent`) for the WHY. You don't repeat the motivation in each bar, and there's no separate Context pointer to maintain — the parent relationship is the pointer.
 
 If **no scope track exists** — the user came straight to a plan — you still need the WHY before drafting. Either suggest writing a quick scope first (bit_scope creates the track), or capture 2–3 sentences of motivation and put them at the top of the track body yourself. A reader who knows nothing about the codebase should understand *why* this work is needed:
 
@@ -70,7 +70,7 @@ asked before the bar was written.
 
 ## Gathering context (new plans)
 
-**Start from the scope track.** The user names it (by ID or title); read its body end to end with `bp task read <track> --body` — the WHY, the verses, the "touches" pointers, the risks, and the References section if one exists. If the scope has a `## References` section, note which reference docs are relevant to which verses before drafting bars — the right ones need to be carried forward into the right bar bodies, not left in the scope where they'll be out of context when bit_do executes the step. The scope hands you the delivery order and the code areas each verse affects — your job is to turn its verses into TDD steps, one bar each under that track.
+**Start from the scope track.** The user names it (by ID or title); read its body end to end with `mcp__bit__task_read`, taking the `body` field — the WHY, the verses, the "touches" pointers, the risks, and the References section if one exists. If the scope has a `## References` section, note which reference docs are relevant to which verses before drafting bars — the right ones need to be carried forward into the right bar bodies, not left in the scope where they'll be out of context when bit_do executes the step. The scope hands you the delivery order and the code areas each verse affects — your job is to turn its verses into TDD steps, one bar each under that track.
 
 Once the gate above is clear, default to planning every verse in one pass. Splitting into multiple planning sessions exists to route around a genuine unknown, not as a default posture just because a scope has more than one verse — so don't ask the user to pick a verse to be cautious. That's about *breadth*, and it isn't licence to plan through an open question: nothing here overrides the gate, and a question that surfaces mid-draft still stops you.
 
@@ -307,13 +307,11 @@ to guess in the plan — hand back to bit_scope.
 
 ## Plan format
 
-Each step is **one bar** under the scope's track. The bar's **title** is the step name (what it proves); its `--phase`/`--phase-label` tag the verse it serves; its **body** is the step detail below. Create each bar in delivery order — `task create --parent` prints the dotted bar ID (`BIT-7.1`, `BIT-7.2`, …), and the order you create them in is the order bit_do will execute them:
+Each step is **one bar** under the scope's track. The bar's **title** is the step name (what it proves); its `phase`/`phase_label` tag the verse it serves; its **body** is the step detail below. Create each bar with `mcp__bit__task_create` in delivery order — pass `parent` (the track ID), `title`, `phase`, `phase_label`, and the whole step body as `body`. The call returns the new bar's dotted `id` (`BIT-7.1`, `BIT-7.2`, …), and the order you create them in is the order bit_do will execute them.
 
-```bash
-BAR=$(bp task create "Contradiction forces real fan-out" \
-        --parent "$TRACK" --phase 1 --phase-label "Ingest" \
-        -d "$(cat step-body.md)")
-```
+`body` is an ordinary string parameter, so the drafted markdown goes straight into the call — there is no file to stage it in and no ID to capture out of a shell.
+
+`task_create` also takes **`after`**: name a sibling bar and the new one lands directly after it instead of at the end of the track. That is how you insert a step *mid*-track at create time, so a plan drafted out of order doesn't need a follow-up `mcp__bit__task_move`.
 
 Report the bar IDs (or just the count and the track) back to the user when you're done.
 
@@ -407,8 +405,8 @@ The `Report back` item is what closes the loop — without it a spike's answer l
 
 ## Refining an existing plan
 
-1. Read the whole plan first: the track body (`task read <track> --body`) and every bar in order (`task list --parent <track>`, then `task read <bar> --body` for each).
-2. Compute what this change actually invalidates — don't just edit what you came to touch. If a bar being edited already contains a factual/architectural claim (a deployment mechanism, a build choice), verify it against the track's current Decisions and the codebase's actual precedent before keeping it — inherited text isn't pre-vetted just because it's already there. If the track's Decisions changed, list every bar in the track (`bp task list --parent <track>`), not just the ones this pass is touching, and reset to `todo` any non-`done` bar that no longer matches.
+1. Read the whole plan first: the track body (`mcp__bit__task_read`) and every bar in order (`mcp__bit__task_list` with `parent` set to the track ID, then `mcp__bit__task_read` on each bar for its `body`).
+2. Compute what this change actually invalidates — don't just edit what you came to touch. If a bar being edited already contains a factual/architectural claim (a deployment mechanism, a build choice), verify it against the track's current Decisions and the codebase's actual precedent before keeping it — inherited text isn't pre-vetted just because it's already there. If the track's Decisions changed, list every bar in the track (`mcp__bit__task_list` with `parent` set to the track ID), not just the ones this pass is touching, and reset to `todo` any non-`done` bar that no longer matches.
 3. Check the verse tags: is each bar tagged to a verse (`--phase`/`--phase-label`), and do the tags follow the scope's delivery order? An untagged bar, or one that jumps ahead of the walking skeleton, is a flag.
 4. Check that the bar bodies don't duplicate the WHY the track owns, or carry stray `**Status:**` lines — that's drift waiting to happen.
 5. Check the throughline: can you trace *why* each bar exists? Every bar after the first should be forced by a contradiction or dependency. If a bar says "now implement X" without a test that demands it, flag it — something is missing.
@@ -418,7 +416,7 @@ The `Report back` item is what closes the loop — without it a spike's answer l
 9. Check references: if the scope track has a `## References` section, are the relevant references carried into bars that need them? A bar touching a verse that depends on a spec or design doc should have a `## References` section pointing to it. Flag any bar where the reference is missing and the implementer would need it.
 10. Check the spikes both ways. Does each spike bar state a falsifiable observation (yes looks like / no looks like), say whether its artifact is kept, and end with a `Report back` item? And the drift case that matters more: are there bars planned for verses the scope says depend on an *unresolved* spike? Those were written without the answer, so flag them — the fix is to hold them until the spike reports back, not to polish them.
 11. Flag YAGNI violations, over-bundled bars, or missing verification
-12. Apply edits through the CLI: reword a bar with `task update <bar> -d "…"`, add a missing step with `task create --parent …`, and **reorder a misplaced bar with `task move <bar> --before|--after <sibling>`** — the ID is stable identity, so moving a bar rewrites only the track's order list and every reference to that bar (commit messages, notes) stays valid. Don't delete-and-recreate to reorder; that churns IDs and breaks those references. Propose changes with reasoning — don't silently rewrite large sections.
+12. Apply edits through the tools: reword a bar with `mcp__bit__task_update`, passing the rewritten `body`; add a missing step with `mcp__bit__task_create`; and **reorder a misplaced bar with `mcp__bit__task_move`, passing `bar` and exactly one of `before`/`after`** — the ID is stable identity, so moving a bar rewrites only the track's order list and every reference to that bar (commit messages, notes) stays valid. Don't delete-and-recreate to reorder; that churns IDs and breaks those references. Propose changes with reasoning — don't silently rewrite large sections.
 
 Confirm with the user before rewriting more than a few bars.
 
