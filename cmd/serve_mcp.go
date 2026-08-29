@@ -52,8 +52,17 @@ bar serves. The returned id is the new task's ID, and its status starts at todo.
 const taskUpdateDescription = `Update a task's fields and report whether approval survived.
 
 Every field is optional: one that is omitted is left unchanged, and one that is sent is written.
-The returned approved reflects whether the edit revoked approval: a change to what was reviewed
-revokes it, so a body rewrite of an approved task comes back with approved false.`
+The returned approved reflects whether the edit revoked approval. Sending any of
+title, body, phase or phase_label revokes it, so that a replan cannot quietly alter what someone
+already blessed — revocation fires on the field being sent, not on its value differing, so a body
+rewrite of an approved task comes back with approved false even if the text is unchanged.
+Writing status todo revokes approval too, because a task pulled back for rework has to be
+re-reviewed before it runs again, while a forward move to doing or done keeps approval, being the
+act of doing work that was already approved.
+
+Status does not cascade to the parent: setting a bar's status leaves its track untouched, so a
+caller that wants the track to reflect its bars sets the track's status in a separate call. The
+status enum admits only todo, doing and done, so that rollup can fail only by being left undone.`
 
 const taskMoveDescription = `Resequence a bar within its track.
 

@@ -36,6 +36,13 @@ const (
 
 	testTrackSentence = "A track is a top-level task"
 	testBarIDExample  = "BIT-7.3"
+
+	testRevokingFields       = "title, body, phase or phase_label revokes it"
+	testTodoRevokes          = "Writing status todo revokes approval"
+	testForwardKeepsApproval = "a forward move to doing or done keeps approval"
+
+	testNoCascade     = "does not cascade"
+	testCallerRollsUp = "sets the track's status in a separate call"
 )
 
 func TestServeMCPCmd_TaskReadReturnsStructuredFields(t *testing.T) {
@@ -184,17 +191,28 @@ func TestMCPToolDescriptions_CarryTheDomain(t *testing.T) {
 	}
 
 	tests := []struct {
+		name string
 		tool string
 		want []string
 	}{
-		{tool: taskReadTool, want: []string{testTrackSentence, testBarIDExample}},
-		{tool: taskListTool, want: []string{testTrackSentence, testBarIDExample}},
-		{tool: taskCreateTool, want: []string{testTrackSentence, testBarIDExample}},
-		{tool: taskCompleteTool, want: []string{testTrackSentence}},
+		{name: taskReadTool, tool: taskReadTool, want: []string{testTrackSentence, testBarIDExample}},
+		{name: taskListTool, tool: taskListTool, want: []string{testTrackSentence, testBarIDExample}},
+		{name: taskCreateTool, tool: taskCreateTool, want: []string{testTrackSentence, testBarIDExample}},
+		{name: taskCompleteTool, tool: taskCompleteTool, want: []string{testTrackSentence}},
+		{
+			name: taskUpdateTool + " approval",
+			tool: taskUpdateTool,
+			want: []string{testRevokingFields, testTodoRevokes, testForwardKeepsApproval},
+		},
+		{
+			name: taskUpdateTool + " rollup",
+			tool: taskUpdateTool,
+			want: []string{testNoCascade, testCallerRollsUp},
+		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.tool, func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			got, ok := described[tt.tool]
 			if !ok {
 				t.Fatalf("%s is not a registered tool", tt.tool)
