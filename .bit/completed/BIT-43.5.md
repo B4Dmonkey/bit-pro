@@ -1,7 +1,8 @@
 ---
 id: BIT-43.5
 title: bit:plan mints bars through task_create
-status: todo
+status: done
+approved: true
 phase: 2
 phase_label: Scope, check, plan
 ---

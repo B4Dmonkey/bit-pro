@@ -1,7 +1,8 @@
 ---
 id: BIT-43.11
 title: No bp reference survives the plugin-wide sweep
-status: todo
+status: done
+approved: true
 phase: 5
 phase_label: Full cycle
 ---

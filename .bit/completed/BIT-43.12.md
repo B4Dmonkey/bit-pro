@@ -1,7 +1,8 @@
 ---
 id: BIT-43.12
 title: A full cycle runs on tools alone
-status: todo
+status: done
+approved: true
 phase: 5
 phase_label: Full cycle
 ---

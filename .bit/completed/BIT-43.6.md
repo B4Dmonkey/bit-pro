@@ -1,7 +1,8 @@
 ---
 id: BIT-43.6
 title: bit:do runs a bar through tools
-status: todo
+status: done
+approved: true
 phase: 3
 phase_label: Do + agents
 ---

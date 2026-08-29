@@ -1,7 +1,8 @@
 ---
 id: BIT-43.2
 title: bit:feedback records through feedback_add
-status: todo
+status: done
+approved: true
 phase: 1
 phase_label: Narrow skills
 ---

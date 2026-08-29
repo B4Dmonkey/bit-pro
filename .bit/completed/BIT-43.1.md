@@ -1,7 +1,8 @@
 ---
 id: BIT-43.1
 title: bit:retro reads through tools, not Bash
-status: todo
+status: done
+approved: true
 phase: 1
 phase_label: Narrow skills
 ---

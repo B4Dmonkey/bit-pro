@@ -1,7 +1,8 @@
 ---
 id: BIT-43.9
 title: Contradiction forces approval and rollup onto task_update
-status: todo
+status: done
+approved: true
 phase: 4
 phase_label: Domain on descriptions
 ---

@@ -1,7 +1,8 @@
 ---
 id: BIT-43.4
 title: bit:check audits through structured reads
-status: todo
+status: done
+approved: true
 phase: 2
 phase_label: Scope, check, plan
 ---

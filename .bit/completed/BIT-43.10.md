@@ -1,7 +1,8 @@
 ---
 id: BIT-43.10
 title: bp instructions and the embedded contract retire
-status: todo
+status: done
+approved: true
 phase: 4
 phase_label: Domain on descriptions
 ---

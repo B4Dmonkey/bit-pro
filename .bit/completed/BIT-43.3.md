@@ -1,7 +1,8 @@
 ---
 id: BIT-43.3
 title: bit:scope authors tracks through tools
-status: todo
+status: done
+approved: true
 phase: 2
 phase_label: Scope, check, plan
 ---

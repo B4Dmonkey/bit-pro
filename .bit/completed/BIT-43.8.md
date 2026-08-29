@@ -1,7 +1,8 @@
 ---
 id: BIT-43.8
 title: task_read's description teaches track vs bar
-status: todo
+status: done
+approved: true
 phase: 4
 phase_label: Domain on descriptions
 ---

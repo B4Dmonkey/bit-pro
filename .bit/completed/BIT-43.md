@@ -1,8 +1,7 @@
 ---
 id: BIT-43
 title: Skills walk the MCP surface
-status: todo
-approved: true
+status: doing
 ---
 ## Why
 
@@ -45,30 +44,30 @@ descriptions and retire the command.
 
 ## Verses
 
-- [ ] Verse 1 — Narrow skills migrate (bit:retro + bit:feedback): `bit:retro` is read-only
+- [x] Verse 1 — Narrow skills migrate (bit:retro + bit:feedback): `bit:retro` is read-only
   (task_list, task_read); `bit:feedback` adds feedback_add. Both rewritten via skill-creator,
   pushed to GitHub, and the plugin refreshed before claiming done.
   Touches: `bit/skills/retro/SKILL.md`, `bit/skills/feedback/SKILL.md`.
 
-- [ ] Verse 2 — Scope, check, plan migrate: `bit:scope` (task_create + task_update),
+- [x] Verse 2 — Scope, check, plan migrate: `bit:scope` (task_create + task_update),
   `bit:check` (reads + occasional status-cleanup update), `bit:plan` (many task_create
   calls). Write surface, no approval complexity. Each rewritten via skill-creator and pushed.
   Touches: `bit/skills/scope/SKILL.md`, `bit/skills/check/SKILL.md`,
   `bit/skills/plan/SKILL.md`.
 
-- [ ] Verse 3 — Do + agents migrate: `bit:do` (approval gate, status rollup, task_complete)
+- [x] Verse 3 — Do + agents migrate: `bit:do` (approval gate, status rollup, task_complete)
   and both agents (`bot.md`, `bot-dev.md`). Most complex surface; rewritten via skill-creator
   and pushed.
   Touches: `bit/skills/do/SKILL.md`, `bit/agents/bot.md`, `bit/agents/bot-dev.md`.
 
-- [ ] Verse 4 — Domain lands on the tool descriptions and `bp instructions` retires: the
+- [x] Verse 4 — Domain lands on the tool descriptions and `bp instructions` retires: the
   description constants in `cmd/serve_mcp.go` carry track-vs-bar, approval semantics,
   rollup ownership, and ID reservation — everything the command currently teaches. Once this
   lands and `just install` runs, `bp instructions` can be removed from the CLI.
   Touches: `cmd/serve_mcp.go` (description constants, particularly `taskReadDescription`);
   `assets/bit-cli.md` and the `instructions` command retire.
 
-- [ ] Verse 5 — Full cycle without bash: push all Verse 4 changes, install the plugin in
+- [x] Verse 5 — Full cycle without bash: push all Verse 4 changes, install the plugin in
   `tools/example`, run a complete scope → plan → do pass. Done when no skill or agent
   contains a `bp task`, `bp feedback`, or `bp instructions` bash block, and the cycle
   produces correct output.

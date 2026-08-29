@@ -1,7 +1,8 @@
 ---
 id: BIT-43.7
 title: Both agents drive the typed surface
-status: todo
+status: done
+approved: true
 phase: 3
 phase_label: Do + agents
 ---
