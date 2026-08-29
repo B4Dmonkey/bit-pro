@@ -3,6 +3,9 @@ id: BIT-42
 title: Unapproved bars must never read as queued
 status: todo
 ---
+> **ON HOLD — do not plan this yet.** Blocked on BIT-39 and on a daemon loop that
+> observably dispatches. See `## Risks & unknowns`. Put on hold 2026-08-29.
+
 ## Why
 
 The board tells the operator something untrue. In the TUI right now, `BIT-41.5` renders
@@ -21,7 +24,7 @@ and was not, with nothing on screen to distinguish the two.
 Make the queue agree with the ledger, and make the operator able to see and correct it.
 A bar that loses approval, or finishes, leaves the queue at the moment it happens rather
 than waiting for a daemon pass that may never come. Trying to queue an unapproved bar is
-refused out loud instead of silently ignored. And the queue stops being write-only — the
+refused instead of silently ignored. And the queue stops being write-only — the
 operator can look at it and clear it.
 
 ## Visual aid
@@ -42,18 +45,6 @@ gated twice over:
                                          (i.e. exactly while you are using the TUI)
 ```
 
-## Risks & unknowns
-
-- **Unknown:** Where does a transient message live in the TUI? The bottom row currently
-  renders `m.help.View(m.helpKeys())` and nothing else competes for it, so swapping that
-  row for a message is the obvious home — but it has not been built, and whether a message
-  should time out, persist until the next keypress, or persist until the next reload is a
-  feel question that only shows up on screen.
-  **Resolve by:** Verse 3 builds the thinnest version (replace the help row while a message
-  is set, clear it on the next keypress) and the operator judges it live.
-  **De-risk before planning?** No — it is a small, reversible piece of rendering, and
-  nothing else in the scope depends on the answer.
-
 ## Decisions
 
 - **Revoking approval dequeues immediately; readers do not filter defensively.** The queue
@@ -71,9 +62,9 @@ gated twice over:
   `task/store.go:302` that fires when a task's content changes. A fix that only covers the
   explicit command leaves the most common path — editing a bar — still able to strand a
   queue row.
-- **Enqueue refuses an unapproved bar out loud.** Silently dropping the keypress is what the
-  track path does today, and it is why the mismatch went unnoticed. The operator gets told
-  the bar is not approved. Accepted cost: the TUI has no message surface, so one gets built.
+- **Enqueue refuses an unapproved bar; the colour not changing is the signal.** The bar
+  stays its current colour because nothing was enqueued — the operator sees the keypress had
+  no effect. No message surface is built.
 - **The daemon's existing `dropped()` check stays.** It is the last line of defence at
   dispatch time and costs nothing. This scope makes it the backstop rather than the only
   mechanism.
@@ -95,10 +86,43 @@ gated twice over:
   board cannot drift back into disagreeing with the ledger.
   Touches: `cmd/approve.go`, `cmd/tui.go`, `cmd/task/`, `db/queries/queue.sql`.
 
-- [ ] Verse 3 — Queueing an unapproved bar is refused, visibly: selecting a bar directly and
-  pressing enqueue honours the same approval-and-not-done filter the track path already
-  applies, and the TUI says why nothing happened instead of swallowing the keypress.
-  Touches: `tui/model.go` (`enqueueSelected`, `enqueueableBarIDs`), the TUI's bottom row.
+- [ ] Verse 3 — Queueing an unapproved bar is refused: selecting a bar directly and pressing
+  enqueue honours the same approval-and-not-done filter the track path already applies.
+  The bar stays its current colour — the keypress is a no-op when the bar is not approved.
+  Touches: `tui/model.go` (`enqueueSelected`, `enqueueableBarIDs`).
+
+## Risks & unknowns
+
+- **BLOCKER — BIT-39 is not delivered.** BIT-39 ("Dispatch — the daemon works queued bars
+  unattended") is `doing`, 15 of 16 bars done, with BIT-39.18 open in phase 5. Every verse
+  here assumes a queue that something drains. Until then a stale row is a cosmetic colour
+  bug, and the fix would be built and verified against a mechanism nobody can exercise.
+  **Resolves when:** BIT-39 is signed off and filed.
+
+- **BLOCKER — the daemon loop is not known to work.** Distinct from the above: BIT-39
+  marked done is not the same as dispatch observably running. `daemon/loop.go:81` skips
+  dispatch entirely while a live session is under the project — i.e. exactly while the TUI
+  is open — so the reconciliation this scope builds cannot be seen working end to end until
+  a real bar dispatches unattended.
+  **Resolves when:** a queued bar is observed dispatching with no session attached.
+
+- **UNSETTLED — Verse 1's user-facing surface.** Three calls bit_plan cannot make, because
+  each would write a naming choice into a test assertion:
+  1. The command shape — `bp queue` vs `bp queue list`, and what the removal subcommand is
+     called. No `bp queue` command exists today; the only clearing mechanism is
+     `clear-queue.sh`, which deletes every row across every project via raw sqlite.
+  2. The removal identifier — `DeleteQueueRow` takes the queue's numeric row id. Removing
+     by bar ID (`BIT-41.5`) needs a new query and a different command signature.
+  3. The TUI dequeue key — `e` is enqueue today; whether dequeue gets its own binding or
+     `e` becomes a toggle is open.
+
+  Verses 2 and 3 are fully settled by the Decisions above and could be drafted as-is.
+
+- **STALE PREMISE — the Why and Visual aid cite conditions that no longer hold.** BIT-41.5
+  is described as `todo, NOT approved`; it now reads `done, approved: true`, and all of
+  BIT-41 is filed under `.bit/completed/`. The "six stale rows sitting there today" are
+  gone — the queue table is empty. The defect is unchanged and still reproducible; only the
+  worked example has moved on. Refresh these when the scope comes off hold.
 
 ## References
 

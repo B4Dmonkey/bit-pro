@@ -1,7 +1,7 @@
 ---
 id: BIT-39
 title: Dispatch — the daemon works queued bars unattended
-status: doing
+status: done
 order:
     - BIT-39.1
     - BIT-39.2

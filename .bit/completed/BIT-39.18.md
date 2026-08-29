@@ -1,7 +1,7 @@
 ---
 id: BIT-39.18
 title: The dequeue waits a tick for the session to survive
-status: todo
+status: done
 approved: true
 phase: 5
 phase_label: Cleanup

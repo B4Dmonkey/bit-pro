@@ -1,7 +1,7 @@
 ---
 id: BIT-39.12
 title: A spawn that produced no session is not a dispatch
-status: todo
+status: done
 approved: true
 phase: 5
 phase_label: Cleanup
