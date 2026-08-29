@@ -17,6 +17,7 @@ const (
 	msgStopped        = "stopped"
 	msgNotDispatching = "not dispatching"
 	msgDispatching    = "dispatching"
+	msgDispatched     = "dispatched"
 )
 
 func Loop(
@@ -83,6 +84,8 @@ func Tick(ctx context.Context, queries *orm.Queries, log *slog.Logger, run claud
 			continue
 		}
 
+		confirm(ctx, queries, log, live, p, store)
+
 		if i := slices.IndexFunc(live, func(a claude.Agent) bool { return a.Under(p.Path) }); i >= 0 {
 			log.Info(msgNotDispatching, "project", p.Code, "session", live[i].Name, "cwd", live[i].Cwd)
 
@@ -125,7 +128,7 @@ func dispatch(
 		return
 	}
 
-	name, ok := worktreeFor(log, store, p, bar)
+	name, ok := worktreeFor(log, store, p, bar.ID)
 	if !ok {
 		return
 	}
@@ -138,34 +141,42 @@ func dispatch(
 	}
 
 	log.Info(msgDispatching, "project", p.Code, "bar", bar.ID, "worktree", name, "out", out)
-
-	dequeue(ctx, queries, log, run, bin, p, head.ID, bar.ID, name)
 }
 
-func dequeue(
+func confirm(
 	ctx context.Context,
 	queries *orm.Queries,
 	log *slog.Logger,
-	run claude.DirRunner, bin string,
+	live []claude.Agent,
 	p orm.Project,
-	rowID int64,
-	barID, name string,
+	store *task.Store,
 ) {
-	agents, err := claude.Agents(ctx, run, bin)
+	rows, err := queries.ListQueueByProject(ctx, p.ID)
 	if err != nil {
-		log.Error("confirming the dispatched session", "project", p.Code, "bar", barID, "err", err)
+		log.Error("listing the queue", "project", p.Code, "err", err)
 
 		return
 	}
 
-	if !slices.ContainsFunc(agents, func(a claude.Agent) bool { return a.Name == name }) {
-		log.Warn("dispatched session not visible yet", "project", p.Code, "bar", barID, "worktree", name)
-
+	if len(rows) == 0 {
 		return
 	}
 
-	if err := queries.DeleteQueueRow(ctx, rowID); err != nil {
-		log.Error("dequeueing the dispatched bar", "project", p.Code, "bar", barID, "err", err)
+	head := rows[0]
+
+	name, ok := worktreeFor(log, store, p, head.TargetID)
+	if !ok {
+		return
+	}
+
+	if !slices.ContainsFunc(live, func(a claude.Agent) bool { return a.Name == name }) {
+		return
+	}
+
+	log.Info(msgDispatched, "project", p.Code, "bar", head.TargetID, "worktree", name)
+
+	if err := queries.DeleteQueueRow(ctx, head.ID); err != nil {
+		log.Error("dequeueing the dispatched bar", "project", p.Code, "bar", head.TargetID, "err", err)
 	}
 }
 
@@ -195,11 +206,11 @@ func worktreeFor(
 	log *slog.Logger,
 	store *task.Store,
 	p orm.Project,
-	bar *task.Task,
+	targetID string,
 ) (name string, ok bool) {
-	parent, ok := task.ParentID(bar.ID)
+	parent, ok := task.ParentID(targetID)
 	if !ok {
-		log.Warn("queued target is not a bar", "project", p.Code, "bar", bar.ID)
+		log.Warn("queued target is not a bar", "project", p.Code, "bar", targetID)
 
 		return "", false
 	}
