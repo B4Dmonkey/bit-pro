@@ -27,6 +27,13 @@ const (
 	statusProperty = "status"
 )
 
+const taskReadDescription = `Read one task by ID, returning its fields and its body together.
+
+A track is a top-level task — one whole scope — and its ID has no dot, as in BIT-7. A bar is a
+child of a track — one plan step — and its ID is dotted, as in BIT-7.3. The result carries body
+alongside id, title, status, approved, phase, phase_label and parent, so reading a task's prose and
+reading its summary are the same call rather than two.`
+
 const taskListDescription = `List tasks as structured fields, in the order bp prints them.
 
 A track is a top-level task — one whole scope — and its ID has no dot, as in BIT-7. A bar is a
@@ -45,8 +52,17 @@ bar serves. The returned id is the new task's ID, and its status starts at todo.
 const taskUpdateDescription = `Update a task's fields and report whether approval survived.
 
 Every field is optional: one that is omitted is left unchanged, and one that is sent is written.
-The returned approved reflects whether the edit revoked approval: a change to what was reviewed
-revokes it, so a body rewrite of an approved task comes back with approved false.`
+The returned approved reflects whether the edit revoked approval. Sending any of
+title, body, phase or phase_label revokes it, so that a replan cannot quietly alter what someone
+already blessed — revocation fires on the field being sent, not on its value differing, so a body
+rewrite of an approved task comes back with approved false even if the text is unchanged.
+Writing status todo revokes approval too, because a task pulled back for rework has to be
+re-reviewed before it runs again, while a forward move to doing or done keeps approval, being the
+act of doing work that was already approved.
+
+Status does not cascade to the parent: setting a bar's status leaves its track untouched, so a
+caller that wants the track to reflect its bars sets the track's status in a separate call. The
+status enum admits only todo, doing and done, so that rollup can fail only by being left undone.`
 
 const taskMoveDescription = `Resequence a bar within its track.
 
@@ -183,7 +199,7 @@ func newServeMCPCmd() *cobra.Command {
 
 func runMCPServer(ctx context.Context, root string, transport mcp.Transport) error {
 	s := mcp.NewServer(&mcp.Implementation{Name: "bp", Version: "1"}, nil)
-	mcp.AddTool(s, &mcp.Tool{Name: taskReadTool, Description: "Read a task by ID"}, taskReadHandler(root))
+	mcp.AddTool(s, &mcp.Tool{Name: taskReadTool, Description: taskReadDescription}, taskReadHandler(root))
 	mcp.AddTool(s, &mcp.Tool{Name: taskListTool, Description: taskListDescription}, taskListHandler(root))
 	mcp.AddTool(s, &mcp.Tool{Name: taskCreateTool, Description: taskCreateDescription}, taskCreateHandler(root))
 

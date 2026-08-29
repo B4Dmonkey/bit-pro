@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/task"
@@ -32,6 +33,16 @@ const (
 	testPhaseLabelKey = "phase_label"
 	testApprovedKey   = "approved"
 	testBodyKey       = "body"
+
+	testTrackSentence = "A track is a top-level task"
+	testBarIDExample  = "BIT-7.3"
+
+	testRevokingFields       = "title, body, phase or phase_label revokes it"
+	testTodoRevokes          = "Writing status todo revokes approval"
+	testForwardKeepsApproval = "a forward move to doing or done keeps approval"
+
+	testNoCascade     = "does not cascade"
+	testCallerRollsUp = "sets the track's status in a separate call"
 )
 
 func TestServeMCPCmd_TaskReadReturnsStructuredFields(t *testing.T) {
@@ -165,5 +176,53 @@ func TestServeMCPCmd_TaskListParentReturnsOnlyThatTracksBarsInOrder(t *testing.T
 		if gotID := tasks[i]["id"]; gotID != wantID {
 			t.Errorf("tasks[%d][id] = %v, want %v", i, gotID, wantID)
 		}
+	}
+}
+
+func TestMCPToolDescriptions_CarryTheDomain(t *testing.T) {
+	res, err := mcpSession(t, t.TempDir()).ListTools(t.Context(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	described := make(map[string]string, len(res.Tools))
+	for _, tool := range res.Tools {
+		described[tool.Name] = tool.Description
+	}
+
+	tests := []struct {
+		name string
+		tool string
+		want []string
+	}{
+		{name: taskReadTool, tool: taskReadTool, want: []string{testTrackSentence, testBarIDExample}},
+		{name: taskListTool, tool: taskListTool, want: []string{testTrackSentence, testBarIDExample}},
+		{name: taskCreateTool, tool: taskCreateTool, want: []string{testTrackSentence, testBarIDExample}},
+		{name: taskCompleteTool, tool: taskCompleteTool, want: []string{testTrackSentence}},
+		{
+			name: taskUpdateTool + " approval",
+			tool: taskUpdateTool,
+			want: []string{testRevokingFields, testTodoRevokes, testForwardKeepsApproval},
+		},
+		{
+			name: taskUpdateTool + " rollup",
+			tool: taskUpdateTool,
+			want: []string{testNoCascade, testCallerRollsUp},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := described[tt.tool]
+			if !ok {
+				t.Fatalf("%s is not a registered tool", tt.tool)
+			}
+
+			for _, want := range tt.want {
+				if !strings.Contains(got, want) {
+					t.Errorf("%s description is missing %q", tt.tool, want)
+				}
+			}
+		})
 	}
 }

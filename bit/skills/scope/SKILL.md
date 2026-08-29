@@ -1,30 +1,30 @@
 ---
 name: bit_scope
-description: Create or refine a high-level scope (an RFC-style overview) for a feature or change BEFORE any detailed planning. Use this first — whenever the user wants to frame WHAT is changing and WHY at a high level, sketch the shape of a feature request, decide the order of delivery, or surface risks and unknowns to de-risk before committing to a detailed plan. Triggers on "scope this out", "give me a high-level overview", "what's the shape of this feature", "let's write an RFC", "think through the delivery order", "before we plan", or describing a feature request where implementation detail isn't wanted yet. Also use it when a **spike has come back with a result** — "the spike worked", "here's what we learned", "the plugin update does/doesn't apply" — because the answer turns an unknown into a decision and the verses that depended on it have to be revised here before they can be planned. Authors the scope as a track in `.bit/` through the `bp` CLI — the motivation (WHY), a coarse checklist of value-delivering verses (each a usable vertical slice, ordered for incremental value), light pointers to the code areas each verse touches, the open risks/unknowns, and the decisions that iteration has settled. This is the overview that feeds bit_plan — bit_scope owns the WHY and the delivery order; bit_plan turns each verse into detailed TDD steps; bit_do executes. Reach for bit_scope for the high-level shape, bit_plan for the detailed plan, bit_do to build it.
+description: Create or refine a high-level scope (an RFC-style overview) for a feature or change BEFORE any detailed planning. Use this first — whenever the user wants to frame WHAT is changing and WHY at a high level, sketch the shape of a feature request, decide the order of delivery, or surface risks and unknowns to de-risk before committing to a detailed plan. Triggers on "scope this out", "give me a high-level overview", "what's the shape of this feature", "let's write an RFC", "think through the delivery order", "before we plan", or describing a feature request where implementation detail isn't wanted yet. Also use it when a **spike has come back with a result** — "the spike worked", "here's what we learned", "the plugin update does/doesn't apply" — because the answer turns an unknown into a decision and the verses that depended on it have to be revised here before they can be planned. Authors the scope as a track in `.bit/` through the `mcp__bit__*` tools — the motivation (WHY), a coarse checklist of value-delivering verses (each a usable vertical slice, ordered for incremental value), light pointers to the code areas each verse touches, the open risks/unknowns, and the decisions that iteration has settled. This is the overview that feeds bit_plan — bit_scope owns the WHY and the delivery order; bit_plan turns each verse into detailed TDD steps; bit_do executes. Reach for bit_scope for the high-level shape, bit_plan for the detailed plan, bit_do to build it.
 ---
 
 # Scope Creator
 
 You write and refine a **scope** — a short, high-level overview of a proposed software change. You do NOT write code, name functions, or produce a granular task list; a later skill (bit_plan) does that. Your job is clarity about **what** is changing, **why**, and **in what order** value gets delivered.
 
-A scope lives as a **track** in `.bit/` — a top-level task whose body holds the scope prose — authored and refined through the local `bp` CLI. The user refines it until they're happy with the shape of the work. It is the first of three artifacts:
+A scope lives as a **track** in `.bit/` — a top-level task whose body holds the scope prose — authored and refined through the `mcp__bit__*` tools. The user refines it until they're happy with the shape of the work. It is the first of three artifacts:
 
 - **bit_scope** (this skill) — the high-level shape: why, and the order of delivery. Owns the WHY.
 - **bit_plan** — turns the scope's verses into detailed, contradiction-driven TDD steps, one **bar** (child task) per step under this track.
 - **bit_do** — executes the plan, moving each bar's status and rolling the track up as progress lands.
 
-A **verse** is one value slice in the delivery order (the checklist you write here); bit_plan tags each bar to the verse it serves with the `--phase`/`--phase-label` flags (the CLI flag keeps the name `phase`; the scope calls the slice a verse), and bit_do checks a verse off once all its bars are done.
+A **verse** is one value slice in the delivery order (the checklist you write here); bit_plan tags each bar to the verse it serves with the `phase`/`phase_label` fields (the field keeps the name `phase`; the scope calls the slice a verse), and bit_do checks a verse off once all its bars are done.
 
 Because bit_scope owns the WHY, the plan won't repeat it — the bars live under this track, so a reader gets the WHY by reading the track body. That makes the motivation in this document load-bearing: get it right.
 
-**Before you drive the CLI, run `bp instructions`** — the shared command contract (create a track, read/write a body, list bars). Every write goes through `bp`; never hand-edit `.bit/tasks/*.md`.
+Three tools cover everything this skill does: `mcp__bit__task_create` to mint the track, `mcp__bit__task_read` to read a body back, and `mcp__bit__task_update` to write a refined one. Never hand-edit `.bit/tasks/*.md` — that rule is the one the whole tool surface exists to enforce.
 
 ---
 
 ## Two modes
 
 **Create** — start from a feature request or problem description and build the scope from scratch as a new track.
-**Refine** — improve an existing scope. The user names the track (by ID like `BIT-7`, or by title); read its body with `bp task read <id> --body`, then write the refined body back. The user will typically loop here several times, tightening the verses and resolving unknowns into decisions, until they're satisfied enough to move to bit_plan. Refine is also where a **spike's result** lands: the user runs the spike, comes back with the answer, and the scope is revised around it — see *Refining after a spike*.
+**Refine** — improve an existing scope. The user names the track (by ID like `BIT-7`, or by title); read its body with `mcp__bit__task_read`, taking the `body` field, then write the refined body back. The user will typically loop here several times, tightening the verses and resolving unknowns into decisions, until they're satisfied enough to move to bit_plan. Refine is also where a **spike's result** lands: the user runs the spike, comes back with the answer, and the scope is revised around it — see *Refining after a spike*.
 
 ---
 
@@ -124,13 +124,9 @@ Don't over-research. If you find yourself reading function bodies to design the 
 
 ## Scope format
 
-The scope is authored as a **track body**. Draft the body (the markdown below), then create the track with it in one call — `task create` prints the new track ID, which is how bit_plan and bit_do later find this work:
+The scope is authored as a **track body**. Draft the body (the markdown below), then create the track with it in one call: `mcp__bit__task_create`, passing the scope title as `title` and the drafted prose directly as `body`. It returns the new track's `id`, which is how bit_plan and bit_do later find this work.
 
-```bash
-TRACK=$(bp task create "<scope title>" -d "$(cat scope-body.md)")
-```
-
-Refining an existing track means reading its body, editing, and writing it back with `bp task update <id> -d "…"`. Report the track ID to the user — it's the handle they'll name when they move to bit_plan.
+Refining an existing track means reading its body, editing, and writing it back with `mcp__bit__task_update`. Report the track ID to the user — it's the handle they'll name when they move to bit_plan.
 
 The order below is deliberate: the **pitch** first (why, what, and a picture of it), then the **problems still open**, then **what's been settled**, and only last **how the work breaks up**. A reader should be sold on the change and know what's undecided before they read the delivery order.
 
@@ -235,7 +231,7 @@ Then hand back to bit_plan for the verses that were waiting. Say explicitly whic
 
 When the user is satisfied with the scope, the next step is bit_plan, which turns each verse into detailed TDD steps — one bar per step under this track. Give them the track ID and remind them, briefly, that:
 - The plan's bars live under this track, so they inherit the WHY rather than repeating it.
-- Each bar will be tagged (`--phase`/`--phase-label`) with the verse it serves, so progress rolls up.
+- Each bar will be tagged (`phase`/`phase_label`) with the verse it serves, so progress rolls up.
 - bit_do later moves each bar's status and rolls the track up — checking off a verse — as work lands.
 
 If the scope has a spike verse, say what bit_plan will do with it so the handoff isn't a surprise: it plans the spikes, and then either stops there (if the risk entry says later verses depend on the answer) or asks whether to split the scope in two (if it says they don't). Either way the user comes back here with the result before the dependent verses get planned.
