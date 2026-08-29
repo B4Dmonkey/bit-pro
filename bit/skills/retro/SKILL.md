@@ -16,7 +16,7 @@ You produce one artifact: a proposals file, written only after the user has walk
 This often runs after `/compact`, sometimes long after the cycle it's reviewing. Don't invent a narrative. Reconstruct from durable signals:
 
 - `.bit/feedback/*.md` — the notes themselves, see below.
-- The track and bar bodies: `bp task read <id> --body`.
+- The track and bar bodies: `mcp__bit__task_read`, whose `body` field *is* the prose.
 - `git log --oneline` for what actually shipped.
 - The user, for anything the documents don't answer — they remember the experience, you remember the artifacts.
 
@@ -24,9 +24,9 @@ If you're not sure something happened the way you're about to say it did, say so
 
 ## Finding the evidence
 
-**Before you drive the CLI, run `bp instructions`** — you'll use `bp task list` and `bp task read` to pull track/bar context. Note the asymmetry up front: you *read* through `bp`, but you do not *write* through it here — there's no `bp` command for a retro proposal, and this skill's own output (below) is a plain file you write directly. That's deliberate, not an oversight; don't go looking for a `bp retro` subcommand that doesn't exist.
+Pull track and bar context with `mcp__bit__task_list` and `mcp__bit__task_read`. Note the asymmetry up front: you *read* through the tool surface, but you do not *write* through it here — this skill's own output (below) is a plain file you write directly, because the surface carries no retro tool. That asymmetry doesn't have to be taken on faith anymore: the tool list is enumerable, so a tool that doesn't exist is visibly absent rather than something you have to be warned about.
 
-Feedback notes aren't listed by `bp` either — they're plain files. List `.bit/feedback/*.md` directly and read each one. A note's own prose names its track and cites its bar, so no separate lookup is required to place it; cross-reference `bp task read <track> --body` only when you need to check a note's claim against the track's *current* Decisions or Verses (a track may have been rescoped since the note was written).
+Feedback notes have no tool of their own either — they're plain files. List `.bit/feedback/*.md` directly and read each one. A note's own prose names its track and cites its bar, so no separate lookup is required to place it; cross-reference the track with `mcp__bit__task_read` only when you need to check a note's claim against the track's *current* Decisions or Verses (a track may have been rescoped since the note was written).
 
 Scope the review before diving in: one track, several, or the whole project ("the whole album"). If the user didn't say and more than one track has notes, list what you found and ask — don't guess which ones matter.
 
