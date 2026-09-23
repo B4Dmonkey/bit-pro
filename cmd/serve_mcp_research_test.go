@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/task"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 const (
@@ -19,7 +20,9 @@ const (
 		"- see [store](store.md)"
 	testRewrittenBody = "## Findings\n\n- rewritten after a re-check"
 	testUnsafeTopic   = "../../tasks/" + testTrackID
-	testDotsOnlyTopic = "..."
+	testEmptyTopicErr = "is empty"
+	testDotDotErr     = `contains ".."`
+	testSeparatorErr  = "contains a path separator"
 	testStoreTopic    = "store"
 	testStoreBody     = "Store.Load normalizes IDs before reading."
 	testMissingTopic  = "nope"
@@ -89,35 +92,6 @@ func TestServeMCPCmd_ResearchWriteOverwritesATopic(t *testing.T) {
 	}
 }
 
-func TestServeMCPCmd_ResearchWriteKeepsAnUnsafeTopicInTheTrackFolder(t *testing.T) {
-	dir := t.TempDir()
-	seedTasks(t, dir, &task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusDoing})
-
-	got := callTool(t, mcpSession(t, dir), researchWriteTool, map[string]any{
-		testTrackKey: testTrackID,
-		testTopicKey: testUnsafeTopic,
-		testBodyKey:  testResearchBody,
-	})
-
-	rel, err := filepath.Rel(filepath.Join(dir, ".bit", testResearchDir, testTrackID), got[testPathKey].(string))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if strings.HasPrefix(rel, "..") || strings.ContainsRune(rel, filepath.Separator) {
-		t.Errorf("topic path %q escapes the track's research folder", rel)
-	}
-
-	track, err := task.New(filepath.Join(dir, ".bit")).Load(testTrackID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if track.Title != testTitle {
-		t.Errorf("track title = %q, want %q", track.Title, testTitle)
-	}
-}
-
 func TestServeMCPCmd_ResearchWriteRefusesAnUnknownTrack(t *testing.T) {
 	dir := t.TempDir()
 	seedTasks(t, dir, &task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusDoing})
@@ -168,7 +142,6 @@ func TestServeMCPCmd_ResearchWriteStripsLeadingDots(t *testing.T) {
 		want  string
 	}{
 		{name: "hidden", topic: ".hidden", want: "hidden.md"},
-		{name: "traversal", topic: testUnsafeTopic, want: "tasks" + testTrackID + ".md"},
 	}
 
 	for _, tt := range tests {
@@ -187,30 +160,6 @@ func TestServeMCPCmd_ResearchWriteStripsLeadingDots(t *testing.T) {
 				t.Errorf("path = %v, want %s", got[testPathKey], want)
 			}
 		})
-	}
-}
-
-func TestServeMCPCmd_ResearchWriteRefusesADotsOnlyTopic(t *testing.T) {
-	dir := t.TempDir()
-	seedTasks(t, dir, &task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusDoing})
-
-	result := callToolResult(t, mcpSession(t, dir), researchWriteTool, map[string]any{
-		testTrackKey: testTrackID,
-		testTopicKey: testDotsOnlyTopic,
-		testBodyKey:  testResearchBody,
-	})
-
-	if !result.IsError {
-		t.Fatalf("IsError = false, want true (content %v)", result.Content)
-	}
-
-	topics, err := filepath.Glob(filepath.Join(dir, ".bit", testResearchDir, testTrackID, "*"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(topics) != 0 {
-		t.Errorf("topics = %v, want none", topics)
 	}
 }
 
@@ -261,5 +210,84 @@ func TestServeMCPCmd_ResearchReadRefusesAnUnknownTrack(t *testing.T) {
 
 	if !result.IsError {
 		t.Errorf("IsError = false, want true (content %v)", result.Content)
+	}
+}
+
+type pathLikeTopic struct {
+	name    string
+	topic   string
+	wantErr string
+}
+
+func pathLikeTopics() []pathLikeTopic {
+	return []pathLikeTopic{
+		{name: "traversal", topic: testUnsafeTopic, wantErr: testDotDotErr},
+		{name: "embedded dot dot", topic: "a..b", wantErr: testDotDotErr},
+		{name: "slash", topic: "notes/store", wantErr: testSeparatorErr},
+		{name: "backslash", topic: `notes\store`, wantErr: testSeparatorErr},
+		{name: "dots only", topic: "...", wantErr: testEmptyTopicErr},
+		{name: "dots and spaces", topic: ". .", wantErr: testEmptyTopicErr},
+	}
+}
+
+func assertToolErrorNames(t *testing.T, result *mcp.CallToolResult, want string) {
+	t.Helper()
+
+	if !result.IsError {
+		t.Fatalf("IsError = false, want true (content %v)", result.Content)
+	}
+
+	text, ok := result.Content[0].(*mcp.TextContent)
+	if !ok || !strings.Contains(text.Text, want) {
+		t.Errorf("error = %v, want it to contain %q", result.Content[0], want)
+	}
+}
+
+func TestServeMCPCmd_ResearchWriteRefusesAPathLikeTopic(t *testing.T) {
+	topics := append(pathLikeTopics(), pathLikeTopic{name: "empty", topic: "", wantErr: testEmptyTopicErr})
+
+	for _, tt := range topics {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			seedTasks(t, dir, &task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusDoing})
+
+			result := callToolResult(t, mcpSession(t, dir), researchWriteTool, map[string]any{
+				testTrackKey: testTrackID,
+				testTopicKey: tt.topic,
+				testBodyKey:  testResearchBody,
+			})
+
+			assertToolErrorNames(t, result, tt.wantErr)
+
+			_, err := os.Stat(filepath.Join(dir, ".bit", testResearchDir))
+			if !errors.Is(err, fs.ErrNotExist) {
+				t.Errorf("research folder: stat err = %v, want ErrNotExist", err)
+			}
+
+			track, err := task.New(filepath.Join(dir, ".bit")).Load(testTrackID)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if track.Title != testTitle {
+				t.Errorf("track title = %q, want %q", track.Title, testTitle)
+			}
+		})
+	}
+}
+
+func TestServeMCPCmd_ResearchReadRefusesAPathLikeTopic(t *testing.T) {
+	for _, tt := range pathLikeTopics() {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			seedTasks(t, dir, &task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusDoing})
+
+			result := callToolResult(t, mcpSession(t, dir), researchReadTool, map[string]any{
+				testTrackKey: testTrackID,
+				testTopicKey: tt.topic,
+			})
+
+			assertToolErrorNames(t, result, tt.wantErr)
+		})
 	}
 }
