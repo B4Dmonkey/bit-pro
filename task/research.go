@@ -20,6 +20,9 @@ func (s *Store) researchPath(track, topic string) string {
 
 func (s *Store) WriteResearch(track, topic, body string) (string, error) {
 	track = NormalizeID(track)
+	if !s.trackExists(track) {
+		return "", fmt.Errorf("track %s does not exist", track)
+	}
 
 	if err := os.MkdirAll(s.researchDir(track), dirMode); err != nil {
 		return "", fmt.Errorf("creating %s: %w", s.researchDir(track), err)
