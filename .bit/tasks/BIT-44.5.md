@@ -1,7 +1,7 @@
 ---
 id: BIT-44.5
 title: /bit:analyze writes deep research for a track
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: Analyze

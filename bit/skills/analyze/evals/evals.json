@@ -1,0 +1,44 @@
+{
+  "skill_name": "bit_analyze",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/bit:analyze BIT-44",
+      "expected_output": "A first research pass on a track with no research yet: explorers fanned out across the code areas the verses touch, one research_write per topic, an index topic written last that summarizes findings and links each topic, the track body left untouched, and a short report of confirmed/corrected assumptions and pointers.",
+      "files": [],
+      "expectations": [
+        "Calls mcp__bit__research_read with only the track before writing anything",
+        "Writes at least one non-index topic with mcp__bit__research_write",
+        "Writes the index topic after every other topic",
+        "The index links to each topic it summarizes",
+        "Never calls mcp__bit__task_update on the track and never reads or writes .bit/research/ directly",
+        "Topic notes cite concrete file paths and a verdict (confirmed, corrected, or still unknown)"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Run bit:analyze on BIT-44 again. Open question from the scope gate: does research_read with no topic return an empty list or an error for a track that has never had research written?",
+      "expected_output": "A re-check pass: lists existing topics, reads the index and the topic the question touches, re-verifies the claim against task/research.go and cmd/serve_mcp.go rather than trusting the earlier note, rewrites that topic and the index, and reports the answer with its evidence.",
+      "files": [],
+      "expectations": [
+        "Reads the existing index and the relevant topic before exploring",
+        "Re-checks the claim against the code rather than repeating the earlier note's conclusion",
+        "Rewrites the topic the question touches and rewrites the index",
+        "Leaves topics the question does not touch unchanged",
+        "Does not edit the track body"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Can you research whether the bit TUI could show research notes? Don't change the scope, I just want the evidence written down for BIT-44.",
+      "expected_output": "Triggers bit:analyze without the slash command, treats the user's question as the open question, writes a topic about the TUI and updates the index, and does not edit the track body.",
+      "files": [],
+      "expectations": [
+        "Treats the user's question as the open question for the pass",
+        "Writes a topic whose name is a plain word or phrase with no path characters",
+        "Updates the index to link the new topic",
+        "Does not edit the track body"
+      ]
+    }
+  ]
+}

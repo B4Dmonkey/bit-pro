@@ -2,7 +2,6 @@
 id: BIT-44
 title: 'Deep research before scope: bit:analyze + bit:ruler'
 status: doing
-approved: true
 ---
 ## Why
 bit:scope only does light research on purpose, and bit:plan says outright that it isn't a discovery phase. So nobody does the deep codebase research, and wrong assumptions only show up during bit:do or come back as plan-to-scope hand-backs. The operator also has to remember the scope → plan sequence and run each skill by hand.
@@ -39,7 +38,7 @@ claude --agent bit:ruler
 - **`bit:analyze` is written with skill-creator** and ships through the plugin (`bit/skills/`), like the other bit skills.
 
 ## Verses
-- [ ] Verse 1 — The operator can run `/bit:analyze BIT-N` on a track and get deep-research notes in `.bit/research/BIT-N/`, which agents read and write through the MCP.
+- [x] Verse 1 — The operator can run `/bit:analyze BIT-N` on a track and get deep-research notes in `.bit/research/BIT-N/`, which agents read and write through the MCP.
   Touches: `bit/skills/analyze/` (new), `cmd/serve_mcp.go`, `task/feedback.go` (the pattern `feedback_add` uses).
 - [ ] Verse 2 — bit:scope builds on existing research, so a scope written after analyze stays short and cites the notes.
   Touches: `bit/skills/scope/SKILL.md`.
