@@ -530,6 +530,29 @@ func TestServeMCPCmd_FeedbackAddRefusesAnUnknownTrack(t *testing.T) {
 	}
 }
 
+func TestServeMCPCmd_FeedbackAddRefusesAPathLikeTrackID(t *testing.T) {
+	dir := t.TempDir()
+	seedTasks(t, dir, &task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusDoing})
+
+	result := callToolResult(t, mcpSession(t, dir), feedbackAddTool, map[string]any{
+		testTrackKey: "../../" + testTrackID,
+		testBodyKey:  testNoteBody,
+	})
+
+	if !result.IsError {
+		t.Fatalf("IsError = false, want true (content %v)", result.Content)
+	}
+
+	notes, err := filepath.Glob(filepath.Join(dir, ".bit", testFeedbackDir, "*.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(notes) != 0 {
+		t.Errorf("notes = %v, want none", notes)
+	}
+}
+
 func TestServeMCPCmd_TaskCompleteFilesATrackAndItsBars(t *testing.T) {
 	dir := t.TempDir()
 	seedDoneTrack(t, dir, task.StatusDone)

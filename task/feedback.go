@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/spf13/pathologize"
 )
@@ -41,10 +42,23 @@ func (s *Store) trackExists(track string) bool {
 	return false
 }
 
-func (s *Store) AddNote(track, body string) (string, error) {
+func (s *Store) resolveTrack(track string) (string, error) {
+	if strings.Contains(track, "..") || strings.ContainsAny(track, `/\`) {
+		return "", fmt.Errorf("track ID %q looks like a path", track)
+	}
+
 	track = NormalizeID(track)
 	if !s.trackExists(track) {
 		return "", fmt.Errorf("track %s does not exist", track)
+	}
+
+	return track, nil
+}
+
+func (s *Store) AddNote(track, body string) (string, error) {
+	track, err := s.resolveTrack(track)
+	if err != nil {
+		return "", err
 	}
 
 	if err := os.MkdirAll(s.feedbackDir(), dirMode); err != nil {
