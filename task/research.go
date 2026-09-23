@@ -40,3 +40,17 @@ func (s *Store) WriteResearch(track, topic, body string) (string, error) {
 
 	return path, nil
 }
+
+func (s *Store) ReadResearch(track, topic string) (string, error) {
+	track = NormalizeID(track)
+	if !s.trackExists(track) {
+		return "", fmt.Errorf("track %s does not exist", track)
+	}
+
+	body, err := os.ReadFile(s.researchPath(track, topic))
+	if err != nil {
+		return "", fmt.Errorf("reading research topic %s for %s: %w", topic, track, err)
+	}
+
+	return string(body), nil
+}

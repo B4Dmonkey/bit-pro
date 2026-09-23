@@ -1,7 +1,7 @@
 ---
 id: BIT-44.3
 title: research_read returns a topic's body
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: Analyze

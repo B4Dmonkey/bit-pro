@@ -24,6 +24,7 @@ const (
 	taskCompleteTool  = "task_complete"
 	taskDeleteTool    = "task_delete"
 	researchWriteTool = "research_write"
+	researchReadTool  = "research_read"
 
 	statusProperty = "status"
 )
@@ -103,6 +104,13 @@ track is a top-level task, whose ID has no dot, as in BIT-7. Writing a topic tha
 replaces it. The topic named index is the conventional summary of findings with links to the other
 topics, and readers open it first.`
 
+const researchReadDescription = `Read one topic of a track's research and return its body.
+
+Research is an agent scratchpad kept per track under .bit/research/<track>/, one file per topic. A
+track is a top-level task, whose ID has no dot, as in BIT-7. With a topic, this returns that
+topic's body. By convention, read the index topic first: it summarizes the findings and links to
+the other topics, so only the ones that matter need to be opened.`
+
 type taskReadInput struct {
 	ID string `json:"id"`
 }
@@ -175,6 +183,16 @@ type researchWriteOutput struct {
 	Path string `json:"path"`
 }
 
+type researchReadInput struct {
+	Track string `json:"track"`
+	Topic string `json:"topic,omitempty"`
+}
+
+type researchReadOutput struct {
+	Topics []string `json:"topics,omitempty"`
+	Body   string   `json:"body,omitempty"`
+}
+
 type taskMoveInput struct {
 	Bar    string `json:"bar"`
 	Before string `json:"before,omitempty"`
@@ -238,6 +256,10 @@ func runMCPServer(ctx context.Context, root string, transport mcp.Transport) err
 		Name:        researchWriteTool,
 		Description: researchWriteDescription,
 	}, researchWriteHandler(root))
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        researchReadTool,
+		Description: researchReadDescription,
+	}, researchReadHandler(root))
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        taskCompleteTool,
 		Description: taskCompleteDescription,
@@ -453,6 +475,23 @@ func researchWriteHandler(root string) mcp.ToolHandlerFor[researchWriteInput, re
 		}
 
 		return nil, researchWriteOutput{Path: path}, nil
+	}
+}
+
+func researchReadHandler(root string) mcp.ToolHandlerFor[researchReadInput, researchReadOutput] {
+	return func(
+		_ context.Context,
+		_ *mcp.CallToolRequest,
+		in researchReadInput,
+	) (*mcp.CallToolResult, researchReadOutput, error) {
+		store := task.New(bitdir.ForRoot(root))
+
+		body, err := store.ReadResearch(in.Track, in.Topic)
+		if err != nil {
+			return nil, researchReadOutput{}, fmt.Errorf("reading research for %s: %w", in.Track, err)
+		}
+
+		return nil, researchReadOutput{Body: body}, nil
 	}
 }
 

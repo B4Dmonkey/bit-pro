@@ -20,6 +20,9 @@ const (
 	testRewrittenBody = "## Findings\n\n- rewritten after a re-check"
 	testUnsafeTopic   = "../../tasks/" + testTrackID
 	testDotsOnlyTopic = "..."
+	testStoreTopic    = "store"
+	testStoreBody     = "Store.Load normalizes IDs before reading."
+	testMissingTopic  = "nope"
 )
 
 func TestServeMCPCmd_ResearchWriteWritesATopic(t *testing.T) {
@@ -208,5 +211,55 @@ func TestServeMCPCmd_ResearchWriteRefusesADotsOnlyTopic(t *testing.T) {
 
 	if len(topics) != 0 {
 		t.Errorf("topics = %v, want none", topics)
+	}
+}
+
+func TestServeMCPCmd_ResearchReadReturnsATopic(t *testing.T) {
+	dir := t.TempDir()
+	seedTasks(t, dir, &task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusDoing})
+
+	session := mcpSession(t, dir)
+
+	callTool(t, session, researchWriteTool, map[string]any{
+		testTrackKey: testTrackID,
+		testTopicKey: testStoreTopic,
+		testBodyKey:  testStoreBody,
+	})
+
+	got := callTool(t, session, researchReadTool, map[string]any{
+		testTrackKey: testTrackID,
+		testTopicKey: testStoreTopic,
+	})
+
+	if got[testBodyKey] != testStoreBody {
+		t.Errorf("body = %v, want %q", got[testBodyKey], testStoreBody)
+	}
+}
+
+func TestServeMCPCmd_ResearchReadRefusesAMissingTopic(t *testing.T) {
+	dir := t.TempDir()
+	seedTasks(t, dir, &task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusDoing})
+
+	result := callToolResult(t, mcpSession(t, dir), researchReadTool, map[string]any{
+		testTrackKey: testTrackID,
+		testTopicKey: testMissingTopic,
+	})
+
+	if !result.IsError {
+		t.Errorf("IsError = false, want true (content %v)", result.Content)
+	}
+}
+
+func TestServeMCPCmd_ResearchReadRefusesAnUnknownTrack(t *testing.T) {
+	dir := t.TempDir()
+	seedTasks(t, dir, &task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusDoing})
+
+	result := callToolResult(t, mcpSession(t, dir), researchReadTool, map[string]any{
+		testTrackKey: testUnknownTrackID,
+		testTopicKey: testIndexTopic,
+	})
+
+	if !result.IsError {
+		t.Errorf("IsError = false, want true (content %v)", result.Content)
 	}
 }
