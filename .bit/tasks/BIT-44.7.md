@@ -1,7 +1,7 @@
 ---
 id: BIT-44.7
 title: bit:ruler runs analyze, scope, gate, plan
-status: todo
+status: done
 approved: true
 phase: 3
 phase_label: Ruler
