@@ -1,7 +1,7 @@
 ---
 id: BIT-44.4
 title: 'Omitted topic contradicts read-only: list the track''s topics'
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: Analyze

@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -26,6 +27,8 @@ const (
 	testStoreTopic    = "store"
 	testStoreBody     = "Store.Load normalizes IDs before reading."
 	testMissingTopic  = "nope"
+	testMCPTopic      = "mcp"
+	testTopicsKey     = "topics"
 )
 
 func TestServeMCPCmd_ResearchWriteWritesATopic(t *testing.T) {
@@ -210,6 +213,48 @@ func TestServeMCPCmd_ResearchReadRefusesAnUnknownTrack(t *testing.T) {
 
 	if !result.IsError {
 		t.Errorf("IsError = false, want true (content %v)", result.Content)
+	}
+}
+
+func TestServeMCPCmd_ResearchReadListsTopics(t *testing.T) {
+	dir := t.TempDir()
+	seedTasks(t, dir, &task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusDoing})
+
+	session := mcpSession(t, dir)
+
+	for _, topic := range []string{testIndexTopic, testStoreTopic, testMCPTopic} {
+		callTool(t, session, researchWriteTool, map[string]any{
+			testTrackKey: testTrackID,
+			testTopicKey: topic,
+			testBodyKey:  testResearchBody,
+		})
+	}
+
+	got := callTool(t, session, researchReadTool, map[string]any{testTrackKey: testTrackID})
+
+	want := []any{testIndexTopic, testMCPTopic, testStoreTopic}
+	if !reflect.DeepEqual(got[testTopicsKey], want) {
+		t.Errorf("topics = %v, want %v", got[testTopicsKey], want)
+	}
+
+	if body, _ := got[testBodyKey].(string); body != "" {
+		t.Errorf("body = %q, want empty", body)
+	}
+}
+
+func TestServeMCPCmd_ResearchReadListsNothingForATrackWithNoResearch(t *testing.T) {
+	dir := t.TempDir()
+	seedTasks(t, dir, &task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusDoing})
+
+	result := callToolResult(t, mcpSession(t, dir), researchReadTool, map[string]any{testTrackKey: testTrackID})
+
+	if result.IsError {
+		t.Fatalf("IsError = true, want false (content %v)", result.Content)
+	}
+
+	got, _ := result.StructuredContent.(map[string]any)
+	if topics, _ := got[testTopicsKey].([]any); len(topics) != 0 {
+		t.Errorf("topics = %v, want none", topics)
 	}
 }
 

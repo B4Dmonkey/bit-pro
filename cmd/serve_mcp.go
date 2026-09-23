@@ -104,12 +104,14 @@ track is a top-level task, whose ID has no dot, as in BIT-7. Writing a topic tha
 replaces it. The topic named index is the conventional summary of findings with links to the other
 topics, and readers open it first.`
 
-const researchReadDescription = `Read one topic of a track's research and return its body.
+const researchReadDescription = `Read a track's research: list its topic names, or return one topic's body.
 
 Research is an agent scratchpad kept per track under .bit/research/<track>/, one file per topic. A
-track is a top-level task, whose ID has no dot, as in BIT-7. With a topic, this returns that
-topic's body. By convention, read the index topic first: it summarizes the findings and links to
-the other topics, so only the ones that matter need to be opened.`
+track is a top-level task, whose ID has no dot, as in BIT-7. Without a topic, this lists the
+track's topic names, so an agent sees what exists before loading any; a track with no research yet
+lists none. With a topic, it returns that topic's body. By convention, read the index topic first:
+it summarizes the findings and links to the other topics, so only the ones that matter need to be
+opened.`
 
 type taskReadInput struct {
 	ID string `json:"id"`
@@ -485,6 +487,15 @@ func researchReadHandler(root string) mcp.ToolHandlerFor[researchReadInput, rese
 		in researchReadInput,
 	) (*mcp.CallToolResult, researchReadOutput, error) {
 		store := task.New(bitdir.ForRoot(root))
+
+		if in.Topic == "" {
+			topics, err := store.ResearchTopics(in.Track)
+			if err != nil {
+				return nil, researchReadOutput{}, fmt.Errorf("listing research for %s: %w", in.Track, err)
+			}
+
+			return nil, researchReadOutput{Topics: topics}, nil
+		}
 
 		body, err := store.ReadResearch(in.Track, in.Topic)
 		if err != nil {

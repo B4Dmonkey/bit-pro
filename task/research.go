@@ -1,7 +1,9 @@
 package task
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -70,4 +72,30 @@ func (s *Store) ReadResearch(track, topic string) (string, error) {
 	}
 
 	return string(body), nil
+}
+
+func (s *Store) ResearchTopics(track string) ([]string, error) {
+	track = NormalizeID(track)
+	if !s.trackExists(track) {
+		return nil, fmt.Errorf("track %s does not exist", track)
+	}
+
+	entries, err := os.ReadDir(s.researchDir(track))
+	if errors.Is(err, fs.ErrNotExist) {
+		return []string{}, nil
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("listing research for %s: %w", track, err)
+	}
+
+	var topics []string
+
+	for _, e := range entries {
+		if e.Type().IsRegular() && strings.HasSuffix(e.Name(), ".md") {
+			topics = append(topics, strings.TrimSuffix(e.Name(), ".md"))
+		}
+	}
+
+	return topics, nil
 }
