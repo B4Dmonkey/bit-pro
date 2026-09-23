@@ -19,6 +19,7 @@ const (
 		"- see [store](store.md)"
 	testRewrittenBody = "## Findings\n\n- rewritten after a re-check"
 	testUnsafeTopic   = "../../tasks/" + testTrackID
+	testDotsOnlyTopic = "..."
 )
 
 func TestServeMCPCmd_ResearchWriteWritesATopic(t *testing.T) {
@@ -100,7 +101,7 @@ func TestServeMCPCmd_ResearchWriteKeepsAnUnsafeTopicInTheTrackFolder(t *testing.
 		t.Fatal(err)
 	}
 
-	if rel == ".." || strings.ContainsRune(rel, filepath.Separator) {
+	if strings.HasPrefix(rel, "..") || strings.ContainsRune(rel, filepath.Separator) {
 		t.Errorf("topic path %q escapes the track's research folder", rel)
 	}
 
@@ -154,5 +155,58 @@ func TestServeMCPCmd_ResearchWriteAcceptsACompletedTrack(t *testing.T) {
 
 	if _, err := os.Stat(want); err != nil {
 		t.Errorf("research topic missing: %v", err)
+	}
+}
+
+func TestServeMCPCmd_ResearchWriteStripsLeadingDots(t *testing.T) {
+	tests := []struct {
+		name  string
+		topic string
+		want  string
+	}{
+		{name: "hidden", topic: ".hidden", want: "hidden.md"},
+		{name: "traversal", topic: testUnsafeTopic, want: "tasks" + testTrackID + ".md"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			seedTasks(t, dir, &task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusDoing})
+
+			got := callTool(t, mcpSession(t, dir), researchWriteTool, map[string]any{
+				testTrackKey: testTrackID,
+				testTopicKey: tt.topic,
+				testBodyKey:  testResearchBody,
+			})
+
+			want := filepath.Join(dir, ".bit", testResearchDir, testTrackID, tt.want)
+			if got[testPathKey] != want {
+				t.Errorf("path = %v, want %s", got[testPathKey], want)
+			}
+		})
+	}
+}
+
+func TestServeMCPCmd_ResearchWriteRefusesADotsOnlyTopic(t *testing.T) {
+	dir := t.TempDir()
+	seedTasks(t, dir, &task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusDoing})
+
+	result := callToolResult(t, mcpSession(t, dir), researchWriteTool, map[string]any{
+		testTrackKey: testTrackID,
+		testTopicKey: testDotsOnlyTopic,
+		testBodyKey:  testResearchBody,
+	})
+
+	if !result.IsError {
+		t.Fatalf("IsError = false, want true (content %v)", result.Content)
+	}
+
+	topics, err := filepath.Glob(filepath.Join(dir, ".bit", testResearchDir, testTrackID, "*"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(topics) != 0 {
+		t.Errorf("topics = %v, want none", topics)
 	}
 }
