@@ -14,15 +14,16 @@ import (
 )
 
 const (
-	serveMCPCmdUse   = "mcp"
-	taskReadTool     = "task_read"
-	taskListTool     = "task_list"
-	taskCreateTool   = "task_create"
-	taskUpdateTool   = "task_update"
-	taskMoveTool     = "task_move"
-	feedbackAddTool  = "feedback_add"
-	taskCompleteTool = "task_complete"
-	taskDeleteTool   = "task_delete"
+	serveMCPCmdUse    = "mcp"
+	taskReadTool      = "task_read"
+	taskListTool      = "task_list"
+	taskCreateTool    = "task_create"
+	taskUpdateTool    = "task_update"
+	taskMoveTool      = "task_move"
+	feedbackAddTool   = "feedback_add"
+	taskCompleteTool  = "task_complete"
+	taskDeleteTool    = "task_delete"
+	researchWriteTool = "research_write"
 
 	statusProperty = "status"
 )
@@ -95,6 +96,13 @@ happened at in its own prose, because replanning renumbers bars and would orphan
 one. The write is create-only: each note lands in a new file, so adding one can never damage a
 note already recorded. A completed or archived track is accepted as readily as an active one.`
 
+const researchWriteDescription = `Write one topic of a track's research and return its path.
+
+Research is an agent scratchpad kept per track under .bit/research/<track>/, one file per topic. A
+track is a top-level task, whose ID has no dot, as in BIT-7. Writing a topic that already exists
+replaces it. The topic named index is the conventional summary of findings with links to the other
+topics, and readers open it first.`
+
 type taskReadInput struct {
 	ID string `json:"id"`
 }
@@ -157,6 +165,16 @@ type feedbackAddOutput struct {
 	Path string `json:"path"`
 }
 
+type researchWriteInput struct {
+	Track string `json:"track"`
+	Topic string `json:"topic"`
+	Body  string `json:"body"`
+}
+
+type researchWriteOutput struct {
+	Path string `json:"path"`
+}
+
 type taskMoveInput struct {
 	Bar    string `json:"bar"`
 	Before string `json:"before,omitempty"`
@@ -216,6 +234,10 @@ func runMCPServer(ctx context.Context, root string, transport mcp.Transport) err
 
 	mcp.AddTool(s, &mcp.Tool{Name: taskMoveTool, Description: taskMoveDescription}, taskMoveHandler(root))
 	mcp.AddTool(s, &mcp.Tool{Name: feedbackAddTool, Description: feedbackAddDescription}, feedbackAddHandler(root))
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        researchWriteTool,
+		Description: researchWriteDescription,
+	}, researchWriteHandler(root))
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        taskCompleteTool,
 		Description: taskCompleteDescription,
@@ -414,6 +436,23 @@ func feedbackAddHandler(root string) mcp.ToolHandlerFor[feedbackAddInput, feedba
 		}
 
 		return nil, feedbackAddOutput{Path: path}, nil
+	}
+}
+
+func researchWriteHandler(root string) mcp.ToolHandlerFor[researchWriteInput, researchWriteOutput] {
+	return func(
+		_ context.Context,
+		_ *mcp.CallToolRequest,
+		in researchWriteInput,
+	) (*mcp.CallToolResult, researchWriteOutput, error) {
+		store := task.New(bitdir.ForRoot(root))
+
+		path, err := store.WriteResearch(in.Track, in.Topic, in.Body)
+		if err != nil {
+			return nil, researchWriteOutput{}, fmt.Errorf("writing research for %s: %w", in.Track, err)
+		}
+
+		return nil, researchWriteOutput{Path: path}, nil
 	}
 }
 
