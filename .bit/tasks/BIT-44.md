@@ -40,7 +40,7 @@ claude --agent bit:ruler
 ## Verses
 - [x] Verse 1 — The operator can run `/bit:analyze BIT-N` on a track and get deep-research notes in `.bit/research/BIT-N/`, which agents read and write through the MCP.
   Touches: `bit/skills/analyze/` (new), `cmd/serve_mcp.go`, `task/feedback.go` (the pattern `feedback_add` uses).
-- [ ] Verse 2 — bit:scope builds on existing research, so a scope written after analyze stays short and cites the notes.
+- [x] Verse 2 — bit:scope builds on existing research, so a scope written after analyze stays short and cites the notes.
   Touches: `bit/skills/scope/SKILL.md`.
 - [ ] Verse 3 — The operator runs `claude --agent bit:ruler`, describes the work, and gets analyze → scope with the analyze ↔ scope loop and a gate before plan.
   Touches: `bit/agents/ruler.md` (new), `bit/agents/bot.md` (routing table).

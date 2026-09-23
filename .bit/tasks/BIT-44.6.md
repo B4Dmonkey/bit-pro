@@ -1,7 +1,7 @@
 ---
 id: BIT-44.6
 title: bit:scope cites existing research instead of copying it
-status: todo
+status: done
 approved: true
 phase: 2
 phase_label: Scope reads research

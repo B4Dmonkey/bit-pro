@@ -17,7 +17,7 @@ A **verse** is one value slice in the delivery order (the checklist you write he
 
 Because bit_scope owns the WHY, the plan won't repeat it — the bars live under this track, so a reader gets the WHY by reading the track body. That makes the motivation in this document load-bearing: get it right.
 
-Three tools cover everything this skill does: `mcp__bit__task_create` to mint the track, `mcp__bit__task_read` to read a body back, and `mcp__bit__task_update` to write a refined one. Never hand-edit `.bit/tasks/*.md` — that rule is the one the whole tool surface exists to enforce.
+Three tools cover everything this skill writes: `mcp__bit__task_create` to mint the track, `mcp__bit__task_read` to read a body back, and `mcp__bit__task_update` to write a refined one. A fourth, `mcp__bit__research_read`, reads the track's research notes when bit_analyze has left some (see *Build on research first*). Never hand-edit `.bit/tasks/*.md` — that rule is the one the whole tool surface exists to enforce — and never read `.bit/research/` directly; the tool is the way in.
 
 ---
 
@@ -105,6 +105,17 @@ What you must never do is **dissolve an open question into a verse's prose** —
 
 ---
 
+## Build on research first
+
+A track may already have **research notes** — deep findings bit_analyze wrote under `.bit/research/<track>/`, with an `index` topic that summarizes them and links the rest. When they exist, they are better evidence than anything light research would turn up, and the scope should stand on them rather than redo them.
+
+So whenever the track already exists — a Refine, or a Create where bit:ruler minted a stub track before analyzing — call `mcp__bit__research_read` with only the track first. It returns the topic names; an empty result means there is no research yet.
+
+- **Topics exist:** read `index`, then open only the topics a verse, a risk, or a decision actually needs. Draft from what they say, and **cite the topic by name instead of pasting its findings** — "`Touches: task/research.go` (see research topic `store`)", "Decided: reject path-like IDs — evidence in topic `mcp-research-tools`". The notes hold the evidence so the track body doesn't have to; copying them in is exactly what makes a scope long. An unknown the research already answered goes straight into Decisions; one it left open stays in Risks & unknowns with the topic named.
+- **No topics:** carry on exactly as below — the light-research path is unchanged.
+
+---
+
 ## Gathering context (new scopes)
 
 Before drafting, get the WHY right — it's the part the plan will lean on, so it has to stand on its own. Ask:
@@ -113,7 +124,7 @@ Before drafting, get the WHY right — it's the part the plan will lean on, so i
 2. What triggered this now — a bug report, wrong data, a deadline, a new requirement?
 3. Any constraints — things we must not touch, production concerns, ordering forced by external dependencies?
 
-Then do *light* research — enough to name the code areas each verse touches and to spot the real risks, but not a deep dive (that's bit_plan's job):
+Then — unless research notes already cover it (see *Build on research first*) — do *light* research — enough to name the code areas each verse touches and to spot the real risks, but not a deep dive (that's bit_plan's job):
 - Locate the parts of the codebase each verse would affect, so the "touches" pointers are accurate.
 - Notice genuine unknowns — external services, ambiguous data shapes, assumptions the whole approach rests on.
 - **Capture any reference docs the user provided.** If the user shared a file path, URL, pasted spec, design doc, or named any external artifact as an authority this scope should honor, record it in the `## References` section of the track body. A reference doc is something the user is pointing to as a source of truth — not every file mentioned casually, only the ones they're invoking as constraints or specifications.
@@ -184,11 +195,14 @@ after its number; its question and downstream impact live in Risks & unknowns.]
   Touches: <code area / files> — where to look to verify.
 
 ## References
-[Omit this section if no reference docs were provided. List only external artifacts the
-user explicitly pointed to as authorities — specs, design docs, API references, pasted
-content. One line each: the path or URL, and which verses it informs.]
+[Omit this section if no reference docs were provided and the track has no research. List
+only external artifacts the user explicitly pointed to as authorities — specs, design docs,
+API references, pasted content. One line each: the path or URL, and which verses it informs.
+When the track has research notes, add one line pointing at them, so a reader knows where
+the evidence behind the cited topics lives.]
 
 - `path/to/doc.md` — what this doc is and which verses it informs
+- `.bit/research/<track>/` — research notes from bit_analyze; start at the `index` topic
 ```
 
 Keep it tight. This is an overview a reader skims to grasp the shape of the work before a detailed plan exists. Prefer clarity over completeness.
@@ -197,7 +211,7 @@ Keep it tight. This is an overview a reader skims to grasp the shape of the work
 
 ## Refining an existing scope
 
-1. Read the whole scope first.
+1. Read the whole scope first, then call `mcp__bit__research_read` for the track (see *Build on research first*). If topics exist, read `index` and whichever topics bear on the verses and risks you're checking — a refine after an analyze pass is often where research turns unknowns into decisions and corrects "Touches" pointers. Cite topics rather than copying their findings in.
 2. Check the WHY: does it say *why*, not *what*? Would a reader who knows nothing about the codebase understand the motivation? If not, flag it and offer a rewrite — this is the section the plan depends on.
 3. Check the risks and decisions — this is where refinement does its real work:
    - Is anything in Risks & unknowns actually *answered*? If so, it's a decision — move it down into Decisions, don't leave it re-labelled "Resolved" in the risk list.
@@ -210,7 +224,7 @@ Keep it tight. This is an overview a reader skims to grasp the shape of the work
    - Is each named by the capability unlocked, not the component built?
 5. Check that no verse has slid into implementation detail, **and that no verse is smuggling an open question** — a "TBD", a "deferred to plan-time", a "the technical question is…". The "touches" pointer is a locator only; flag anything prescribing *how*, and flag any unknown hiding in a verse: it belongs in Risks & unknowns, or answered in Decisions — never in the verse text.
 6. Check the spikes: is every verse that exists to answer an unknown marked `(spike)`, and does its Risks entry state the question, the yes/no observation, what's downstream, and whether the artifact is kept? A spike missing the downstream call is the one bit_plan can't act on. And check the inverse — a verse marked `(spike)` whose question an inline probe could answer right now shouldn't be a verse; run the probe and write the Decision.
-7. Check the References section: did the user provide any reference docs during this session that aren't captured there? If so, add them. If no references exist yet and none were provided, omit the section entirely.
+7. Check the References section: did the user provide any reference docs during this session that aren't captured there? If so, add them. If the track has research notes and References doesn't point at `.bit/research/<track>/` yet, add that line. If no references exist, none were provided, and there's no research, omit the section entirely.
 8. Propose edits with reasoning — don't silently rewrite large sections. Confirm before rewriting more than a few lines.
 
 The user drives this loop; keep refining with them until they're happy enough to move to bit_plan.
