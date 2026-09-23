@@ -1,7 +1,7 @@
 ---
 id: BIT-44.8
 title: bot routes new planning work to bit:ruler
-status: todo
+status: done
 approved: true
 phase: 3
 phase_label: Ruler
