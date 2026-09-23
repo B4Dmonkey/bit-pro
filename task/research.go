@@ -21,6 +21,19 @@ func (s *Store) researchPath(track, topic string) string {
 	return pathologize.Join(s.researchDir(track), strings.TrimLeft(pathologize.Clean(topic), ".")+".md")
 }
 
+func (s *Store) researchTrack(track string) (string, error) {
+	if strings.Contains(track, "..") || strings.ContainsAny(track, `/\`) {
+		return "", fmt.Errorf("track ID %q looks like a path", track)
+	}
+
+	track = NormalizeID(track)
+	if !s.trackExists(track) {
+		return "", fmt.Errorf("track %s does not exist", track)
+	}
+
+	return track, nil
+}
+
 func validateTopic(topic string) error {
 	switch {
 	case strings.Trim(topic, ". ") == "":
@@ -35,9 +48,9 @@ func validateTopic(topic string) error {
 }
 
 func (s *Store) WriteResearch(track, topic, body string) (string, error) {
-	track = NormalizeID(track)
-	if !s.trackExists(track) {
-		return "", fmt.Errorf("track %s does not exist", track)
+	track, err := s.researchTrack(track)
+	if err != nil {
+		return "", err
 	}
 
 	if err := validateTopic(topic); err != nil {
@@ -57,9 +70,9 @@ func (s *Store) WriteResearch(track, topic, body string) (string, error) {
 }
 
 func (s *Store) ReadResearch(track, topic string) (string, error) {
-	track = NormalizeID(track)
-	if !s.trackExists(track) {
-		return "", fmt.Errorf("track %s does not exist", track)
+	track, err := s.researchTrack(track)
+	if err != nil {
+		return "", err
 	}
 
 	if err := validateTopic(topic); err != nil {
@@ -75,9 +88,9 @@ func (s *Store) ReadResearch(track, topic string) (string, error) {
 }
 
 func (s *Store) ResearchTopics(track string) ([]string, error) {
-	track = NormalizeID(track)
-	if !s.trackExists(track) {
-		return nil, fmt.Errorf("track %s does not exist", track)
+	track, err := s.researchTrack(track)
+	if err != nil {
+		return nil, err
 	}
 
 	entries, err := os.ReadDir(s.researchDir(track))

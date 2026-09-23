@@ -29,6 +29,7 @@ const (
 	testMissingTopic  = "nope"
 	testMCPTopic      = "mcp"
 	testTopicsKey     = "topics"
+	testEscapingTrack = "../../" + testTrackID
 )
 
 func TestServeMCPCmd_ResearchWriteWritesATopic(t *testing.T) {
@@ -333,6 +334,62 @@ func TestServeMCPCmd_ResearchReadRefusesAPathLikeTopic(t *testing.T) {
 			})
 
 			assertToolErrorNames(t, result, tt.wantErr)
+		})
+	}
+}
+
+func seedEscapedResearch(t *testing.T, dir string) {
+	t.Helper()
+
+	escaped := filepath.Join(dir, testTrackID)
+	if err := os.MkdirAll(escaped, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.WriteFile(filepath.Join(escaped, testIndexTopic+".md"), []byte(testResearchBody), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestServeMCPCmd_ResearchWriteRefusesATrackIDThatEscapes(t *testing.T) {
+	dir := t.TempDir()
+	seedTasks(t, dir, &task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusDoing})
+
+	result := callToolResult(t, mcpSession(t, dir), researchWriteTool, map[string]any{
+		testTrackKey: testEscapingTrack,
+		testTopicKey: testIndexTopic,
+		testBodyKey:  testResearchBody,
+	})
+
+	if !result.IsError {
+		t.Errorf("IsError = false, want true (content %v)", result.Content)
+	}
+
+	if _, err := os.Stat(filepath.Join(dir, testTrackID)); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("folder outside .bit: stat err = %v, want ErrNotExist", err)
+	}
+}
+
+func TestServeMCPCmd_ResearchReadRefusesATrackIDThatEscapes(t *testing.T) {
+	tests := []struct {
+		name string
+		args map[string]any
+	}{
+		{name: "topic", args: map[string]any{testTrackKey: testEscapingTrack, testTopicKey: testIndexTopic}},
+		{name: "listing", args: map[string]any{testTrackKey: testEscapingTrack}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			seedTasks(t, dir, &task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusDoing})
+			seedEscapedResearch(t, dir)
+
+			result := callToolResult(t, mcpSession(t, dir), researchReadTool, tt.args)
+
+			if !result.IsError {
+				t.Errorf("IsError = false, want true (content %v)", result.Content)
+			}
 		})
 	}
 }
