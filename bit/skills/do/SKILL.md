@@ -105,11 +105,7 @@ Marking a track `done` is the human's call, not a rollup side effect — so it l
 
 So when you close out a bar and the rollup shows **every** bar is now `done`, don't set the track `done` yourself. Finish that last bar's own close-out as normal (verified, commit suggested), then tell the user the whole track is ready: every verse has landed, and a final check of the committed work is the last thing between here and done. Then stop — the sign-off is a fresh cycle, and it's theirs to give.
 
-When the user signs off:
-
-1. **Mark the track done.** `mcp__bit__task_update` on the track with `status` set to `done`.
-2. **File it as completed.** `mcp__bit__task_complete` relocates the track *and* all its bars into `.bit/completed/` in one action, so the finished work drops out of `task_list`, the board, and the TUI. Every bar has to be `done` — there's no override — which a signed-off track already satisfies.
-3. **Suggest the commit.** Completing the track moves files (the track and every bar) out of `tasks/`, which surfaces in the working tree as renames — offer a commit for it, e.g. `chore(bit): file completed <track>`. As always, the user commits; you never run it.
+When the user signs off, hand off to **bit_complete** (`/bit:complete <track>`). It marks every bar and the track `done`, files them under `.bit/completed/` with `mcp__bit__task_complete`, and confirms the track left the active list. Don't redo those steps here. Flipping the status without filing is exactly the half-finished sign-off that skill exists to prevent.
 
 If the user isn't ready — wants more testing, or spots something — the track just stays `doing`. Nothing is lost, and you pick the sign-off back up whenever they're satisfied.
 

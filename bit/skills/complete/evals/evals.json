@@ -1,0 +1,23 @@
+{
+  "skill_name": "bit_complete",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "all bars on BIT-7 are done and committed, mark it as done",
+      "expected_output": "Track BIT-7 set to done with verses checked off, filed via task_complete, absent from task_list; commit suggested, not run.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "we're done with bit-7, close it out",
+      "expected_output": "BIT-7 has one todo bar and one doing bar. Both flipped to done without asking, the track is marked done and filed, and the report names the never-started bar.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "mark BIT-7 and BIT-9 done",
+      "expected_output": "Both tracks completed and filed; a failure on one (e.g. nonexistent ID) is reported without abandoning the other.",
+      "files": []
+    }
+  ]
+}

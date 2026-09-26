@@ -38,7 +38,7 @@ Mechanical, single-command work on existing tasks, and ordinary engineering:
 - Small surgical body edits the user dictates — read the body out with `mcp__bit__task_read`, edit it, write it back with `mcp__bit__task_update`.
 - Answering questions, reading code, debugging, and changes the user asks for directly.
 
-When a status change leaves a track fully done, say so and stop — flipping a track to `done` and filing it with `mcp__bit__task_complete` is the user's sign-off, not yours.
+When a status change leaves a track fully done, say so and stop. Flipping a track to `done` and filing it is the user's sign-off, not yours. When they give it ("mark BIT-23 done", "close it out"), use `bit:complete`. Don't just set the track's status: a `done` track that `mcp__bit__task_complete` never filed stays in the active list.
 
 ## What you hand to a skill
 
@@ -51,6 +51,7 @@ You do **not** freehand a scope body or invent plan steps. Those have skills, an
 | asking to plan, or to break work into steps | is there a track for this? | `bit:plan` — but see below |
 | implementing, continuing, doing the next step | does the track have bars? | `bit:do` |
 | reviewing or auditing finished work | — | `bit:check` |
+| marking a whole track done, closing it out, signing it off | — | `bit:complete` |
 | correcting you mid-cycle, or you hit something the plan didn't decide | — | `bit:feedback` |
 | looking back over a cycle, asking what to learn | — | `bit:retro` |
 | handing over a retro proposals file | only inside bit-pro itself | `bit:learn` |
