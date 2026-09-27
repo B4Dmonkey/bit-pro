@@ -99,11 +99,15 @@ func mcpRegisterCall() []string {
 	return []string{claudeBin, serveMCPCmdUse, addCmdUse, "bit", "--", "bp", serveCmdUse, serveMCPCmdUse}
 }
 
+func mcpLookupCall() []string {
+	return []string{claudeBin, serveMCPCmdUse, "get", "bit"}
+}
+
 func pluginSyncCalls() [][]string {
 	return [][]string{
 		{claudeBin, "plugin", "marketplace", updateCmd, "bit-pro"},
 		{claudeBin, "plugin", updateCmd, "bit@bit-pro", "--scope", "project"},
-		mcpRegisterCall(),
+		mcpLookupCall(),
 	}
 }
 

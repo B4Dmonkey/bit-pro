@@ -225,7 +225,13 @@ func TestInitCmd_RegistersMCPServer(t *testing.T) {
 	var calls [][]string
 
 	runner := func(_ context.Context, name string, args ...string) error {
-		calls = append(calls, append([]string{name}, args...))
+		call := append([]string{name}, args...)
+		calls = append(calls, call)
+
+		if slices.Equal(call, mcpLookupCall()) {
+			return errors.New("no MCP server found with name: bit")
+		}
+
 		return nil
 	}
 
@@ -257,28 +263,38 @@ func TestInitCmd_RegistersMCPServer(t *testing.T) {
 func TestInitCmd_MCPRegistrationIsIdempotent(t *testing.T) {
 	t.Chdir(t.TempDir())
 
-	mcpCall := mcpRegisterCall()
+	registered := false
+	adds := 0
 
-	for i := range 2 {
-		var calls [][]string
+	runner := func(_ context.Context, name string, args ...string) error {
+		call := append([]string{name}, args...)
 
-		runner := func(_ context.Context, name string, args ...string) error {
-			calls = append(calls, append([]string{name}, args...))
-			return nil
+		switch {
+		case slices.Equal(call, mcpLookupCall()) && !registered:
+			return errors.New("no MCP server found with name: bit")
+		case slices.Equal(call, mcpRegisterCall()) && registered:
+			return errors.New("MCP server bit already exists in local config")
+		case slices.Equal(call, mcpRegisterCall()):
+			registered = true
+			adds++
 		}
 
+		return nil
+	}
+
+	for i := range 2 {
 		out, err := runWithRunner(t, runner, "", initCmdUse, prefixFlag, testPrefix)
 		if err != nil {
 			t.Fatalf("run %d: Execute() returned error: %v", i+1, err)
 		}
 
-		if !slices.ContainsFunc(calls, func(call []string) bool { return slices.Equal(call, mcpCall) }) {
-			t.Errorf("run %d: calls = %v, want it to contain %v", i+1, calls, mcpCall)
-		}
-
 		if !strings.Contains(out, "bit MCP server registered") {
 			t.Errorf("run %d: out = %q, want it to contain %q", i+1, out, "bit MCP server registered")
 		}
+	}
+
+	if adds != 1 {
+		t.Errorf("adds = %d, want 1", adds)
 	}
 }
 

@@ -19,6 +19,10 @@ func ExecRunner(ctx context.Context, name string, args ...string) error {
 }
 
 func RegisterMCP(ctx context.Context, run Runner) error {
+	if run(ctx, "claude", "mcp", "get", "bit") == nil {
+		return nil
+	}
+
 	if err := run(ctx, "claude", "mcp", "add", "bit", "--", "bp", "serve", "mcp"); err != nil {
 		return fmt.Errorf("registering bit MCP server: %w", err)
 	}

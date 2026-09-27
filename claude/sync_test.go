@@ -15,6 +15,8 @@ const (
 	bitProPlugin = "bit@bit-pro"
 	updateSubCmd = "update"
 	projectScope = "project"
+	mcpSubCmd    = "mcp"
+	bitServer    = "bit"
 )
 
 type recorder struct {
@@ -80,21 +82,40 @@ func TestSyncPlugin_StopsWhenTheCatalogRefreshFails(t *testing.T) {
 	}
 }
 
-func TestRegisterMCP_CallsClaudeMCPAdd(t *testing.T) {
+func TestRegisterMCP_SkipsAddWhenAlreadyRegistered(t *testing.T) {
 	rec := newRecorder(nil)
 
 	if err := RegisterMCP(t.Context(), rec.Run); err != nil {
 		t.Fatalf("RegisterMCP returned error: %v", err)
 	}
 
-	want := [][]string{{"claude", "mcp", "add", "bit", "--", "bp", "serve", "mcp"}}
+	want := [][]string{{claudeBin, mcpSubCmd, "get", bitServer}}
 	if !slices.EqualFunc(rec.calls, want, slices.Equal) {
 		t.Errorf("calls = %v, want %v", rec.calls, want)
 	}
 }
 
-func TestRegisterMCP_ReturnsErrorWhenClaudeFails(t *testing.T) {
-	rec := newRecorder(map[int]error{0: errors.New("mcp add failed")})
+func TestRegisterMCP_AddsWhenNotRegistered(t *testing.T) {
+	rec := newRecorder(map[int]error{0: errors.New("no MCP server found with name: bit")})
+
+	if err := RegisterMCP(t.Context(), rec.Run); err != nil {
+		t.Fatalf("RegisterMCP returned error: %v", err)
+	}
+
+	want := [][]string{
+		{claudeBin, mcpSubCmd, "get", bitServer},
+		{claudeBin, mcpSubCmd, "add", bitServer, "--", "bp", "serve", mcpSubCmd},
+	}
+	if !slices.EqualFunc(rec.calls, want, slices.Equal) {
+		t.Errorf("calls = %v, want %v", rec.calls, want)
+	}
+}
+
+func TestRegisterMCP_ReturnsErrorWhenAddFails(t *testing.T) {
+	rec := newRecorder(map[int]error{
+		0: errors.New("no MCP server found with name: bit"),
+		1: errors.New("mcp add failed"),
+	})
 
 	err := RegisterMCP(t.Context(), rec.Run)
 	if err == nil {
