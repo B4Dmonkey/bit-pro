@@ -1,7 +1,7 @@
 ---
 id: BIT-50.14
 title: /bit:complete asks for the PR or a commit when it can't tell or the work isn't on trunk, and repoints those bars before filing
-status: todo
+status: done
 approved: true
 phase: 3
 phase_label: PR or commit answer

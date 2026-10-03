@@ -18,22 +18,28 @@ Take every track ID the user named. IDs are case-insensitive, and the tools norm
 ## For each track
 
 1. **Read it.** Run `mcp__bit__task_list` with `parent` set to the track to get its bars, and `mcp__bit__task_read` on the track to get its body.
-2. **Check where it landed.** Run `mcp__bit__task_landing` with the track's `id`. It reads git and never writes. It returns `trunk`, `branch`, `shallow`, `verdict`, `landing`, the `unfinished` bars, and each bar's class: `landed`, `pushed` (pushed but not merged), `local` (only on a local branch), `unresolvable`, or `no_hash`.
+2. **Check where it landed.** Run `mcp__bit__task_landing` with the track's `id`. It reads git and never writes. It returns `trunk`, `branch`, `shallow`, `verdict`, `landing`, the `unfinished` bars, and each bar's class: `landed`, `pushed` (pushed but not merged), `local` (only on a local branch), `unresolvable`, or `no_hash`, with its `landing` and whether to `repoint` it.
 3. **Act on the first case that applies.** Unfinished bars are never marked `done` without the operator's OK, and `task_complete` refuses a track that still has them.
    - **`shallow` is true:** say "this clone is shallow, so git can't see where the work landed: run `git fetch --unshallow`, then `/bit:complete <ID>` again". Stop, and file nothing.
    - **`done`:** go on to step 4.
    - **`partly`:** name the landed bars, the rest with their class (pushed but not merged, local only, unresolvable), and the unfinished bars. Say the unlanded ones need fetch, pull or push (leave out push when `trunk` is `main`, since there's no `origin/main`). Ask whether to complete anyway. On a yes, run `mcp__bit__task_update` with `status: done` on each unfinished bar, then go on to step 4. On a no, change nothing.
-   - **`not_done`:** say "<ID> hasn't landed: fetch or pull, and push if the commits are only local, then run `/bit:complete <ID>` again". When `trunk` is `main`, leave out "and push if the commits are only local". Then warn that if the work was abandoned, the track probably should be archived, and let the operator choose. Keeping it open as a reminder changes nothing. Archiving runs `mcp__bit__task_delete` with `{id, force: true}` when any bar is unfinished (plain `{id}` otherwise), and only after they confirm. A missing PR is a signal, not a rule.
-   - **`no_git`:** say "this folder isn't in git, so there's no landing commit to record" and ask to confirm. On a yes, mark unfinished bars `done` (only with that OK), mark the track `done` as in step 4, then run `mcp__bit__task_complete` with just the track's `id`, with no `commit` or `branch`, and go on to step 6.
-   - **`cant_tell`:** say "git can't place this track's work: none of its bar commits resolve. Fetch and retry." Stop, and file nothing.
-4. **Mark the track done.** Run `mcp__bit__task_update` on the track with `status: done`. If the body has unchecked verse items (`- [ ]`), check them off in the same call by passing the edited `body`, so the track body agrees with its status.
-5. **File it.** Run `mcp__bit__task_complete` with the track's `id`, `commit` set to `landing`, and `branch` set to `branch`. This records the landing commit on the track, then files the track and all its bars as completed.
-6. **Confirm it landed.** Run `mcp__bit__task_list` with no `parent`. The track must be gone from the list. If it's still there, or `task_complete` returned an error, report the exact error and stop. Never tell the user a track is complete when it's still listed.
+   - **`not_done`:** say "<ID> hasn't landed: fetch or pull, and push if the commits are only local, then run `/bit:complete <ID>` again, or tell me the PR number or a commit that landed it". When `trunk` is `main`, leave out "and push if the commits are only local". The PR or commit is for work that reached trunk under new hashes, by a rebase-merge or a squash that doesn't list the bars; handle an answer as in **An answer** below. Then warn that if the work was abandoned, the track probably should be archived, and let the operator choose. Keeping it open as a reminder changes nothing. Archiving runs `mcp__bit__task_delete` with `{id, force: true}` when any bar is unfinished (plain `{id}` otherwise), and only after they confirm. A missing PR is a signal, not a rule.
+   - **`no_git`:** say "this folder isn't in git, so there's no landing commit to record" and ask to confirm. On a yes, mark unfinished bars `done` (only with that OK), mark the track `done` as in step 5, then run `mcp__bit__task_complete` with just the track's `id`, with no `commit` or `branch`, and go on to step 7.
+   - **`cant_tell`:** say git can't place this track's work, then ask: "Fetch and retry, or tell me the PR number or a commit that landed it." Handle an answer as in **An answer** below. With no answer, file nothing.
 
-The order matters: every write comes before `task_complete`, because `task_update` can't reach a task once it's filed.
+   **An answer.** Call `mcp__bit__task_landing` again with the track's `id` and either `pr` (the number, without `#`) or `commit`, and act on the new verdict from the top of step 3. Its errors file nothing:
+   - **"not on trunk":** relay it: the PR or commit isn't on `trunk`, so fetch and retry.
+   - **a PR matching more than one commit:** show the SHAs it lists, ask which one, and call again with that `commit`.
+   - **"not a commit":** say so and ask again.
+4. **Repoint bars.** For each bar the latest `task_landing` marked `repoint: true`, run `mcp__bit__task_update` with `{id: <bar>, commit: <its landing>}`, so the bar records the commit that reached trunk.
+5. **Mark the track done.** Run `mcp__bit__task_update` on the track with `status: done`. If the body has unchecked verse items (`- [ ]`), check them off in the same call by passing the edited `body`, so the track body agrees with its status.
+6. **File it.** Run `mcp__bit__task_complete` with the track's `id`, `commit` set to `landing`, and `branch` set to `branch`. This records the landing commit on the track, then files the track and all its bars as completed.
+7. **Confirm it landed.** Run `mcp__bit__task_list` with no `parent`. The track must be gone from the list. If it's still there, or `task_complete` returned an error, report the exact error and stop. Never tell the user a track is complete when it's still listed.
+
+The order matters, because `task_update` can't reach a task once it's filed: unfinished bars to `done` (only with the operator's OK), then the repointed bars' `commit`, then the track to `done`, then `task_complete` with `{id, commit, branch}`.
 
 If one track fails, finish the others and report each track's result separately.
 
 ## Report
 
-Keep the report short, one line per track: the ID and its outcome: filed (with its landing commit, first 12 characters, and branch, when it has one), kept open, archived, or waiting on fetch. There's nothing to commit afterwards: the store lives outside the repo, so filing leaves the working tree untouched.
+Keep the report short, one line per track: the ID and its outcome: filed (with its landing commit, first 12 characters, and branch, when it has one, and the IDs of any repointed bars), kept open, archived, or waiting on fetch. There's nothing to commit afterwards: the store lives outside the repo, so filing leaves the working tree untouched.

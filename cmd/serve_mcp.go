@@ -99,7 +99,8 @@ A track is a top-level task — one whole scope — and its ID has no dot, as in
 origin/main, else main. The result names the trunk and branch, a verdict for the track, the
 track's landing commit, and for each bar its status, commit, class and landing commit. The check is
 read-only: it never fetches and never writes, so a commit that hasn't been fetched or pushed reads
-as not landed. commit is the operator's answer when git can't place the work or it isn't on trunk.`
+as not landed. commit is the operator's answer when git can't place the work or it isn't on trunk.
+pr is the same answer as a PR number, found by its " (#N)" subject on trunk; commit wins over it.`
 
 const taskDeleteDescription = `Remove a task from the active list by moving it to the archive.
 

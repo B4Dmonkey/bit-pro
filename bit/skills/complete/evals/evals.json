@@ -48,6 +48,18 @@
       "prompt": "complete BIT-11",
       "expected_output": "The repo is a shallow clone, so task_landing reports shallow. The skill says to run git fetch --unshallow and then /bit:complete BIT-11 again. Nothing is filed.",
       "files": []
+    },
+    {
+      "id": 9,
+      "prompt": "complete BIT-12",
+      "expected_output": "BIT-12's bars have no recorded hashes, so task_landing reports cant_tell. The skill says git can't place the work and asks to fetch and retry or give a PR number or a commit. The operator answers #5. task_landing is called again with pr: 5, each bar gets task_update with commit set to its landing before task_complete, and the track is filed with that commit.",
+      "files": []
+    },
+    {
+      "id": 10,
+      "prompt": "complete BIT-13",
+      "expected_output": "BIT-13's bars are pushed only to origin/feat, and feat was rebase-merged onto origin/main, so task_landing reports not_done. The skill says BIT-13 hasn't landed and offers fetch and retry, keep or archive, and a PR number or a commit. The operator answers with the rebased tip's SHA. task_landing is called again with that commit, each bar gets task_update with commit set to its landing before task_complete, and the track is filed with that commit. Nothing is archived.",
+      "files": []
     }
   ]
 }
