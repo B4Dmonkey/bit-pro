@@ -389,7 +389,8 @@ func assertToolErrorNames(t *testing.T, result *mcp.CallToolResult, want string)
 func seedEscapedResearch(t *testing.T, dir string) {
 	t.Helper()
 
-	if _, err := openProjectStore(t, dir).WriteResearch(testTrackID, testIndexTopic, testResearchBody); err != nil {
+	s := openProjectStore(t, dir)
+	if _, err := s.WriteResearch(testTrackID, testIndexTopic, testResearchBody, task.Commit{}); err != nil {
 		t.Fatal(err)
 	}
 

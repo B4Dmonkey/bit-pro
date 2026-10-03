@@ -69,7 +69,7 @@ func readResearchRecord(path string) (researchRecord, error) {
 	return rec, nil
 }
 
-func (s *Store) WriteResearch(track, topic, body string) (string, error) {
+func (s *Store) WriteResearch(track, topic, body string, head Commit) (string, error) {
 	track, err := s.resolveTrack(track)
 	if err != nil {
 		return "", err
@@ -100,6 +100,7 @@ func (s *Store) WriteResearch(track, topic, body string) (string, error) {
 		rec.CreatedAt = ts
 	}
 
+	rec.Commits = appendCommit(rec.Commits, head)
 	if rec.Commits == nil {
 		rec.Commits = []Commit{}
 	}

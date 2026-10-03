@@ -82,3 +82,17 @@ type Commit struct {
 	Branch string    `json:"branch"`
 	At     time.Time `json:"at"`
 }
+
+func appendCommit(list []Commit, head Commit) []Commit {
+	if head.SHA == "" {
+		return list
+	}
+
+	if len(list) > 0 && list[len(list)-1].SHA == head.SHA {
+		return list
+	}
+
+	head.At = head.At.UTC().Truncate(time.Second)
+
+	return append(list, head)
+}

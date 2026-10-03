@@ -495,7 +495,7 @@ func researchWriteHandler(root string) mcp.ToolHandlerFor[researchWriteInput, re
 			return nil, researchWriteOutput{}, err
 		}
 
-		path, err := store.WriteResearch(in.Track, in.Topic, in.Body)
+		path, err := store.WriteResearch(in.Track, in.Topic, in.Body, task.Commit{})
 		if err != nil {
 			return nil, researchWriteOutput{}, fmt.Errorf("writing research for %s: %w", in.Track, err)
 		}
