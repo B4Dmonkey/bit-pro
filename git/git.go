@@ -35,11 +35,11 @@ func ReadHead(ctx context.Context, run Runner, dir string) Head {
 	var h Head
 
 	if sha, err := run(ctx, dir, "rev-parse", "HEAD"); err == nil {
-		h.SHA = sha
+		h.SHA = strings.TrimSpace(sha)
 	}
 
 	if branch, err := run(ctx, dir, "symbolic-ref", "--short", "-q", "HEAD"); err == nil {
-		h.Branch = branch
+		h.Branch = strings.TrimSpace(branch)
 	}
 
 	return h
