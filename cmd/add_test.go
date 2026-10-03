@@ -431,6 +431,80 @@ func TestAddCmd(t *testing.T) {
 			t.Fatalf("ListProjects() returned %d projects, want 1", len(projects))
 		}
 	})
+
+	t.Run("wiring failure keeps the project and prints the commands", func(t *testing.T) {
+		t.Setenv("HOME", t.TempDir())
+		t.Setenv("XDG_DATA_HOME", "")
+
+		dir := t.TempDir()
+
+		want, err := project.CanonicalPath(dir)
+		if err != nil {
+			t.Fatalf("project.CanonicalPath(%q) returned error: %v", dir, err)
+		}
+
+		boom := errors.New("plugin bit not found")
+
+		var calls [][]string
+
+		run := func(_ context.Context, name string, args ...string) error {
+			calls = append(calls, append([]string{name}, args...))
+			if args[1] == "install" {
+				return boom
+			}
+
+			return nil
+		}
+
+		out, err := runWithRunner(t, run, testCode+"\n", addCmdUse, dir)
+		if !errors.Is(err, boom) {
+			t.Fatalf("Execute() error = %v, want %v", err, boom)
+		}
+
+		if wantAdded := "added " + testCode + " " + want; !strings.Contains(out, wantAdded) {
+			t.Errorf("output = %q, want it to contain %q", out, wantAdded)
+		}
+
+		var b strings.Builder
+
+		b.WriteString("Run these to finish setting up bit in Claude Code:\n")
+
+		for _, argv := range claude.GlobalWiring() {
+			b.WriteString("  " + strings.Join(argv, " ") + "\n")
+		}
+
+		if block := b.String(); !strings.Contains(out, block) {
+			t.Errorf("output = %q, want it to contain %q", out, block)
+		}
+
+		if len(calls) != 3 {
+			t.Errorf("calls = %v, want 3", calls)
+		}
+
+		projects := listProjects(t)
+		if len(projects) != 1 {
+			t.Fatalf("ListProjects() returned %d projects, want 1", len(projects))
+		}
+
+		if projects[0].Code != testCode {
+			t.Errorf("Code = %q, want %q", projects[0].Code, testCode)
+		}
+
+		calls = nil
+
+		out, err = runWithRunner(t, run, testCode+"\n", addCmdUse, dir)
+		if err != nil {
+			t.Fatalf("second Execute() returned error: %v", err)
+		}
+
+		if wantOut := "already added\n"; out != wantOut {
+			t.Errorf("output = %q, want %q", out, wantOut)
+		}
+
+		if len(calls) != 0 {
+			t.Errorf("calls = %v, want none", calls)
+		}
+	})
 }
 
 func listProjects(t *testing.T) []orm.Project {
