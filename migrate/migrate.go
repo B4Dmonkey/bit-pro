@@ -103,7 +103,7 @@ func readSource(src string) (config, error) {
 		return config{}, fmt.Errorf("reading %s config: %w", src, err)
 	}
 
-	return cfg, checkKnown(src)
+	return cfg, checkKnown(src, cfg.Prefix)
 }
 
 const dirMode = 0o755

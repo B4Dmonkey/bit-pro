@@ -19,9 +19,11 @@ var ErrUnknownFiles = errors.New(".bit/ holds files migrate doesn't know")
 
 var ErrTaskFiles = errors.New("task files migrate can't copy exactly")
 
+var ErrIDs = errors.New(".bit/ holds IDs that aren't uppercase")
+
 var feedbackName = regexp.MustCompile(`^.+-\d+-\d+\.md$`)
 
-func checkKnown(src string) error {
+func checkKnown(src, rawPrefix string) error {
 	unknown, err := unknownFiles(src)
 	if err != nil {
 		return err
@@ -29,6 +31,10 @@ func checkKnown(src string) error {
 
 	if len(unknown) > 0 {
 		return fmt.Errorf("%w:\n  %s", ErrUnknownFiles, strings.Join(unknown, "\n  "))
+	}
+
+	if bad := badIDs(src, rawPrefix); len(bad) > 0 {
+		return fmt.Errorf("%w, run v1's update/normalize.sh to uppercase them:\n  %s", ErrIDs, strings.Join(bad, "\n  "))
 	}
 
 	bad, err := badTaskFiles(src)
@@ -41,6 +47,43 @@ func checkKnown(src string) error {
 	}
 
 	return nil
+}
+
+func badIDs(src, rawPrefix string) []string {
+	var bad []string
+
+	check := func(rel, value string) {
+		if value != strings.ToUpper(value) {
+			bad = append(bad, rel+": "+value)
+		}
+	}
+
+	check("config.toml", rawPrefix)
+
+	for _, pl := range places {
+		paths, _ := filepath.Glob(filepath.Join(src, pl.dir, "*.md"))
+		for _, p := range paths {
+			name := filepath.Base(p)
+			check(path.Join(filepath.ToSlash(pl.dir), name), strings.TrimSuffix(name, ".md"))
+		}
+	}
+
+	notes, _ := filepath.Glob(filepath.Join(src, "feedback", "*.md"))
+	for _, p := range notes {
+		name := filepath.Base(p)
+		if m := noteName.FindStringSubmatch(name); m != nil {
+			check(path.Join("feedback", name), m[1])
+		}
+	}
+
+	dirs, _ := os.ReadDir(filepath.Join(src, "research"))
+	for _, d := range dirs {
+		if d.IsDir() {
+			check(path.Join("research", d.Name()), d.Name())
+		}
+	}
+
+	return bad
 }
 
 func badTaskFiles(src string) ([]string, error) {

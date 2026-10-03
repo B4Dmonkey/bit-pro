@@ -490,6 +490,46 @@ func TestMigrateCmd(t *testing.T) {
 		}
 	})
 
+	t.Run("refuses ids that are not normalised", func(t *testing.T) {
+		mcpSandbox(t)
+		gittest.Isolate(t)
+
+		dir := t.TempDir()
+		files := v1Fixture(t)
+
+		lower, err := (&task.Task{ID: testOwnTrack2, Title: "Lower", Status: task.StatusTodo}).Bytes()
+		if err != nil {
+			t.Fatalf("Bytes(BIT-2) returned error: %v", err)
+		}
+
+		files[filepath.Join(testTasksDir, "bit-2.md")] = lower
+		writeV1Store(t, dir, files)
+		t.Chdir(dir)
+
+		_, err = run(t, migrateCmdUse)
+		if !errors.Is(err, migrate.ErrIDs) {
+			t.Fatalf("bp migrate error = %v, want migrate.ErrIDs", err)
+		}
+
+		if !strings.Contains(err.Error(), "tasks/bit-2.md") {
+			t.Errorf("bp migrate error = %q, want it to name tasks/bit-2.md", err)
+		}
+
+		if projects := listProjects(t); len(projects) != 0 {
+			t.Errorf("ListProjects() = %v, want none", projects)
+		}
+
+		d := dataDir(t)
+
+		if _, err := os.Stat(filepath.Join(d, testPrefix)); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("stat %s project dir = %v, want fs.ErrNotExist", testPrefix, err)
+		}
+
+		if stages, _ := filepath.Glob(filepath.Join(d, ".migrate-*")); len(stages) != 0 {
+			t.Errorf("staging left behind: %v", stages)
+		}
+	})
+
 	t.Run("a note on a missing track stops the migration", func(t *testing.T) {
 		mcpSandbox(t)
 		gittest.Isolate(t)
