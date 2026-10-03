@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/B4Dmonkey/bit-pro/git"
 	"github.com/B4Dmonkey/bit-pro/project"
 	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/google/jsonschema-go/jsonschema"
@@ -238,12 +239,12 @@ func newServeMCPCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			root := os.Getenv("CLAUDE_PROJECT_DIR")
 
-			return runMCPServer(cmd.Context(), root, &mcp.StdioTransport{})
+			return runMCPServer(cmd.Context(), root, git.ExecRunner, &mcp.StdioTransport{})
 		},
 	}
 }
 
-func runMCPServer(ctx context.Context, root string, transport mcp.Transport) error {
+func runMCPServer(ctx context.Context, root string, run git.Runner, transport mcp.Transport) error {
 	s := mcp.NewServer(&mcp.Implementation{Name: "bp", Version: "1"}, nil)
 	mcp.AddTool(s, &mcp.Tool{Name: taskReadTool, Description: taskReadDescription}, taskReadHandler(root))
 	mcp.AddTool(s, &mcp.Tool{Name: taskListTool, Description: taskListDescription}, taskListHandler(root))
@@ -265,7 +266,7 @@ func runMCPServer(ctx context.Context, root string, transport mcp.Transport) err
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        researchWriteTool,
 		Description: researchWriteDescription,
-	}, researchWriteHandler(root))
+	}, researchWriteHandler(root, run))
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        researchReadTool,
 		Description: researchReadDescription,
@@ -498,18 +499,23 @@ func feedbackAddHandler(root string) mcp.ToolHandlerFor[feedbackAddInput, feedba
 	}
 }
 
-func researchWriteHandler(root string) mcp.ToolHandlerFor[researchWriteInput, researchWriteOutput] {
+func researchWriteHandler(root string, run git.Runner) mcp.ToolHandlerFor[researchWriteInput, researchWriteOutput] {
 	return func(
 		ctx context.Context,
 		_ *mcp.CallToolRequest,
 		in researchWriteInput,
 	) (*mcp.CallToolResult, researchWriteOutput, error) {
+		dir, err := sessionDir(root)
+		if err != nil {
+			return nil, researchWriteOutput{}, err
+		}
+
 		store, err := mcpStore(ctx, root)
 		if err != nil {
 			return nil, researchWriteOutput{}, err
 		}
 
-		path, err := store.WriteResearch(in.Track, in.Topic, in.Body, task.Commit{})
+		path, err := store.WriteResearch(in.Track, in.Topic, in.Body, sessionHead(ctx, run, dir))
 		if err != nil {
 			return nil, researchWriteOutput{}, fmt.Errorf("writing research for %s: %w", in.Track, err)
 		}
@@ -548,14 +554,9 @@ func researchReadHandler(root string) mcp.ToolHandlerFor[researchReadInput, rese
 }
 
 func mcpStore(ctx context.Context, root string) (*task.Store, error) {
-	dir := root
-	if dir == "" {
-		wd, err := os.Getwd()
-		if err != nil {
-			return nil, fmt.Errorf("getting the working directory: %w", err)
-		}
-
-		dir = wd
+	dir, err := sessionDir(root)
+	if err != nil {
+		return nil, err
 	}
 
 	return project.OpenStore(ctx, dir)

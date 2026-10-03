@@ -3,10 +3,16 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/db/orm"
+	"github.com/B4Dmonkey/bit-pro/git"
 	"github.com/B4Dmonkey/bit-pro/project"
 	"github.com/B4Dmonkey/bit-pro/store"
 	"github.com/B4Dmonkey/bit-pro/task"
@@ -72,7 +78,56 @@ func projectStoreDir(t *testing.T, dir string) string {
 	return sd
 }
 
+var errNoGit = errors.New("no git in this test")
+
+func noGit(context.Context, string, ...string) (string, error) {
+	return "", errNoGit
+}
+
+type gitReply struct {
+	out string
+	err error
+}
+
+type fakeGit struct {
+	replies map[string]gitReply
+	dirs    []string
+}
+
+func (f *fakeGit) run(_ context.Context, dir string, args ...string) (string, error) {
+	f.dirs = append(f.dirs, dir)
+
+	r, ok := f.replies[strings.Join(args, " ")]
+	if !ok {
+		return "", fmt.Errorf("fakeGit: no reply for %q", args)
+	}
+
+	return strings.TrimSpace(r.out), r.err
+}
+
+func readRecord(t *testing.T, mdPath string) map[string]any {
+	t.Helper()
+
+	data, err := os.ReadFile(strings.TrimSuffix(mdPath, filepath.Ext(mdPath)) + ".json")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var rec map[string]any
+	if err := json.Unmarshal(data, &rec); err != nil {
+		t.Fatal(err)
+	}
+
+	return rec
+}
+
 func mcpSession(t *testing.T, root string) *mcp.ClientSession {
+	t.Helper()
+
+	return mcpSessionWithGit(t, root, noGit)
+}
+
+func mcpSessionWithGit(t *testing.T, root string, run git.Runner) *mcp.ClientSession {
 	t.Helper()
 
 	mcpSandbox(t)
@@ -82,7 +137,7 @@ func mcpSession(t *testing.T, root string) *mcp.ClientSession {
 	serverT, clientT := mcp.NewInMemoryTransports()
 
 	errCh := make(chan error, 1)
-	go func() { errCh <- runMCPServer(ctx, root, serverT) }()
+	go func() { errCh <- runMCPServer(ctx, root, run, serverT) }()
 
 	t.Cleanup(func() {
 		cancel()

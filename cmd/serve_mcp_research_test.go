@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -30,6 +31,15 @@ const (
 	testMCPTopic      = "mcp"
 	testTopicsKey     = "topics"
 	testEscapingTrack = "../../" + testTrackID
+
+	testHeadSHA         = "9f3c2b7e4d1a0c8b6e5f4a3b2c1d0e9f8a7b6c5d"
+	testNextHeadSHA     = "b1e2d3c4b5a6978877665544332211009f8e7d6c"
+	testBranch          = "v2"
+	testRevParseArgs    = "rev-parse HEAD"
+	testSymbolicRefArgs = "symbolic-ref --short -q HEAD"
+	testCommitsKey      = "commits"
+	testSHAKey          = "sha"
+	testAtKey           = "at"
 )
 
 func TestResearchWriteHandler(t *testing.T) {
@@ -220,6 +230,153 @@ func TestResearchWriteHandler(t *testing.T) {
 			t.Errorf("folder outside the store: stat err = %v, want ErrNotExist", err)
 		}
 	})
+
+	t.Run("records the session head", func(t *testing.T) {
+		dir := t.TempDir()
+		seedTasks(t, dir, &task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusDoing})
+
+		fake := headGit(testHeadSHA)
+		start := time.Now().UTC().Truncate(time.Second)
+
+		path := writeIndexTopic(t, mcpSessionWithGit(t, dir, fake.run))
+
+		end := time.Now().UTC()
+
+		commits := recordCommits(t, path)
+		if len(commits) != 1 {
+			t.Fatalf("commits = %v, want one", commits)
+		}
+
+		assertCommit(t, commits[0], testHeadSHA)
+
+		at, err := time.Parse(time.RFC3339, commits[0][testAtKey].(string))
+		if err != nil {
+			t.Fatalf("at = %v: %v", commits[0][testAtKey], err)
+		}
+
+		if at.Before(start) || at.After(end) {
+			t.Errorf("at = %v, want between %v and %v", at, start, end)
+		}
+
+		assertDirs(t, fake.dirs, dir)
+	})
+
+	t.Run("a later write after a new commit appends", func(t *testing.T) {
+		dir := t.TempDir()
+		seedTasks(t, dir, &task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusDoing})
+
+		fake := headGit(testHeadSHA)
+		session := mcpSessionWithGit(t, dir, fake.run)
+
+		writeIndexTopic(t, session)
+
+		fake.replies[testRevParseArgs] = gitReply{out: testNextHeadSHA + "\n"}
+
+		commits := recordCommits(t, writeIndexTopic(t, session))
+		if len(commits) != 2 {
+			t.Fatalf("commits = %v, want two", commits)
+		}
+
+		assertCommit(t, commits[0], testHeadSHA)
+		assertCommit(t, commits[1], testNextHeadSHA)
+	})
+
+	t.Run("reads git in the session dir, not the project root", func(t *testing.T) {
+		dir := t.TempDir()
+		seedTasks(t, dir, &task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusDoing})
+
+		wt := filepath.Join(dir, ".claude", "worktrees", "wt")
+		if err := os.MkdirAll(wt, 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		fake := headGit(testHeadSHA)
+
+		path := writeIndexTopic(t, mcpSessionWithGit(t, wt, fake.run))
+
+		if !strings.HasPrefix(path, projectStoreDir(t, dir)) {
+			t.Errorf("path = %s, want it under %s", path, projectStoreDir(t, dir))
+		}
+
+		assertDirs(t, fake.dirs, wt)
+	})
+
+	t.Run("no git records no commit", func(t *testing.T) {
+		dir := t.TempDir()
+		seedTasks(t, dir, &task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusDoing})
+
+		commits := recordCommits(t, writeIndexTopic(t, mcpSession(t, dir)))
+		if len(commits) != 0 {
+			t.Errorf("commits = %v, want none", commits)
+		}
+	})
+}
+
+func headGit(sha string) *fakeGit {
+	return &fakeGit{replies: map[string]gitReply{
+		testRevParseArgs:    {out: sha + "\n"},
+		testSymbolicRefArgs: {out: testBranch + "\n"},
+	}}
+}
+
+func writeIndexTopic(t *testing.T, s *mcp.ClientSession) string {
+	t.Helper()
+
+	got := callTool(t, s, researchWriteTool, map[string]any{
+		testTrackKey: testTrackID,
+		testTopicKey: testIndexTopic,
+		testBodyKey:  testResearchBody,
+	})
+
+	path, ok := got[testPathKey].(string)
+	if !ok {
+		t.Fatalf("path = %v, want a string", got[testPathKey])
+	}
+
+	return path
+}
+
+func recordCommits(t *testing.T, mdPath string) []map[string]any {
+	t.Helper()
+
+	raw, ok := readRecord(t, mdPath)[testCommitsKey].([]any)
+	if !ok {
+		t.Fatalf("commits = %v, want a list", readRecord(t, mdPath)[testCommitsKey])
+	}
+
+	commits := make([]map[string]any, 0, len(raw))
+	for _, c := range raw {
+		m, ok := c.(map[string]any)
+		if !ok {
+			t.Fatalf("commit = %v, want an object", c)
+		}
+
+		commits = append(commits, m)
+	}
+
+	return commits
+}
+
+func assertCommit(t *testing.T, c map[string]any, sha string) {
+	t.Helper()
+
+	if c[testSHAKey] != sha || c[testBranchKey] != testBranch {
+		t.Errorf("commit = %v, want sha %s on branch %s", c, sha, testBranch)
+	}
+}
+
+func assertDirs(t *testing.T, dirs []string, want string) {
+	t.Helper()
+
+	if len(dirs) == 0 {
+		t.Fatalf("git saw no dir, want %s", want)
+	}
+
+	for _, d := range dirs {
+		if d != want {
+			t.Errorf("git dir = %s, want %s", d, want)
+		}
+	}
 }
 
 func TestResearchReadHandler(t *testing.T) {

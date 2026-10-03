@@ -1,7 +1,7 @@
 ---
 id: BIT-47.6
 title: research_write records the session's HEAD, read per call from the session dir
-status: todo
+status: done
 approved: true
 phase: 3
 phase_label: records show the commits they were written at
