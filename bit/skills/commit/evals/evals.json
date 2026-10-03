@@ -1,0 +1,35 @@
+{
+  "skill_name": "bit_commit",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "commit BIT-7.2",
+      "expected_output": "Shows the files, the diff stat and the message taken from the bar's ## Commit (user) section, then waits; no git add or git commit runs before the operator says yes.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "no, hold off on committing BIT-7.2",
+      "expected_output": "Said after the ask. The commit is reported as declined, BIT-7.2 stays doing, nothing is staged, and no task_update carries commit.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "commit BIT-7.3",
+      "expected_output": "The tree is clean. Says there's nothing to commit, never uses --allow-empty, and marks BIT-7.3 done with empty git fields only after the operator agrees.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "commit BIT-7.4",
+      "expected_output": "The pre-commit hook reformats a staged file. Shows the hook output, re-stages the file, asks again with the new diff stat, never uses --no-verify, and BIT-7.4 stays doing until the commit succeeds.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "commit BIT-7.5",
+      "expected_output": "HEAD is detached. After the operator's yes it commits, then task_update sends the full 40-character SHA, branch \"\" and status done.",
+      "files": []
+    }
+  ]
+}
