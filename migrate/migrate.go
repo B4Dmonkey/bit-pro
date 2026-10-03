@@ -7,6 +7,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -69,6 +71,10 @@ func Run(ctx context.Context, q *orm.Queries, opts Options) (Result, error) {
 		}
 	}
 
+	if err := copyNotes(filepath.Join(src, "feedback"), s); err != nil {
+		return Result{}, err
+	}
+
 	if err := q.CreateProject(ctx, orm.CreateProjectParams{Path: path, Code: code}); err != nil {
 		return Result{}, fmt.Errorf("registering %s: %w", path, err)
 	}
@@ -104,6 +110,44 @@ func copyTasks(dir string, s *task.Store, p task.Place) error {
 		}
 
 		if err := s.SaveTo(p, t); err != nil {
+			return fmt.Errorf("copying %s: %w", path, err)
+		}
+	}
+
+	return nil
+}
+
+var noteName = regexp.MustCompile(`^(.+)-(\d+)\.md$`)
+
+func copyNotes(dir string, s *task.Store) error {
+	entries, err := os.ReadDir(dir)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+
+	if err != nil {
+		return fmt.Errorf("reading %s: %w", dir, err)
+	}
+
+	for _, e := range entries {
+		m := noteName.FindStringSubmatch(e.Name())
+		if m == nil {
+			continue
+		}
+
+		seq, err := strconv.Atoi(m[2])
+		if err != nil {
+			return fmt.Errorf("parsing %s: %w", e.Name(), err)
+		}
+
+		path := filepath.Join(dir, e.Name())
+
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("reading %s: %w", path, err)
+		}
+
+		if _, err := s.ImportNote(m[1], seq, string(raw), task.Commit{}); err != nil {
 			return fmt.Errorf("copying %s: %w", path, err)
 		}
 	}

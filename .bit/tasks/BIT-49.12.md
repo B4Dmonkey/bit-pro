@@ -1,7 +1,7 @@
 ---
 id: BIT-49.12
 title: migrate moves feedback notes into the shared folder with their numbers kept
-status: todo
+status: done
 approved: true
 phase: 2
 phase_label: bp migrate

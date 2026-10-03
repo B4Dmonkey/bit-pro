@@ -106,6 +106,23 @@ func (s *Store) AddNote(track, body string, head Commit) (string, error) {
 	}
 }
 
+func (s *Store) ImportNote(track string, seq int, body string, head Commit) (string, error) {
+	if s.data == "" {
+		return "", errNoDataRoot
+	}
+
+	track, err := s.resolveTrack(track)
+	if err != nil {
+		return "", err
+	}
+
+	if err := os.MkdirAll(s.feedbackDir(), dirMode); err != nil {
+		return "", fmt.Errorf("creating %s: %w", s.feedbackDir(), err)
+	}
+
+	return s.writeNote(track, seq, body, head)
+}
+
 func (s *Store) writeNote(track string, seq int, body string, head Commit) (string, error) {
 	id := noteID(track, seq)
 

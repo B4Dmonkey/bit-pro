@@ -21,6 +21,8 @@ const (
 	migratedBar   = "BIT-1.1"
 	splitBar      = "BIT-39.1"
 	listedBar     = "BIT-10.1"
+	activeTitle   = "Active"
+	notedTrack    = "BIT-19"
 )
 
 func TestMigrateCmd(t *testing.T) {
@@ -108,7 +110,7 @@ func TestMigrateCmd(t *testing.T) {
 
 		dir := t.TempDir()
 		writeV1Store(t, dir, v1Files(t, map[string][]*task.Task{
-			testTasksDir: {{ID: "BIT-40", Title: "Active", Status: task.StatusTodo}},
+			testTasksDir: {{ID: "BIT-40", Title: activeTitle, Status: task.StatusTodo}},
 			"completed": {
 				{ID: "BIT-39", Title: "Split", Status: task.StatusDoing, Order: []string{splitBar}},
 				{ID: splitBar, Title: "Done bar", Status: task.StatusDone},
@@ -160,7 +162,7 @@ func TestMigrateCmd(t *testing.T) {
 
 		dir := t.TempDir()
 		writeV1Store(t, dir, v1Files(t, map[string][]*task.Task{
-			testTasksDir:                           {{ID: testOwnTrack2, Title: "Active", Status: task.StatusTodo}},
+			testTasksDir:                           {{ID: testOwnTrack2, Title: activeTitle, Status: task.StatusTodo}},
 			filepath.Join("archive", testTasksDir): {{ID: "BIT-7", Title: "Deleted", Status: task.StatusTodo}},
 		}))
 		t.Chdir(dir)
@@ -169,6 +171,82 @@ func TestMigrateCmd(t *testing.T) {
 
 		if out := mustRun(t, "task", "create", "T"); out != "BIT-8\n" {
 			t.Errorf("bp task create = %q, want %q", out, "BIT-8\n")
+		}
+	})
+
+	t.Run("moves feedback notes with their numbers", func(t *testing.T) {
+		mcpSandbox(t)
+
+		dir := t.TempDir()
+		files := v1Files(t, map[string][]*task.Task{
+			testTasksDir:                           {{ID: "BIT-44", Title: activeTitle, Status: task.StatusDoing}},
+			filepath.Join("archive", testTasksDir): {{ID: notedTrack, Title: "Deleted", Status: task.StatusTodo}},
+		})
+		notes := map[string]struct {
+			track string
+			seq   float64
+			body  []byte
+		}{
+			"BIT-19-001.md": {notedTrack, 1, []byte("## What the plan said\n\nUse a map.\n\n## What happened\n\nA slice.\n")},
+			"BIT-19-002.md": {notedTrack, 2, []byte("## What the plan said\n\nNo flag.\n\n## What happened\n\nA --dry-run.\n")},
+			"BIT-44-005.md": {"BIT-44", 5, []byte("## What the plan said\n\nOne bar.\n\n## What happened\n\nIt took two.\n")},
+		}
+
+		for name, n := range notes {
+			files[filepath.Join("feedback", name)] = n.body
+		}
+
+		writeV1Store(t, dir, files)
+		t.Chdir(dir)
+
+		mustRun(t, migrateCmdUse)
+
+		d := dataDir(t)
+
+		for name, n := range notes {
+			path := filepath.Join(d, "feedback", name)
+
+			got, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("os.ReadFile(%q) returned error: %v", path, err)
+			}
+
+			if string(got) != string(n.body) {
+				t.Errorf("%s = %q, want %q", name, got, n.body)
+			}
+
+			rec := readRecord(t, path)
+			if rec["project"] != testPrefix || rec["track"] != n.track || rec["seq"] != n.seq {
+				t.Errorf("%s record = {%v, %v, %v}, want {%s, %s, %v}",
+					name, rec["project"], rec["track"], rec["seq"], testPrefix, n.track, n.seq)
+			}
+		}
+
+		if out := mustRun(t, "feedback", "add", notedTrack, "-d", "next"); !strings.HasSuffix(out, "BIT-19-003.md\n") {
+			t.Errorf("bp feedback add = %q, want a path ending in BIT-19-003.md", out)
+		}
+
+		if _, err := os.Stat(filepath.Join(d, testPrefix, "feedback")); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("stat project feedback dir = %v, want fs.ErrNotExist", err)
+		}
+	})
+
+	t.Run("a note on a missing track stops the migration", func(t *testing.T) {
+		mcpSandbox(t)
+
+		dir := t.TempDir()
+		files := v1Fixture(t)
+		files[filepath.Join("feedback", "BIT-9-001.md")] = []byte("## What happened\n\nOrphan.\n")
+		writeV1Store(t, dir, files)
+		t.Chdir(dir)
+
+		_, err := run(t, migrateCmdUse)
+		if err == nil {
+			t.Fatal("bp migrate with an orphan note returned no error")
+		}
+
+		if !strings.Contains(err.Error(), "BIT-9") {
+			t.Errorf("bp migrate error = %q, want it to name BIT-9", err)
 		}
 	})
 }
