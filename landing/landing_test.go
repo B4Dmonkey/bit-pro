@@ -16,6 +16,7 @@ const (
 	bar1 = "BIT-1.1"
 	bar2 = "BIT-1.2"
 	done = "done"
+	todo = "todo"
 )
 
 type recordingGit struct {
@@ -118,11 +119,32 @@ func TestCheck(t *testing.T) {
 		}
 	})
 
+	t.Run("a folder with no git", func(t *testing.T) {
+		gittest.Isolate(t)
+
+		got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: t.TempDir(), Bars: []landing.Bar{
+			{ID: bar1, Status: done},
+			{ID: bar2, Status: todo},
+		}})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if got.Verdict != landing.NoGit || got.Trunk != "" {
+			t.Errorf("Verdict, Trunk = %q, %q, want %q, \"\"", got.Verdict, got.Trunk, landing.NoGit)
+		}
+
+		if want := []string{bar2}; !slices.Equal(got.Unfinished, want) {
+			t.Errorf("Unfinished = %q, want %q", got.Unfinished, want)
+		}
+	})
+
 	t.Run("a malformed commit never reaches git", func(t *testing.T) {
 		const trunk = "6a1d3459c0ffee000000000000000000000000ab"
 
 		bad := []string{"--output=/tmp/x", "abc123"}
 		fake := &recordingGit{results: map[string]string{
+			"rev-parse --git-dir": ".git",
 			"rev-parse --verify -q refs/remotes/origin/main^{commit}": trunk,
 			"rev-list --first-parent " + trunk:                        trunk,
 		}}
@@ -344,7 +366,7 @@ func TestCheck(t *testing.T) {
 
 		got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: r.Dir, Bars: []landing.Bar{
 			{ID: bar1, Status: done, Commit: a},
-			{ID: bar2, Status: "todo"},
+			{ID: bar2, Status: todo},
 		}})
 		if err != nil {
 			t.Fatal(err)
@@ -385,7 +407,7 @@ func TestCheck(t *testing.T) {
 		a := r.Commit("feat(bit): one")
 		r.Git("push", "origin", "main")
 
-		assertVerdict(t, r.Dir, []landing.Bar{{ID: bar1, Status: done, Commit: a}, {ID: bar2, Status: "todo"}},
+		assertVerdict(t, r.Dir, []landing.Bar{{ID: bar1, Status: done, Commit: a}, {ID: bar2, Status: todo}},
 			landing.Partly, a, []landing.Class{landing.Landed, landing.NoHash})
 	})
 }

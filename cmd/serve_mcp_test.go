@@ -422,6 +422,26 @@ func TestTaskLandingHandler(t *testing.T) {
 		}
 	})
 
+	t.Run("a project folder with no git reports no_git", func(t *testing.T) {
+		gittest.Isolate(t)
+		mcpSandbox(t)
+
+		dir := t.TempDir()
+
+		path, err := project.CanonicalPath(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		seedProject(t, orm.CreateProjectParams{Path: path, Code: testPrefix})
+		seedLandingBar(t, openProjectStore(t, dir), "")
+
+		got := callTool(t, mcpSessionWithGit(t, dir, git.ExecRunner), taskLandingTool, map[string]any{"id": testNewTrackID})
+		if got["verdict"] != "no_git" {
+			t.Errorf("verdict = %v, want %q", got["verdict"], "no_git")
+		}
+	})
+
 	t.Run("an unknown track is a tool error", func(t *testing.T) {
 		r := landingRepo(t)
 

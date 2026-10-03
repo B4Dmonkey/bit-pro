@@ -51,6 +51,12 @@ func Tracks(ctx context.Context, run Runner, dir, path string) bool {
 	return err == nil && strings.TrimSpace(out) != ""
 }
 
+func IsRepo(ctx context.Context, run Runner, dir string) bool {
+	_, err := run(ctx, dir, "rev-parse", "--git-dir")
+
+	return err == nil
+}
+
 func ResolveCommit(ctx context.Context, run Runner, dir, rev string) (string, bool) {
 	out, err := run(ctx, dir, "rev-parse", "--verify", "-q", rev+"^{commit}")
 	if err != nil {

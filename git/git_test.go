@@ -200,6 +200,36 @@ func TestResolveCommit(t *testing.T) {
 	}
 }
 
+func TestIsRepo(t *testing.T) {
+	const (
+		dir    = "/repo"
+		gitDir = "rev-parse --git-dir"
+	)
+
+	tests := []struct {
+		name   string
+		result fakeResult
+		want   bool
+	}{
+		{name: "inside a repo", result: fakeResult{out: ".git\n"}, want: true},
+		{name: caseGitFails, result: fakeResult{err: errors.New("exit status 128")}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := &fakeGit{results: map[string]fakeResult{gitDir: tt.result}}
+
+			if got := IsRepo(t.Context(), fake.run, dir); got != tt.want {
+				t.Errorf("IsRepo() = %v, want %v", got, tt.want)
+			}
+
+			if want := []string{dir}; !slices.Equal(fake.dirs, want) {
+				t.Errorf("runner dirs = %q, want %q", fake.dirs, want)
+			}
+		})
+	}
+}
+
 func TestIsAncestor(t *testing.T) {
 	const (
 		sha       = "6a1d3459c0ffee000000000000000000000000ab"

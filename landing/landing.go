@@ -27,6 +27,7 @@ const (
 	NotDone  Verdict = "not_done"
 	Partly   Verdict = "partly"
 	CantTell Verdict = "cant_tell"
+	NoGit    Verdict = "no_git"
 )
 
 type Class string
@@ -65,6 +66,14 @@ var (
 )
 
 func Check(ctx context.Context, run git.Runner, q Query) (Report, error) {
+	if !git.IsRepo(ctx, run, q.Dir) {
+		return noGit(q), nil
+	}
+
+	return check(ctx, run, q)
+}
+
+func check(ctx context.Context, run git.Runner, q Query) (Report, error) {
 	name, trunk, err := resolveTrunk(ctx, run, q.Dir)
 	if err != nil {
 		return Report{}, err
@@ -124,6 +133,20 @@ func Check(ctx context.Context, run git.Runner, q Query) (Report, error) {
 	}
 
 	return r, nil
+}
+
+func noGit(q Query) Report {
+	r := Report{Verdict: NoGit, Bars: make([]BarResult, 0, len(q.Bars)), Unfinished: []string{}}
+
+	for _, b := range q.Bars {
+		r.Bars = append(r.Bars, BarResult{ID: b.ID, Status: b.Status, Commit: b.Commit})
+
+		if b.Status != statusDone {
+			r.Unfinished = append(r.Unfinished, b.ID)
+		}
+	}
+
+	return r
 }
 
 func verdict(counts map[Class]int, unfinished int) Verdict {
