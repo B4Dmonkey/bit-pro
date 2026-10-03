@@ -34,6 +34,8 @@ type Result struct {
 	Already    bool
 }
 
+var ErrCodeTaken = errors.New("code belongs to another project")
+
 type config struct {
 	Prefix string `toml:"prefix"`
 }
@@ -49,11 +51,12 @@ func Run(ctx context.Context, q *orm.Queries, opts Options) (Result, error) {
 		return Result{}, err
 	}
 
-	if res, ok, err := already(ctx, q, path); err != nil || ok {
+	ps, res, err := already(ctx, q, path)
+	if err != nil || res.Already {
 		return res, err
 	}
 
-	code, err := readSource(src)
+	code, err := readSource(src, ps)
 	if err != nil {
 		return Result{}, err
 	}
@@ -100,31 +103,55 @@ func Run(ctx context.Context, q *orm.Queries, opts Options) (Result, error) {
 	return Result{Code: code, Path: path}, nil
 }
 
-func already(ctx context.Context, q *orm.Queries, path string) (Result, bool, error) {
+func already(ctx context.Context, q *orm.Queries, path string) ([]project.Project, Result, error) {
 	ps, err := project.Load(ctx, q)
 	if err != nil {
-		return Result{}, false, err
+		return nil, Result{}, err
 	}
 
 	p, ok := project.ByPath(ps, path)
 	if !ok {
-		return Result{}, false, nil
+		return ps, Result{}, nil
 	}
 
 	if p.Removed {
-		return Result{}, false, fmt.Errorf("%s: %w", path, project.ErrRemoved)
+		return nil, Result{}, fmt.Errorf("%s: %w", path, project.ErrRemoved)
 	}
 
-	return Result{Code: p.Code, Path: p.Path, Already: true}, true, nil
+	return ps, Result{Code: p.Code, Path: p.Path, Already: true}, nil
 }
 
-func readSource(src string) (string, error) {
+func readSource(src string, ps []project.Project) (string, error) {
+	cfgPath := filepath.Join(src, "config.toml")
+
 	var cfg config
-	if _, err := toml.DecodeFile(filepath.Join(src, "config.toml"), &cfg); err != nil {
+	if _, err := toml.DecodeFile(cfgPath, &cfg); err != nil {
 		return "", fmt.Errorf("reading %s config: %w", src, err)
 	}
 
-	return cfg.Prefix, checkKnown(src, cfg.Prefix)
+	code, err := project.ValidateCode(cfg.Prefix)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", cfgPath, err)
+	}
+
+	if err := claimed(ps, code); err != nil {
+		return "", err
+	}
+
+	return code, checkKnown(src, cfg.Prefix)
+}
+
+func claimed(ps []project.Project, code string) error {
+	p, ok := project.ByCode(ps, code)
+	if !ok {
+		return nil
+	}
+
+	if p.Removed {
+		return fmt.Errorf("code %s: %w", code, project.ErrCodeRemoved)
+	}
+
+	return fmt.Errorf("code %s is already used by %s: %w", code, p.Path, ErrCodeTaken)
 }
 
 const dirMode = 0o755

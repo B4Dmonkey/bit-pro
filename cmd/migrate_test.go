@@ -597,6 +597,127 @@ func TestMigrateCmd(t *testing.T) {
 		}
 	})
 
+	t.Run("refuses a code another project holds", func(t *testing.T) {
+		mcpSandbox(t)
+		gittest.Isolate(t)
+
+		a := t.TempDir()
+		writeV1Store(t, a, v1Fixture(t))
+		t.Chdir(a)
+		mustRun(t, migrateCmdUse)
+
+		aPath, err := project.CanonicalPath(a)
+		if err != nil {
+			t.Fatalf("project.CanonicalPath(%q) returned error: %v", a, err)
+		}
+
+		b := t.TempDir()
+		writeV1Store(t, b, v1Fixture(t))
+		t.Chdir(b)
+
+		d := dataDir(t)
+		before := snapshotData(t, d)
+
+		_, err = run(t, migrateCmdUse)
+		if !errors.Is(err, migrate.ErrCodeTaken) {
+			t.Fatalf("bp migrate error = %v, want migrate.ErrCodeTaken", err)
+		}
+
+		if !strings.Contains(err.Error(), aPath) {
+			t.Errorf("bp migrate error = %q, want it to name %s", err, aPath)
+		}
+
+		if projects := listProjects(t); len(projects) != 1 {
+			t.Errorf("ListProjects() returned %d projects, want 1", len(projects))
+		}
+
+		if stages, _ := filepath.Glob(filepath.Join(d, ".migrate-*")); len(stages) != 0 {
+			t.Errorf("staging left behind: %v", stages)
+		}
+
+		if after := snapshotData(t, d); !reflect.DeepEqual(after, before) {
+			t.Errorf("data dir changed:\nbefore %v\nafter  %v", before, after)
+		}
+	})
+
+	t.Run("refuses a removed project's code", func(t *testing.T) {
+		mcpSandbox(t)
+		gittest.Isolate(t)
+
+		a := t.TempDir()
+		writeV1Store(t, a, v1Fixture(t))
+		t.Chdir(a)
+		mustRun(t, migrateCmdUse)
+		markRemoved(t, testPrefix)
+
+		b := t.TempDir()
+		writeV1Store(t, b, v1Fixture(t))
+		t.Chdir(b)
+
+		d := dataDir(t)
+		before := snapshotData(t, d)
+
+		_, err := run(t, migrateCmdUse)
+		if !errors.Is(err, project.ErrCodeRemoved) {
+			t.Fatalf("bp migrate error = %v, want project.ErrCodeRemoved", err)
+		}
+
+		if projects := listProjects(t); len(projects) != 1 {
+			t.Errorf("ListProjects() returned %d projects, want 1", len(projects))
+		}
+
+		if after := snapshotData(t, d); !reflect.DeepEqual(after, before) {
+			t.Errorf("data dir changed:\nbefore %v\nafter  %v", before, after)
+		}
+	})
+
+	t.Run("refuses an invalid or reserved code", func(t *testing.T) {
+		cases := []struct {
+			name, prefix string
+			want         error
+		}{
+			{name: "reserved", prefix: "FEEDBACK", want: project.ErrReservedCode},
+			{name: "invalid", prefix: "BIT-PRO", want: project.ErrInvalidCode},
+		}
+
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				mcpSandbox(t)
+				gittest.Isolate(t)
+
+				dir := t.TempDir()
+				files := v1Fixture(t)
+				files["config.toml"] = []byte("prefix = \"" + tc.prefix + "\"\n")
+				writeV1Store(t, dir, files)
+				t.Chdir(dir)
+
+				_, err := run(t, migrateCmdUse)
+				if !errors.Is(err, tc.want) {
+					t.Fatalf("bp migrate error = %v, want %v", err, tc.want)
+				}
+
+				if !strings.Contains(err.Error(), "config.toml") {
+					t.Errorf("bp migrate error = %q, want it to name config.toml", err)
+				}
+
+				if projects := listProjects(t); len(projects) != 0 {
+					t.Errorf("ListProjects() = %v, want none", projects)
+				}
+
+				entries, err := os.ReadDir(dataDir(t))
+				if err != nil && !errors.Is(err, fs.ErrNotExist) {
+					t.Fatalf("os.ReadDir(data dir) returned error: %v", err)
+				}
+
+				for _, e := range entries {
+					if !strings.HasPrefix(e.Name(), "main.db") {
+						t.Errorf("data dir holds %s, want nothing written", e.Name())
+					}
+				}
+			})
+		}
+	})
+
 	t.Run("a note on a missing track stops the migration", func(t *testing.T) {
 		mcpSandbox(t)
 		gittest.Isolate(t)
