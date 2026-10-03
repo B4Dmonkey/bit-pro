@@ -40,42 +40,41 @@ func writeInstalledPlugins(t *testing.T, contents string) string {
 }
 
 func TestInstalledVersion(t *testing.T) {
-	const thisProject = "/p/a"
-
-	twoProjects := writeInstalledPlugins(t, `{"plugins": {
-		"go@go-skills": [{"scope": "user", "version": "3.0.0"}],
-		"bit@bit-pro": [
-			{"scope": "project", "projectPath": "/p/a", "version": "0.1.0"},
-			{"scope": "project", "projectPath": "/p/b", "version": "0.2.0"}
-		]
-	}}`)
+	userOnly := writeInstalledPlugins(t, `{"plugins": {"bit@bit-pro": [{"scope": "user", "version": "0.1.0"}]}}`)
+	userBesideProject := writeInstalledPlugins(t, `{"plugins": {"bit@bit-pro": [
+		{"scope": "project", "projectPath": "/p/a", "version": "0.1.0"},
+		{"scope": "user", "version": "0.2.0"}
+	]}}`)
+	projectsOnly := writeInstalledPlugins(t, `{"plugins": {"bit@bit-pro": [
+		{"scope": "project", "projectPath": "/p/a", "version": "0.1.0"},
+		{"scope": "project", "projectPath": "/p/b", "version": "0.2.0"}
+	]}}`)
+	otherPlugin := writeInstalledPlugins(t, `{"plugins": {"go@go-skills": [{"scope": "user", "version": "3.0.0"}]}}`)
 	malformed := writeInstalledPlugins(t, `{`)
-	userScope := writeInstalledPlugins(t, `{"plugins": {"bit@bit-pro": [{"scope": "user", "version": "0.1.0"}]}}`)
 	empty := writeInstalledPlugins(t, `{"plugins": {}}`)
 	missing := t.TempDir()
 
 	tests := []struct {
-		name        string
-		home        string
-		projectRoot string
-		want        string
-		wantOK      bool
+		name   string
+		home   string
+		want   string
+		wantOK bool
 	}{
-		{"this project", twoProjects, thisProject, verInstalled, true},
-		{"another project", twoProjects, "/p/b", verLatest, true},
-		{"no matching project", twoProjects, "/p/c", "", false},
-		{"file absent", missing, thisProject, "", false},
-		{"file malformed", malformed, thisProject, "", false},
-		{"record has no project path", userScope, thisProject, "", false},
-		{"no plugins recorded", empty, thisProject, "", false},
+		{"user only", userOnly, verInstalled, true},
+		{"user beside a project install", userBesideProject, verLatest, true},
+		{"project installs only", projectsOnly, "", false},
+		{"another plugin's user install only", otherPlugin, "", false},
+		{"file absent", missing, "", false},
+		{"file malformed", malformed, "", false},
+		{"no plugins recorded", empty, "", false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, ok := InstalledVersion(tt.home, tt.projectRoot)
+			got, ok := InstalledVersion(tt.home)
 
 			if got != tt.want || ok != tt.wantOK {
-				t.Errorf("InstalledVersion(%q, %q) = (%q, %v), want (%q, %v)", tt.home, tt.projectRoot, got, ok, tt.want, tt.wantOK)
+				t.Errorf("InstalledVersion(%q) = (%q, %v), want (%q, %v)", tt.home, got, ok, tt.want, tt.wantOK)
 			}
 		})
 	}
@@ -126,70 +125,67 @@ func TestLatestVersion(t *testing.T) {
 	}
 }
 
-func installRecordFor(projectRoot string) string {
-	return `{"plugins": {"bit@bit-pro": [
-		{"scope": "project", "projectPath": "` + projectRoot + `", "version": "0.1.0"}
-	]}}`
+const userInstallRecord = `{"plugins": {"bit@bit-pro": [{"scope": "user", "version": "0.1.0"}]}}`
+
+func TestPluginState(t *testing.T) {
+	t.Run("reports the user install", func(t *testing.T) {
+		home := t.TempDir()
+
+		installRecordAt(t, home, userInstallRecord)
+		marketplaceManifestAt(t, home, `{"name": "bit", "version": "0.2.0"}`)
+
+		installed, latest, ok := PluginState(home)
+
+		if installed != verInstalled || latest != verLatest || !ok {
+			t.Errorf("PluginState(%q) = (%q, %q, %v), want (%q, %q, %v)",
+				home, installed, latest, ok, verInstalled, verLatest, true)
+		}
+	})
+
+	t.Run("silent when either read fails", func(t *testing.T) {
+		noClone := t.TempDir()
+		installRecordAt(t, noClone, userInstallRecord)
+
+		noRecord := t.TempDir()
+		marketplaceManifestAt(t, noRecord, `{"name": "bit", "version": "0.2.0"}`)
+
+		tests := []struct {
+			name string
+			home string
+		}{
+			{"no marketplace clone", noClone},
+			{"no install record", noRecord},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				installed, latest, ok := PluginState(tt.home)
+
+				if installed != "" || latest != "" || ok {
+					t.Errorf("PluginState(%q) = (%q, %q, %v), want (%q, %q, %v)",
+						tt.home, installed, latest, ok, "", "", false)
+				}
+			})
+		}
+	})
 }
 
-func TestPluginState_ReportsThisProject(t *testing.T) {
-	home := t.TempDir()
-	projectRoot := t.TempDir()
+func TestStart(t *testing.T) {
+	t.Run("does not wait for the child", func(t *testing.T) {
+		began := time.Now()
 
-	installRecordAt(t, home, installRecordFor(projectRoot))
-	marketplaceManifestAt(t, home, `{"name": "bit", "version": "0.2.0"}`)
+		if err := start("sleep", "3"); err != nil {
+			t.Fatalf("start(sleep 3) returned error: %v", err)
+		}
 
-	installed, latest, ok := PluginState(home, projectRoot)
+		if elapsed := time.Since(began); elapsed >= time.Second {
+			t.Errorf("start took %v, want it to return without waiting for the child", elapsed)
+		}
+	})
 
-	if installed != verInstalled || latest != verLatest || !ok {
-		t.Errorf("PluginState(%q, %q) = (%q, %q, %v), want (%q, %q, %v)",
-			home, projectRoot, installed, latest, ok, verInstalled, verLatest, true)
-	}
-}
-
-func TestPluginState_SilentWhenEitherReadFails(t *testing.T) {
-	projectRoot := t.TempDir()
-
-	noClone := t.TempDir()
-	installRecordAt(t, noClone, installRecordFor(projectRoot))
-
-	noRecord := t.TempDir()
-	marketplaceManifestAt(t, noRecord, `{"name": "bit", "version": "0.2.0"}`)
-
-	tests := []struct {
-		name string
-		home string
-	}{
-		{"no marketplace clone", noClone},
-		{"no install record", noRecord},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			installed, latest, ok := PluginState(tt.home, projectRoot)
-
-			if installed != "" || latest != "" || ok {
-				t.Errorf("PluginState(%q, %q) = (%q, %q, %v), want (%q, %q, %v)",
-					tt.home, projectRoot, installed, latest, ok, "", "", false)
-			}
-		})
-	}
-}
-
-func TestStart_DoesNotWaitForTheChild(t *testing.T) {
-	began := time.Now()
-
-	if err := start("sleep", "3"); err != nil {
-		t.Fatalf("start(sleep 3) returned error: %v", err)
-	}
-
-	if elapsed := time.Since(began); elapsed >= time.Second {
-		t.Errorf("start took %v, want it to return without waiting for the child", elapsed)
-	}
-}
-
-func TestStart_MissingBinaryIsSilent(t *testing.T) {
-	if err := start("bp-no-such-binary-exists"); err != nil {
-		t.Errorf("start of a missing binary returned error %v, want nil", err)
-	}
+	t.Run("missing binary is silent", func(t *testing.T) {
+		if err := start("bp-no-such-binary-exists"); err != nil {
+			t.Errorf("start of a missing binary returned error %v, want nil", err)
+		}
+	})
 }

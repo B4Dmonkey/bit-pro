@@ -17,8 +17,8 @@ func GlobalWiring() [][]string {
 	return [][]string{
 		{claudeCLI, pluginCLICmd, "marketplace", "add", "B4Dmonkey/bit-pro"},
 		{claudeCLI, pluginCLICmd, "marketplace", "update", marketplaceName},
-		{claudeCLI, pluginCLICmd, "install", pluginKey, "--scope", "user"},
-		{claudeCLI, "mcp", "add", "-s", "user", "bit", "--", "bp", "serve", "mcp"},
+		{claudeCLI, pluginCLICmd, "install", pluginKey, "--scope", userScope},
+		{claudeCLI, "mcp", "add", "-s", userScope, "bit", "--", "bp", "serve", "mcp"},
 	}
 }
 

@@ -11,7 +11,6 @@ import (
 
 	"github.com/B4Dmonkey/bit-pro/claude"
 	taskcmd "github.com/B4Dmonkey/bit-pro/cmd/task"
-	"github.com/B4Dmonkey/bit-pro/project"
 	"github.com/spf13/cobra"
 )
 
@@ -23,21 +22,7 @@ var pluginState = func() (installed, latest string, ok bool) {
 		return "", "", false
 	}
 
-	return claude.PluginState(home, pluginRoot())
-}
-
-func pluginRoot() string {
-	wd, err := os.Getwd()
-	if err != nil {
-		return "."
-	}
-
-	p, err := project.Find(context.Background(), wd)
-	if err != nil {
-		return wd
-	}
-
-	return p.Path
+	return claude.PluginState(home)
 }
 
 var refreshMarketplace = claude.RefreshMarketplace
@@ -127,7 +112,7 @@ func parseVersion(v string) ([3]int, bool) {
 }
 
 func notice(installed, latest string) string {
-	const format = "bp: bit plugin %s → %s available — run: claude plugin update bit@bit-pro --scope project"
+	const format = "bp: bit plugin %s → %s available — run: claude plugin update bit@bit-pro --scope user"
 
 	return fmt.Sprintf(format, installed, latest)
 }

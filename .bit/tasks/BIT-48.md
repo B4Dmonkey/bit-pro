@@ -39,7 +39,7 @@ One idempotent "ensure global wiring" step installs the marketplace, the plugin 
 ## Verses
 - [x] Verse 1 — `bp add` sets bit up for the whole machine. Registering a new project ensures the user-scope marketplace, plugin and MCP server. Re-running `bp add` on a registered project changes nothing. If a wiring step fails, the operator is told which `claude` commands to run, and the same commands are in the README.
   Touches: `claude/{sync,settings}.go` and their tests, `cmd/add.go` and `cmd/add_test.go` (`:62-134`), the `writeClaudeWiring` helper BIT-46 kept in `cmd/init.go`, `claudeDir` (`cmd/root.go:32`), the helpers in `cmd/cmd_test.go`, `cmd/testconst_test.go`, and `README.md`. See BIT-46 topics `init-and-update` and `soundness-2`, and BIT-48 topics `review-2026-10-02` and `claim-audit-2026-10-02`.
-- [ ] Verse 2 — The operator gets told when the global plugin is behind, with the right update command.
+- [x] Verse 2 — The operator gets told when the global plugin is behind, with the right update command.
   Touches: `claude/plugin.go` and `claude/plugin_test.go` (`:42-82`, `:129-177`), `cmd/root.go`, `cmd/root_test.go` (`:153`, `:164`, `:267`). It doesn't depend on Verse 1 and can be built first.
 
 ## References
