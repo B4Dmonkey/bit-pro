@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -151,4 +152,53 @@ func (s *Store) writeNote(track string, seq int, body string, head Commit) (stri
 	}
 
 	return path, nil
+}
+
+func (s *Store) ListNotes(track string) ([]string, error) {
+	if track != "" {
+		var err error
+
+		track, err = s.resolveTrack(track)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	paths, err := filepath.Glob(filepath.Join(s.feedbackDir(), "*"+recordExt))
+	if err != nil {
+		return nil, fmt.Errorf("listing %s: %w", s.feedbackDir(), err)
+	}
+
+	var recs []noteRecord
+
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("reading %s: %w", path, err)
+		}
+
+		var rec noteRecord
+		if err := json.Unmarshal(data, &rec); err != nil {
+			return nil, fmt.Errorf("parsing %s: %w", path, err)
+		}
+
+		if rec.Project == s.code && (track == "" || rec.Track == track) {
+			recs = append(recs, rec)
+		}
+	}
+
+	slices.SortFunc(recs, func(a, b noteRecord) int {
+		if c := compareIDs(b.Track, a.Track); c != 0 {
+			return c
+		}
+
+		return a.Seq - b.Seq
+	})
+
+	ids := make([]string, 0, len(recs))
+	for _, rec := range recs {
+		ids = append(ids, rec.ID)
+	}
+
+	return ids, nil
 }

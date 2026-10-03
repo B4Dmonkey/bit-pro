@@ -22,6 +22,7 @@ const (
 	taskUpdateTool    = "task_update"
 	taskMoveTool      = "task_move"
 	feedbackAddTool   = "feedback_add"
+	feedbackListTool  = "feedback_list"
 	taskCompleteTool  = "task_complete"
 	taskDeleteTool    = "task_delete"
 	researchWriteTool = "research_write"
@@ -99,6 +100,13 @@ A note keys to a track â€” a top-level task, whose ID has no dot, as in BIT-7 â€
 happened at in its own prose, because replanning renumbers bars and would orphan a note keyed to
 one. The write is create-only: each note lands in a new file, so adding one can never damage a
 note already recorded. A completed or archived track is accepted as readily as an active one.`
+
+const feedbackListDescription = `List the IDs of the current project's feedback notes, optionally for one track.
+
+Notes from every project share one folder, but this lists only the current project's notes: a note
+from another project is never listed. A track is a top-level task, whose ID has no dot, as in BIT-7.
+Set track to list only that track's notes; omit it to list every note of the project. IDs come
+ordered by track, then by note number, and a project with no notes lists none.`
 
 const researchWriteDescription = `Write one topic of a track's research and return its path.
 
@@ -182,6 +190,14 @@ type feedbackAddOutput struct {
 	Path string `json:"path"`
 }
 
+type feedbackListInput struct {
+	Track string `json:"track,omitempty"`
+}
+
+type feedbackListOutput struct {
+	Notes []string `json:"notes"`
+}
+
 type researchWriteInput struct {
 	Track string `json:"track"`
 	Topic string `json:"topic"`
@@ -263,6 +279,7 @@ func runMCPServer(ctx context.Context, root string, run git.Runner, transport mc
 
 	mcp.AddTool(s, &mcp.Tool{Name: taskMoveTool, Description: taskMoveDescription}, taskMoveHandler(root))
 	mcp.AddTool(s, &mcp.Tool{Name: feedbackAddTool, Description: feedbackAddDescription}, feedbackAddHandler(root, run))
+	mcp.AddTool(s, &mcp.Tool{Name: feedbackListTool, Description: feedbackListDescription}, feedbackListHandler(root))
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        researchWriteTool,
 		Description: researchWriteDescription,
@@ -501,6 +518,26 @@ func feedbackAddHandler(root string, run git.Runner) mcp.ToolHandlerFor[feedback
 		}
 
 		return nil, feedbackAddOutput{Path: path}, nil
+	}
+}
+
+func feedbackListHandler(root string) mcp.ToolHandlerFor[feedbackListInput, feedbackListOutput] {
+	return func(
+		ctx context.Context,
+		_ *mcp.CallToolRequest,
+		in feedbackListInput,
+	) (*mcp.CallToolResult, feedbackListOutput, error) {
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, feedbackListOutput{}, err
+		}
+
+		notes, err := store.ListNotes(in.Track)
+		if err != nil {
+			return nil, feedbackListOutput{}, fmt.Errorf("listing notes: %w", err)
+		}
+
+		return nil, feedbackListOutput{Notes: notes}, nil
 	}
 }
 

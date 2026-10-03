@@ -1,7 +1,7 @@
 ---
 id: BIT-49.3
 title: feedback_list returns only the current project's notes
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: feedback and retro are shared across projects
