@@ -262,7 +262,7 @@ func runMCPServer(ctx context.Context, root string, run git.Runner, transport mc
 	}, taskUpdateHandler(root))
 
 	mcp.AddTool(s, &mcp.Tool{Name: taskMoveTool, Description: taskMoveDescription}, taskMoveHandler(root))
-	mcp.AddTool(s, &mcp.Tool{Name: feedbackAddTool, Description: feedbackAddDescription}, feedbackAddHandler(root))
+	mcp.AddTool(s, &mcp.Tool{Name: feedbackAddTool, Description: feedbackAddDescription}, feedbackAddHandler(root, run))
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        researchWriteTool,
 		Description: researchWriteDescription,
@@ -479,18 +479,23 @@ func taskDeleteHandler(root string) mcp.ToolHandlerFor[taskDeleteInput, emptyOut
 	}
 }
 
-func feedbackAddHandler(root string) mcp.ToolHandlerFor[feedbackAddInput, feedbackAddOutput] {
+func feedbackAddHandler(root string, run git.Runner) mcp.ToolHandlerFor[feedbackAddInput, feedbackAddOutput] {
 	return func(
 		ctx context.Context,
 		_ *mcp.CallToolRequest,
 		in feedbackAddInput,
 	) (*mcp.CallToolResult, feedbackAddOutput, error) {
+		dir, err := sessionDir(root)
+		if err != nil {
+			return nil, feedbackAddOutput{}, err
+		}
+
 		store, err := mcpStore(ctx, root)
 		if err != nil {
 			return nil, feedbackAddOutput{}, err
 		}
 
-		path, err := store.AddNote(in.Track, in.Body, task.Commit{})
+		path, err := store.AddNote(in.Track, in.Body, sessionHead(ctx, run, dir))
 		if err != nil {
 			return nil, feedbackAddOutput{}, fmt.Errorf("adding note for %s: %w", in.Track, err)
 		}

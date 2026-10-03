@@ -626,6 +626,61 @@ func TestFeedbackAddHandler(t *testing.T) {
 			t.Errorf("notes = %v, want none", notes)
 		}
 	})
+
+	t.Run("records the session head", func(t *testing.T) {
+		dir := t.TempDir()
+		seedTasks(t, dir, &task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusDoing})
+
+		fake := headGit(testHeadSHA)
+
+		path := addTestNote(t, mcpSessionWithGit(t, dir, fake.run))
+
+		commits := recordCommits(t, path)
+		if len(commits) != 1 {
+			t.Fatalf("commits = %v, want one", commits)
+		}
+
+		assertCommit(t, commits[0], testHeadSHA)
+
+		if _, err := time.Parse(time.RFC3339, commits[0][testAtKey].(string)); err != nil {
+			t.Errorf("at = %v: %v", commits[0][testAtKey], err)
+		}
+
+		written, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if string(written) != testNoteBody {
+			t.Errorf("note body = %q, want %q", string(written), testNoteBody)
+		}
+	})
+
+	t.Run("no git records no commit", func(t *testing.T) {
+		dir := t.TempDir()
+		seedTasks(t, dir, &task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusDoing})
+
+		commits := recordCommits(t, addTestNote(t, mcpSession(t, dir)))
+		if len(commits) != 0 {
+			t.Errorf("commits = %v, want none", commits)
+		}
+	})
+}
+
+func addTestNote(t *testing.T, s *mcp.ClientSession) string {
+	t.Helper()
+
+	got := callTool(t, s, feedbackAddTool, map[string]any{
+		testTrackKey: testTrackID,
+		testBodyKey:  testNoteBody,
+	})
+
+	path, ok := got[testPathKey].(string)
+	if !ok {
+		t.Fatalf("path = %v, want a string", got[testPathKey])
+	}
+
+	return path
 }
 
 func TestTaskCompleteHandler(t *testing.T) {
