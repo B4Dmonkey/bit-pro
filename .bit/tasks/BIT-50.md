@@ -1,7 +1,7 @@
 ---
 id: BIT-50
 title: 'v2: merge-aware completion'
-status: todo
+status: doing
 approved: true
 ---
 ## Why

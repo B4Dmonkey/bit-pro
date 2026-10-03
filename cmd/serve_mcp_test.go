@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/db/orm"
+	"github.com/B4Dmonkey/bit-pro/git"
+	"github.com/B4Dmonkey/bit-pro/git/gittest"
 	"github.com/B4Dmonkey/bit-pro/project"
 	"github.com/B4Dmonkey/bit-pro/task"
 )
@@ -342,6 +344,7 @@ func TestMCPToolDescriptions(t *testing.T) {
 			{name: taskListTool, tool: taskListTool, want: []string{testTrackSentence, testBarIDExample}},
 			{name: taskCreateTool, tool: taskCreateTool, want: []string{testTrackSentence, testBarIDExample}},
 			{name: taskCompleteTool, tool: taskCompleteTool, want: []string{testTrackSentence}},
+			{name: taskLandingTool, tool: taskLandingTool, want: []string{testTrackSentence}},
 			{
 				name: taskUpdateTool + " approval",
 				tool: taskUpdateTool,
@@ -379,4 +382,90 @@ func TestMCPToolDescriptions(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestTaskLandingHandler(t *testing.T) {
+	t.Run("a track pushed to trunk is done", func(t *testing.T) {
+		r := landingRepo(t)
+
+		a := r.Commit("feat(bit): landing core")
+		b := r.Commit("feat(bit): task_landing tool")
+		r.Git("push", "origin", "main")
+
+		s := openProjectStore(t, r.Dir)
+		seedLandingBar(t, s, a)
+		seedLandingBar(t, s, b)
+
+		got := callTool(t, mcpSessionWithGit(t, r.Dir, git.ExecRunner), taskLandingTool, map[string]any{"id": testNewTrackID})
+
+		for key, want := range map[string]string{
+			"verdict": "done", "landing": b, "trunk": "origin/main", testBranchKey: "main",
+		} {
+			if got[key] != want {
+				t.Errorf("%s = %v, want %q", key, got[key], want)
+			}
+		}
+
+		bars, ok := got["bars"].([]any)
+		if !ok || len(bars) != 2 {
+			t.Fatalf("bars = %v, want 2 entries", got["bars"])
+		}
+
+		bar, _ := bars[0].(map[string]any)
+		for key, want := range map[string]string{
+			"id": testNewTrackID + ".1", testStatusKey: task.StatusDone, testCommitKey: a, "class": "landed", "landing": a,
+		} {
+			if bar[key] != want {
+				t.Errorf("bars[0].%s = %v, want %q", key, bar[key], want)
+			}
+		}
+	})
+
+	t.Run("an unknown track is a tool error", func(t *testing.T) {
+		r := landingRepo(t)
+
+		session := mcpSessionWithGit(t, r.Dir, git.ExecRunner)
+
+		result := callToolResult(t, session, taskLandingTool, map[string]any{"id": "BIT-9"})
+		if !result.IsError {
+			t.Errorf("IsError = false, want true (content %v)", result.Content)
+		}
+	})
+}
+
+func landingRepo(t *testing.T) *gittest.Repo {
+	t.Helper()
+
+	mcpSandbox(t)
+
+	r := gittest.New(t)
+
+	path, err := project.CanonicalPath(r.Dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	seedProject(t, orm.CreateProjectParams{Path: path, Code: testPrefix})
+
+	return r
+}
+
+func seedLandingBar(t *testing.T, s *task.Store, commit string) {
+	t.Helper()
+
+	if _, err := s.Load(testNewTrackID); err != nil {
+		if _, err := s.Create(task.CreateParams{Title: testTitle}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	bar, err := s.Create(task.CreateParams{Title: testBarTitle, Parent: testNewTrackID, Commit: commit})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	done := task.StatusDone
+	if _, err := s.Update(bar.ID, task.Patch{Status: &done}); err != nil {
+		t.Fatal(err)
+	}
 }

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/B4Dmonkey/bit-pro/git"
+	"github.com/B4Dmonkey/bit-pro/landing"
 	"github.com/B4Dmonkey/bit-pro/project"
 	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/google/jsonschema-go/jsonschema"
@@ -26,6 +27,7 @@ const (
 	feedbackReadTool  = "feedback_read"
 	taskCompleteTool  = "task_complete"
 	taskDeleteTool    = "task_delete"
+	taskLandingTool   = "task_landing"
 	researchWriteTool = "research_write"
 	researchReadTool  = "research_read"
 	retroWriteTool    = "retro_write"
@@ -88,6 +90,14 @@ relocates the track and every bar under it out of the active list, so a finished
 showing up in task_list. It refuses a track that still has an unfinished bar and there is no
 override — set every bar's status to done first. The ID stays reserved rather than being freed, so
 older commit messages and feedback notes that reference it remain valid.`
+
+const taskLandingDescription = `Report where a track's bars landed on trunk, and whether the track as a whole landed.
+
+A track is a top-level task — one whole scope — and its ID has no dot, as in BIT-7. Trunk is
+origin/main, else main. The result names the trunk and branch, a verdict for the track, the
+track's landing commit, and for each bar its status, commit, class and landing commit. The check is
+read-only: it never fetches and never writes, so a commit that hasn't been fetched or pushed reads
+as not landed.`
 
 const taskDeleteDescription = `Remove a task from the active list by moving it to the archive.
 
@@ -201,6 +211,10 @@ type taskUpdateInput struct {
 }
 
 type taskCompleteInput struct {
+	ID string `json:"id"`
+}
+
+type taskLandingInput struct {
 	ID string `json:"id"`
 }
 
@@ -361,6 +375,10 @@ func runMCPServer(ctx context.Context, root string, run git.Runner, transport mc
 		Name:        taskDeleteTool,
 		Description: taskDeleteDescription,
 	}, taskDeleteHandler(root))
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        taskLandingTool,
+		Description: taskLandingDescription,
+	}, taskLandingHandler(root, run))
 
 	return s.Run(ctx, transport)
 }
@@ -540,6 +558,55 @@ func taskCompleteHandler(root string) mcp.ToolHandlerFor[taskCompleteInput, empt
 
 		return nil, emptyOutput{}, nil
 	}
+}
+
+func taskLandingHandler(root string, run git.Runner) mcp.ToolHandlerFor[taskLandingInput, landing.Report] {
+	return func(
+		ctx context.Context,
+		_ *mcp.CallToolRequest,
+		in taskLandingInput,
+	) (*mcp.CallToolResult, landing.Report, error) {
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, landing.Report{}, err
+		}
+
+		report, err := checkLanding(ctx, store, root, run, in.ID)
+		if err != nil {
+			return nil, landing.Report{}, fmt.Errorf("checking landing of %s: %w", in.ID, err)
+		}
+
+		return nil, report, nil
+	}
+}
+
+func checkLanding(
+	ctx context.Context,
+	store *task.Store,
+	root string,
+	run git.Runner,
+	id string,
+) (landing.Report, error) {
+	if _, err := store.Load(id); err != nil {
+		return landing.Report{}, err
+	}
+
+	children, err := store.Children(id)
+	if err != nil {
+		return landing.Report{}, err
+	}
+
+	bars := make([]landing.Bar, 0, len(children))
+	for _, c := range children {
+		bars = append(bars, landing.Bar{ID: c.ID, Status: c.Status, Commit: c.Commit})
+	}
+
+	dir, err := sessionDir(root)
+	if err != nil {
+		return landing.Report{}, err
+	}
+
+	return landing.Check(ctx, run, landing.Query{Dir: dir, Bars: bars})
 }
 
 func taskDeleteHandler(root string) mcp.ToolHandlerFor[taskDeleteInput, emptyOutput] {

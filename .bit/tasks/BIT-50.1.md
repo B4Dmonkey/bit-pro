@@ -1,7 +1,7 @@
 ---
 id: BIT-50.1
 title: task_landing reports a track whose bars are on trunk as done
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: complete after push
