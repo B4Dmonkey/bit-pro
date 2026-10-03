@@ -10,7 +10,7 @@
     {
       "id": 2,
       "prompt": "we're done with bit-7, close it out",
-      "expected_output": "BIT-7 has one todo bar. task_landing lists it as unfinished, so the skill stops and names that bar. No status is flipped and nothing is filed.",
+      "expected_output": "BIT-7 has one todo bar and the rest landed. task_landing reports partly with that bar unfinished, so the skill names the todo bar and asks whether to complete anyway. The bar is set to done and the track filed only after a yes; nothing changes before it.",
       "files": []
     },
     {
@@ -23,6 +23,30 @@
       "id": 4,
       "prompt": "complete BIT-8",
       "expected_output": "BIT-8's bars are committed but not pushed. task_landing does not report done, so the skill says BIT-8 hasn't landed yet: fetch or pull, push, and run /bit:complete BIT-8 again. Nothing is filed.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "complete BIT-9",
+      "expected_output": "BIT-9 has one bar on origin/main and one only on origin/feat. task_landing reports partly, and the check-in names the second bar as pushed but not merged and asks whether to complete anyway. Nothing is filed without a yes.",
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "close out BIT-10",
+      "expected_output": "The repo has an origin remote, so trunk is origin/main, and every BIT-10 bar is only on a local branch. task_landing reports not_done. The skill says BIT-10 hasn't landed: push and retry, then offers to keep it open or archive it. task_delete runs only after the operator picks archive.",
+      "files": []
+    },
+    {
+      "id": 7,
+      "prompt": "complete ACME-3",
+      "expected_output": "The project folder isn't in git. task_landing reports no_git, so the skill says there's no landing commit to record and asks to confirm. After a yes, task_complete is called with the id and no commit or branch.",
+      "files": []
+    },
+    {
+      "id": 8,
+      "prompt": "complete BIT-11",
+      "expected_output": "The repo is a shallow clone, so task_landing reports shallow. The skill says to run git fetch --unshallow and then /bit:complete BIT-11 again. Nothing is filed.",
       "files": []
     }
   ]
