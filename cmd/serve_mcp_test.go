@@ -33,6 +33,9 @@ const (
 	testOtherBarTitle  = "another track's bar"
 
 	testParentKey = "parent"
+	testCommitKey = "commit"
+	testBranchKey = "branch"
+	testBarSHA    = "6a1d3459c0ffee000000000000000000000000ab"
 	testTitleKey  = "title"
 	testStatusKey = "status"
 	testPhaseKey  = "phase"
@@ -101,6 +104,59 @@ func TestTaskReadHandler(t *testing.T) {
 			t.Errorf("parent = %v, want %s", got["parent"], testTrackID)
 		}
 	})
+
+	t.Run("returns commit and branch", func(t *testing.T) {
+		dir := t.TempDir()
+
+		seedGitBars(t, dir)
+
+		session := mcpSession(t, dir)
+
+		tests := []struct {
+			name       string
+			id         string
+			wantCommit string
+			wantBranch string
+		}{
+			{name: "committed bar", id: testBarID, wantCommit: testBarSHA, wantBranch: "v2"},
+			{name: "uncommitted bar", id: testSecondBarID, wantCommit: "", wantBranch: ""},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				got := callTool(t, session, taskReadTool, map[string]any{"id": tt.id})
+
+				assertGitFields(t, got, tt.wantCommit, tt.wantBranch)
+			})
+		}
+	})
+}
+
+func seedGitBars(t *testing.T, dir string) {
+	t.Helper()
+
+	seedTasks(t, dir,
+		&task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusDoing, Order: []string{testBarID, testSecondBarID}},
+		&task.Task{ID: testBarID, Title: testBarTitle, Status: task.StatusDone, Commit: testBarSHA, Branch: "v2"},
+		&task.Task{ID: testSecondBarID, Title: testSecondBarTitle, Status: task.StatusTodo},
+	)
+}
+
+func assertGitFields(t *testing.T, got map[string]any, wantCommit, wantBranch string) {
+	t.Helper()
+
+	for key, want := range map[string]string{testCommitKey: wantCommit, testBranchKey: wantBranch} {
+		gotVal, ok := got[key]
+		if !ok {
+			t.Errorf("%s key missing", key)
+
+			continue
+		}
+
+		if gotVal != want {
+			t.Errorf("%s = %v, want %q", key, gotVal, want)
+		}
+	}
 }
 
 func TestRunMCPServer(t *testing.T) {
@@ -247,6 +303,20 @@ func TestTaskListHandler(t *testing.T) {
 				t.Errorf("tasks[%d][id] = %v, want %v", i, gotID, wantID)
 			}
 		}
+	})
+
+	t.Run("returns commit and branch", func(t *testing.T) {
+		dir := t.TempDir()
+
+		seedGitBars(t, dir)
+
+		tasks := callToolList(t, mcpSession(t, dir), taskListTool, map[string]any{testParentKey: testTrackID})
+		if len(tasks) != 2 {
+			t.Fatalf("tasks = %d entries, want 2", len(tasks))
+		}
+
+		assertGitFields(t, tasks[0], testBarSHA, "v2")
+		assertGitFields(t, tasks[1], "", "")
 	})
 }
 

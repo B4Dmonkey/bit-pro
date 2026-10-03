@@ -150,11 +150,13 @@ func TestTaskCreateHandler(t *testing.T) {
 				"id": testBarID, testTitleKey: testFirstBarTitle, testStatusKey: task.StatusTodo,
 				testApprovedKey: false, testPhaseKey: float64(testCreatePhase),
 				testPhaseLabelKey: testCreatePhaseLabel, testParentKey: testTrackID,
+				testCommitKey: "", testBranchKey: "",
 			},
 			{
 				"id": testSecondBarID, testTitleKey: testSecondBarTitle, testStatusKey: task.StatusTodo,
 				testApprovedKey: false, testPhaseKey: float64(testCreatePhase),
 				testPhaseLabelKey: testCreatePhaseLabel, testParentKey: testTrackID,
+				testCommitKey: "", testBranchKey: "",
 			},
 		}
 

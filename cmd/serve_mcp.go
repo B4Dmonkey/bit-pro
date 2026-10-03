@@ -33,8 +33,8 @@ const taskReadDescription = `Read one task by ID, returning its fields and its b
 
 A track is a top-level task — one whole scope — and its ID has no dot, as in BIT-7. A bar is a
 child of a track — one plan step — and its ID is dotted, as in BIT-7.3. The result carries body
-alongside id, title, status, approved, phase, phase_label and parent, so reading a task's prose and
-reading its summary are the same call rather than two.`
+alongside id, title, status, approved, phase, phase_label, parent, commit and branch, so reading a
+task's prose and reading its summary are the same call rather than two.`
 
 const taskListDescription = `List tasks as structured fields, in the order bp prints them.
 
@@ -129,6 +129,8 @@ type taskSummary struct {
 	Phase      int    `json:"phase"`
 	PhaseLabel string `json:"phase_label"`
 	Parent     string `json:"parent"`
+	Commit     string `json:"commit"`
+	Branch     string `json:"branch"`
 }
 
 type taskListOutput struct {
@@ -218,6 +220,8 @@ type taskReadOutput struct {
 	Phase      int    `json:"phase"`
 	PhaseLabel string `json:"phase_label"`
 	Parent     string `json:"parent"`
+	Commit     string `json:"commit"`
+	Branch     string `json:"branch"`
 	Body       string `json:"body"`
 }
 
@@ -309,6 +313,8 @@ func taskReadHandler(root string) mcp.ToolHandlerFor[taskReadInput, taskReadOutp
 			Phase:      t.Phase,
 			PhaseLabel: t.PhaseLabel,
 			Parent:     parentOf(t.ID),
+			Commit:     t.Commit,
+			Branch:     t.Branch,
 			Body:       t.Body,
 		}, nil
 	}
@@ -347,6 +353,8 @@ func taskListHandler(root string) mcp.ToolHandlerFor[taskListInput, taskListOutp
 				Phase:      t.Phase,
 				PhaseLabel: t.PhaseLabel,
 				Parent:     parentOf(t.ID),
+				Commit:     t.Commit,
+				Branch:     t.Branch,
 			})
 		}
 

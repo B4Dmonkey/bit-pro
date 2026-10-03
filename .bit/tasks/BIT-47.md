@@ -1,7 +1,7 @@
 ---
 id: BIT-47
 title: 'v2: commit skill and git capture'
-status: todo
+status: doing
 approved: true
 ---
 ## Why
