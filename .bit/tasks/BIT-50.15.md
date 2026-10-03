@@ -1,7 +1,7 @@
 ---
 id: BIT-50.15
 title: A bar whose subject a squash on trunk lists lands at the earliest such squash after it
-status: todo
+status: done
 approved: true
 phase: 4
 phase_label: squash-landed tracks

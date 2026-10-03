@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -121,4 +123,75 @@ func PRCommits(ctx context.Context, run Runner, dir, ref string, n int) ([]strin
 	}
 
 	return shas, nil
+}
+
+type Squash struct {
+	SHA     string
+	Time    int64
+	Subject string
+	Listed  []string
+}
+
+var prSuffix = regexp.MustCompile(` \(#\d+\)$`)
+
+func Squashes(ctx context.Context, run Runner, dir, ref string) ([]Squash, error) {
+	out, err := run(ctx, dir, "log", "--first-parent", "--format=%H%x00%ct%x00%s%x00%b%x1e", ref)
+	if err != nil {
+		return nil, fmt.Errorf("squashes on %s: %w", ref, err)
+	}
+
+	squashes := []Squash{}
+
+	for record := range strings.SplitSeq(out, "\x1e") {
+		fields := strings.SplitN(strings.TrimSpace(record), "\x00", 4)
+		if len(fields) < 3 || !prSuffix.MatchString(fields[2]) {
+			continue
+		}
+
+		at, err := strconv.ParseInt(fields[1], 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("squash %s time %q: %w", fields[0], fields[1], err)
+		}
+
+		s := Squash{SHA: fields[0], Time: at, Subject: prSuffix.ReplaceAllString(fields[2], "")}
+
+		if len(fields) == 4 {
+			s.Listed = listed(fields[3])
+		}
+
+		squashes = append(squashes, s)
+	}
+
+	return squashes, nil
+}
+
+func listed(body string) []string {
+	var out []string
+
+	for line := range strings.Lines(body) {
+		if item, ok := strings.CutPrefix(line, "* "); ok {
+			out = append(out, strings.TrimRight(item, " \t\r\n"))
+		}
+	}
+
+	return out
+}
+
+func Subject(ctx context.Context, run Runner, dir, sha string) (string, int64, bool) {
+	out, err := run(ctx, dir, "log", "-1", "--format=%s%x00%ct", sha)
+	if err != nil {
+		return "", 0, false
+	}
+
+	subject, ct, ok := strings.Cut(strings.TrimSpace(out), "\x00")
+	if !ok {
+		return "", 0, false
+	}
+
+	at, err := strconv.ParseInt(ct, 10, 64)
+	if err != nil {
+		return "", 0, false
+	}
+
+	return subject, at, true
 }

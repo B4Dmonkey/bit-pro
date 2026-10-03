@@ -18,6 +18,9 @@ const (
 	bar2 = "BIT-1.2"
 	done = "done"
 	todo = "todo"
+
+	play  = "feat(tui): play prompt"
+	queue = "feat(tui): queue view"
 )
 
 type recordingGit struct {
@@ -632,6 +635,145 @@ func TestCheck(t *testing.T) {
 
 		assertPRNotOnTrunk(t, r.Dir, 1)
 	})
+
+	t.Run("a bar listed in a multi commit squash lands at the squash", func(t *testing.T) {
+		r := gittest.New(t)
+
+		r.Git("checkout", "-b", "feat")
+		b1 := r.Commit(play)
+		b2 := r.Commit(queue)
+		r.Git("push", "origin", "feat")
+		s := squash(r, "Worktree bit 31 (#5)", "* "+play+"\n\nbody one\n\n* "+queue+"\n\nbody two")
+
+		got := check(t, r.Dir, []landing.Bar{{ID: bar1, Status: done, Commit: b1}, {ID: bar2, Status: done, Commit: b2}})
+
+		if got.Verdict != landing.Done || got.Landing != s {
+			t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, landing.Done, s)
+		}
+
+		assertSquashed(t, got, s, s)
+	})
+
+	t.Run("a single commit squash matches on its subject", func(t *testing.T) {
+		r := gittest.New(t)
+
+		r.Git("checkout", "-b", "feat")
+		c := r.Commit("fix(tui): render overlay")
+		r.Git("push", "origin", "feat")
+		s := squash(r, "fix(tui): render overlay (#6)", "")
+
+		assertSquashed(t, check(t, r.Dir, []landing.Bar{{ID: bar1, Status: done, Commit: c}}), s)
+	})
+
+	t.Run("the earliest squash after the bar wins", func(t *testing.T) {
+		r := gittest.New(t)
+
+		r.Git("checkout", "-b", "feat")
+		b1 := r.Commit(play)
+		r.Git("push", "origin", "feat")
+		first := squash(r, "Worktree bit 31 (#16)", "* "+play)
+		r.Git("checkout", "feat")
+		r.Commit("chore: more")
+		squash(r, "Worktree bit 31 (#17)", "* "+play)
+
+		assertSquashed(t, check(t, r.Dir, []landing.Bar{{ID: bar1, Status: done, Commit: b1}}), first)
+	})
+
+	t.Run("a track over two squashes lands at the newer", func(t *testing.T) {
+		r := gittest.New(t)
+
+		r.Git("checkout", "-b", "feat")
+		b1 := r.Commit(play)
+		b2 := r.Commit(queue)
+		r.Git("push", "origin", "feat")
+		five := squash(r, "Worktree bit 31 (#5)", "* "+play+"\n\n* "+queue)
+		r.Git("checkout", "feat")
+		b3 := r.Commit("feat(tui): stop view")
+		r.Git("push", "origin", "feat")
+		six := squash(r, "feat(tui): stop view (#6)", "")
+
+		got := check(t, r.Dir, []landing.Bar{
+			{ID: bar1, Status: done, Commit: b1},
+			{ID: bar2, Status: done, Commit: b2},
+			{ID: "BIT-1.3", Status: done, Commit: b3},
+		})
+
+		if got.Verdict != landing.Done || got.Landing != six {
+			t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, landing.Done, six)
+		}
+
+		assertSquashed(t, got, five, five, six)
+	})
+
+	t.Run("a mention that isn't a list line doesn't match", func(t *testing.T) {
+		r := gittest.New(t)
+
+		r.Git("checkout", "-b", "feat")
+		b1 := r.Commit(play)
+		r.Git("push", "origin", "feat")
+		squash(r, "Worktree bit 31 (#5)", "see "+play)
+
+		assertVerdict(t, r.Dir, []landing.Bar{{ID: bar1, Status: done, Commit: b1}},
+			landing.NotDone, "", []landing.Class{landing.Pushed})
+	})
+
+	t.Run("a direct commit with a matching bullet isn't a squash", func(t *testing.T) {
+		r := gittest.New(t)
+
+		r.Git("checkout", "-b", "feat")
+		b1 := r.Commit(play)
+		r.Git("push", "origin", "feat")
+		r.Git("checkout", "main")
+		r.Git("commit", "--allow-empty", "-m", "chore: notes", "-m", "* "+play)
+		r.Git("push", "origin", "main")
+
+		assertVerdict(t, r.Dir, []landing.Bar{{ID: bar1, Status: done, Commit: b1}},
+			landing.NotDone, "", []landing.Class{landing.Pushed})
+	})
+}
+
+func squash(r *gittest.Repo, subject, body string) string {
+	r.Git("checkout", "main")
+	r.Git("merge", "--squash", "feat")
+
+	args := []string{"commit", "--allow-empty", "-m", subject}
+	if body != "" {
+		args = append(args, "-m", body)
+	}
+
+	r.Git(args...)
+	r.Git("push", "origin", "main")
+
+	return r.Git("rev-parse", "HEAD")
+}
+
+func check(t *testing.T, dir string, bars []landing.Bar) landing.Report {
+	t.Helper()
+
+	got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: dir, Bars: bars})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return got
+}
+
+func assertSquashed(t *testing.T, got landing.Report, want ...string) {
+	t.Helper()
+
+	landings := make([]string, 0, len(got.Bars))
+
+	for i, bar := range got.Bars {
+		landings = append(landings, bar.Landing)
+
+		if bar.Class != landing.Squash || !bar.Repoint {
+			t.Errorf("Bars[%d] = %+v, want class %q, repoint", i, bar, landing.Squash)
+		}
+	}
+
+	if !slices.Equal(landings, want) {
+		t.Errorf("bar landings = %q, want %q", landings, want)
+	}
 }
 
 func assertPRNotOnTrunk(t *testing.T, dir string, pr int) {

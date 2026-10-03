@@ -63,6 +63,8 @@ func Isolate(t testing.TB) {
 	}
 }
 
+const epoch = 1759406400
+
 type Repo struct {
 	t      testing.TB
 	Dir    string
@@ -99,7 +101,11 @@ func (r *Repo) Git(args ...string) string {
 	cmd := exec.CommandContext(r.t.Context(), "git", full...)
 	cmd.Dir = r.Dir
 
-	cmd.Env = append(Env(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1")
+	date := fmt.Sprintf("%d +0000", epoch+r.n)
+	r.n++
+
+	cmd.Env = append(Env(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1",
+		"GIT_AUTHOR_DATE="+date, "GIT_COMMITTER_DATE="+date)
 
 	var stdout, stderr bytes.Buffer
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/B4Dmonkey/bit-pro/git"
@@ -50,6 +51,7 @@ const (
 	Local        Class = "local"
 	Unresolvable Class = "unresolvable"
 	NoHash       Class = "no_hash"
+	Squash       Class = "squash"
 )
 
 type BarResult struct {
@@ -118,9 +120,10 @@ func check(ctx context.Context, run git.Runner, q Query) (Report, error) {
 	}
 
 	counts := map[Class]int{}
+	sq := &squashes{run: run, dir: q.Dir, trunk: trunk, pos: pos}
 
 	for _, b := range q.Bars {
-		res, at, err := place(ctx, run, q.Dir, b, trunk, pos, answer)
+		res, at, err := place(ctx, run, q.Dir, b, trunk, pos, answer, sq)
 		if err != nil {
 			return Report{}, err
 		}
@@ -176,7 +179,7 @@ func readTrunk(
 }
 
 func place(
-	ctx context.Context, run git.Runner, dir string, b Bar, trunk string, pos map[string]int, answer int,
+	ctx context.Context, run git.Runner, dir string, b Bar, trunk string, pos map[string]int, answer int, sq *squashes,
 ) (BarResult, int, error) {
 	res := BarResult{ID: b.ID, Status: b.Status, Commit: b.Commit}
 
@@ -186,6 +189,16 @@ func place(
 	}
 
 	res.Class = class
+
+	if class == Pushed || class == Local {
+		if at, ok, err := sq.match(ctx, b.Commit); err != nil || ok {
+			if ok {
+				res.Class, res.Repoint = Squash, true
+			}
+
+			return res, at, err
+		}
+	}
 
 	switch {
 	case class == Landed:
@@ -197,6 +210,43 @@ func place(
 	default:
 		return res, -1, nil
 	}
+}
+
+type squashes struct {
+	run    git.Runner
+	dir    string
+	trunk  string
+	pos    map[string]int
+	list   []git.Squash
+	loaded bool
+}
+
+func (s *squashes) match(ctx context.Context, sha string) (int, bool, error) {
+	if !s.loaded {
+		list, err := git.Squashes(ctx, s.run, s.dir, s.trunk)
+		if err != nil {
+			return 0, false, err
+		}
+
+		s.list, s.loaded = list, true
+	}
+
+	subject, at, ok := git.Subject(ctx, s.run, s.dir, sha)
+	if !ok {
+		return -1, false, nil
+	}
+
+	for _, sq := range slices.Backward(s.list) {
+		if sq.Time < at || (sq.Subject != subject && !slices.Contains(sq.Listed, subject)) {
+			continue
+		}
+
+		if i, on := s.pos[sq.SHA]; on {
+			return i, true, nil
+		}
+	}
+
+	return -1, false, nil
 }
 
 func placeAnswer(

@@ -453,3 +453,79 @@ func TestIsShallow(t *testing.T) {
 		})
 	}
 }
+
+func TestSquashes(t *testing.T) {
+	const (
+		a   = "6a1d3459c0ffee000000000000000000000000ab"
+		b   = "0000000000000000000000000000000000000001"
+		dir = "/repo"
+		log = "log --first-parent --format=%H%x00%ct%x00%s%x00%b%x1e origin/main"
+	)
+
+	failed := errors.New("exit status 128")
+
+	tests := []struct {
+		name    string
+		result  fakeResult
+		want    []Squash
+		wantErr error
+	}{
+		{
+			name: "keeps only the squash",
+			result: fakeResult{out: a + "\x001759406402\x00Worktree bit 31 (#5)\x00* one\n\nbody\n\n* two\n  * nested\n\x1e\n" +
+				b + "\x001759406401\x00chore: notes\x00* one\n\x1e"},
+			want: []Squash{{SHA: a, Time: 1759406402, Subject: "Worktree bit 31", Listed: []string{"one", "two"}}},
+		},
+		{name: caseEmptyOutput, result: fakeResult{}, want: []Squash{}},
+		{name: caseGitFails, result: fakeResult{err: failed}, wantErr: failed},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := &fakeGit{results: map[string]fakeResult{log: tt.result}}
+
+			got, err := Squashes(t.Context(), fake.run, dir, "origin/main")
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("Squashes() error = %v, want %v", err, tt.wantErr)
+			}
+
+			if !slices.EqualFunc(got, tt.want, func(x, y Squash) bool {
+				return x.SHA == y.SHA && x.Time == y.Time && x.Subject == y.Subject && slices.Equal(x.Listed, y.Listed)
+			}) {
+				t.Errorf("Squashes() = %#v, want %#v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSubject(t *testing.T) {
+	const (
+		dir = "/repo"
+		sha = "6a1d3459c0ffee000000000000000000000000ab"
+		log = "log -1 --format=%s%x00%ct " + sha
+	)
+
+	tests := []struct {
+		name        string
+		result      fakeResult
+		wantSubject string
+		wantTime    int64
+		wantOK      bool
+	}{
+		{name: "a commit", result: fakeResult{out: "x\x001759406400"}, wantSubject: "x", wantTime: 1759406400, wantOK: true},
+		{name: caseGitFails, result: fakeResult{err: errors.New("exit status 128")}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := &fakeGit{results: map[string]fakeResult{log: tt.result}}
+
+			subject, at, ok := Subject(t.Context(), fake.run, dir, sha)
+			if subject != tt.wantSubject || at != tt.wantTime || ok != tt.wantOK {
+				t.Errorf("Subject() = %q, %d, %v, want %q, %d, %v",
+					subject, at, ok, tt.wantSubject, tt.wantTime, tt.wantOK)
+			}
+		})
+	}
+}
