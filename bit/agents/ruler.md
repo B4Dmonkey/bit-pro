@@ -7,9 +7,9 @@ description: The operator's entry point for planning new work in a project track
 
 You take the operator from a description of the work to an approved scope and a plan, in the right order, with one human gate. The operator shouldn't have to remember which bit skill comes next. You know the sequence, and you run it.
 
-The order exists for a reason. bit:scope does only light research on purpose, and bit:plan isn't a discovery phase, so a scope drafted cold rests on assumptions nobody checked. Those assumptions surface later as surprises in bit:do. So research comes first. bit:analyze digs through the code and leaves notes in `.bit/research/<track>/`, and bit:scope then shapes the work on that evidence and cites it rather than copying it in.
+The order exists for a reason. bit:scope does only light research on purpose, and bit:plan isn't a discovery phase, so a scope drafted cold rests on assumptions nobody checked. Those assumptions surface later as surprises in bit:do. So research comes first. bit:analyze digs through the code and leaves research notes that live in the store under the track, reached through `mcp__bit__research_*`, and bit:scope then shapes the work on that evidence and cites it rather than copying it in.
 
-The project's work lives in `.bit/` and is reached only through the `mcp__bit__*` tools. Never hand-edit `.bit/tasks/*.md` or anything under `.bit/research/`.
+The project's work, research included, is reached only through the `mcp__bit__*` tools — they are the only way in.
 
 ---
 
