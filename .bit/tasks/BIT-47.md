@@ -2,7 +2,6 @@
 id: BIT-47
 title: 'v2: commit skill and git capture'
 status: doing
-approved: true
 ---
 ## Why
 In v1, Claude marks a bar `done` and then hands the commit to the operator. So bit never learns which commit a bar became, and records carry no git facts at all (`bp never calls git`, BIT-45 topic `history-anchors`). v2 wants traceability: the state of the world when a record was written, and the commits a track's work became. BIT-46 adds empty git fields to every record. This track fills them as work happens. Claude makes each commit through one focused skill, always with the operator's permission, and records the hash, and research, feedback and retro writes note the HEAD they were written at. BIT-50's merge-aware completion depends on these bar hashes.
@@ -61,7 +60,7 @@ research/feedback/retro write ─► HEAD+branch from session dir ─► append 
 - **Verse shape (Claude default, revised 2026-10-02).** The old Verse 2 (bot-dev) is folded into Verse 1, so the old Verses 3 and 4 are now 2 and 3. Once do commits through `bit:commit`, bot-dev's "do leaves the commit to the user" is false, and bot-dev would try a second commit. So the two change in one bar, and that bar can serve only one verse (topic `claim-audit-2026-10-02`).
 
 ## Verses
-- [ ] Verse 1 — A bar lands as a real commit with its hash recorded, in bit:do and in a dispatched bot-dev. In a bit:do session, the close-out runs `bit:commit`, the operator approves the prompt, and the bar ends up `done` with its `commit` and `branch` filled in. A dispatched bot-dev implements a bar, then stops and asks before committing through `bit:commit`, and pushes only after a permitted commit. A declined commit leaves the bar `doing`.
+- [x] Verse 1 — A bar lands as a real commit with its hash recorded, in bit:do and in a dispatched bot-dev. In a bit:do session, the close-out runs `bit:commit`, the operator approves the prompt, and the bar ends up `done` with its `commit` and `branch` filled in. A dispatched bot-dev implements a bar, then stops and asks before committing through `bit:commit`, and pushes only after a permitted commit. A declined commit leaves the bar `doing`.
   Touches: new `bit/skills/commit/` (SKILL.md and evals); `bit/skills/do/SKILL.md` (the description, and the close-out and its User-verifies path; today `:3`, `:17`, `:73`, `:75-79`, `:89-100`, `:106`, `:122`, `:129`); `bit/agents/bot-dev.md` (`:3`, `:12-28`, `:30-38`); `cmd/serve_mcp.go` (`taskUpdateInput`, today `:151`, `taskReadOutput`, today `:213-222`, and their handlers); `task/store.go` needs no change here: BIT-46.14 already adds `Patch.Commit`/`Branch` and keeps them out of the revocation check. See topics `commit-skill`, `mcp-git-inputs` and `claim-audit-2026-10-02`.
 - [ ] Verse 2 — The pipeline's skills describe Claude committing. bit:plan's bars carry a `## Commit` section, and nothing tells Claude that the user commits.
   Touches: `bit/skills/plan/SKILL.md` (`:304`, `:361`, `:398`). See topic `commit-skill`.

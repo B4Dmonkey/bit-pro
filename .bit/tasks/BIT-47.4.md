@@ -1,7 +1,7 @@
 ---
 id: BIT-47.4
 title: bit:do closes a bar through bit:commit, and bot-dev asks before every commit and pushes only after one
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: a bar lands as a real commit with its hash recorded
