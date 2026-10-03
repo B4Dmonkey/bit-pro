@@ -2,6 +2,7 @@
 id: BIT-48.1
 title: EnsureGlobal runs the four user-scope claude commands in order and stops at the first failure
 status: todo
+approved: true
 phase: 1
 phase_label: bp add sets bit up for the whole machine
 ---

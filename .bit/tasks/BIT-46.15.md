@@ -2,6 +2,7 @@
 id: BIT-46.15
 title: A research topic is stored as a <topic>.json record beside its .md
 status: todo
+approved: true
 phase: 2
 phase_label: records are JSON metadata plus markdown
 ---

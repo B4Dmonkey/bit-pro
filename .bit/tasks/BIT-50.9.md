@@ -2,6 +2,7 @@
 id: BIT-50.9
 title: A project folder with no git reports no_git instead of failing
 status: todo
+approved: true
 phase: 2
 phase_label: operator decides partial landings
 ---

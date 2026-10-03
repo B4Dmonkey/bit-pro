@@ -2,6 +2,7 @@
 id: BIT-49.5
 title: retro_write stores a proposal record under a code-prefixed name and replaces a re-run
 status: todo
+approved: true
 phase: 1
 phase_label: feedback and retro are shared across projects
 ---

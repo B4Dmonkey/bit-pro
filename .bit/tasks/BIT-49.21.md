@@ -2,6 +2,7 @@
 id: BIT-49.21
 title: migrate on a removed project's folder refuses and points to bp add
 status: todo
+approved: true
 phase: 2
 phase_label: bp migrate
 ---

@@ -2,6 +2,7 @@
 id: BIT-49.22
 title: 'migrate refuses a code bp add would refuse: invalid, reserved, or held by another project'
 status: todo
+approved: true
 phase: 2
 phase_label: bp migrate
 ---

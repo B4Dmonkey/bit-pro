@@ -2,6 +2,7 @@
 id: BIT-46.6
 title: A task store built with a project code mints tracks without config.toml
 status: todo
+approved: true
 phase: 1
 phase_label: registered project works from the central store
 ---

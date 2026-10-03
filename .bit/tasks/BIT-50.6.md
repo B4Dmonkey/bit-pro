@@ -2,6 +2,7 @@
 id: BIT-50.6
 title: /bit:complete files a landed track with its landing commit, and sign-off points to it
 status: todo
+approved: true
 phase: 1
 phase_label: complete after push
 ---

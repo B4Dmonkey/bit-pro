@@ -2,6 +2,7 @@
 id: BIT-50.17
 title: /bit:complete files a squash-landed track with each bar repointed to its own squash
 status: todo
+approved: true
 phase: 4
 phase_label: squash-landed tracks
 ---

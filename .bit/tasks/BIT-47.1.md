@@ -2,6 +2,7 @@
 id: BIT-47.1
 title: task_read and task_list return a task's commit and branch
 status: todo
+approved: true
 phase: 1
 phase_label: a bar lands as a real commit with its hash recorded
 ---

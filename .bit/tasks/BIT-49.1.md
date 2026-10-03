@@ -2,6 +2,7 @@
 id: BIT-49.1
 title: Feedback notes land in the shared top-level feedback/ folder
 status: todo
+approved: true
 phase: 1
 phase_label: feedback and retro are shared across projects
 ---

@@ -2,6 +2,7 @@
 id: BIT-46.22
 title: bp add refuses a removed project's code from another folder
 status: todo
+approved: true
 phase: 3
 phase_label: bp remove soft-deletes a project
 ---

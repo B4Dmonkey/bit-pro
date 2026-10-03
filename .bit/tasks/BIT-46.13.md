@@ -2,6 +2,7 @@
 id: BIT-46.13
 title: Task records carry their project and created/updated timestamps
 status: todo
+approved: true
 phase: 2
 phase_label: records are JSON metadata plus markdown
 ---

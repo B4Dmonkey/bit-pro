@@ -2,6 +2,7 @@
 id: BIT-49.11
 title: migrate carries completed/ and archive/ across as they are, so their IDs stay reserved
 status: todo
+approved: true
 phase: 2
 phase_label: bp migrate
 ---

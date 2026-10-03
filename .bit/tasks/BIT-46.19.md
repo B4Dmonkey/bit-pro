@@ -2,6 +2,7 @@
 id: BIT-46.19
 title: bp remove archives every uncompleted track and soft-deletes the project after confirmation
 status: todo
+approved: true
 phase: 3
 phase_label: bp remove soft-deletes a project
 ---

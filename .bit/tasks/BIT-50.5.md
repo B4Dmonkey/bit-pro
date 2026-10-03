@@ -2,6 +2,7 @@
 id: BIT-50.5
 title: task_complete writes the landing commit and branch on the track before filing it
 status: todo
+approved: true
 phase: 1
 phase_label: complete after push
 ---

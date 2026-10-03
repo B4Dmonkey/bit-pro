@@ -2,6 +2,7 @@
 id: BIT-49.26
 title: MCP tool descriptions and bp task complete's help no longer name .bit/
 status: todo
+approved: true
 phase: 3
 phase_label: no .bit/ in sight
 ---

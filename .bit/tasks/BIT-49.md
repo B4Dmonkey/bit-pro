@@ -2,6 +2,7 @@
 id: BIT-49
 title: 'v2: shared feedback and retro, bp migrate, and the .bit/ sweep'
 status: todo
+approved: true
 ---
 ## Why
 Once BIT-46 has moved each project's tasks and research into the central store, three things still stop v2 from replacing v1.

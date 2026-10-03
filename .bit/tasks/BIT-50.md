@@ -2,6 +2,7 @@
 id: BIT-50
 title: 'v2: merge-aware completion'
 status: todo
+approved: true
 ---
 ## Why
 Today a track is "completed" when the operator signs it off, before its work has necessarily been pushed or merged. Completion only moves files (`task/store.go:108-147`), never looks at git, and the complete skill forces every unfinished bar to `done` without asking (BIT-50 topic `completion-today`). So "completed" doesn't mean "on main", and nothing records where the work landed. v2 wants each completed track anchored to its landing commit, so the state of the world before and after a track can be worked out later. A track whose work never landed should be noticed, not quietly filed.

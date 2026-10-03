@@ -2,6 +2,7 @@
 id: BIT-49.9
 title: The git helper reads HEAD and the branch, and gives empty values when git fails
 status: todo
+approved: true
 phase: 2
 phase_label: bp migrate
 ---

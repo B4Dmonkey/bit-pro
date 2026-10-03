@@ -2,6 +2,7 @@
 id: BIT-47.9
 title: retro_write records the session's HEAD, and a re-run after a new commit appends
 status: todo
+approved: true
 phase: 3
 phase_label: records show the commits they were written at
 ---

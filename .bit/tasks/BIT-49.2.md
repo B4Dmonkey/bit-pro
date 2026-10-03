@@ -2,6 +2,7 @@
 id: BIT-49.2
 title: A new note takes the next free number instead of overwriting one another session wrote
 status: todo
+approved: true
 phase: 1
 phase_label: feedback and retro are shared across projects
 ---

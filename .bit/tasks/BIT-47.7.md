@@ -2,6 +2,7 @@
 id: BIT-47.7
 title: feedback_add records the session's HEAD on a new note
 status: todo
+approved: true
 phase: 3
 phase_label: records show the commits they were written at
 ---

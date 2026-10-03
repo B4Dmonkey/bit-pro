@@ -2,6 +2,7 @@
 id: BIT-49.28
 title: The agents and the plugin description no longer name .bit/
 status: todo
+approved: true
 phase: 3
 phase_label: no .bit/ in sight
 ---

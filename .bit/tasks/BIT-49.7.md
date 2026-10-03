@@ -2,6 +2,7 @@
 id: BIT-49.7
 title: retro_read returns any project's proposal by name
 status: todo
+approved: true
 phase: 1
 phase_label: feedback and retro are shared across projects
 ---

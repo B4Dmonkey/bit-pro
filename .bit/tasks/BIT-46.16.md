@@ -2,6 +2,7 @@
 id: BIT-46.16
 title: A research write appends the caller's commit only when HEAD has moved
 status: todo
+approved: true
 phase: 2
 phase_label: records are JSON metadata plus markdown
 ---

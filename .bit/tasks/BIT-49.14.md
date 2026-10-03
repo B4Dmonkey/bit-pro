@@ -2,6 +2,7 @@
 id: BIT-49.14
 title: migrate stores v1 retro proposals under the same code-prefix rule as retro_write
 status: todo
+approved: true
 phase: 2
 phase_label: bp migrate
 ---

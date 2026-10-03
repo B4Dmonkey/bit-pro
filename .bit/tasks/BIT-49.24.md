@@ -2,6 +2,7 @@
 id: BIT-49.24
 title: A first migration ensures the global Claude wiring; a re-run doesn't
 status: todo
+approved: true
 phase: 2
 phase_label: bp migrate
 ---

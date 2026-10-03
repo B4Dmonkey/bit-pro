@@ -2,6 +2,7 @@
 id: BIT-47.3
 title: bit:commit asks, commits a bar's files with its message, and records the hash
 status: todo
+approved: true
 phase: 1
 phase_label: a bar lands as a real commit with its hash recorded
 ---

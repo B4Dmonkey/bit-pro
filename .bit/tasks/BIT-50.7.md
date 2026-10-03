@@ -2,6 +2,7 @@
 id: BIT-50.7
 title: Each bar is classed pushed, local, unresolvable or no hash, and the verdict says partly, not done or can't tell
 status: todo
+approved: true
 phase: 2
 phase_label: operator decides partial landings
 ---

@@ -2,6 +2,7 @@
 id: BIT-48.4
 title: A failed wiring step keeps the project registered, prints the claude commands and exits non-zero
 status: todo
+approved: true
 phase: 1
 phase_label: bp add sets bit up for the whole machine
 ---

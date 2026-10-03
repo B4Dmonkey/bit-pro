@@ -2,6 +2,7 @@
 id: BIT-50.16
 title: Two bars that share a subject can't both claim one squash line
 status: todo
+approved: true
 phase: 4
 phase_label: squash-landed tracks
 ---

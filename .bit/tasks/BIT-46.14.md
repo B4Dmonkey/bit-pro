@@ -2,6 +2,7 @@
 id: BIT-46.14
 title: Tracks and bars carry branch and commit exactly as the caller passes them
 status: todo
+approved: true
 phase: 2
 phase_label: records are JSON metadata plus markdown
 ---

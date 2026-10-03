@@ -2,6 +2,7 @@
 id: BIT-46.8
 title: CLI commands find the project from any subfolder and use its central store
 status: todo
+approved: true
 phase: 1
 phase_label: registered project works from the central store
 ---

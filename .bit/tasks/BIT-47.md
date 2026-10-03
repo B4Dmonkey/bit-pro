@@ -2,6 +2,7 @@
 id: BIT-47
 title: 'v2: commit skill and git capture'
 status: todo
+approved: true
 ---
 ## Why
 In v1, Claude marks a bar `done` and then hands the commit to the operator. So bit never learns which commit a bar became, and records carry no git facts at all (`bp never calls git`, BIT-45 topic `history-anchors`). v2 wants traceability: the state of the world when a record was written, and the commits a track's work became. BIT-46 adds empty git fields to every record. This track fills them as work happens. Claude makes each commit through one focused skill, always with the operator's permission, and records the hash, and research, feedback and retro writes note the HEAD they were written at. BIT-50's merge-aware completion depends on these bar hashes.

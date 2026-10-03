@@ -2,6 +2,7 @@
 id: BIT-49.23
 title: From a subfolder or a Claude worktree, migrate reads and registers the main checkout's .bit/
 status: todo
+approved: true
 phase: 2
 phase_label: bp migrate
 ---

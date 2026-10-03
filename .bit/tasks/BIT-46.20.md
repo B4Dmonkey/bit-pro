@@ -2,6 +2,7 @@
 id: BIT-46.20
 title: bp list leaves out removed projects
 status: todo
+approved: true
 phase: 3
 phase_label: bp remove soft-deletes a project
 ---

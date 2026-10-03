@@ -2,6 +2,7 @@
 id: BIT-50.11
 title: /bit:complete checks in on partly done, not done, no git and shallow, and the operator decides
 status: todo
+approved: true
 phase: 2
 phase_label: operator decides partial landings
 ---

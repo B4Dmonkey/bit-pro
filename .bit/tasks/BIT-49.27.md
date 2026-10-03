@@ -2,6 +2,7 @@
 id: BIT-49.27
 title: The pipeline skills and the analyze eval no longer name .bit/
 status: todo
+approved: true
 phase: 3
 phase_label: no .bit/ in sight
 ---

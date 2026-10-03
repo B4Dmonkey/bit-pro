@@ -2,6 +2,7 @@
 id: BIT-49.19
 title: migrate refuses a .bit/ whose IDs aren't uppercase
 status: todo
+approved: true
 phase: 2
 phase_label: bp migrate
 ---

@@ -2,6 +2,7 @@
 id: BIT-50.10
 title: A shallow clone is reported as shallow and its bars aren't classed
 status: todo
+approved: true
 phase: 2
 phase_label: operator decides partial landings
 ---

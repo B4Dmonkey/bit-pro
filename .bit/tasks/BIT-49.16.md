@@ -2,6 +2,7 @@
 id: BIT-49.16
 title: migrate stages and verifies the copy, so a mismatch leaves nothing behind
 status: todo
+approved: true
 phase: 2
 phase_label: bp migrate
 ---

@@ -2,6 +2,7 @@
 id: BIT-48.5
 title: The per-project settings writer, SyncPlugin and RegisterMCP are deleted
 status: todo
+approved: true
 phase: 1
 phase_label: bp add sets bit up for the whole machine
 ---

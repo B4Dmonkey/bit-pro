@@ -2,6 +2,7 @@
 id: BIT-48.7
 title: The plugin-behind notice reads the user-scope install and names the user-scope update
 status: todo
+approved: true
 phase: 2
 phase_label: global plugin-behind notice
 ---

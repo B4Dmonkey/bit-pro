@@ -2,6 +2,7 @@
 id: BIT-46.1
 title: A fresh open creates bit/main.db with only a projects table
 status: done
+approved: true
 phase: 1
 phase_label: registered project works from the central store
 ---

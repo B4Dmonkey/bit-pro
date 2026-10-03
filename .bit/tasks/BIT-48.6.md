@@ -2,6 +2,7 @@
 id: BIT-48.6
 title: The README documents the four claude commands as the manual setup and repair path
 status: todo
+approved: true
 phase: 1
 phase_label: bp add sets bit up for the whole machine
 ---
