@@ -30,6 +30,7 @@ const (
 	researchReadTool  = "research_read"
 	retroWriteTool    = "retro_write"
 	retroListTool     = "retro_list"
+	retroReadTool     = "retro_read"
 
 	statusProperty = "status"
 )
@@ -127,6 +128,13 @@ const retroListDescription = `List every project's proposals, each with its proj
 Proposals from every project share one folder, and this lists them all rather than only the
 current project's, so learn sees every proposal and retro can avoid re-proposing a pattern. Each
 entry carries the stored name and the code of the project that wrote it, ordered by name.`
+
+const retroReadDescription = `Read one proposals record by the name retro_list shows, from any project.
+
+Proposals from every project share one folder, and this reads any of every project's proposals
+rather than only the current project's, so learn can open a proposal another project wrote. Pass the
+name exactly as retro_list shows it. The result carries the stored name, the code of the project
+that wrote it, and the body.`
 
 const researchWriteDescription = `Write one topic of a track's research and return its path.
 
@@ -241,6 +249,16 @@ type retroListOutput struct {
 	Proposals []task.Proposal `json:"proposals"`
 }
 
+type retroReadInput struct {
+	Name string `json:"name"`
+}
+
+type retroReadOutput struct {
+	Name    string `json:"name"`
+	Project string `json:"project"`
+	Body    string `json:"body"`
+}
+
 type researchWriteInput struct {
 	Track string `json:"track"`
 	Topic string `json:"topic"`
@@ -326,6 +344,7 @@ func runMCPServer(ctx context.Context, root string, run git.Runner, transport mc
 	mcp.AddTool(s, &mcp.Tool{Name: feedbackReadTool, Description: feedbackReadDescription}, feedbackReadHandler(root))
 	mcp.AddTool(s, &mcp.Tool{Name: retroWriteTool, Description: retroWriteDescription}, retroWriteHandler(root, run))
 	mcp.AddTool(s, &mcp.Tool{Name: retroListTool, Description: retroListDescription}, retroListHandler(root))
+	mcp.AddTool(s, &mcp.Tool{Name: retroReadTool, Description: retroReadDescription}, retroReadHandler(root))
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        researchWriteTool,
 		Description: researchWriteDescription,
@@ -703,6 +722,26 @@ func retroListHandler(root string) mcp.ToolHandlerFor[retroListInput, retroListO
 		}
 
 		return nil, retroListOutput{Proposals: proposals}, nil
+	}
+}
+
+func retroReadHandler(root string) mcp.ToolHandlerFor[retroReadInput, retroReadOutput] {
+	return func(
+		ctx context.Context,
+		_ *mcp.CallToolRequest,
+		in retroReadInput,
+	) (*mcp.CallToolResult, retroReadOutput, error) {
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, retroReadOutput{}, err
+		}
+
+		proposal, body, err := store.ReadRetro(in.Name)
+		if err != nil {
+			return nil, retroReadOutput{}, fmt.Errorf("reading proposal: %w", err)
+		}
+
+		return nil, retroReadOutput{Name: proposal.Name, Project: proposal.Project, Body: body}, nil
 	}
 }
 

@@ -145,3 +145,23 @@ func (s *Store) ListRetro() ([]Proposal, error) {
 
 	return proposals, nil
 }
+
+func (s *Store) ReadRetro(name string) (Proposal, string, error) {
+	if err := validateRetroName(name); err != nil {
+		return Proposal{}, "", err
+	}
+
+	dir := s.retroDir()
+
+	rec, err := readRetroRecord(pathologize.Join(dir, name+recordExt))
+	if err != nil {
+		return Proposal{}, "", fmt.Errorf("reading retro %s: %w", name, err)
+	}
+
+	body, err := os.ReadFile(pathologize.Join(dir, rec.Content))
+	if err != nil {
+		return Proposal{}, "", fmt.Errorf("reading retro %s body: %w", name, err)
+	}
+
+	return Proposal{Name: rec.Name, Project: rec.Project}, string(body), nil
+}

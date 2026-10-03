@@ -192,3 +192,56 @@ func TestRetroListHandler(t *testing.T) {
 		}
 	})
 }
+
+func TestRetroReadHandler(t *testing.T) {
+	t.Run("reads another project's proposal", func(t *testing.T) {
+		dir := t.TempDir()
+		other := t.TempDir()
+
+		seedCodedProject(t, dir, testOwnCode, testOwnTrack)
+		seedCodedProject(t, other, testOtherCode, testOtherTrack)
+
+		callTool(t, mcpSession(t, other), retroWriteTool, map[string]any{
+			testNameKey: testRetroName,
+			testBodyKey: testRetroBody,
+		})
+
+		const want = "EX-album-proposals"
+
+		got := callTool(t, mcpSession(t, dir), retroReadTool, map[string]any{testNameKey: want})
+
+		if got[testNameKey] != want {
+			t.Errorf("name = %v, want %q", got[testNameKey], want)
+		}
+
+		if got[testProjectKey] != testOtherCode {
+			t.Errorf("project = %v, want %q", got[testProjectKey], testOtherCode)
+		}
+
+		if got[testBodyKey] != testRetroBody {
+			t.Errorf("body = %q, want %q", got[testBodyKey], testRetroBody)
+		}
+	})
+
+	t.Run("refuses an unknown or path-like name", func(t *testing.T) {
+		tests := []struct {
+			name  string
+			retro string
+		}{
+			{name: "unknown", retro: "BIT-none-proposals"},
+			{name: "path-like", retro: "../x"},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				dir := t.TempDir()
+				seedCodedProject(t, dir, testOwnCode, testOwnTrack)
+
+				result := callToolResult(t, mcpSession(t, dir), retroReadTool, map[string]any{testNameKey: tt.retro})
+				if !result.IsError {
+					t.Fatalf("IsError = false, want true (content %v)", result.Content)
+				}
+			})
+		}
+	})
+}
