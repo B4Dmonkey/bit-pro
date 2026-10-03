@@ -2,7 +2,6 @@
 id: BIT-49
 title: 'v2: shared feedback and retro, bp migrate, and the .bit/ sweep'
 status: doing
-approved: true
 ---
 ## Why
 Once BIT-46 has moved each project's tasks and research into the central store, three things still stop v2 from replacing v1.
@@ -59,7 +58,7 @@ Feedback notes and retro proposals move to shared top-level `feedback/` and `ret
 - **Cutover belongs to the operator.** The operator alone decides when v2 is ready and merges the branch, and no track gates it. Migrating each project is a step on the cutover checklist in `v2-sketch.md`, run when the operator chooses.
 
 ## Verses
-- [ ] Verse 1 — Feedback and retro are shared across projects. Feedback notes land in the top-level `feedback/`, and retro and learn read and write through new MCP tools instead of files, each project seeing only its own feedback.
+- [x] Verse 1 — Feedback and retro are shared across projects. Feedback notes land in the top-level `feedback/`, and retro and learn read and write through new MCP tools instead of files, each project seeing only its own feedback.
   Touches: `task/feedback.go` (`AddNote`, `:58-79`), a new retro store in `task/`, `cmd/serve_mcp.go` (tool registrations and descriptions) and `cmd/serve_mcp_test.go` (the tool-description test at `:182` needs rows for the new tools), `cmd/feedback_add.go`, `bit/skills/{retro,learn,feedback}`, `bit/agents/bot.md:22` (its "whole write surface" list). There's no `task/feedback_test.go` today. See BIT-45 topic `skills` and BIT-49 topic `claim-audit-2026-10-02`.
 - [ ] Verse 2 — The operator migrates a v1 project with `bp migrate`, which ensures the global wiring on a first migration, and can trial it on live projects without disturbing v1.
   Touches: new `cmd/migrate.go`, the new git helper, `task/`. See BIT-45 topic `migrate` and BIT-49 topics `review-2026-10-02` and `claim-audit-2026-10-02` (the inventory of bit-pro's `.bit/` and the v1 layouts in its history).

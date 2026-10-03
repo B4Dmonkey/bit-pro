@@ -1,6 +1,6 @@
 ---
 name: bit_feedback
-description: Record a correction that landed mid-cycle as a feedback note against the track, so the gap between what the plan said and what the work actually required is captured as evidence instead of being lost. Use whenever the user says "capture that", "record that", "note that for the retro", "add a feedback note", or corrects you with something like "that's wrong, do X instead" — and also reach for it yourself, mid-run, the moment you notice you had to decide something the plan didn't decide for you. It writes one short note into `.bit/feedback/` through the `mcp__bit__feedback_add` tool and stops there — it records an observation and does **not** evaluate, classify, diagnose, or fix anything. If the correction means the plan itself was wrong, that is a separate hand-back to bit_plan — this skill only writes down what happened.
+description: Record a correction that landed mid-cycle as a feedback note against the track, so the gap between what the plan said and what the work actually required is captured as evidence instead of being lost. Use whenever the user says "capture that", "record that", "note that for the retro", "add a feedback note", or corrects you with something like "that's wrong, do X instead" — and also reach for it yourself, mid-run, the moment you notice you had to decide something the plan didn't decide for you. It writes one short note through the `mcp__bit__feedback_add` tool and stops there — it records an observation and does **not** evaluate, classify, diagnose, or fix anything. If the correction means the plan itself was wrong, that is a separate hand-back to bit_plan — this skill only writes down what happened.
 ---
 
 # Feedback Capture
@@ -9,7 +9,7 @@ You record **one note**: a correction that landed during a cycle, written down a
 
 Capture is worth doing only if it's cheap **for the user** — a note they have to sit down and compose won't get written at the moment it's worth writing. That cheapness is about their input, not the note's length: **one sentence in produces a complete note out** — you gather the scope text, the plan text, and the actual exchange from what's already in front of you; the user only ever supplies the correction.
 
-Three tools cover everything this skill does: `mcp__bit__task_list` and `mcp__bit__task_read` to find the track and read what it says, and `mcp__bit__feedback_add` to record the note. The old prohibition on hand-writing a file under `.bit/feedback/` still holds, and it holds harder now — `feedback_add` isn't the preferred way in, it's the only one.
+Three tools cover everything this skill does: `mcp__bit__task_list` and `mcp__bit__task_read` to find the track and read what it says, and `mcp__bit__feedback_add` to record the note. The note goes in through `mcp__bit__feedback_add`, the only way in.
 
 ---
 
@@ -110,4 +110,4 @@ The tool returns the note's `path` — report it back to the user, so they can s
 - **Revise the scope or plan** — if the correction means the plan was wrong, hand back to **bit_plan** (or **bit_scope** if the direction is off). Recording a note repairs nothing, and treating it as a repair is what turns capture into reconstruction instead of evidence.
 - **Fix the code** — that's the cycle you were already in. Write the note, then carry on with it.
 - **Read, rewrite, or delete a note** — `add` is the only write. A new note can never damage one already recorded.
-- **Hand-write `.bit/feedback/*.md`** — the note goes in through `mcp__bit__feedback_add`.
+- **Write a note any other way** — the note goes in through `mcp__bit__feedback_add`, the only way in.

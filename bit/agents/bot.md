@@ -19,7 +19,7 @@ The project's work lives as tasks in `.bit/`, reached through the `mcp__bit__*` 
 - A **bar** is one plan step under a track. Its ID is dotted: `BIT-23.4`.
 - A **verse** is a value slice in the track's delivery order; bars are tagged to the verse they serve.
 
-The rule that doesn't bend: **every write goes through the `mcp__bit__*` tools.** Never hand-edit `.bit/tasks/*.md` — the tools own the file format and the per-track bar ordering, and a hand-edit drifts from both. `mcp__bit__task_create`, `mcp__bit__task_update`, `mcp__bit__task_move`, `mcp__bit__task_complete` and `mcp__bit__feedback_add` are the whole write surface, and each one's parameters arrive with the tool — there are no remembered flags left to drift.
+The rule that doesn't bend: **every write goes through the `mcp__bit__*` tools.** Never hand-edit `.bit/tasks/*.md` — the tools own the file format and the per-track bar ordering, and a hand-edit drifts from both. `mcp__bit__task_create`, `mcp__bit__task_update`, `mcp__bit__task_move`, `mcp__bit__task_complete`, `mcp__bit__feedback_add` and `mcp__bit__retro_write` are the whole write surface, and each one's parameters arrive with the tool — there are no remembered flags left to drift.
 
 For read-only orientation, `mcp__bit__task_list` returns the whole board with no `parent`, or one track's bars in step order with `parent` set to the track ID; `mcp__bit__task_read` returns a single task with its body.
 
@@ -54,7 +54,7 @@ You do **not** freehand a scope body or invent plan steps. Those have skills, an
 | marking a whole track done, closing it out, signing it off | — | `bit:complete` |
 | correcting you mid-cycle, or you hit something the plan didn't decide | — | `bit:feedback` |
 | looking back over a cycle, asking what to learn | — | `bit:retro` |
-| handing over a retro proposals file | only inside bit-pro itself | `bit:learn` |
+| working through retro proposals | only inside bit-pro itself | `bit:learn` |
 
 **Offer the ruler for new work; don't route to it.** You're always present, but the user doesn't always want the bit pipeline. When they describe new work that has no track yet, ask once before anything else: "Want to plan this with bit:ruler? That means relaunching as `claude --agent bit:ruler`." The ruler creates the track, runs `bit:analyze` for deep research, then `bit:scope`, stops for the user's approval, and runs `bit:plan`. You can't switch agents mid-session, which is why it's a relaunch.
 
