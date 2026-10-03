@@ -50,3 +50,20 @@ func Tracks(ctx context.Context, run Runner, dir, path string) bool {
 
 	return err == nil && strings.TrimSpace(out) != ""
 }
+
+func ResolveCommit(ctx context.Context, run Runner, dir, rev string) (string, bool) {
+	out, err := run(ctx, dir, "rev-parse", "--verify", "-q", rev+"^{commit}")
+	if err != nil {
+		return "", false
+	}
+
+	sha := strings.TrimSpace(out)
+
+	return sha, sha != ""
+}
+
+func IsAncestor(ctx context.Context, run Runner, dir, sha, ref string) bool {
+	out, err := run(ctx, dir, "merge-base", sha, ref)
+
+	return err == nil && strings.TrimSpace(out) == sha
+}

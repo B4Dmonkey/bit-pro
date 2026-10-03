@@ -1,7 +1,7 @@
 ---
 id: BIT-50.2
 title: A bar that isn't on origin/main makes the track not done
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: complete after push

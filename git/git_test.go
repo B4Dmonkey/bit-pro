@@ -158,3 +158,72 @@ func TestTracks(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveCommit(t *testing.T) {
+	const (
+		sha      = "6a1d3459c0ffee000000000000000000000000ab"
+		dir      = "/repo"
+		rev      = "refs/remotes/origin/main"
+		revParse = "rev-parse --verify -q " + rev + "^{commit}"
+	)
+
+	tests := []struct {
+		name   string
+		result fakeResult
+		want   string
+		wantOK bool
+	}{
+		{name: "resolves", result: fakeResult{out: sha + "\n"}, want: sha, wantOK: true},
+		{name: "rev-parse fails", result: fakeResult{err: errors.New("exit status 1")}},
+		{name: "empty output", result: fakeResult{}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := &fakeGit{results: map[string]fakeResult{revParse: tt.result}}
+
+			got, ok := ResolveCommit(t.Context(), fake.run, dir, rev)
+
+			if got != tt.want || ok != tt.wantOK {
+				t.Errorf("ResolveCommit() = (%q, %v), want (%q, %v)", got, ok, tt.want, tt.wantOK)
+			}
+
+			if want := []string{dir}; !slices.Equal(fake.dirs, want) {
+				t.Errorf("runner dirs = %q, want %q", fake.dirs, want)
+			}
+		})
+	}
+}
+
+func TestIsAncestor(t *testing.T) {
+	const (
+		sha       = "6a1d3459c0ffee000000000000000000000000ab"
+		other     = "0000000000000000000000000000000000000001"
+		dir       = "/repo"
+		mergeBase = "merge-base " + sha + " origin/main"
+	)
+
+	tests := []struct {
+		name   string
+		result fakeResult
+		want   bool
+	}{
+		{name: "ancestor", result: fakeResult{out: sha + "\n"}, want: true},
+		{name: "another merge base", result: fakeResult{out: other + "\n"}},
+		{name: "git fails", result: fakeResult{err: errors.New("exit status 128")}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := &fakeGit{results: map[string]fakeResult{mergeBase: tt.result}}
+
+			if got := IsAncestor(t.Context(), fake.run, dir, sha, "origin/main"); got != tt.want {
+				t.Errorf("IsAncestor() = %v, want %v", got, tt.want)
+			}
+
+			if want := []string{dir}; !slices.Equal(fake.dirs, want) {
+				t.Errorf("runner dirs = %q, want %q", fake.dirs, want)
+			}
+		})
+	}
+}
