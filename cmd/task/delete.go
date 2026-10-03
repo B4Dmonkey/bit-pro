@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/B4Dmonkey/bit-pro/bitdir"
-	taskstore "github.com/B4Dmonkey/bit-pro/task"
 	"github.com/spf13/cobra"
 )
 
@@ -34,7 +32,12 @@ func newDeleteCmd() *cobra.Command {
 				}
 			}
 
-			return taskstore.New(bitdir.Current()).Relocate(id, force)
+			s, err := openStore(cmd)
+			if err != nil {
+				return err
+			}
+
+			return s.Relocate(id, force)
 		},
 	}
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "skip confirmation")

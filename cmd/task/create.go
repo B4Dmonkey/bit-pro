@@ -3,7 +3,6 @@ package task
 import (
 	"fmt"
 
-	"github.com/B4Dmonkey/bit-pro/bitdir"
 	taskstore "github.com/B4Dmonkey/bit-pro/task"
 	"github.com/spf13/cobra"
 )
@@ -39,7 +38,12 @@ func runCreate(
 	parent, after, description string,
 	phase int, phaseLabel string,
 ) error {
-	t, err := taskstore.New(bitdir.Current()).Create(taskstore.CreateParams{
+	s, err := openStore(cmd)
+	if err != nil {
+		return err
+	}
+
+	t, err := s.Create(taskstore.CreateParams{
 		Title:      args[0],
 		Body:       description,
 		Parent:     parent,

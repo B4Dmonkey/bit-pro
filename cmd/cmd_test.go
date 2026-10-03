@@ -10,6 +10,7 @@ import (
 	"github.com/B4Dmonkey/bit-pro/claude"
 	"github.com/B4Dmonkey/bit-pro/db/orm"
 	"github.com/B4Dmonkey/bit-pro/project"
+	"github.com/B4Dmonkey/bit-pro/store"
 	"github.com/B4Dmonkey/bit-pro/task"
 )
 
@@ -69,8 +70,31 @@ func initProject(t *testing.T, prefix string) string {
 
 	seedProject(t, orm.CreateProjectParams{Path: path, Code: prefix})
 
-	if err := task.New(".bit").SaveConfig(&task.Config{Prefix: prefix}); err != nil {
-		t.Fatalf("SaveConfig(%q) returned error: %v", prefix, err)
+	return dir
+}
+
+func projectStore(t *testing.T) *task.Store {
+	t.Helper()
+
+	s, err := project.OpenStore(t.Context(), ".")
+	if err != nil {
+		t.Fatalf("project.OpenStore(.) returned error: %v", err)
+	}
+
+	return s
+}
+
+func storeDir(t *testing.T) string {
+	t.Helper()
+
+	p, err := project.Find(t.Context(), ".")
+	if err != nil {
+		t.Fatalf("project.Find(.) returned error: %v", err)
+	}
+
+	dir, err := store.ProjectDir(p.Code)
+	if err != nil {
+		t.Fatalf("store.ProjectDir(%q) returned error: %v", p.Code, err)
 	}
 
 	return dir

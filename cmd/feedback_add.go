@@ -3,8 +3,6 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/B4Dmonkey/bit-pro/bitdir"
-	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/spf13/cobra"
 )
 
@@ -16,7 +14,12 @@ func newFeedbackAddCmd() *cobra.Command {
 		Short: "Record a feedback note against a track",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			path, err := task.New(bitdir.Current()).AddNote(args[0], description)
+			s, err := openStore(cmd)
+			if err != nil {
+				return err
+			}
+
+			path, err := s.AddNote(args[0], description)
 			if err != nil {
 				return err
 			}

@@ -131,11 +131,6 @@ func newRootCmd(run claude.Runner) *cobra.Command {
 		Version:       version,
 		SilenceUsage:  true,
 		SilenceErrors: true,
-		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
-			bitdir.Resolve()
-
-			return nil
-		},
 	}
 	rootCmd.AddCommand(newAddCmd(run))
 	rootCmd.AddCommand(newApproveCmd())

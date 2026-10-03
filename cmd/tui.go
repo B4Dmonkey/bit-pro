@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"github.com/B4Dmonkey/bit-pro/bitdir"
-	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/B4Dmonkey/bit-pro/tui"
 	"github.com/spf13/cobra"
 )
@@ -15,8 +13,11 @@ func newTUICmd() *cobra.Command {
 		Short:       "Browse tasks in a terminal UI",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{quietAnnotation: quietEnabled},
-		RunE: func(_ *cobra.Command, _ []string) error {
-			s := task.New(bitdir.Current())
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			s, err := openStore(cmd)
+			if err != nil {
+				return err
+			}
 
 			tasks, err := s.List()
 			if err != nil {

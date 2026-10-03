@@ -3,8 +3,6 @@ package cmd
 import (
 	"bytes"
 	"context"
-	"os"
-	"path/filepath"
 	"strings"
 	"syscall"
 	"testing"
@@ -52,60 +50,6 @@ func TestRootCmd(t *testing.T) {
 
 		if strings.Contains(out, "Usage:") {
 			t.Errorf("output = %q, want no usage text on a runtime failure", out)
-		}
-	})
-}
-
-func TestBitDir(t *testing.T) {
-	t.Run("outside worktree uses relative dot bit", func(t *testing.T) {
-		initProject(t, "BIT")
-		createTask(t, "Track", "...")
-
-		out := mustRun(t, "task", "list")
-
-		if !strings.Contains(out, "BIT-1") {
-			t.Errorf("output = %q, want output to contain BIT-1 from default .bit dir", out)
-		}
-	})
-
-	t.Run("inside claude worktree resolves to main checkout", func(t *testing.T) {
-		root := initProject(t, "BIT")
-		createTask(t, "Track", "...")
-
-		worktree := filepath.Join(root, ".claude", "worktrees", "hazy-pondering-star")
-		if err := os.MkdirAll(filepath.Join(worktree, ".bit"), 0o755); err != nil {
-			t.Fatalf("MkdirAll(%q) returned error: %v", worktree, err)
-		}
-
-		t.Chdir(worktree)
-
-		out := mustRun(t, "task", "list")
-
-		if !strings.Contains(out, "BIT-1") {
-			t.Errorf("output = %q, want output to contain BIT-1 from the main checkout's .bit", out)
-		}
-	})
-
-	t.Run("nested worktree resolves to outermost checkout", func(t *testing.T) {
-		root := initProject(t, "BIT")
-		createTask(t, "Track", "...")
-
-		outer := filepath.Join(root, ".claude", "worktrees", "outer")
-		if err := os.MkdirAll(filepath.Join(outer, ".bit"), 0o755); err != nil {
-			t.Fatalf("MkdirAll(%q) returned error: %v", outer, err)
-		}
-
-		nested := filepath.Join(outer, ".claude", "worktrees", "inner")
-		if err := os.MkdirAll(filepath.Join(nested, ".bit"), 0o755); err != nil {
-			t.Fatalf("MkdirAll(%q) returned error: %v", nested, err)
-		}
-
-		t.Chdir(nested)
-
-		out := mustRun(t, "task", "list")
-
-		if !strings.Contains(out, "BIT-1") {
-			t.Errorf("output = %q, want output to contain BIT-1 from the outermost checkout's .bit", out)
 		}
 	})
 }

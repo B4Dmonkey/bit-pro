@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"github.com/B4Dmonkey/bit-pro/bitdir"
-	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/spf13/cobra"
 )
 
@@ -11,8 +9,8 @@ func newApproveCmd() *cobra.Command {
 		Use:   "approve <id>",
 		Short: "Approve a task",
 		Args:  cobra.ExactArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
-			return task.New(bitdir.Current()).SetApproved(args[0], true)
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return setApproved(cmd, args[0], true)
 		},
 	}
 }
@@ -22,8 +20,17 @@ func newUnapproveCmd() *cobra.Command {
 		Use:   "unapprove <id>",
 		Short: "Revoke approval for a task",
 		Args:  cobra.ExactArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
-			return task.New(bitdir.Current()).SetApproved(args[0], false)
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return setApproved(cmd, args[0], false)
 		},
 	}
+}
+
+func setApproved(cmd *cobra.Command, id string, approved bool) error {
+	s, err := openStore(cmd)
+	if err != nil {
+		return err
+	}
+
+	return s.SetApproved(id, approved)
 }

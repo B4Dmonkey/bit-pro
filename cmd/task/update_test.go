@@ -2,6 +2,7 @@ package task_test
 
 import (
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -46,7 +47,7 @@ func TestTaskUpdateCmd(t *testing.T) {
 
 			mustRun(t, tt.args...)
 
-			got, err := task.New(".bit").Load(trackID)
+			got, err := projectStore(t).Load(trackID)
 			if err != nil {
 				t.Fatalf("loading BIT-1: %v", err)
 			}
@@ -56,190 +57,190 @@ func TestTaskUpdateCmd(t *testing.T) {
 			}
 		})
 	}
-}
 
-func TestTaskUpdateCmd_ChangesPhase(t *testing.T) {
-	initProject(t, "BIT")
-	createTask(t, "Track", "...")
-	mustRun(t, "task", "create", "Bar", "-d", "...", "--parent", trackID,
-		"--phase", "2", "--phase-label", "List & read")
+	t.Run("changes phase", func(t *testing.T) {
+		initProject(t, "BIT")
+		createTask(t, "Track", "...")
+		mustRun(t, "task", "create", "Bar", "-d", "...", "--parent", trackID,
+			"--phase", "2", "--phase-label", "List & read")
 
-	mustRun(t, taskCmdUse, updateCmd, firstBarID, "--phase", "3", "--phase-label", "Update")
+		mustRun(t, taskCmdUse, updateCmd, firstBarID, "--phase", "3", "--phase-label", "Update")
 
-	out := mustRun(t, "task", "read", firstBarID)
+		out := mustRun(t, "task", "read", firstBarID)
 
-	firstLine := strings.SplitN(out, "\n", 2)[0]
+		firstLine := strings.SplitN(out, "\n", 2)[0]
 
-	want := firstBarID + "\ttodo\tBar\tphase 3 — Update"
-	if firstLine != want {
-		t.Errorf("first line = %q, want %q", firstLine, want)
-	}
-}
-
-func TestTaskUpdateCmd_RewritesACorruptIDToCanonicalCase(t *testing.T) {
-	initProject(t, "BIT")
-	writeRawTask(t, ".bit/tasks/BIT-1.md", "bit-1", "Corrupt frontmatter", statusTodo)
-
-	mustRun(t, taskCmdUse, updateCmd, trackID, "-s", statusDoing)
-
-	data, err := os.ReadFile(".bit/tasks/BIT-1.md")
-	if err != nil {
-		t.Fatalf("os.ReadFile(.bit/tasks/BIT-1.md) error = %v", err)
-	}
-
-	got := string(data)
-	for _, want := range []string{"id: BIT-1\n", "status: doing\n"} {
-		if !strings.Contains(got, want) {
-			t.Errorf(".bit/tasks/BIT-1.md = %q, want it to contain %q", got, want)
+		want := firstBarID + "\ttodo\tBar\tphase 3 — Update"
+		if firstLine != want {
+			t.Errorf("first line = %q, want %q", firstLine, want)
 		}
-	}
+	})
 
-	entries, err := os.ReadDir(".bit/tasks")
-	if err != nil {
-		t.Fatalf("os.ReadDir(.bit/tasks) error = %v", err)
-	}
+	t.Run("rewrites a corrupt id to canonical case", func(t *testing.T) {
+		initProject(t, "BIT")
+		writeRawTask(t, filepath.Join(storeDir(t), "tasks", "BIT-1.md"), "bit-1", "Corrupt frontmatter", statusTodo)
 
-	if len(entries) != 1 {
-		t.Errorf("os.ReadDir(.bit/tasks) returned %d entries, want 1", len(entries))
-	}
-}
+		mustRun(t, taskCmdUse, updateCmd, trackID, "-s", statusDoing)
 
-func TestTaskUpdateCmd_ErrorsOnUnknownID(t *testing.T) {
-	initProject(t, "BIT")
+		data, err := os.ReadFile(filepath.Join(storeDir(t), "tasks", "BIT-1.md"))
+		if err != nil {
+			t.Fatalf("os.ReadFile(tasks/BIT-1.md) error = %v", err)
+		}
 
-	if _, err := run(t, taskCmdUse, updateCmd, "BIT-99", "--title", "X"); err == nil {
-		t.Fatal("Execute() returned nil error, want non-nil for unknown ID")
-	}
-}
-
-func TestTaskUpdateCmd_RevokesApprovalOnTitleChange(t *testing.T) {
-	initProject(t, "BIT")
-	createTask(t, "Old title", "...")
-	approve(t, trackID)
-
-	mustRun(t, taskCmdUse, updateCmd, trackID, "--title", "New title")
-
-	got, err := task.New(".bit").Load(trackID)
-	if err != nil {
-		t.Fatalf("loading BIT-1: %v", err)
-	}
-
-	if got.Approved {
-		t.Error("expected Approved = false after title change, got true")
-	}
-}
-
-func TestTaskUpdateCmd_NoOpPreservesApproval(t *testing.T) {
-	initProject(t, "BIT")
-	createTask(t, "Old title", "...")
-	approve(t, trackID)
-
-	mustRun(t, taskCmdUse, updateCmd, trackID)
-
-	got, err := task.New(".bit").Load(trackID)
-	if err != nil {
-		t.Fatalf("loading BIT-1: %v", err)
-	}
-
-	if !got.Approved {
-		t.Error("expected Approved = true after no-op update, got false")
-	}
-}
-
-func TestTaskUpdateCmd_RevokesApprovalOnBodyChange(t *testing.T) {
-	initProject(t, "BIT")
-	createTask(t, "Old title", oldTaskBody)
-	approve(t, trackID)
-
-	mustRun(t, taskCmdUse, updateCmd, trackID, "--description", "New body.")
-
-	got, err := task.New(".bit").Load(trackID)
-	if err != nil {
-		t.Fatalf("loading BIT-1: %v", err)
-	}
-
-	if got.Approved {
-		t.Error("expected Approved = false after description change, got true")
-	}
-}
-
-func TestTaskUpdateCmd_ForwardStatusMovePreservesApproval(t *testing.T) {
-	tests := []struct {
-		name string
-		from string
-		to   string
-	}{
-		{name: "todo to doing", to: statusDoing},
-		{name: "doing to done", from: statusDoing, to: "done"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			initProject(t, "BIT")
-			createTask(t, "Old title", oldTaskBody)
-
-			if tt.from != "" {
-				mustRun(t, taskCmdUse, updateCmd, trackID, "-s", tt.from)
+		got := string(data)
+		for _, want := range []string{"id: BIT-1\n", "status: doing\n"} {
+			if !strings.Contains(got, want) {
+				t.Errorf("tasks/BIT-1.md = %q, want it to contain %q", got, want)
 			}
+		}
 
-			approve(t, trackID)
+		entries, err := os.ReadDir(filepath.Join(storeDir(t), "tasks"))
+		if err != nil {
+			t.Fatalf("os.ReadDir(tasks) error = %v", err)
+		}
 
-			mustRun(t, taskCmdUse, updateCmd, trackID, "-s", tt.to)
+		if len(entries) != 1 {
+			t.Errorf("os.ReadDir(tasks) returned %d entries, want 1", len(entries))
+		}
+	})
 
-			got, err := task.New(".bit").Load(trackID)
-			if err != nil {
-				t.Fatalf("loading %s: %v", trackID, err)
-			}
+	t.Run("errors on unknown id", func(t *testing.T) {
+		initProject(t, "BIT")
 
-			if !got.Approved {
-				t.Errorf("Approved = false after move to %s, want true", tt.to)
-			}
+		if _, err := run(t, taskCmdUse, updateCmd, "BIT-99", "--title", "X"); err == nil {
+			t.Fatal("Execute() returned nil error, want non-nil for unknown ID")
+		}
+	})
 
-			if got.Status != tt.to {
-				t.Errorf("Status = %q, want %q", got.Status, tt.to)
-			}
-		})
-	}
-}
+	t.Run("revokes approval on title change", func(t *testing.T) {
+		initProject(t, "BIT")
+		createTask(t, "Old title", "...")
+		approve(t, trackID)
 
-func TestTaskUpdateCmd_StatusToTodoRevokesApproval(t *testing.T) {
-	tests := []struct {
-		name string
-		from string
-		to   string
-		want bool
-	}{
-		{name: "doing to todo", from: statusDoing, to: statusTodo, want: false},
-		{name: "done to todo", from: statusDone, to: statusTodo, want: false},
-		{name: "todo to todo", to: statusTodo, want: false},
-		{name: "done to doing", from: statusDone, to: statusDoing, want: true},
-	}
+		mustRun(t, taskCmdUse, updateCmd, trackID, "--title", "New title")
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			initProject(t, "BIT")
-			createTask(t, "Old title", oldTaskBody)
+		got, err := projectStore(t).Load(trackID)
+		if err != nil {
+			t.Fatalf("loading BIT-1: %v", err)
+		}
 
-			if tt.from != "" {
-				mustRun(t, taskCmdUse, updateCmd, trackID, "-s", tt.from)
-			}
+		if got.Approved {
+			t.Error("expected Approved = false after title change, got true")
+		}
+	})
 
-			approve(t, trackID)
+	t.Run("no op preserves approval", func(t *testing.T) {
+		initProject(t, "BIT")
+		createTask(t, "Old title", "...")
+		approve(t, trackID)
 
-			mustRun(t, taskCmdUse, updateCmd, trackID, "-s", tt.to)
+		mustRun(t, taskCmdUse, updateCmd, trackID)
 
-			got, err := task.New(".bit").Load(trackID)
-			if err != nil {
-				t.Fatalf("loading %s: %v", trackID, err)
-			}
+		got, err := projectStore(t).Load(trackID)
+		if err != nil {
+			t.Fatalf("loading BIT-1: %v", err)
+		}
 
-			if got.Approved != tt.want {
-				t.Errorf("Approved = %v after move to %s, want %v", got.Approved, tt.to, tt.want)
-			}
+		if !got.Approved {
+			t.Error("expected Approved = true after no-op update, got false")
+		}
+	})
 
-			if got.Status != tt.to {
-				t.Errorf("Status = %q, want %q", got.Status, tt.to)
-			}
-		})
-	}
+	t.Run("revokes approval on body change", func(t *testing.T) {
+		initProject(t, "BIT")
+		createTask(t, "Old title", oldTaskBody)
+		approve(t, trackID)
+
+		mustRun(t, taskCmdUse, updateCmd, trackID, "--description", "New body.")
+
+		got, err := projectStore(t).Load(trackID)
+		if err != nil {
+			t.Fatalf("loading BIT-1: %v", err)
+		}
+
+		if got.Approved {
+			t.Error("expected Approved = false after description change, got true")
+		}
+	})
+
+	t.Run("forward status move preserves approval", func(t *testing.T) {
+		tests := []struct {
+			name string
+			from string
+			to   string
+		}{
+			{name: "todo to doing", to: statusDoing},
+			{name: "doing to done", from: statusDoing, to: "done"},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				initProject(t, "BIT")
+				createTask(t, "Old title", oldTaskBody)
+
+				if tt.from != "" {
+					mustRun(t, taskCmdUse, updateCmd, trackID, "-s", tt.from)
+				}
+
+				approve(t, trackID)
+
+				mustRun(t, taskCmdUse, updateCmd, trackID, "-s", tt.to)
+
+				got, err := projectStore(t).Load(trackID)
+				if err != nil {
+					t.Fatalf("loading %s: %v", trackID, err)
+				}
+
+				if !got.Approved {
+					t.Errorf("Approved = false after move to %s, want true", tt.to)
+				}
+
+				if got.Status != tt.to {
+					t.Errorf("Status = %q, want %q", got.Status, tt.to)
+				}
+			})
+		}
+	})
+
+	t.Run("status to todo revokes approval", func(t *testing.T) {
+		tests := []struct {
+			name string
+			from string
+			to   string
+			want bool
+		}{
+			{name: "doing to todo", from: statusDoing, to: statusTodo, want: false},
+			{name: "done to todo", from: statusDone, to: statusTodo, want: false},
+			{name: "todo to todo", to: statusTodo, want: false},
+			{name: "done to doing", from: statusDone, to: statusDoing, want: true},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				initProject(t, "BIT")
+				createTask(t, "Old title", oldTaskBody)
+
+				if tt.from != "" {
+					mustRun(t, taskCmdUse, updateCmd, trackID, "-s", tt.from)
+				}
+
+				approve(t, trackID)
+
+				mustRun(t, taskCmdUse, updateCmd, trackID, "-s", tt.to)
+
+				got, err := projectStore(t).Load(trackID)
+				if err != nil {
+					t.Fatalf("loading %s: %v", trackID, err)
+				}
+
+				if got.Approved != tt.want {
+					t.Errorf("Approved = %v after move to %s, want %v", got.Approved, tt.to, tt.want)
+				}
+
+				if got.Status != tt.to {
+					t.Errorf("Status = %q, want %q", got.Status, tt.to)
+				}
+			})
+		}
+	})
 }
