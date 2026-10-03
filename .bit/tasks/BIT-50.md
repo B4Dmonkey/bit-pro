@@ -2,7 +2,6 @@
 id: BIT-50
 title: 'v2: merge-aware completion'
 status: doing
-approved: true
 ---
 ## Why
 Today a track is "completed" when the operator signs it off, before its work has necessarily been pushed or merged. Completion only moves files (`task/store.go:108-147`), never looks at git, and the complete skill forces every unfinished bar to `done` without asking (BIT-50 topic `completion-today`). So "completed" doesn't mean "on main", and nothing records where the work landed. v2 wants each completed track anchored to its landing commit, so the state of the world before and after a track can be worked out later. A track whose work never landed should be noticed, not quietly filed.
@@ -72,7 +71,7 @@ Completion moves from sign-off to after the work has landed (pushed). `/bit:comp
 - **Verse order (Claude default, revised 2026-10-02).** The PR answer (now Verse 3) comes before the squash rung (now Verse 4). Verse 2 ends at "ask for the PR", so the answer path has to exist next. Squashes are historical here: none in the last 20 commits, and v2's bars are direct commits through `bit:commit`.
 
 ## Verses
-- [ ] Verse 1 — The operator completes a track after pushing it, and the track records where it landed. `/bit:complete` finds every bar commit on trunk (directly or through a merge), records the track's landing commit and branch, marks everything `done` and files it. Anything else gets "not landed yet: fetch, pull or push and retry", and nothing is filed. bit:do's sign-off now points to this step. Direct commits are most of bit-pro's history (304 of 320 commits).
+- [x] Verse 1 — The operator completes a track after pushing it, and the track records where it landed. `/bit:complete` finds every bar commit on trunk (directly or through a merge), records the track's landing commit and branch, marks everything `done` and files it. Anything else gets "not landed yet: fetch, pull or push and retry", and nothing is filed. bit:do's sign-off now points to this step. Direct commits are most of bit-pro's history (304 of 320 commits).
   Touches: `bit/skills/complete/SKILL.md` (description, intro, steps, report) and its evals; `bit/skills/do/SKILL.md` (description, the track sign-off section, and the lines that say sign-off completes the track; today `:3`, `:15`, `:95`, `:100`, `:102-110`, `:131`); `bit/agents/bot.md` (`:41`, `:54`); `bit/agents/bot-dev.md:45`; `cmd/serve_mcp.go` (`task_complete`'s description, input and handler, and the new `task_landing` tool; today `:76-82`, `:160-162`, `:265-268`, `:417-430`) and `cmd/serve_mcp_test.go` (the tool-description test, today `:201`); `cmd/task/complete.go:12` and `README.md` (`:65`, `:115`, the "signed off" wording); BIT-49's git helper. Line numbers are as of `6a1d345` and drift after BIT-46, BIT-49 and BIT-47. See topics `completion-today`, `landing-ladder`, `merge-commit` and `claim-audit-2026-10-02`.
 - [ ] Verse 2 — The operator is told when a track is only partly landed, not landed, or can't be traced, and decides what happens. Partly done (including unfinished bars) gets a check-in, not done gets the archive-or-keep choice, a folder with no git gets a confirm-and-file, and can't tell moves on to asking for the PR.
   Touches: `task_landing`'s classification, `bit/skills/complete/SKILL.md` and its evals. See topic `done-classification`.

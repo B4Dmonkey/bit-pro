@@ -3,20 +3,26 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "all bars on BIT-7 are done and committed, mark it as done",
-      "expected_output": "Track BIT-7 set to done with verses checked off, filed via task_complete, absent from task_list; commit suggested, not run.",
+      "prompt": "BIT-7 is pushed to main, complete it",
+      "expected_output": "task_landing is called on BIT-7 and reports done. The track is set to done with its verses checked off, task_complete is passed commit = the landing commit and branch = main, and the track is absent from task_list. No commit is suggested.",
       "files": []
     },
     {
       "id": 2,
       "prompt": "we're done with bit-7, close it out",
-      "expected_output": "BIT-7 has one todo bar and one doing bar. Both flipped to done without asking, the track is marked done and filed, and the report names the never-started bar.",
+      "expected_output": "BIT-7 has one todo bar. task_landing lists it as unfinished, so the skill stops and names that bar. No status is flipped and nothing is filed.",
       "files": []
     },
     {
       "id": 3,
       "prompt": "mark BIT-7 and BIT-9 done",
       "expected_output": "Both tracks completed and filed; a failure on one (e.g. nonexistent ID) is reported without abandoning the other.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "complete BIT-8",
+      "expected_output": "BIT-8's bars are committed but not pushed. task_landing does not report done, so the skill says BIT-8 hasn't landed yet: fetch or pull, push, and run /bit:complete BIT-8 again. Nothing is filed.",
       "files": []
     }
   ]

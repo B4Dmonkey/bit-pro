@@ -1,6 +1,6 @@
 ---
 name: bit_do
-description: Execute an existing implementation plan one step at a time, stopping after each step for the user to verify before continuing. Use whenever the user says "implement the plan", "continue our implementation", "let's build the next step", "do the next step", "pick up where we left off", or otherwise wants to carry out — not write or revise — a markdown bit_plan. This is the execution counterpart to bit_plan and bit_scope — bit_scope frames the WHY and delivery order in a track, bit_plan authors the detailed steps as bars under it, bit_do carries them out. It finds the track with `mcp__bit__task_read`, reads the track body and its bars through the `mcp__bit__*` tools, tracks each bar's checklist as tasks, runs the automated checks, moves each bar's status (`doing` → `done`) and rolls the track up (checking off completed verses and setting the track's status), and commits each verified bar through bit_commit, which asks the operator first, before handing off between bars. When every bar is done it stops short of marking the track done on its own — the user's explicit sign-off is what flips the track to `done` and files it (and its bars) as completed, out of the active list. This project is a Go codebase — bit_do applies the project's Go skills (go, cobra-viper, wails, fileflow-pathologize, go-spec-reviewer, go-release) while implementing so code stays idiomatic. Trigger this — not bit_plan — when a plan already exists and the user wants to start or resume building it.
+description: Execute an existing implementation plan one step at a time, stopping after each step for the user to verify before continuing. Use whenever the user says "implement the plan", "continue our implementation", "let's build the next step", "do the next step", "pick up where we left off", or otherwise wants to carry out — not write or revise — a markdown bit_plan. This is the execution counterpart to bit_plan and bit_scope — bit_scope frames the WHY and delivery order in a track, bit_plan authors the detailed steps as bars under it, bit_do carries them out. It finds the track with `mcp__bit__task_read`, reads the track body and its bars through the `mcp__bit__*` tools, tracks each bar's checklist as tasks, runs the automated checks, moves each bar's status (`doing` → `done`) and rolls the track up (checking off completed verses and setting the track's status), and commits each verified bar through bit_commit, which asks the operator first, before handing off between bars. When every bar is done it stops; the operator pushes (or merges) and runs `/bit:complete`, which records where the track landed and files it. This project is a Go codebase — bit_do applies the project's Go skills (go, cobra-viper, wails, fileflow-pathologize, go-spec-reviewer, go-release) while implementing so code stays idiomatic. Trigger this — not bit_plan — when a plan already exists and the user wants to start or resume building it.
 ---
 
 # Plan Implementer
@@ -12,7 +12,7 @@ You execute implementation work that bit_scope and bit_plan produced. It lives i
 
 A note on vocabulary, because it's easy to trip on: the **track** carries coarse **verses** (usable value slices) in its body; its **bars** are the fine-grained steps (one commit each, tagged to the verse they serve via the bar's `phase` field — the field keeps the name `phase`, the scope's slice is a verse). You execute one *bar* at a time; a *verse* is done when all its bars are.
 
-Four tools cover everything this skill does: `mcp__bit__task_read` to read a track's scope body or a bar's detail, `mcp__bit__task_list` to walk a track's bars, `mcp__bit__task_update` to move a status or write a rolled-up track body, and `mcp__bit__task_complete` to file a signed-off track. The `mcp__bit__*` tools are the only way in — that rule is the one the whole tool surface exists to enforce.
+Three tools cover everything this skill does: `mcp__bit__task_read` to read a track's scope body or a bar's detail, `mcp__bit__task_list` to walk a track's bars, and `mcp__bit__task_update` to move a status or write a rolled-up track body. The `mcp__bit__*` tools are the only way in — that rule is the one the whole tool surface exists to enforce.
 
 Your job is to carry out **one bar, then stop**. The plan was deliberately broken into bars that are each independently verifiable and committable. Verification is the user's call, and no commit happens without their yes, through bit_commit. Pushing ahead into a second bar blurs what is being verified and what is going into a single commit — which is exactly what the stepped structure exists to prevent.
 
@@ -92,7 +92,7 @@ This is the close-out procedure step 5 points to — run it inline for a bar wit
 2. **Roll the track up.** This is skill logic run through the tools (nothing cascades for you):
    - Re-list the bars: `mcp__bit__task_list` with `parent` set to the track ID.
    - **Verse checkoff:** if this bar was the *last* one tagged to its verse — every bar with that `phase` is now `done` — check off that verse in the track body: find its `- [ ] Verse N` line and change `[ ]` to `[x]` (bit_scope keeps the checkbox and `Verse N` on the same line, so it's a one-line toggle). Read the body, edit that line, write it back.
-   - **Track status:** none started (all `todo`) → `todo`; anything else → `doing`. Note what's deliberately *absent*: even when every bar is now `done`, you do **not** set the track `done` here. A finished-looking track stays `doing` until the human signs it off — that sign-off, not the rollup, is what marks it done and files it as completed. See **Track sign-off** below.
+   - **Track status:** none started (all `todo`) → `todo`; anything else → `doing`. Note what's deliberately *absent*: even when every bar is now `done`, you do **not** set the track `done` here. A finished-looking track stays `doing` until `/bit:complete` runs after the push. See **Track sign-off** below.
    - Apply both in one call so the track moves once: `mcp__bit__task_update` on the track — pass `body` only if the verse checkoff changed it, `status` only if the status changed, since an omitted field is left unchanged. **If neither changed, there's nothing to roll up — skip the call.** (This is the common mid-verse case: finishing a bar when its verse isn't complete yet and the track is already `doing`.)
 
    Keeping the track's verse checklist and status current lets a reader see delivered value at a glance from one `mcp__bit__task_read` on the track — and the track and its bars never disagree about what's done.
@@ -100,13 +100,9 @@ This is the close-out procedure step 5 points to — run it inline for a bar wit
 
 ### Track sign-off
 
-Marking a track `done` is the human's call, not a rollup side effect — so it lives here, apart from the per-bar close-out, and it's what files the finished work as completed, out of the active list. The reasoning is that "all bars done" and "this track is truly finished" aren't the same claim: the last bar's checks passing doesn't mean the whole slice of work holds together, and only a person looking at the committed result can say it does. Auto-flipping the track to `done` would make that judgment for them and move the work into `completed/` before they'd looked.
+A track is completed once its work has landed, not when its last bar is done. So when you close out a bar and the rollup shows **every** bar is now `done`, finish that bar's own close-out as normal (verified, committed), then tell the operator the track is ready. The next step is theirs: push (or merge) the work, then run `/bit:complete <track>`, which checks that it landed, records the landing commit and files the track as completed.
 
-So when you close out a bar and the rollup shows **every** bar is now `done`, don't set the track `done` yourself. Finish that last bar's own close-out as normal (verified, committed), then tell the user the whole track is ready: every verse has landed, and a final check of the committed work is the last thing between here and done. Then stop — the sign-off is a fresh cycle, and it's theirs to give.
-
-When the user signs off, hand off to **bit_complete** (`/bit:complete <track>`). It marks every bar and the track `done`, files them as completed with `mcp__bit__task_complete`, and confirms the track left the active list. Don't redo those steps here. Flipping the status without filing is exactly the half-finished sign-off that skill exists to prevent.
-
-If the user isn't ready — wants more testing, or spots something — the track just stays `doing`. Nothing is lost, and you pick the sign-off back up whenever they're satisfied.
+The track stays `doing` until then. Don't set it `done` and don't file it yourself. If the operator isn't ready — wants more testing, or spots something — nothing changes, and `/bit:complete` waits until they are.
 
 ### Not as expected
 
@@ -128,6 +124,6 @@ In all cases, leave the bar **not `done`** so it stays the next bar to resume. I
 - **Commit on its own.** Every commit goes through bit_commit, which asks first. A declined commit leaves the bar `doing`.
 - **Push.** bit_do never pushes. bot-dev does, after a permitted commit.
 - **Run multiple bars unattended** — one bar per cycle, every time.
-- **Declare a track done on its own** — finishing the last bar makes the track *ready*; the human's sign-off is what marks it `done` and files it as completed.
+- **Declare a track done on its own** — finishing the last bar makes the track *ready*; the operator then pushes and runs `/bit:complete`, which marks it `done` and files it as completed.
 - **Go around the tools** — the `mcp__bit__*` tools are the only way in; every status move and body change goes through them.
 - **Compact on its own** — the user runs `/compact`; you mark the boundary.

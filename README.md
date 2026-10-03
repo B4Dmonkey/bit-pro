@@ -78,7 +78,7 @@ without a prompt to answer.
 | `bp task list` | All tasks. `-p <track>` lists one plan, in step order |
 | `bp task update <id>` | `-s` status, `-t` title, `-d` body, `--phase`/`--phase-label` |
 | `bp task move <bar>` | `--before`/`--after` a sibling — resequence without renaming |
-| `bp task complete <id>` | File a signed-off track and its bars as completed |
+| `bp task complete <id>` | File a track and its bars as completed, with no landing check (manual override) |
 | `bp task delete <id>` | Soft-delete into the archive. `-y` skips confirm, `-f` overrides the guard |
 | `bp feedback add <track>` | Record a correction as a note in the shared feedback store |
 | `bp tui` | Terminal UI |
@@ -103,7 +103,7 @@ Notes on behavior worth knowing:
 - `bit:do` — execute one bar, run its checks, roll the track up
 - `bit:commit` — commit a bar's files after asking, and record the hash on the bar
 - `bit:check` — audit the finished work against the plan
-- `bit:complete` — sign off a finished track and file it as completed
+- `bit:complete` — once a track's work has landed, record its landing commit and file it as completed
 - `bit:feedback` — record a correction the moment it lands
 - `bit:retro` — read the feedback notes for patterns and write proposals
 - `bit:learn` — turn a proposal into a skill or CLI change
