@@ -1,7 +1,7 @@
 ---
 id: BIT-50.3
 title: With no origin/main, local main is trunk, and with neither, the check errors
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: complete after push

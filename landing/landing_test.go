@@ -84,6 +84,40 @@ func TestCheck(t *testing.T) {
 		}
 	})
 
+	t.Run("no origin makes local main trunk", func(t *testing.T) {
+		r := gittest.New(t)
+
+		r.Git("remote", "remove", "origin")
+		a := r.Commit("feat(bit): local")
+
+		got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: r.Dir, Bars: []landing.Bar{
+			{ID: bar1, Status: done, Commit: a},
+		}})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if got.Trunk != "main" || got.Branch != "main" {
+			t.Errorf("Trunk, Branch = %q, %q, want %q, %q", got.Trunk, got.Branch, "main", "main")
+		}
+
+		if got.Verdict != landing.Done || got.Landing != a {
+			t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, landing.Done, a)
+		}
+	})
+
+	t.Run("no main at all is an error", func(t *testing.T) {
+		r := gittest.New(t)
+
+		r.Git("remote", "remove", "origin")
+		r.Git("branch", "-m", "main", "trunk")
+
+		_, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: r.Dir})
+		if !errors.Is(err, landing.ErrNoTrunk) {
+			t.Errorf("err = %v, want %v", err, landing.ErrNoTrunk)
+		}
+	})
+
 	t.Run("a malformed commit never reaches git", func(t *testing.T) {
 		const trunk = "6a1d3459c0ffee000000000000000000000000ab"
 

@@ -55,17 +55,17 @@ const statusDone = "done"
 var (
 	fullSHA = regexp.MustCompile(`^[0-9a-f]{40}$`)
 
-	errNoTrunk = errors.New("no trunk: refs/remotes/origin/main does not resolve")
+	ErrNoTrunk = errors.New("no trunk: neither origin/main nor main exists")
 )
 
 func Check(ctx context.Context, run git.Runner, q Query) (Report, error) {
-	trunk, ok := git.ResolveCommit(ctx, run, q.Dir, "refs/remotes/origin/main")
-	if !ok {
-		return Report{}, errNoTrunk
+	name, trunk, err := resolveTrunk(ctx, run, q.Dir)
+	if err != nil {
+		return Report{}, err
 	}
 
 	r := Report{
-		Trunk:      "origin/main",
+		Trunk:      name,
 		Branch:     "main",
 		Verdict:    Done,
 		Bars:       make([]BarResult, 0, len(q.Bars)),
@@ -95,6 +95,18 @@ func Check(ctx context.Context, run git.Runner, q Query) (Report, error) {
 	}
 
 	return r, nil
+}
+
+func resolveTrunk(ctx context.Context, run git.Runner, dir string) (string, string, error) {
+	if sha, ok := git.ResolveCommit(ctx, run, dir, "refs/remotes/origin/main"); ok {
+		return "origin/main", sha, nil
+	}
+
+	if sha, ok := git.ResolveCommit(ctx, run, dir, "refs/heads/main"); ok {
+		return "main", sha, nil
+	}
+
+	return "", "", ErrNoTrunk
 }
 
 func landedAt(ctx context.Context, run git.Runner, dir, commit, trunk string) (string, bool) {
