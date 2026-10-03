@@ -78,29 +78,29 @@ func TestTaskUpdateCmd(t *testing.T) {
 
 	t.Run("rewrites a corrupt id to canonical case", func(t *testing.T) {
 		initProject(t, "BIT")
-		writeRawTask(t, filepath.Join(storeDir(t), "tasks", "BIT-1.md"), "bit-1", "Corrupt frontmatter", statusTodo)
+		writeRawTask(t, filepath.Join(storeDir(t), "tasks", "BIT-1.json"), "bit-1", "Corrupt record", statusTodo)
 
 		mustRun(t, taskCmdUse, updateCmd, trackID, "-s", statusDoing)
 
-		data, err := os.ReadFile(filepath.Join(storeDir(t), "tasks", "BIT-1.md"))
+		data, err := os.ReadFile(filepath.Join(storeDir(t), "tasks", "BIT-1.json"))
 		if err != nil {
-			t.Fatalf("os.ReadFile(tasks/BIT-1.md) error = %v", err)
+			t.Fatalf("os.ReadFile(tasks/BIT-1.json) error = %v", err)
 		}
 
 		got := string(data)
-		for _, want := range []string{"id: BIT-1\n", "status: doing\n"} {
+		for _, want := range []string{`"id": "BIT-1"`, `"status": "doing"`} {
 			if !strings.Contains(got, want) {
-				t.Errorf("tasks/BIT-1.md = %q, want it to contain %q", got, want)
+				t.Errorf("tasks/BIT-1.json = %q, want it to contain %q", got, want)
 			}
 		}
 
-		entries, err := os.ReadDir(filepath.Join(storeDir(t), "tasks"))
+		records, err := filepath.Glob(filepath.Join(storeDir(t), "tasks", "*.json"))
 		if err != nil {
-			t.Fatalf("os.ReadDir(tasks) error = %v", err)
+			t.Fatalf("filepath.Glob(tasks/*.json) error = %v", err)
 		}
 
-		if len(entries) != 1 {
-			t.Errorf("os.ReadDir(tasks) returned %d entries, want 1", len(entries))
+		if len(records) != 1 {
+			t.Errorf("tasks records = %v, want 1", records)
 		}
 	})
 

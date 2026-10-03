@@ -149,7 +149,7 @@ func TestRunMCPServer(t *testing.T) {
 			t.Errorf("title = %v, want Track", read[testTitleKey])
 		}
 
-		stored := filepath.Join(projectStoreDir(t, dir), testTasksDir, testNewTrackID+".md")
+		stored := filepath.Join(projectStoreDir(t, dir), testTasksDir, testNewTrackID+".json")
 		if _, err := os.Stat(stored); err != nil {
 			t.Errorf("os.Stat(%q) returned error: %v", stored, err)
 		}

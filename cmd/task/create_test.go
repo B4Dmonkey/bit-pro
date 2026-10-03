@@ -102,8 +102,8 @@ func TestTaskCreateCmd(t *testing.T) {
 			t.Fatal("Execute() returned nil error, want non-nil for a missing parent")
 		}
 
-		if _, err := os.Stat(filepath.Join(storeDir(t), "tasks", "BIT-99.1.md")); !errors.Is(err, fs.ErrNotExist) {
-			t.Errorf("os.Stat(tasks/BIT-99.1.md) error = %v, want fs.ErrNotExist", err)
+		if _, err := os.Stat(filepath.Join(storeDir(t), "tasks", "BIT-99.1.json")); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("os.Stat(tasks/BIT-99.1.json) error = %v, want fs.ErrNotExist", err)
 		}
 	})
 
@@ -199,8 +199,8 @@ func TestTaskCreateCmd(t *testing.T) {
 			t.Fatal("Execute() returned nil error, want non-nil for an unknown anchor")
 		}
 
-		if _, err := os.Stat(filepath.Join(storeDir(t), "tasks", "BIT-1.3.md")); !errors.Is(err, fs.ErrNotExist) {
-			t.Errorf("os.Stat(tasks/BIT-1.3.md) error = %v, want fs.ErrNotExist", err)
+		if _, err := os.Stat(filepath.Join(storeDir(t), "tasks", "BIT-1.3.json")); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("os.Stat(tasks/BIT-1.3.json) error = %v, want fs.ErrNotExist", err)
 		}
 	})
 
@@ -215,13 +215,13 @@ func TestTaskCreateCmd(t *testing.T) {
 			t.Errorf("minted ID = %q, want %q", out, "BIT-1.2\n")
 		}
 
-		minted, err := os.ReadFile(filepath.Join(storeDir(t), "tasks", "BIT-1.2.md"))
+		minted, err := os.ReadFile(filepath.Join(storeDir(t), "tasks", "BIT-1.2.json"))
 		if err != nil {
-			t.Fatalf("os.ReadFile(tasks/BIT-1.2.md) error = %v", err)
+			t.Fatalf("os.ReadFile(tasks/BIT-1.2.json) error = %v", err)
 		}
 
-		if !strings.Contains(string(minted), "id: BIT-1.2") {
-			t.Errorf("BIT-1.2.md = %q, want it to contain %q", minted, "id: BIT-1.2")
+		if !strings.Contains(string(minted), `"id": "BIT-1.2"`) {
+			t.Errorf("BIT-1.2.json = %q, want it to contain %q", minted, `"id": "BIT-1.2"`)
 		}
 
 		survivor, err := os.ReadFile(filepath.Join(storeDir(t), "tasks", "BIT-1.1.md"))
@@ -233,22 +233,22 @@ func TestTaskCreateCmd(t *testing.T) {
 			t.Errorf("BIT-1.1.md = %q, want it to still contain %q", survivor, "ORIGINAL BAR ONE")
 		}
 
-		if !strings.Contains(string(survivor), "title: First bar") {
-			t.Errorf("BIT-1.1.md = %q, want it to still contain %q", survivor, "title: First bar")
-		}
-
-		entries, err := os.ReadDir(filepath.Join(storeDir(t), "tasks"))
+		record, err := os.ReadFile(filepath.Join(storeDir(t), "tasks", "BIT-1.1.json"))
 		if err != nil {
-			t.Fatalf("os.ReadDir(tasks) error = %v", err)
+			t.Fatalf("os.ReadFile(tasks/BIT-1.1.json) error = %v", err)
 		}
 
-		if len(entries) != 3 {
-			var names []string
-			for _, e := range entries {
-				names = append(names, e.Name())
-			}
+		if !strings.Contains(string(record), `"title": "First bar"`) {
+			t.Errorf("BIT-1.1.json = %q, want it to still contain %q", record, `"title": "First bar"`)
+		}
 
-			t.Errorf("os.ReadDir(tasks) names = %v, want 3 entries", names)
+		records, err := filepath.Glob(filepath.Join(storeDir(t), "tasks", "*.json"))
+		if err != nil {
+			t.Fatalf("filepath.Glob(tasks/*.json) error = %v", err)
+		}
+
+		if len(records) != 3 {
+			t.Errorf("tasks records = %v, want 3", records)
 		}
 	})
 

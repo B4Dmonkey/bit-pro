@@ -70,15 +70,6 @@ func TestTaskReadCmd(t *testing.T) {
 		if out != want {
 			t.Errorf("output = %q, want %q", out, want)
 		}
-
-		data, err := os.ReadFile(filepath.Join(storeDir(t), "tasks", "BIT-1.md"))
-		if err != nil {
-			t.Fatalf("reading task file: %v", err)
-		}
-
-		if strings.Contains(string(data), "phase") {
-			t.Errorf("task file = %q, want no phase key", data)
-		}
 	})
 
 	t.Run("errors on unknown id", func(t *testing.T) {
@@ -92,7 +83,7 @@ func TestTaskReadCmd(t *testing.T) {
 	t.Run("contains path traversal id", func(t *testing.T) {
 		initProject(t, "BIT")
 
-		readme := filepath.Join(filepath.Dir(storeDir(t)), "README.md")
+		readme := filepath.Join(filepath.Dir(storeDir(t)), "README.json")
 		if err := os.WriteFile(readme, []byte("# real project readme\n"), 0o600); err != nil {
 			t.Fatalf("writing README fixture: %v", err)
 		}

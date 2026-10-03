@@ -1,7 +1,7 @@
 ---
 id: BIT-46.12
 title: A task is stored as an <ID>.json record beside an unchanged <ID>.md body
-status: todo
+status: done
 approved: true
 phase: 2
 phase_label: records are JSON metadata plus markdown

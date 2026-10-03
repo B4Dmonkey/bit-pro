@@ -61,12 +61,12 @@ func TestTaskCmd(t *testing.T) {
 
 		mustRun(t, "task", "complete", id)
 
-		if _, err := os.Stat(filepath.Join(storeDir(t), "completed", id+".md")); err != nil {
-			t.Errorf("os.Stat(completed/%s.md) error = %v, want the track filed as completed", id, err)
+		if _, err := os.Stat(filepath.Join(storeDir(t), "completed", id+".json")); err != nil {
+			t.Errorf("os.Stat(completed/%s.json) error = %v, want the track filed as completed", id, err)
 		}
 
-		if _, err := os.Stat(filepath.Join(storeDir(t), "tasks", id+".md")); !errors.Is(err, fs.ErrNotExist) {
-			t.Errorf("os.Stat(tasks/%s.md) error = %v, want fs.ErrNotExist", id, err)
+		if _, err := os.Stat(filepath.Join(storeDir(t), "tasks", id+".json")); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("os.Stat(tasks/%s.json) error = %v, want fs.ErrNotExist", id, err)
 		}
 	})
 
@@ -90,7 +90,7 @@ func TestTaskCmd(t *testing.T) {
 			t.Fatalf("os.UserHomeDir() returned error: %v", err)
 		}
 
-		central := filepath.Join(home, ".local", "share", "bit", testPrefix, "tasks", "BIT-1.md")
+		central := filepath.Join(home, ".local", "share", "bit", testPrefix, "tasks", "BIT-1.json")
 		if _, err := os.Stat(central); err != nil {
 			t.Errorf("os.Stat(%s) error = %v, want the track in the central store", central, err)
 		}

@@ -24,12 +24,12 @@ func TestTaskCompleteCmd(t *testing.T) {
 		mustRun(t, "task", "complete", trackID)
 
 		for _, id := range []string{trackID, firstBarID, secondBarID} {
-			if _, err := os.Stat(filepath.Join(storeDir(t), "completed", id+".md")); err != nil {
-				t.Errorf("os.Stat(completed/%s.md) error = %v, want it filed as completed", id, err)
+			if _, err := os.Stat(filepath.Join(storeDir(t), "completed", id+".json")); err != nil {
+				t.Errorf("os.Stat(completed/%s.json) error = %v, want it filed as completed", id, err)
 			}
 
-			if _, err := os.Stat(filepath.Join(storeDir(t), "tasks", id+".md")); !errors.Is(err, fs.ErrNotExist) {
-				t.Errorf("os.Stat(tasks/%s.md) error = %v, want fs.ErrNotExist", id, err)
+			if _, err := os.Stat(filepath.Join(storeDir(t), "tasks", id+".json")); !errors.Is(err, fs.ErrNotExist) {
+				t.Errorf("os.Stat(tasks/%s.json) error = %v, want fs.ErrNotExist", id, err)
 			}
 		}
 
@@ -52,13 +52,13 @@ func TestTaskCompleteCmd(t *testing.T) {
 			t.Errorf("bp task complete bit-1 error = %q, want it to name unfinished bars BIT-1.1", err)
 		}
 
-		if _, err := os.Stat(filepath.Join(storeDir(t), "tasks", "BIT-1.md")); err != nil {
-			t.Errorf("os.Stat(tasks/BIT-1.md) error = %v, want the track left where it was", err)
+		if _, err := os.Stat(filepath.Join(storeDir(t), "tasks", "BIT-1.json")); err != nil {
+			t.Errorf("os.Stat(tasks/BIT-1.json) error = %v, want the track left where it was", err)
 		}
 
 		for _, id := range []string{trackID, "bit-1"} {
-			if _, err := os.Stat(filepath.Join(storeDir(t), "completed", id+".md")); !errors.Is(err, fs.ErrNotExist) {
-				t.Errorf("os.Stat(completed/%s.md) error = %v, want fs.ErrNotExist", id, err)
+			if _, err := os.Stat(filepath.Join(storeDir(t), "completed", id+".json")); !errors.Is(err, fs.ErrNotExist) {
+				t.Errorf("os.Stat(completed/%s.json) error = %v, want fs.ErrNotExist", id, err)
 			}
 		}
 	})
@@ -87,7 +87,7 @@ func TestTaskCompleteCmd(t *testing.T) {
 
 		slices.Sort(names)
 
-		want := []string{"BIT-1.1.md", "BIT-1.2.md", "BIT-1.md"}
+		want := []string{"BIT-1.1.json", "BIT-1.1.md", "BIT-1.2.json", "BIT-1.2.md", "BIT-1.json", "BIT-1.md"}
 		if !slices.Equal(names, want) {
 			t.Errorf("os.ReadDir(completed) names = %v, want %v", names, want)
 		}
@@ -104,8 +104,8 @@ func TestTaskCompleteCmd(t *testing.T) {
 
 	t.Run("hand edited lowercase id still hits the guard", func(t *testing.T) {
 		initProject(t, "BIT")
-		writeRawTask(t, filepath.Join(storeDir(t), "tasks", "BIT-1.md"), "bit-1", "Guard the unfinished bars", statusTodo)
-		writeRawTask(t, filepath.Join(storeDir(t), "tasks", "BIT-1.1.md"), "bit-1.1", "Unfinished bar", statusTodo)
+		writeRawTask(t, filepath.Join(storeDir(t), "tasks", "BIT-1.json"), "bit-1", "Guard the unfinished bars", statusTodo)
+		writeRawTask(t, filepath.Join(storeDir(t), "tasks", "BIT-1.1.json"), "bit-1.1", "Unfinished bar", statusTodo)
 
 		_, err := run(t, "task", "complete", trackID)
 		if err == nil {
@@ -121,8 +121,8 @@ func TestTaskCompleteCmd(t *testing.T) {
 		}
 
 		for _, id := range []string{trackID, firstBarID} {
-			if _, err := os.Stat(filepath.Join(storeDir(t), "tasks", id+".md")); err != nil {
-				t.Errorf("os.Stat(tasks/%s.md) error = %v, want the task left where it was", id, err)
+			if _, err := os.Stat(filepath.Join(storeDir(t), "tasks", id+".json")); err != nil {
+				t.Errorf("os.Stat(tasks/%s.json) error = %v, want the task left where it was", id, err)
 			}
 		}
 	})
@@ -134,8 +134,8 @@ func TestTaskCompleteCmd(t *testing.T) {
 
 		out, _ := run(t, "task", "archive", trackID)
 
-		if _, err := os.Stat(filepath.Join(storeDir(t), "tasks", "BIT-1.md")); err != nil {
-			t.Errorf("os.Stat(tasks/BIT-1.md) error = %v, want the track left where it was", err)
+		if _, err := os.Stat(filepath.Join(storeDir(t), "tasks", "BIT-1.json")); err != nil {
+			t.Errorf("os.Stat(tasks/BIT-1.json) error = %v, want the track left where it was", err)
 		}
 
 		if strings.Contains(out, "archive") {
@@ -151,8 +151,15 @@ func writeRawTask(t *testing.T, path, id, title, status string) {
 		t.Fatalf("os.MkdirAll(%s) error = %v", filepath.Dir(path), err)
 	}
 
-	body := "---\nid: " + id + "\ntitle: " + title + "\nstatus: " + status + "\n---\nHand-written.\n"
-	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+	bodyPath := strings.TrimSuffix(path, ".json") + ".md"
+	if err := os.WriteFile(bodyPath, []byte("Hand-written.\n"), 0o600); err != nil {
+		t.Fatalf("os.WriteFile(%s) error = %v", bodyPath, err)
+	}
+
+	record := `{"id": "` + id + `", "title": "` + title + `", "status": "` + status +
+		`", "approved": false, "phase": 0, "phase_label": "", "order": [], ` +
+		`"content": "` + filepath.Base(bodyPath) + `"}` + "\n"
+	if err := os.WriteFile(path, []byte(record), 0o600); err != nil {
 		t.Fatalf("os.WriteFile(%s) error = %v", path, err)
 	}
 }

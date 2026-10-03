@@ -1,9 +1,11 @@
 package task
 
 import (
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
@@ -21,11 +23,11 @@ func TestStorePath(t *testing.T) {
 			id   string
 			want string
 		}{
-			{name: "plain id", id: tid1, want: ".bit/tasks/BIT-1.md"},
-			{name: "traversal cannot escape the tasks dir", id: "../../README", want: ".bit/tasks/README.md"},
-			{name: "deep traversal cannot escape", id: "../../../../etc/passwd", want: ".bit/tasks/ETC/PASSWD.md"},
-			{name: "absolute path cannot escape", id: "/etc/passwd", want: ".bit/tasks/ETC/PASSWD.md"},
-			{name: "illegal characters are stripped", id: "a:b*c", want: ".bit/tasks/ABC.md"},
+			{name: "plain id", id: tid1, want: ".bit/tasks/BIT-1.json"},
+			{name: "traversal cannot escape the tasks dir", id: "../../README", want: ".bit/tasks/README.json"},
+			{name: "deep traversal cannot escape", id: "../../../../etc/passwd", want: ".bit/tasks/ETC/PASSWD.json"},
+			{name: "absolute path cannot escape", id: "/etc/passwd", want: ".bit/tasks/ETC/PASSWD.json"},
+			{name: "illegal characters are stripped", id: "a:b*c", want: ".bit/tasks/ABC.json"},
 		}
 
 		for _, tt := range tests {
@@ -69,12 +71,14 @@ func TestStoreRelocate(t *testing.T) {
 			t.Errorf("List() still contains BIT-1 after relocate")
 		}
 
-		if _, err := os.Stat(s.archivePath(tid1)); err != nil {
-			t.Errorf("archived file: os.Stat error = %v, want the file to exist", err)
-		}
+		for _, name := range []string{"BIT-1.json", "BIT-1.md"} {
+			if _, err := os.Stat(filepath.Join(s.archiveTasksDir(), name)); err != nil {
+				t.Errorf("archived %s: os.Stat error = %v, want the file to exist", name, err)
+			}
 
-		if _, err := os.Stat(s.Path(tid1)); !errors.Is(err, fs.ErrNotExist) {
-			t.Errorf("tasks file: os.Stat error = %v, want fs.ErrNotExist", err)
+			if _, err := os.Stat(filepath.Join(s.tasksDir(), name)); !errors.Is(err, fs.ErrNotExist) {
+				t.Errorf("tasks %s: os.Stat error = %v, want fs.ErrNotExist", name, err)
+			}
 		}
 	})
 
@@ -185,10 +189,10 @@ func TestStoreRelocate(t *testing.T) {
 			id   string
 			want string
 		}{
-			{name: "plain id", id: tid1, want: ".bit/archive/tasks/BIT-1.md"},
-			{name: "traversal cannot escape the archive dir", id: "../../README", want: ".bit/archive/tasks/README.md"},
-			{name: "absolute path cannot escape", id: "/etc/passwd", want: ".bit/archive/tasks/ETC/PASSWD.md"},
-			{name: "illegal characters are stripped", id: "a:b*c", want: ".bit/archive/tasks/ABC.md"},
+			{name: "plain id", id: tid1, want: ".bit/archive/tasks/BIT-1.json"},
+			{name: "traversal cannot escape the archive dir", id: "../../README", want: ".bit/archive/tasks/README.json"},
+			{name: "absolute path cannot escape", id: "/etc/passwd", want: ".bit/archive/tasks/ETC/PASSWD.json"},
+			{name: "illegal characters are stripped", id: "a:b*c", want: ".bit/archive/tasks/ABC.json"},
 		}
 
 		for _, tt := range tests {
@@ -260,6 +264,33 @@ func TestStoreRelocate(t *testing.T) {
 
 		if len(got.Order) != 0 {
 			t.Errorf("Order = %v, want empty", got.Order)
+		}
+	})
+}
+
+func TestStoreComplete(t *testing.T) {
+	t.Parallel()
+
+	t.Run("moves both files", func(t *testing.T) {
+		t.Parallel()
+
+		s := New(t.TempDir())
+		if err := s.Save(&Task{ID: tid1, Status: StatusDone}); err != nil {
+			t.Fatalf("seeding BIT-1: %v", err)
+		}
+
+		if err := s.Complete(tid1); err != nil {
+			t.Fatalf("Complete() returned error: %v", err)
+		}
+
+		for _, name := range []string{"BIT-1.json", "BIT-1.md"} {
+			if _, err := os.Stat(filepath.Join(s.completedDir(), name)); err != nil {
+				t.Errorf("completed %s: os.Stat error = %v, want the file to exist", name, err)
+			}
+
+			if _, err := os.Stat(filepath.Join(s.tasksDir(), name)); !errors.Is(err, fs.ErrNotExist) {
+				t.Errorf("tasks %s: os.Stat error = %v, want fs.ErrNotExist", name, err)
+			}
 		}
 	})
 }
@@ -443,6 +474,63 @@ func TestStoreNextChildID(t *testing.T) {
 	})
 }
 
+func TestStoreSave(t *testing.T) {
+	t.Parallel()
+
+	t.Run("writes a json record beside the body", func(t *testing.T) {
+		t.Parallel()
+
+		root := t.TempDir()
+		s := NewProject(root, tprefix)
+		body := "## Why\n\n- [ ] a checkbox\n"
+
+		if err := s.Save(&Task{ID: "BIT-7", Title: "Ship it", Status: StatusTodo, Body: body}); err != nil {
+			t.Fatalf("Save() returned error: %v", err)
+		}
+
+		gotBody, err := os.ReadFile(filepath.Join(root, "tasks", "BIT-7.md"))
+		if err != nil {
+			t.Fatalf("reading body: %v", err)
+		}
+
+		if string(gotBody) != body {
+			t.Errorf("body = %q, want %q", gotBody, body)
+		}
+
+		raw, err := os.ReadFile(filepath.Join(root, "tasks", "BIT-7.json"))
+		if err != nil {
+			t.Fatalf("reading record: %v", err)
+		}
+
+		var got map[string]any
+		if err := json.Unmarshal(raw, &got); err != nil {
+			t.Fatalf("unmarshaling record: %v", err)
+		}
+
+		want := map[string]any{
+			"id":          "BIT-7",
+			"title":       "Ship it",
+			"status":      StatusTodo,
+			"approved":    false,
+			"phase":       float64(0),
+			"phase_label": "",
+			"order":       []any{},
+			"content":     "BIT-7.md",
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("record = %v, want %v", got, want)
+		}
+
+		if !strings.Contains(string(raw), `"order": []`) {
+			t.Errorf("record = %s, want order written as []", raw)
+		}
+
+		if !strings.HasSuffix(string(raw), "}\n") {
+			t.Errorf("record = %q, want a trailing newline", raw)
+		}
+	})
+}
+
 func TestStoreLoad(t *testing.T) {
 	t.Parallel()
 
@@ -450,7 +538,16 @@ func TestStoreLoad(t *testing.T) {
 		t.Parallel()
 
 		s := New(t.TempDir())
-		want := Task{ID: tid1, Title: "Title", Status: StatusTodo, Body: "Body.\n"}
+		want := Task{
+			ID:         tid1,
+			Title:      "Title",
+			Status:     StatusDoing,
+			Approved:   true,
+			Phase:      2,
+			PhaseLabel: "records",
+			Order:      []string{tid1_2, tid1_1},
+			Body:       "Body.\n\nMore body.\n",
+		}
 
 		if err := s.Save(&want); err != nil {
 			t.Fatalf("Save() returned error: %v", err)
@@ -494,6 +591,37 @@ func TestStoreList(t *testing.T) {
 
 		if len(tasks) != 0 {
 			t.Errorf("List() = %v, want no tasks", tasks)
+		}
+	})
+
+	t.Run("ignores a stray body", func(t *testing.T) {
+		t.Parallel()
+
+		s := New(t.TempDir())
+		if err := s.Save(&Task{ID: tid1, Title: tseed, Status: StatusTodo}); err != nil {
+			t.Fatalf("seeding BIT-1: %v", err)
+		}
+
+		if err := os.WriteFile(filepath.Join(s.tasksDir(), "BIT-9.md"), []byte("orphan\n"), fileMode); err != nil {
+			t.Fatalf("writing stray body: %v", err)
+		}
+
+		tasks, err := s.List()
+		if err != nil {
+			t.Fatalf("List() returned error: %v", err)
+		}
+
+		if len(tasks) != 1 {
+			t.Errorf("List() = %v, want 1 task", tasks)
+		}
+
+		got, err := s.NextID(tprefix)
+		if err != nil {
+			t.Fatalf("NextID() returned error: %v", err)
+		}
+
+		if got != tid2 {
+			t.Errorf("NextID() = %q, want %q", got, tid2)
 		}
 	})
 

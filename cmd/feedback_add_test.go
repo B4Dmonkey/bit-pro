@@ -178,11 +178,11 @@ func TestFeedbackAddCmd(t *testing.T) {
 
 		mustRun(t, "task", "complete", "BIT-1")
 
-		if _, err := os.Stat(filepath.Join(storeDir(t), "tasks", "BIT-1.md")); !errors.Is(err, fs.ErrNotExist) {
+		if _, err := os.Stat(filepath.Join(storeDir(t), "tasks", "BIT-1.json")); !errors.Is(err, fs.ErrNotExist) {
 			t.Errorf("stat track under tasks = %v, want fs.ErrNotExist", err)
 		}
 
-		if _, err := os.Stat(filepath.Join(storeDir(t), "completed", "BIT-1.md")); err != nil {
+		if _, err := os.Stat(filepath.Join(storeDir(t), "completed", "BIT-1.json")); err != nil {
 			t.Errorf("stat completed track = %v, want it relocated", err)
 		}
 

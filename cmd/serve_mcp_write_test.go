@@ -584,12 +584,12 @@ func TestTaskCompleteHandler(t *testing.T) {
 		}
 
 		for _, id := range []string{testTrackID, testBarID, testSecondBarID} {
-			if _, err := os.Stat(filepath.Join(projectStoreDir(t, dir), testTasksDir, id+".md")); err != nil {
+			if _, err := os.Stat(filepath.Join(projectStoreDir(t, dir), testTasksDir, id+".json")); err != nil {
 				t.Errorf("%s missing from %s: %v", id, testTasksDir, err)
 			}
 		}
 
-		completed, err := filepath.Glob(filepath.Join(projectStoreDir(t, dir), testCompletedDir, "*.md"))
+		completed, err := filepath.Glob(filepath.Join(projectStoreDir(t, dir), testCompletedDir, "*.json"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -616,11 +616,11 @@ func seedDoneTrack(t *testing.T, dir, lastBarStatus string) {
 func assertRelocated(t *testing.T, dir, id, into string) {
 	t.Helper()
 
-	if _, err := os.Stat(filepath.Join(projectStoreDir(t, dir), into, id+".md")); err != nil {
+	if _, err := os.Stat(filepath.Join(projectStoreDir(t, dir), into, id+".json")); err != nil {
 		t.Errorf("%s missing from %s: %v", id, into, err)
 	}
 
-	if _, err := os.Stat(filepath.Join(projectStoreDir(t, dir), testTasksDir, id+".md")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(projectStoreDir(t, dir), testTasksDir, id+".json")); !os.IsNotExist(err) {
 		t.Errorf("%s still under %s (err %v)", id, testTasksDir, err)
 	}
 }
@@ -705,12 +705,12 @@ func TestTaskDeleteHandler(t *testing.T) {
 				}
 
 				for _, id := range seeded {
-					if _, err := os.Stat(filepath.Join(projectStoreDir(t, dir), testTasksDir, id+".md")); err != nil {
+					if _, err := os.Stat(filepath.Join(projectStoreDir(t, dir), testTasksDir, id+".json")); err != nil {
 						t.Errorf("%s missing from %s: %v", id, testTasksDir, err)
 					}
 				}
 
-				archived, err := filepath.Glob(filepath.Join(projectStoreDir(t, dir), archivedTasksDir, "*.md"))
+				archived, err := filepath.Glob(filepath.Join(projectStoreDir(t, dir), archivedTasksDir, "*.json"))
 				if err != nil {
 					t.Fatal(err)
 				}

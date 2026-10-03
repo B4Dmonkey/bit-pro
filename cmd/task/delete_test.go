@@ -19,8 +19,8 @@ func TestTaskDeleteCmd(t *testing.T) {
 
 		mustRun(t, "task", "delete", trackID, "--yes")
 
-		if _, err := os.Stat(filepath.Join(storeDir(t), "tasks", "BIT-1.md")); !errors.Is(err, fs.ErrNotExist) {
-			t.Errorf("os.Stat(tasks/BIT-1.md) error = %v, want fs.ErrNotExist", err)
+		if _, err := os.Stat(filepath.Join(storeDir(t), "tasks", "BIT-1.json")); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("os.Stat(tasks/BIT-1.json) error = %v, want fs.ErrNotExist", err)
 		}
 	})
 
@@ -31,12 +31,12 @@ func TestTaskDeleteCmd(t *testing.T) {
 
 		mustRun(t, "task", "delete", trackID, "--yes")
 
-		if _, err := os.Stat(filepath.Join(storeDir(t), "archive", "tasks", "BIT-1.md")); err != nil {
-			t.Errorf("os.Stat(archive/tasks/BIT-1.md) error = %v, want the task recoverable", err)
+		if _, err := os.Stat(filepath.Join(storeDir(t), "archive", "tasks", "BIT-1.json")); err != nil {
+			t.Errorf("os.Stat(archive/tasks/BIT-1.json) error = %v, want the task recoverable", err)
 		}
 
-		if _, err := os.Stat(filepath.Join(storeDir(t), "tasks", "BIT-1.md")); !errors.Is(err, fs.ErrNotExist) {
-			t.Errorf("os.Stat(tasks/BIT-1.md) error = %v, want fs.ErrNotExist", err)
+		if _, err := os.Stat(filepath.Join(storeDir(t), "tasks", "BIT-1.json")); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("os.Stat(tasks/BIT-1.json) error = %v, want fs.ErrNotExist", err)
 		}
 	})
 
@@ -48,12 +48,12 @@ func TestTaskDeleteCmd(t *testing.T) {
 		mustRun(t, "task", "delete", trackID, "--yes", "--force")
 
 		for _, id := range []string{trackID, firstBarID} {
-			if _, err := os.Stat(filepath.Join(storeDir(t), "archive", "tasks", id+".md")); err != nil {
-				t.Errorf("os.Stat(archive/tasks/%s.md) error = %v, want it relocated", id, err)
+			if _, err := os.Stat(filepath.Join(storeDir(t), "archive", "tasks", id+".json")); err != nil {
+				t.Errorf("os.Stat(archive/tasks/%s.json) error = %v, want it relocated", id, err)
 			}
 
-			if _, err := os.Stat(filepath.Join(storeDir(t), "tasks", id+".md")); !errors.Is(err, fs.ErrNotExist) {
-				t.Errorf("os.Stat(tasks/%s.md) error = %v, want fs.ErrNotExist", id, err)
+			if _, err := os.Stat(filepath.Join(storeDir(t), "tasks", id+".json")); !errors.Is(err, fs.ErrNotExist) {
+				t.Errorf("os.Stat(tasks/%s.json) error = %v, want fs.ErrNotExist", id, err)
 			}
 		}
 	})
@@ -75,8 +75,8 @@ func TestTaskDeleteCmd(t *testing.T) {
 		}
 
 		for _, id := range []string{trackID, firstBarID} {
-			if _, err := os.Stat(filepath.Join(storeDir(t), "tasks", id+".md")); err != nil {
-				t.Errorf("os.Stat(tasks/%s.md) error = %v, want the task to survive", id, err)
+			if _, err := os.Stat(filepath.Join(storeDir(t), "tasks", id+".json")); err != nil {
+				t.Errorf("os.Stat(tasks/%s.json) error = %v, want the task to survive", id, err)
 			}
 		}
 	})
@@ -103,7 +103,7 @@ func TestTaskDeleteCmd(t *testing.T) {
 					t.Fatalf("Execute() returned error: %v", err)
 				}
 
-				_, statErr := os.Stat(filepath.Join(storeDir(t), "tasks", "BIT-1.md"))
+				_, statErr := os.Stat(filepath.Join(storeDir(t), "tasks", "BIT-1.json"))
 
 				exists := statErr == nil
 				if exists != tt.wantExists {
@@ -121,8 +121,8 @@ func TestTaskDeleteCmd(t *testing.T) {
 			t.Fatal("Execute() returned nil error, want non-nil when stdin is at EOF")
 		}
 
-		if _, err := os.Stat(filepath.Join(storeDir(t), "tasks", "BIT-1.md")); err != nil {
-			t.Errorf("os.Stat(tasks/BIT-1.md) error = %v, want the task to survive", err)
+		if _, err := os.Stat(filepath.Join(storeDir(t), "tasks", "BIT-1.json")); err != nil {
+			t.Errorf("os.Stat(tasks/BIT-1.json) error = %v, want the task to survive", err)
 		}
 	})
 
@@ -143,7 +143,7 @@ func TestTaskDeleteCmd(t *testing.T) {
 	t.Run("contains path traversal id", func(t *testing.T) {
 		initProject(t, "BIT")
 
-		readme := filepath.Join(filepath.Dir(storeDir(t)), "README.md")
+		readme := filepath.Join(filepath.Dir(storeDir(t)), "README.json")
 		if err := os.WriteFile(readme, []byte("# real project readme\n"), 0o600); err != nil {
 			t.Fatalf("writing README fixture: %v", err)
 		}

@@ -1,6 +1,7 @@
 package task
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -37,8 +38,17 @@ func (s *Store) tasksDir() string {
 	return filepath.Join(s.root, tasksSubdir)
 }
 
+const (
+	recordExt = ".json"
+	bodyExt   = ".md"
+)
+
 func (s *Store) Path(id string) string {
-	return pathologize.Join(s.tasksDir(), NormalizeID(id)+".md")
+	return pathologize.Join(s.tasksDir(), NormalizeID(id)+recordExt)
+}
+
+func bodyPath(dir, id string) string {
+	return pathologize.Join(dir, NormalizeID(id)+bodyExt)
 }
 
 func (s *Store) archiveTasksDir() string {
@@ -46,7 +56,7 @@ func (s *Store) archiveTasksDir() string {
 }
 
 func (s *Store) archivePath(id string) string {
-	return pathologize.Join(s.archiveTasksDir(), NormalizeID(id)+".md")
+	return pathologize.Join(s.archiveTasksDir(), NormalizeID(id)+recordExt)
 }
 
 func (s *Store) completedDir() string {
@@ -54,7 +64,7 @@ func (s *Store) completedDir() string {
 }
 
 func (s *Store) completedPath(id string) string {
-	return pathologize.Join(s.completedDir(), NormalizeID(id)+".md")
+	return pathologize.Join(s.completedDir(), NormalizeID(id)+recordExt)
 }
 
 func (s *Store) relocateInto(dir, id string) error {
@@ -62,7 +72,11 @@ func (s *Store) relocateInto(dir, id string) error {
 		return fmt.Errorf("creating %s: %w", dir, err)
 	}
 
-	if err := os.Rename(s.Path(id), pathologize.Join(dir, NormalizeID(id)+".md")); err != nil {
+	if err := os.Rename(bodyPath(s.tasksDir(), id), bodyPath(dir, id)); err != nil {
+		return fmt.Errorf("relocating task %s body: %w", id, err)
+	}
+
+	if err := os.Rename(s.Path(id), pathologize.Join(dir, NormalizeID(id)+recordExt)); err != nil {
 		return fmt.Errorf("relocating task %s: %w", id, err)
 	}
 
@@ -165,22 +179,45 @@ func (s *Store) removeFromOrder(parent, id string) error {
 }
 
 func (s *Store) Load(id string) (*Task, error) {
-	data, err := os.ReadFile(s.Path(id))
+	t, err := s.loadRecord(s.Path(id))
 	if err != nil {
 		return nil, fmt.Errorf("loading task %s: %w", id, err)
 	}
 
-	return Parse(data)
+	return t, nil
+}
+
+func (s *Store) loadRecord(path string) (*Task, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var rec taskRecord
+	if err := json.Unmarshal(data, &rec); err != nil {
+		return nil, fmt.Errorf("parsing %s: %w", path, err)
+	}
+
+	body, err := os.ReadFile(pathologize.Join(filepath.Dir(path), rec.Content))
+	if err != nil {
+		return nil, fmt.Errorf("reading body of %s: %w", path, err)
+	}
+
+	return rec.task(string(body)), nil
 }
 
 func (s *Store) Save(t *Task) error {
-	data, err := t.Bytes()
+	data, err := newRecord(t, filepath.Base(bodyPath(s.tasksDir(), t.ID))).bytes()
 	if err != nil {
 		return err
 	}
 
 	if err := os.MkdirAll(s.tasksDir(), dirMode); err != nil {
 		return fmt.Errorf("creating %s: %w", s.tasksDir(), err)
+	}
+
+	if err := os.WriteFile(bodyPath(s.tasksDir(), t.ID), []byte(t.Body), fileMode); err != nil {
+		return fmt.Errorf("writing task %s body: %w", t.ID, err)
 	}
 
 	if err := os.WriteFile(s.Path(t.ID), data, fileMode); err != nil {
@@ -436,21 +473,16 @@ func (s *Store) materializeOrder(parent string) ([]string, error) {
 }
 
 func (s *Store) List() ([]*Task, error) {
-	matches, err := filepath.Glob(filepath.Join(s.tasksDir(), "*.md"))
+	matches, err := filepath.Glob(filepath.Join(s.tasksDir(), "*"+recordExt))
 	if err != nil {
 		return nil, fmt.Errorf("scanning %s for tasks: %w", s.tasksDir(), err)
 	}
 
 	tasks := make([]*Task, 0, len(matches))
 	for _, path := range matches {
-		data, err := os.ReadFile(path)
+		t, err := s.loadRecord(path)
 		if err != nil {
 			return nil, fmt.Errorf("reading %s: %w", path, err)
-		}
-
-		t, err := Parse(data)
-		if err != nil {
-			return nil, fmt.Errorf("parsing %s: %w", path, err)
 		}
 
 		tasks = append(tasks, t)
@@ -579,8 +611,8 @@ func (s *Store) NextChildID(parent string) (string, error) {
 		return "", fmt.Errorf("parent %s does not exist: %w", parent, err)
 	}
 
-	glob := parent + ".*.md"
-	re := regexp.MustCompile(`^` + regexp.QuoteMeta(parent) + `\.(\d+)\.md$`)
+	glob := parent + ".*" + recordExt
+	re := regexp.MustCompile(`^` + regexp.QuoteMeta(parent) + `\.(\d+)` + regexp.QuoteMeta(recordExt) + `$`)
 
 	highest, err := s.highestReserved(glob, re, "child IDs")
 	if err != nil {
@@ -591,8 +623,8 @@ func (s *Store) NextChildID(parent string) (string, error) {
 }
 
 func (s *Store) NextID(prefix string) (string, error) {
-	glob := prefix + "-*.md"
-	re := regexp.MustCompile(`^` + regexp.QuoteMeta(prefix) + `-(\d+)\.md$`)
+	glob := prefix + "-*" + recordExt
+	re := regexp.MustCompile(`^` + regexp.QuoteMeta(prefix) + `-(\d+)` + regexp.QuoteMeta(recordExt) + `$`)
 
 	highest, err := s.highestReserved(glob, re, "task IDs")
 	if err != nil {

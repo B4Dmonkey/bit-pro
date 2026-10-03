@@ -100,9 +100,10 @@ func TestTaskListCmd(t *testing.T) {
 		mustRun(t, "task", "create", "Bar one", "-d", "...", "--parent", "BIT-1")
 		mustRun(t, "task", "create", "Bar two", "-d", "...", "--parent", "BIT-1")
 
-		track := "---\nid: BIT-1\ntitle: Track\nstatus: todo\norder:\n    - bit-1.2\n    - bit-1.1\n---\nHand-edited.\n"
-		if err := os.WriteFile(filepath.Join(storeDir(t), "tasks", "BIT-1.md"), []byte(track), 0o600); err != nil {
-			t.Fatalf("os.WriteFile(tasks/BIT-1.md) error = %v", err)
+		track := `{"id": "BIT-1", "title": "Track", "status": "todo", "approved": false, "phase": 0, "phase_label": "", ` +
+			`"order": ["bit-1.2", "bit-1.1"], "content": "BIT-1.md"}` + "\n"
+		if err := os.WriteFile(filepath.Join(storeDir(t), "tasks", "BIT-1.json"), []byte(track), 0o600); err != nil {
+			t.Fatalf("os.WriteFile(tasks/BIT-1.json) error = %v", err)
 		}
 
 		out := mustRun(t, "task", "list", "--parent", "BIT-1")
