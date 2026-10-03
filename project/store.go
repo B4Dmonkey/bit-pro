@@ -13,6 +13,10 @@ func OpenStore(ctx context.Context, dir string) (*task.Store, error) {
 		return nil, err
 	}
 
+	return StoreFor(p)
+}
+
+func StoreFor(p Project) (*task.Store, error) {
 	root, err := store.ProjectDir(p.Code)
 	if err != nil {
 		return nil, err

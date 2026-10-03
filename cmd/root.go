@@ -150,6 +150,7 @@ func newRootCmd(run claude.Runner) *cobra.Command {
 	rootCmd.AddCommand(newApproveCmd())
 	rootCmd.AddCommand(newFeedbackCmd())
 	rootCmd.AddCommand(newListCmd())
+	rootCmd.AddCommand(newRemoveCmd())
 	rootCmd.AddCommand(newServeCmd())
 	rootCmd.AddCommand(taskcmd.NewCmd())
 	rootCmd.AddCommand(newTUICmd())
