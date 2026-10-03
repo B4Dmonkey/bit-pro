@@ -75,13 +75,13 @@ func groupByStatus(tasks []*task.Task) [3][]*task.Task {
 	return cols
 }
 
-func newColumnList(tasks []*task.Task, queued map[string]bool) list.Model {
+func newColumnList(tasks []*task.Task) list.Model {
 	items := make([]list.Item, len(tasks))
 	for i, t := range tasks {
 		items[i] = item{t: t}
 	}
 
-	l := list.New(items, delegate{board: true, queued: queued}, 0, 0)
+	l := list.New(items, delegate{board: true}, 0, 0)
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
 	l.SetShowTitle(false)
@@ -189,10 +189,6 @@ func (m model) updateModalBoard(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 func (m model) handleBoardApprove() (tea.Model, tea.Cmd) {
 	if m.approve != nil {
 		if t := m.boardSelected(); t != nil {
-			if !t.Approved && isBar(t.ID) {
-				m.pendingApprovalID = t.ID
-			}
-
 			_ = m.approve(t.ID, !t.Approved)
 
 			return m, m.reloadCmd()
@@ -223,8 +219,6 @@ func (m model) updateBoard(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "q", keyEsc, keyCtrlC:
 		return m, tea.Quit
-	case "e":
-		m.enqueueSelected()
 	case keyRight:
 		if m.activeCol < len(boardColumns)-1 {
 			m.activeCol++
@@ -266,23 +260,6 @@ func modalView(m model, board string) string {
 	modal := lipgloss.NewLayer(box).X(cx).Y(cy).Z(1)
 
 	return lipgloss.NewCompositor(base, modal).Render()
-}
-
-func playPromptView(m model, board string) string {
-	prompt := "Play " + m.playPromptTitle + "? (y / n)"
-	box := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		Padding(0, 1).
-		BorderForeground(lipgloss.Color("4")).
-		Background(lipgloss.Color("4")).
-		Foreground(lipgloss.Color("0")).
-		Render(prompt)
-	cx := max((lipgloss.Width(board)-lipgloss.Width(box))/2, 0)
-	cy := max((lipgloss.Height(board)-lipgloss.Height(box))/2, 0)
-	base := lipgloss.NewLayer(board)
-	overlay := lipgloss.NewLayer(box).X(cx).Y(cy).Z(1)
-
-	return lipgloss.NewCompositor(base, overlay).Render()
 }
 
 func boardView(m model) string {

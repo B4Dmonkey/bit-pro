@@ -1,7 +1,7 @@
 ---
 id: BIT-45.3
 title: Approving a track's last bar opens no Play prompt, and the TUI has no queue
-status: todo
+status: done
 phase: 1
 phase_label: No daemon in a v2 build
 ---
