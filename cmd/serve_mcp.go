@@ -83,7 +83,9 @@ relative to — a sibling being another bar under the same track. A bar's ID is 
 moving it keeps every existing reference to it — a commit message, a feedback note, a plan
 citation — valid.`
 
-const taskCompleteDescription = `Complete a signed-off track, filing it and its bars as completed.
+const taskCompleteDescription = `File a track and its bars as completed, and when commit and branch are given, write
+them on the track first, as its landing commit and the trunk it landed on — the values task_landing
+reports.
 
 A track is a top-level task — one whole scope — and its ID has no dot, as in BIT-7. Completing one
 relocates the track and every bar under it out of the active list, so a finished cycle stops
@@ -211,7 +213,9 @@ type taskUpdateInput struct {
 }
 
 type taskCompleteInput struct {
-	ID string `json:"id"`
+	ID     string `json:"id"`
+	Commit string `json:"commit,omitempty"`
+	Branch string `json:"branch,omitempty"`
 }
 
 type taskLandingInput struct {
@@ -552,12 +556,31 @@ func taskCompleteHandler(root string) mcp.ToolHandlerFor[taskCompleteInput, empt
 			return nil, emptyOutput{}, err
 		}
 
+		if in.Commit != "" || in.Branch != "" {
+			if _, err := store.Update(in.ID, landingPatch(in.Commit, in.Branch)); err != nil {
+				return nil, emptyOutput{}, fmt.Errorf("recording landing on task %s: %w", in.ID, err)
+			}
+		}
+
 		if err := store.Complete(in.ID); err != nil {
 			return nil, emptyOutput{}, fmt.Errorf("completing task %s: %w", in.ID, err)
 		}
 
 		return nil, emptyOutput{}, nil
 	}
+}
+
+func landingPatch(commit, branch string) task.Patch {
+	var p task.Patch
+	if commit != "" {
+		p.Commit = &commit
+	}
+
+	if branch != "" {
+		p.Branch = &branch
+	}
+
+	return p
 }
 
 func taskLandingHandler(root string, run git.Runner) mcp.ToolHandlerFor[taskLandingInput, landing.Report] {

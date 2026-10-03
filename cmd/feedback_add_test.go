@@ -271,7 +271,7 @@ func TestFeedbackAddCmd(t *testing.T) {
 			t.Errorf("sha = %v, want %s", commits[0][testSHAKey], want)
 		}
 
-		if commits[0][testBranchKey] != "main" {
+		if commits[0][testBranchKey] != testTrunk {
 			t.Errorf("branch = %v, want main", commits[0][testBranchKey])
 		}
 

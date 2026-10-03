@@ -702,6 +702,37 @@ func TestTaskCompleteHandler(t *testing.T) {
 		if listed := callToolList(t, session, taskListTool, map[string]any{}); len(listed) != 0 {
 			t.Errorf("listed tasks = %v, want none", listed)
 		}
+
+		rec := readRecord(t, filepath.Join(projectStoreDir(t, dir), testCompletedDir, testTrackID+".md"))
+		if rec[testCommitKey] != "" || rec[testBranchKey] != "" {
+			t.Errorf("commit, branch = %v, %v, want empty", rec[testCommitKey], rec[testBranchKey])
+		}
+	})
+
+	t.Run("records commit and branch on the filed track", func(t *testing.T) {
+		dir := t.TempDir()
+		seedDoneTrack(t, dir, task.StatusDone)
+
+		session := mcpSession(t, dir)
+
+		const sha = "54abfeb5e1c3a7d2b9f0c4e6a8d1b3f5e7c9a0b2"
+
+		callTool(t, session, taskCompleteTool, map[string]any{
+			"id": testTrackID, testCommitKey: sha, testBranchKey: testTrunk,
+		})
+
+		rec := readRecord(t, filepath.Join(projectStoreDir(t, dir), testCompletedDir, testTrackID+".md"))
+		if rec[testCommitKey] != sha {
+			t.Errorf("commit = %v, want %s", rec[testCommitKey], sha)
+		}
+
+		if rec[testBranchKey] != testTrunk {
+			t.Errorf("branch = %v, want %s", rec[testBranchKey], testTrunk)
+		}
+
+		if listed := callToolList(t, session, taskListTool, map[string]any{}); len(listed) != 0 {
+			t.Errorf("listed tasks = %v, want none", listed)
+		}
 	})
 
 	t.Run("refuses unfinished bars", func(t *testing.T) {

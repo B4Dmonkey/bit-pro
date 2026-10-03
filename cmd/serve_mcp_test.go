@@ -37,6 +37,7 @@ const (
 	testParentKey = "parent"
 	testCommitKey = "commit"
 	testBranchKey = "branch"
+	testTrunk     = "main"
 	testBarSHA    = "6a1d3459c0ffee000000000000000000000000ab"
 	testTitleKey  = "title"
 	testStatusKey = "status"
@@ -399,7 +400,7 @@ func TestTaskLandingHandler(t *testing.T) {
 		got := callTool(t, mcpSessionWithGit(t, r.Dir, git.ExecRunner), taskLandingTool, map[string]any{"id": testNewTrackID})
 
 		for key, want := range map[string]string{
-			"verdict": "done", "landing": b, "trunk": "origin/main", testBranchKey: "main",
+			"verdict": "done", "landing": b, "trunk": "origin/main", testBranchKey: testTrunk,
 		} {
 			if got[key] != want {
 				t.Errorf("%s = %v, want %q", key, got[key], want)
