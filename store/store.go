@@ -20,7 +20,7 @@ func Dir() (string, error) {
 	}
 
 	dir := filepath.Join(filepath.Clean(base), "bit-pro")
-	if err := os.MkdirAll(dir, dirMode); err != nil {
+	if err := os.MkdirAll(dir, dirMode); err != nil { //nolint:gosec
 		return "", fmt.Errorf("creating %s: %w", dir, err)
 	}
 
