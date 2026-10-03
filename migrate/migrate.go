@@ -75,6 +75,10 @@ func Run(ctx context.Context, q *orm.Queries, opts Options) (Result, error) {
 		return Result{}, err
 	}
 
+	if err := copyResearch(filepath.Join(src, "research"), s); err != nil {
+		return Result{}, err
+	}
+
 	if err := q.CreateProject(ctx, orm.CreateProjectParams{Path: path, Code: code}); err != nil {
 		return Result{}, fmt.Errorf("registering %s: %w", path, err)
 	}
@@ -149,6 +153,50 @@ func copyNotes(dir string, s *task.Store) error {
 
 		if _, err := s.ImportNote(m[1], seq, string(raw), task.Commit{}); err != nil {
 			return fmt.Errorf("copying %s: %w", path, err)
+		}
+	}
+
+	return nil
+}
+
+func copyResearch(dir string, s *task.Store) error {
+	tracks, err := os.ReadDir(dir)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+
+	if err != nil {
+		return fmt.Errorf("reading %s: %w", dir, err)
+	}
+
+	for _, tr := range tracks {
+		if !tr.IsDir() {
+			continue
+		}
+
+		trackDir := filepath.Join(dir, tr.Name())
+
+		topics, err := os.ReadDir(trackDir)
+		if err != nil {
+			return fmt.Errorf("reading %s: %w", trackDir, err)
+		}
+
+		for _, e := range topics {
+			if !strings.HasSuffix(e.Name(), ".md") {
+				continue
+			}
+
+			path := filepath.Join(trackDir, e.Name())
+
+			raw, err := os.ReadFile(path)
+			if err != nil {
+				return fmt.Errorf("reading %s: %w", path, err)
+			}
+
+			topic := strings.TrimSuffix(e.Name(), ".md")
+			if _, err := s.WriteResearch(tr.Name(), topic, string(raw), task.Commit{}); err != nil {
+				return fmt.Errorf("copying %s: %w", path, err)
+			}
 		}
 	}
 

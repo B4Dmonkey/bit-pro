@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -23,6 +24,8 @@ const (
 	listedBar     = "BIT-10.1"
 	activeTitle   = "Active"
 	notedTrack    = "BIT-19"
+	activeTrack   = "BIT-44"
+	researchTrack = "BIT-49"
 )
 
 func TestMigrateCmd(t *testing.T) {
@@ -179,7 +182,7 @@ func TestMigrateCmd(t *testing.T) {
 
 		dir := t.TempDir()
 		files := v1Files(t, map[string][]*task.Task{
-			testTasksDir:                           {{ID: "BIT-44", Title: activeTitle, Status: task.StatusDoing}},
+			testTasksDir:                           {{ID: activeTrack, Title: activeTitle, Status: task.StatusDoing}},
 			filepath.Join("archive", testTasksDir): {{ID: notedTrack, Title: "Deleted", Status: task.StatusTodo}},
 		})
 		notes := map[string]struct {
@@ -189,7 +192,7 @@ func TestMigrateCmd(t *testing.T) {
 		}{
 			"BIT-19-001.md": {notedTrack, 1, []byte("## What the plan said\n\nUse a map.\n\n## What happened\n\nA slice.\n")},
 			"BIT-19-002.md": {notedTrack, 2, []byte("## What the plan said\n\nNo flag.\n\n## What happened\n\nA --dry-run.\n")},
-			"BIT-44-005.md": {"BIT-44", 5, []byte("## What the plan said\n\nOne bar.\n\n## What happened\n\nIt took two.\n")},
+			"BIT-44-005.md": {activeTrack, 5, []byte("## What the plan said\n\nOne bar.\n\n## What happened\n\nIt took two.\n")},
 		}
 
 		for name, n := range notes {
@@ -228,6 +231,51 @@ func TestMigrateCmd(t *testing.T) {
 
 		if _, err := os.Stat(filepath.Join(d, testPrefix, "feedback")); !errors.Is(err, fs.ErrNotExist) {
 			t.Errorf("stat project feedback dir = %v, want fs.ErrNotExist", err)
+		}
+	})
+
+	t.Run("carries research topics", func(t *testing.T) {
+		mcpSandbox(t)
+
+		dir := t.TempDir()
+		files := v1Files(t, map[string][]*task.Task{
+			testTasksDir: {{ID: researchTrack, Title: activeTitle, Status: task.StatusDoing}},
+			"completed":  {{ID: activeTrack, Title: "Done", Status: task.StatusDone}},
+		})
+		indexBody := []byte("## Findings\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\nSee [x](x.md).\n")
+		files[filepath.Join(testResearchDir, researchTrack, "index.md")] = indexBody
+		files[filepath.Join(testResearchDir, researchTrack, "claim-audit-2026-10-02.md")] = []byte("audit\n")
+		files[filepath.Join(testResearchDir, activeTrack, "index.md")] = []byte("done track\n")
+		writeV1Store(t, dir, files)
+		t.Chdir(dir)
+
+		mustRun(t, migrateCmdUse)
+
+		session := mcpSession(t, dir)
+
+		got := callTool(t, session, researchReadTool, map[string]any{testTrackKey: researchTrack})
+
+		want := []any{"claim-audit-2026-10-02", testIndexTopic}
+		if !reflect.DeepEqual(got[testTopicsKey], want) {
+			t.Errorf("topics = %v, want %v", got[testTopicsKey], want)
+		}
+
+		got = callTool(t, session, researchReadTool, map[string]any{
+			testTrackKey: researchTrack,
+			testTopicKey: testIndexTopic,
+		})
+		if got[testBodyKey] != string(indexBody) {
+			t.Errorf("body = %q, want %q", got[testBodyKey], indexBody)
+		}
+
+		root, err := store.ProjectDir(testPrefix)
+		if err != nil {
+			t.Fatalf("store.ProjectDir(%q) returned error: %v", testPrefix, err)
+		}
+
+		rec := readRecord(t, filepath.Join(root, testResearchDir, activeTrack, "index.md"))
+		if rec["project"] != testPrefix || rec["track"] != activeTrack {
+			t.Errorf("BIT-44 index record = {%v, %v}, want {%s, BIT-44}", rec["project"], rec["track"], testPrefix)
 		}
 	})
 
