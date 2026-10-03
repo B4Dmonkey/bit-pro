@@ -1,7 +1,7 @@
 ---
 id: BIT-48
 title: 'v2: global Claude wiring'
-status: todo
+status: doing
 approved: true
 ---
 ## Why
