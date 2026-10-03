@@ -3,15 +3,79 @@ package cmd
 import (
 	"context"
 	"encoding/json"
-	"path/filepath"
+	"sync"
 	"testing"
 
+	"github.com/B4Dmonkey/bit-pro/db/orm"
+	"github.com/B4Dmonkey/bit-pro/project"
+	"github.com/B4Dmonkey/bit-pro/store"
 	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+var sandboxed sync.Map
+
+func mcpSandbox(t *testing.T) {
+	t.Helper()
+
+	if _, done := sandboxed.LoadOrStore(t, struct{}{}); done {
+		return
+	}
+
+	t.Cleanup(func() { sandboxed.Delete(t) })
+
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+}
+
+func registerProject(t *testing.T, dir string) {
+	t.Helper()
+
+	mcpSandbox(t)
+
+	if _, err := project.Find(t.Context(), dir); err == nil {
+		return
+	}
+
+	path, err := project.CanonicalPath(dir)
+	if err != nil {
+		t.Fatalf("CanonicalPath(%q) returned error: %v", dir, err)
+	}
+
+	seedProject(t, orm.CreateProjectParams{Path: path, Code: testCode})
+}
+
+func openProjectStore(t *testing.T, dir string) *task.Store {
+	t.Helper()
+
+	s, err := project.OpenStore(t.Context(), dir)
+	if err != nil {
+		t.Fatalf("project.OpenStore(%q) returned error: %v", dir, err)
+	}
+
+	return s
+}
+
+func projectStoreDir(t *testing.T, dir string) string {
+	t.Helper()
+
+	p, err := project.Find(t.Context(), dir)
+	if err != nil {
+		t.Fatalf("project.Find(%q) returned error: %v", dir, err)
+	}
+
+	sd, err := store.ProjectDir(p.Code)
+	if err != nil {
+		t.Fatalf("store.ProjectDir(%q) returned error: %v", p.Code, err)
+	}
+
+	return sd
+}
+
 func mcpSession(t *testing.T, root string) *mcp.ClientSession {
 	t.Helper()
+
+	mcpSandbox(t)
 
 	ctx, cancel := context.WithCancel(t.Context())
 
@@ -93,10 +157,12 @@ func decodeToolResult(t *testing.T, s *mcp.ClientSession, name string, args map[
 func seedTasks(t *testing.T, dir string, tasks ...*task.Task) {
 	t.Helper()
 
-	store := task.New(filepath.Join(dir, ".bit"))
+	registerProject(t, dir)
+
+	s := openProjectStore(t, dir)
 
 	for _, tk := range tasks {
-		if err := store.Save(tk); err != nil {
+		if err := s.Save(tk); err != nil {
 			t.Fatal(err)
 		}
 	}

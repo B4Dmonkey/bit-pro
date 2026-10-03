@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/B4Dmonkey/bit-pro/bitdir"
+	"github.com/B4Dmonkey/bit-pro/project"
 	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -287,11 +287,14 @@ func taskUpdateSchema() (*jsonschema.Schema, error) {
 
 func taskReadHandler(root string) mcp.ToolHandlerFor[taskReadInput, taskReadOutput] {
 	return func(
-		_ context.Context,
+		ctx context.Context,
 		_ *mcp.CallToolRequest,
 		in taskReadInput,
 	) (*mcp.CallToolResult, taskReadOutput, error) {
-		store := task.New(bitdir.ForRoot(root))
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, taskReadOutput{}, err
+		}
 
 		t, err := store.Load(in.ID)
 		if err != nil {
@@ -313,16 +316,16 @@ func taskReadHandler(root string) mcp.ToolHandlerFor[taskReadInput, taskReadOutp
 
 func taskListHandler(root string) mcp.ToolHandlerFor[taskListInput, taskListOutput] {
 	return func(
-		_ context.Context,
+		ctx context.Context,
 		_ *mcp.CallToolRequest,
 		in taskListInput,
 	) (*mcp.CallToolResult, taskListOutput, error) {
-		store := task.New(bitdir.ForRoot(root))
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, taskListOutput{}, err
+		}
 
-		var (
-			tasks []*task.Task
-			err   error
-		)
+		var tasks []*task.Task
 
 		if in.Parent == "" {
 			tasks, err = store.List()
@@ -353,11 +356,14 @@ func taskListHandler(root string) mcp.ToolHandlerFor[taskListInput, taskListOutp
 
 func taskCreateHandler(root string) mcp.ToolHandlerFor[taskCreateInput, taskCreateOutput] {
 	return func(
-		_ context.Context,
+		ctx context.Context,
 		_ *mcp.CallToolRequest,
 		in taskCreateInput,
 	) (*mcp.CallToolResult, taskCreateOutput, error) {
-		store := task.New(bitdir.ForRoot(root))
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, taskCreateOutput{}, err
+		}
 
 		t, err := store.Create(task.CreateParams{
 			Title:      in.Title,
@@ -377,11 +383,14 @@ func taskCreateHandler(root string) mcp.ToolHandlerFor[taskCreateInput, taskCrea
 
 func taskUpdateHandler(root string) mcp.ToolHandlerFor[taskUpdateInput, taskUpdateOutput] {
 	return func(
-		_ context.Context,
+		ctx context.Context,
 		_ *mcp.CallToolRequest,
 		in taskUpdateInput,
 	) (*mcp.CallToolResult, taskUpdateOutput, error) {
-		store := task.New(bitdir.ForRoot(root))
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, taskUpdateOutput{}, err
+		}
 
 		t, err := store.Update(in.ID, task.Patch{
 			Title:      in.Title,
@@ -400,11 +409,14 @@ func taskUpdateHandler(root string) mcp.ToolHandlerFor[taskUpdateInput, taskUpda
 
 func taskMoveHandler(root string) mcp.ToolHandlerFor[taskMoveInput, emptyOutput] {
 	return func(
-		_ context.Context,
+		ctx context.Context,
 		_ *mcp.CallToolRequest,
 		in taskMoveInput,
 	) (*mcp.CallToolResult, emptyOutput, error) {
-		store := task.New(bitdir.ForRoot(root))
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, emptyOutput{}, err
+		}
 
 		if err := store.Move(in.Bar, in.Before, in.After); err != nil {
 			return nil, emptyOutput{}, fmt.Errorf("moving bar %s: %w", in.Bar, err)
@@ -416,11 +428,14 @@ func taskMoveHandler(root string) mcp.ToolHandlerFor[taskMoveInput, emptyOutput]
 
 func taskCompleteHandler(root string) mcp.ToolHandlerFor[taskCompleteInput, emptyOutput] {
 	return func(
-		_ context.Context,
+		ctx context.Context,
 		_ *mcp.CallToolRequest,
 		in taskCompleteInput,
 	) (*mcp.CallToolResult, emptyOutput, error) {
-		store := task.New(bitdir.ForRoot(root))
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, emptyOutput{}, err
+		}
 
 		if err := store.Complete(in.ID); err != nil {
 			return nil, emptyOutput{}, fmt.Errorf("completing task %s: %w", in.ID, err)
@@ -432,11 +447,14 @@ func taskCompleteHandler(root string) mcp.ToolHandlerFor[taskCompleteInput, empt
 
 func taskDeleteHandler(root string) mcp.ToolHandlerFor[taskDeleteInput, emptyOutput] {
 	return func(
-		_ context.Context,
+		ctx context.Context,
 		_ *mcp.CallToolRequest,
 		in taskDeleteInput,
 	) (*mcp.CallToolResult, emptyOutput, error) {
-		store := task.New(bitdir.ForRoot(root))
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, emptyOutput{}, err
+		}
 
 		if err := store.Relocate(in.ID, in.Force); err != nil {
 			return nil, emptyOutput{}, fmt.Errorf("deleting task %s: %w", in.ID, err)
@@ -448,11 +466,14 @@ func taskDeleteHandler(root string) mcp.ToolHandlerFor[taskDeleteInput, emptyOut
 
 func feedbackAddHandler(root string) mcp.ToolHandlerFor[feedbackAddInput, feedbackAddOutput] {
 	return func(
-		_ context.Context,
+		ctx context.Context,
 		_ *mcp.CallToolRequest,
 		in feedbackAddInput,
 	) (*mcp.CallToolResult, feedbackAddOutput, error) {
-		store := task.New(bitdir.ForRoot(root))
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, feedbackAddOutput{}, err
+		}
 
 		path, err := store.AddNote(in.Track, in.Body)
 		if err != nil {
@@ -465,11 +486,14 @@ func feedbackAddHandler(root string) mcp.ToolHandlerFor[feedbackAddInput, feedba
 
 func researchWriteHandler(root string) mcp.ToolHandlerFor[researchWriteInput, researchWriteOutput] {
 	return func(
-		_ context.Context,
+		ctx context.Context,
 		_ *mcp.CallToolRequest,
 		in researchWriteInput,
 	) (*mcp.CallToolResult, researchWriteOutput, error) {
-		store := task.New(bitdir.ForRoot(root))
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, researchWriteOutput{}, err
+		}
 
 		path, err := store.WriteResearch(in.Track, in.Topic, in.Body)
 		if err != nil {
@@ -482,11 +506,14 @@ func researchWriteHandler(root string) mcp.ToolHandlerFor[researchWriteInput, re
 
 func researchReadHandler(root string) mcp.ToolHandlerFor[researchReadInput, researchReadOutput] {
 	return func(
-		_ context.Context,
+		ctx context.Context,
 		_ *mcp.CallToolRequest,
 		in researchReadInput,
 	) (*mcp.CallToolResult, researchReadOutput, error) {
-		store := task.New(bitdir.ForRoot(root))
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, researchReadOutput{}, err
+		}
 
 		if in.Topic == "" {
 			topics, err := store.ResearchTopics(in.Track)
@@ -504,6 +531,20 @@ func researchReadHandler(root string) mcp.ToolHandlerFor[researchReadInput, rese
 
 		return nil, researchReadOutput{Body: body}, nil
 	}
+}
+
+func mcpStore(ctx context.Context, root string) (*task.Store, error) {
+	dir := root
+	if dir == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			return nil, fmt.Errorf("getting the working directory: %w", err)
+		}
+
+		dir = wd
+	}
+
+	return project.OpenStore(ctx, dir)
 }
 
 func parentOf(id string) string {

@@ -1,10 +1,15 @@
 package cmd
 
 import (
+	"errors"
+	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/B4Dmonkey/bit-pro/db/orm"
+	"github.com/B4Dmonkey/bit-pro/project"
 	"github.com/B4Dmonkey/bit-pro/task"
 )
 
@@ -13,6 +18,8 @@ const (
 	testTitle   = "mcp test track"
 	testBody    = "the body"
 	testClient  = "test"
+
+	testNewTrackID = "BIT-1"
 
 	testBarID      = "FOO-1.1"
 	testBarTitle   = "a bar"
@@ -45,184 +52,250 @@ const (
 	testCallerRollsUp = "sets the track's status in a separate call"
 )
 
-func TestServeMCPCmd_TaskReadReturnsStructuredFields(t *testing.T) {
-	dir := t.TempDir()
+func TestTaskReadHandler(t *testing.T) {
+	t.Run("returns structured fields", func(t *testing.T) {
+		dir := t.TempDir()
 
-	seedTasks(t, dir, &task.Task{
-		ID: testTrackID, Title: testTitle, Status: task.StatusTodo, Body: testBody,
+		seedTasks(t, dir, &task.Task{
+			ID: testTrackID, Title: testTitle, Status: task.StatusTodo, Body: testBody,
+		})
+
+		got := callTool(t, mcpSession(t, dir), taskReadTool, map[string]any{"id": testTrackID})
+
+		if got["id"] != testTrackID {
+			t.Errorf("id = %v, want %s", got["id"], testTrackID)
+		}
+
+		if got[testTitleKey] != testTitle {
+			t.Errorf("title = %v, want %s", got[testTitleKey], testTitle)
+		}
+
+		if got["status"] != "todo" {
+			t.Errorf("status = %v, want todo", got["status"])
+		}
+
+		if got[testApprovedKey] != false {
+			t.Errorf("approved = %v, want false", got[testApprovedKey])
+		}
+
+		if got[testBodyKey] != testBody {
+			t.Errorf("body = %v, want %s", got[testBodyKey], testBody)
+		}
+
+		if got["parent"] != "" {
+			t.Errorf("parent = %v, want empty string", got["parent"])
+		}
 	})
 
-	got := callTool(t, mcpSession(t, dir), taskReadTool, map[string]any{"id": testTrackID})
+	t.Run("returns parent for bar", func(t *testing.T) {
+		dir := t.TempDir()
 
-	if got["id"] != testTrackID {
-		t.Errorf("id = %v, want %s", got["id"], testTrackID)
-	}
+		seedTasks(t, dir,
+			&task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusTodo},
+			&task.Task{ID: testBarID, Title: testBarTitle, Status: task.StatusTodo},
+		)
 
-	if got[testTitleKey] != testTitle {
-		t.Errorf("title = %v, want %s", got[testTitleKey], testTitle)
-	}
+		got := callTool(t, mcpSession(t, dir), taskReadTool, map[string]any{"id": testBarID})
 
-	if got["status"] != "todo" {
-		t.Errorf("status = %v, want todo", got["status"])
-	}
-
-	if got[testApprovedKey] != false {
-		t.Errorf("approved = %v, want false", got[testApprovedKey])
-	}
-
-	if got[testBodyKey] != testBody {
-		t.Errorf("body = %v, want %s", got[testBodyKey], testBody)
-	}
-
-	if got["parent"] != "" {
-		t.Errorf("parent = %v, want empty string", got["parent"])
-	}
+		if got["parent"] != testTrackID {
+			t.Errorf("parent = %v, want %s", got["parent"], testTrackID)
+		}
+	})
 }
 
-func TestServeMCPCmd_TaskReadReturnsParentForBar(t *testing.T) {
-	dir := t.TempDir()
+func TestRunMCPServer(t *testing.T) {
+	t.Run("resolves worktree root to main checkout", func(t *testing.T) {
+		dir := t.TempDir()
 
-	seedTasks(t, dir,
-		&task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusTodo},
-		&task.Task{ID: testBarID, Title: testBarTitle, Status: task.StatusTodo},
-	)
+		seedTasks(t, dir, &task.Task{
+			ID: testTrackID, Title: testTitle, Status: task.StatusTodo, Body: testBody,
+		})
 
-	got := callTool(t, mcpSession(t, dir), taskReadTool, map[string]any{"id": testBarID})
+		session := mcpSession(t, filepath.Join(dir, ".claude", "worktrees", "wt"))
 
-	if got["parent"] != testTrackID {
-		t.Errorf("parent = %v, want %s", got["parent"], testTrackID)
-	}
-}
+		got := callTool(t, session, taskReadTool, map[string]any{"id": testTrackID})
 
-func TestServeMCPCmd_ResolvesWorktreeRootToMainCheckout(t *testing.T) {
-	dir := t.TempDir()
-
-	seedTasks(t, dir, &task.Task{
-		ID: testTrackID, Title: testTitle, Status: task.StatusTodo, Body: testBody,
+		if got[testTitleKey] != testTitle {
+			t.Errorf("title = %v, want %s", got[testTitleKey], testTitle)
+		}
 	})
 
-	session := mcpSession(t, filepath.Join(dir, ".claude", "worktrees", "wt"))
+	t.Run("resolves a subfolder root through the registry", func(t *testing.T) {
+		mcpSandbox(t)
 
-	got := callTool(t, session, taskReadTool, map[string]any{"id": testTrackID})
+		dir := t.TempDir()
 
-	if got[testTitleKey] != testTitle {
-		t.Errorf("title = %v, want %s", got[testTitleKey], testTitle)
-	}
-}
+		path, err := project.CanonicalPath(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-func TestServeMCPCmd_TaskListReturnsEveryTaskAsFields(t *testing.T) {
-	dir := t.TempDir()
+		seedProject(t, orm.CreateProjectParams{Path: path, Code: testPrefix})
 
-	seedTasks(t, dir,
-		&task.Task{
-			ID: testTrackID, Title: testTitle, Status: task.StatusTodo,
-			Approved: true, Order: []string{testBarID},
-		},
-		&task.Task{
-			ID: testBarID, Title: testBarTitle, Status: task.StatusDoing,
-			Phase: 2, PhaseLabel: testPhaseLabel,
-		},
-	)
+		sub := filepath.Join(dir, "sub")
+		if err := os.MkdirAll(sub, 0o755); err != nil {
+			t.Fatal(err)
+		}
 
-	tasks := callToolList(t, mcpSession(t, dir), taskListTool, map[string]any{})
+		session := mcpSession(t, sub)
 
-	want := []map[string]any{
-		{
-			"id": testTrackID, testTitleKey: testTitle, testStatusKey: task.StatusTodo,
-			testApprovedKey: true, testPhaseKey: float64(0), testPhaseLabelKey: "", testParentKey: "",
-		},
-		{
-			"id": testBarID, testTitleKey: testBarTitle, "status": task.StatusDoing,
-			testApprovedKey: false, "phase": float64(2), "phase_label": testPhaseLabel, testParentKey: testTrackID,
-		},
-	}
+		created := callTool(t, session, taskCreateTool, map[string]any{testTitleKey: "Track", testBodyKey: testBody})
+		if created["id"] != testNewTrackID {
+			t.Fatalf("id = %v, want %s", created["id"], testNewTrackID)
+		}
 
-	if len(tasks) != len(want) {
-		t.Fatalf("tasks = %d entries, want %d", len(tasks), len(want))
-	}
+		read := callTool(t, session, taskReadTool, map[string]any{"id": testNewTrackID})
+		if read[testTitleKey] != "Track" {
+			t.Errorf("title = %v, want Track", read[testTitleKey])
+		}
 
-	for i, w := range want {
-		for key, wantVal := range w {
-			if gotVal := tasks[i][key]; gotVal != wantVal {
-				t.Errorf("tasks[%d][%s] = %v, want %v", i, key, gotVal, wantVal)
+		stored := filepath.Join(projectStoreDir(t, dir), testTasksDir, testNewTrackID+".md")
+		if _, err := os.Stat(stored); err != nil {
+			t.Errorf("os.Stat(%q) returned error: %v", stored, err)
+		}
+
+		for _, bitDir := range []string{filepath.Join(sub, ".bit"), filepath.Join(dir, ".bit")} {
+			if _, err := os.Stat(bitDir); !errors.Is(err, fs.ErrNotExist) {
+				t.Errorf("%s: stat err = %v, want ErrNotExist", bitDir, err)
 			}
 		}
+	})
 
-		if _, ok := tasks[i]["body"]; ok {
-			t.Errorf("tasks[%d] carries a body key", i)
+	t.Run("unregistered root is a tool error", func(t *testing.T) {
+		result := callToolResult(t, mcpSession(t, t.TempDir()), taskListTool, map[string]any{})
+
+		assertToolErrorNames(t, result, "not a bit project; run `bp add`")
+	})
+
+	t.Run("empty root falls back to the working directory", func(t *testing.T) {
+		dir := t.TempDir()
+		registerProject(t, dir)
+		t.Chdir(dir)
+
+		result := callToolResult(t, mcpSession(t, ""), taskListTool, map[string]any{})
+		if result.IsError {
+			t.Errorf("IsError = true, want false (content %v)", result.Content)
 		}
-	}
+	})
 }
 
-func TestServeMCPCmd_TaskListParentReturnsOnlyThatTracksBarsInOrder(t *testing.T) {
-	dir := t.TempDir()
+func TestTaskListHandler(t *testing.T) {
+	t.Run("returns every task as fields", func(t *testing.T) {
+		dir := t.TempDir()
 
-	seedTasks(t, dir,
-		&task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusTodo, Order: []string{testSecondBarID, testBarID}},
-		&task.Task{ID: testBarID, Title: testBarTitle, Status: task.StatusDone},
-		&task.Task{ID: testSecondBarID, Title: testSecondBarTitle, Status: task.StatusTodo},
-		&task.Task{ID: testOtherTrackID, Title: testOtherTitle, Status: task.StatusTodo},
-		&task.Task{ID: testOtherBarID, Title: testOtherBarTitle, Status: task.StatusTodo},
-	)
+		seedTasks(t, dir,
+			&task.Task{
+				ID: testTrackID, Title: testTitle, Status: task.StatusTodo,
+				Approved: true, Order: []string{testBarID},
+			},
+			&task.Task{
+				ID: testBarID, Title: testBarTitle, Status: task.StatusDoing,
+				Phase: 2, PhaseLabel: testPhaseLabel,
+			},
+		)
 
-	tasks := callToolList(t, mcpSession(t, dir), taskListTool, map[string]any{testParentKey: testTrackID})
+		tasks := callToolList(t, mcpSession(t, dir), taskListTool, map[string]any{})
 
-	want := []string{testSecondBarID, testBarID}
-	if len(tasks) != len(want) {
-		t.Fatalf("tasks = %d entries, want %d", len(tasks), len(want))
-	}
-
-	for i, wantID := range want {
-		if gotID := tasks[i]["id"]; gotID != wantID {
-			t.Errorf("tasks[%d][id] = %v, want %v", i, gotID, wantID)
+		want := []map[string]any{
+			{
+				"id": testTrackID, testTitleKey: testTitle, testStatusKey: task.StatusTodo,
+				testApprovedKey: true, testPhaseKey: float64(0), testPhaseLabelKey: "", testParentKey: "",
+			},
+			{
+				"id": testBarID, testTitleKey: testBarTitle, "status": task.StatusDoing,
+				testApprovedKey: false, "phase": float64(2), "phase_label": testPhaseLabel, testParentKey: testTrackID,
+			},
 		}
-	}
-}
 
-func TestMCPToolDescriptions_CarryTheDomain(t *testing.T) {
-	res, err := mcpSession(t, t.TempDir()).ListTools(t.Context(), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+		if len(tasks) != len(want) {
+			t.Fatalf("tasks = %d entries, want %d", len(tasks), len(want))
+		}
 
-	described := make(map[string]string, len(res.Tools))
-	for _, tool := range res.Tools {
-		described[tool.Name] = tool.Description
-	}
-
-	tests := []struct {
-		name string
-		tool string
-		want []string
-	}{
-		{name: taskReadTool, tool: taskReadTool, want: []string{testTrackSentence, testBarIDExample}},
-		{name: taskListTool, tool: taskListTool, want: []string{testTrackSentence, testBarIDExample}},
-		{name: taskCreateTool, tool: taskCreateTool, want: []string{testTrackSentence, testBarIDExample}},
-		{name: taskCompleteTool, tool: taskCompleteTool, want: []string{testTrackSentence}},
-		{
-			name: taskUpdateTool + " approval",
-			tool: taskUpdateTool,
-			want: []string{testRevokingFields, testTodoRevokes, testForwardKeepsApproval},
-		},
-		{
-			name: taskUpdateTool + " rollup",
-			tool: taskUpdateTool,
-			want: []string{testNoCascade, testCallerRollsUp},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, ok := described[tt.tool]
-			if !ok {
-				t.Fatalf("%s is not a registered tool", tt.tool)
-			}
-
-			for _, want := range tt.want {
-				if !strings.Contains(got, want) {
-					t.Errorf("%s description is missing %q", tt.tool, want)
+		for i, w := range want {
+			for key, wantVal := range w {
+				if gotVal := tasks[i][key]; gotVal != wantVal {
+					t.Errorf("tasks[%d][%s] = %v, want %v", i, key, gotVal, wantVal)
 				}
 			}
-		})
-	}
+
+			if _, ok := tasks[i]["body"]; ok {
+				t.Errorf("tasks[%d] carries a body key", i)
+			}
+		}
+	})
+
+	t.Run("parent returns only that tracks bars in order", func(t *testing.T) {
+		dir := t.TempDir()
+
+		seedTasks(t, dir,
+			&task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusTodo, Order: []string{testSecondBarID, testBarID}},
+			&task.Task{ID: testBarID, Title: testBarTitle, Status: task.StatusDone},
+			&task.Task{ID: testSecondBarID, Title: testSecondBarTitle, Status: task.StatusTodo},
+			&task.Task{ID: testOtherTrackID, Title: testOtherTitle, Status: task.StatusTodo},
+			&task.Task{ID: testOtherBarID, Title: testOtherBarTitle, Status: task.StatusTodo},
+		)
+
+		tasks := callToolList(t, mcpSession(t, dir), taskListTool, map[string]any{testParentKey: testTrackID})
+
+		want := []string{testSecondBarID, testBarID}
+		if len(tasks) != len(want) {
+			t.Fatalf("tasks = %d entries, want %d", len(tasks), len(want))
+		}
+
+		for i, wantID := range want {
+			if gotID := tasks[i]["id"]; gotID != wantID {
+				t.Errorf("tasks[%d][id] = %v, want %v", i, gotID, wantID)
+			}
+		}
+	})
+}
+
+func TestMCPToolDescriptions(t *testing.T) {
+	t.Run("carry the domain", func(t *testing.T) {
+		res, err := mcpSession(t, t.TempDir()).ListTools(t.Context(), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		described := make(map[string]string, len(res.Tools))
+		for _, tool := range res.Tools {
+			described[tool.Name] = tool.Description
+		}
+
+		tests := []struct {
+			name string
+			tool string
+			want []string
+		}{
+			{name: taskReadTool, tool: taskReadTool, want: []string{testTrackSentence, testBarIDExample}},
+			{name: taskListTool, tool: taskListTool, want: []string{testTrackSentence, testBarIDExample}},
+			{name: taskCreateTool, tool: taskCreateTool, want: []string{testTrackSentence, testBarIDExample}},
+			{name: taskCompleteTool, tool: taskCompleteTool, want: []string{testTrackSentence}},
+			{
+				name: taskUpdateTool + " approval",
+				tool: taskUpdateTool,
+				want: []string{testRevokingFields, testTodoRevokes, testForwardKeepsApproval},
+			},
+			{
+				name: taskUpdateTool + " rollup",
+				tool: taskUpdateTool,
+				want: []string{testNoCascade, testCallerRollsUp},
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				got, ok := described[tt.tool]
+				if !ok {
+					t.Fatalf("%s is not a registered tool", tt.tool)
+				}
+
+				for _, want := range tt.want {
+					if !strings.Contains(got, want) {
+						t.Errorf("%s description is missing %q", tt.tool, want)
+					}
+				}
+			})
+		}
+	})
 }
