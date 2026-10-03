@@ -25,10 +25,6 @@ func TestAddCmd(t *testing.T) {
 			t.Fatalf("os.MkdirAll(.bit) returned error: %v", err)
 		}
 
-		if err := os.WriteFile(filepath.Join(".bit", "config.toml"), []byte("prefix = \"BIT\"\n"), 0o600); err != nil {
-			t.Fatalf("os.WriteFile(.bit/config.toml) returned error: %v", err)
-		}
-
 		var calls [][]string
 
 		run := func(_ context.Context, name string, args ...string) error {
@@ -99,8 +95,8 @@ func TestAddCmd(t *testing.T) {
 			t.Errorf("settings.json = %s, want it to contain %q", data, "bit@bit-pro")
 		}
 
-		if _, err := os.Stat(filepath.Join(".bit", "config.toml")); !errors.Is(err, fs.ErrNotExist) {
-			t.Errorf("os.Stat(.bit/config.toml) error = %v, want fs.ErrNotExist", err)
+		if _, err := os.Stat(".bit"); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("os.Stat(.bit) error = %v, want fs.ErrNotExist", err)
 		}
 
 		wantCalls := pluginSyncCalls()

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"io/fs"
 	"os"
-	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
@@ -700,36 +699,6 @@ func TestStoreMove(t *testing.T) {
 	})
 }
 
-func TestStoreConfig(t *testing.T) {
-	t.Parallel()
-
-	t.Run("round trips", func(t *testing.T) {
-		t.Parallel()
-
-		s := New(t.TempDir())
-		if err := s.SaveConfig(&Config{Prefix: tprefix}); err != nil {
-			t.Fatalf("SaveConfig() returned error: %v", err)
-		}
-
-		got, err := s.Config()
-		if err != nil {
-			t.Fatalf("Config() returned error: %v", err)
-		}
-
-		if got.Prefix != tprefix {
-			t.Errorf("Config().Prefix = %q, want %q", got.Prefix, tprefix)
-		}
-	})
-
-	t.Run("errors when absent", func(t *testing.T) {
-		t.Parallel()
-
-		if _, err := New(t.TempDir()).Config(); !errors.Is(err, fs.ErrNotExist) {
-			t.Fatalf("Config() error = %v, want an error wrapping fs.ErrNotExist", err)
-		}
-	})
-}
-
 func TestCompareIDs(t *testing.T) {
 	t.Parallel()
 
@@ -809,10 +778,7 @@ func TestStoreCreate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			s := New(t.TempDir())
-			if err := s.SaveConfig(&Config{Prefix: tprefix}); err != nil {
-				t.Fatalf("SaveConfig() returned error: %v", err)
-			}
+			s := NewProject(t.TempDir(), tprefix)
 
 			for _, seed := range tt.seed {
 				if err := s.Save(seed); err != nil {
@@ -882,10 +848,6 @@ func TestStoreCreate(t *testing.T) {
 
 				if got.ID != tt.want {
 					t.Errorf("Create() ID = %q, want %q", got.ID, tt.want)
-				}
-
-				if _, err := os.Stat(filepath.Join(root, configFileName)); !errors.Is(err, fs.ErrNotExist) {
-					t.Errorf("config.toml: os.Stat error = %v, want fs.ErrNotExist", err)
 				}
 			})
 		}

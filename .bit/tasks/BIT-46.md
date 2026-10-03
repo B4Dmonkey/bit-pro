@@ -2,7 +2,6 @@
 id: BIT-46
 title: 'v2: central registry, resolver and record format'
 status: doing
-approved: true
 ---
 ## Why
 bit keeps each project's state in a `.bit/` folder inside the repo, so knowledge is scattered across repos. That also breaks down for a client like `acme/`, where cross-cutting work happens in a folder that isn't a repo and has nowhere to keep state. On top of that, four separate code paths work out which project bp is in, and running bp from a subfolder doesn't find the project at all. Moving every project's state into one store under `~/.local/share/bit/` gives multi-repo work (linking comes later) a home, and makes the operator's daily tool resolve projects one way, everywhere. The operator uses v1 daily, so v2 is built alongside it and v1 keeps working.
@@ -102,7 +101,7 @@ cwd ── longest registered path containing it ──► project ──► sto
   Until BIT-49 lands, feedback stays in each project's store dir and retro and learn are broken on the branch, which is accepted.
 
 ## Verses
-- [ ] Verse 1 — A registered project works from the central store.
+- [x] Verse 1 — A registered project works from the central store.
   - The operator registers a project with `bp add`.
   - The CLI and MCP find it from any subfolder or worktree, reading and writing tasks under `~/.local/share/bit/<CODE>/`, still in v1's markdown format.
   - An unregistered folder gets the "run bp migrate" or "run bp add" error. `bp init` is gone.

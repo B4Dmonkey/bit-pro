@@ -266,7 +266,7 @@ func TestTaskCreateCmd(t *testing.T) {
 		t.Chdir(t.TempDir())
 
 		if _, err := run(t, "task", "create", "Foo"); err == nil {
-			t.Fatal("Execute() returned nil error, want non-nil when config.toml is absent")
+			t.Fatal("Execute() returned nil error, want non-nil when the folder is unregistered")
 		}
 
 		if _, err := os.Stat(".bit/tasks"); !errors.Is(err, fs.ErrNotExist) {

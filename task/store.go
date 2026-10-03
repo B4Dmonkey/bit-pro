@@ -17,7 +17,6 @@ const (
 	tasksSubdir     = "tasks"
 	completedSubdir = "completed"
 	archiveSubdir   = "archive"
-	configFileName  = "config.toml"
 	dirMode         = 0o755
 	fileMode        = 0o644
 )
@@ -203,20 +202,6 @@ type CreateParams struct {
 	PhaseLabel string
 }
 
-func (s *Store) nextTrackID() (string, error) {
-	prefix := s.code
-	if prefix == "" {
-		cfg, err := s.Config()
-		if err != nil {
-			return "", err
-		}
-
-		prefix = cfg.Prefix
-	}
-
-	return s.NextID(prefix)
-}
-
 // Create mints the next ID for p, writes the task, and maintains the parent's
 // explicit order. A bad After anchor fails before anything is written, so a
 // rejected placement never leaves an orphan task file behind.
@@ -229,7 +214,7 @@ func (s *Store) Create(p CreateParams) (*Task, error) {
 	if p.Parent != "" {
 		id, err = s.NextChildID(p.Parent)
 	} else {
-		id, err = s.nextTrackID()
+		id, err = s.NextID(s.code)
 	}
 
 	if err != nil {

@@ -1,7 +1,7 @@
 ---
 id: BIT-46.11
 title: bitdir and config.toml are gone; the main-checkout cut survives as project.MainCheckout
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: registered project works from the central store
