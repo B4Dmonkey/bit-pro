@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -121,6 +122,8 @@ func TestTaskCreateHandler(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
+		bar.Project, bar.CreatedAt, bar.UpdatedAt = "", time.Time{}, time.Time{}
 
 		want := task.Task{
 			ID: testBarID, Title: testFirstBarTitle, Status: task.StatusTodo,
@@ -304,6 +307,7 @@ func TestTaskUpdateHandler(t *testing.T) {
 					t.Fatal(err)
 				}
 
+				got.Project, got.CreatedAt, got.UpdatedAt = "", time.Time{}, time.Time{}
 				if !reflect.DeepEqual(*got, tt.want) {
 					t.Errorf("task = %+v, want %+v", *got, tt.want)
 				}

@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/spf13/pathologize"
 )
@@ -24,6 +25,7 @@ const (
 
 type Store struct {
 	root, code string
+	now        func() time.Time
 }
 
 func New(root string) *Store {
@@ -31,7 +33,7 @@ func New(root string) *Store {
 }
 
 func NewProject(root, code string) *Store {
-	return &Store{root: root, code: code}
+	return &Store{root: root, code: code, now: time.Now}
 }
 
 func (s *Store) tasksDir() string {
@@ -207,6 +209,15 @@ func (s *Store) loadRecord(path string) (*Task, error) {
 }
 
 func (s *Store) Save(t *Task) error {
+	t.Project = s.code
+
+	ts := s.now().UTC().Truncate(time.Second)
+	if t.CreatedAt.IsZero() {
+		t.CreatedAt = ts
+	}
+
+	t.UpdatedAt = ts
+
 	data, err := newRecord(t, filepath.Base(bodyPath(s.tasksDir(), t.ID))).bytes()
 	if err != nil {
 		return err

@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/B4Dmonkey/bit-pro/task"
 )
@@ -22,6 +23,8 @@ func TestTaskCreateCmd(t *testing.T) {
 		if err != nil {
 			t.Fatalf("loading BIT-1: %v", err)
 		}
+
+		got.Project, got.CreatedAt, got.UpdatedAt = "", time.Time{}, time.Time{}
 
 		want := task.Task{
 			ID:     trackID,

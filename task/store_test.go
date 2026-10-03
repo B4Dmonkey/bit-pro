@@ -10,7 +10,50 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
+
+var (
+	tclock1 = time.Date(2026, 10, 2, 14, 3, 0, 500, time.FixedZone("EDT", -4*3600))
+	tclock2 = tclock1.Add(time.Hour)
+)
+
+const (
+	tstamp1 = "2026-10-02T18:03:00Z"
+	tstamp2 = "2026-10-02T19:03:00Z"
+)
+
+func fixedClock(at *time.Time) func() time.Time {
+	return func() time.Time { return *at }
+}
+
+func readRecord(t *testing.T, root, id string) map[string]any {
+	t.Helper()
+
+	raw, err := os.ReadFile(filepath.Join(root, "tasks", id+".json"))
+	if err != nil {
+		t.Fatalf("reading record %s: %v", id, err)
+	}
+
+	var got map[string]any
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatalf("unmarshaling record %s: %v", id, err)
+	}
+
+	return got
+}
+
+func assertStamps(t *testing.T, rec map[string]any, created, updated string) {
+	t.Helper()
+
+	if rec["created_at"] != created {
+		t.Errorf("created_at = %v, want %s", rec["created_at"], created)
+	}
+
+	if rec["updated_at"] != updated {
+		t.Errorf("updated_at = %v, want %s", rec["updated_at"], updated)
+	}
+}
 
 func TestStorePath(t *testing.T) {
 	t.Parallel()
@@ -482,6 +525,7 @@ func TestStoreSave(t *testing.T) {
 
 		root := t.TempDir()
 		s := NewProject(root, tprefix)
+		s.now = func() time.Time { return tclock1 }
 		body := "## Why\n\n- [ ] a checkbox\n"
 
 		if err := s.Save(&Task{ID: "BIT-7", Title: "Ship it", Status: StatusTodo, Body: body}); err != nil {
@@ -516,6 +560,9 @@ func TestStoreSave(t *testing.T) {
 			"phase_label": "",
 			"order":       []any{},
 			"content":     "BIT-7.md",
+			"project":     tprefix,
+			"created_at":  tstamp1,
+			"updated_at":  tstamp1,
 		}
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("record = %v, want %v", got, want)
@@ -528,6 +575,27 @@ func TestStoreSave(t *testing.T) {
 		if !strings.HasSuffix(string(raw), "}\n") {
 			t.Errorf("record = %q, want a trailing newline", raw)
 		}
+	})
+
+	t.Run("stamps project and timestamps", func(t *testing.T) {
+		t.Parallel()
+
+		root := t.TempDir()
+		s := NewProject(root, tprefix)
+		s.now = func() time.Time { return tclock1 }
+
+		created, err := s.Create(CreateParams{Title: "T"})
+		if err != nil {
+			t.Fatalf("Create() returned error: %v", err)
+		}
+
+		rec := readRecord(t, root, created.ID)
+
+		if rec["project"] != tprefix {
+			t.Errorf("project = %v, want %s", rec["project"], tprefix)
+		}
+
+		assertStamps(t, rec, tstamp1, tstamp1)
 	})
 }
 
@@ -981,6 +1049,32 @@ func TestStoreCreate(t *testing.T) {
 		}
 	})
 
+	t.Run("bumps the parent track updated at and keeps its created at", func(t *testing.T) {
+		t.Parallel()
+
+		root := t.TempDir()
+		s := NewProject(root, tprefix)
+		at := tclock1
+		s.now = fixedClock(&at)
+
+		for _, seed := range []*Task{
+			{ID: tid1, Title: tseed, Status: StatusTodo, Order: []string{tid1_1}},
+			{ID: tid1_1, Title: tbar, Status: StatusTodo},
+		} {
+			if err := s.Save(seed); err != nil {
+				t.Fatalf("seeding %s: %v", seed.ID, err)
+			}
+		}
+
+		at = tclock2
+
+		if _, err := s.Create(CreateParams{Title: tbar, Parent: tid1}); err != nil {
+			t.Fatalf("Create() returned error: %v", err)
+		}
+
+		assertStamps(t, readRecord(t, root, tid1), tstamp1, tstamp2)
+	})
+
 	t.Run("rejects unknown parent", func(t *testing.T) {
 		t.Parallel()
 
@@ -1080,6 +1174,11 @@ func TestStoreUpdate(t *testing.T) {
 				t.Parallel()
 
 				s := New(t.TempDir())
+				s.now = func() time.Time { return tclock1 }
+
+				want := tt.want
+				want.CreatedAt = tclock1.UTC().Truncate(time.Second)
+				want.UpdatedAt = want.CreatedAt
 
 				s0 := seed
 				if err := s.Save(&s0); err != nil {
@@ -1096,15 +1195,36 @@ func TestStoreUpdate(t *testing.T) {
 					t.Fatalf("loading %s: %v", tid1, err)
 				}
 
-				if !reflect.DeepEqual(*got, tt.want) {
-					t.Errorf("Update() = %+v, want %+v", *got, tt.want)
+				if !reflect.DeepEqual(*got, want) {
+					t.Errorf("Update() = %+v, want %+v", *got, want)
 				}
 
-				if !reflect.DeepEqual(*loaded, tt.want) {
-					t.Errorf("Load() = %+v, want %+v", *loaded, tt.want)
+				if !reflect.DeepEqual(*loaded, want) {
+					t.Errorf("Load() = %+v, want %+v", *loaded, want)
 				}
 			})
 		}
+	})
+
+	t.Run("keeps created at and bumps updated at", func(t *testing.T) {
+		t.Parallel()
+
+		root := t.TempDir()
+		s := NewProject(root, tprefix)
+		at := tclock1
+		s.now = fixedClock(&at)
+
+		if err := s.Save(&Task{ID: tid1, Title: "T", Status: StatusTodo}); err != nil {
+			t.Fatalf("seeding %s: %v", tid1, err)
+		}
+
+		at = tclock2
+
+		if _, err := s.Update(tid1, Patch{Body: ptr("b")}); err != nil {
+			t.Fatalf("Update() returned error: %v", err)
+		}
+
+		assertStamps(t, readRecord(t, root, tid1), tstamp1, tstamp2)
 	})
 
 	t.Run("approval revocation", func(t *testing.T) {
@@ -1164,4 +1284,29 @@ func TestStoreUpdate(t *testing.T) {
 
 func ptr[T any](v T) *T {
 	return &v
+}
+
+func TestStoreSetApproved(t *testing.T) {
+	t.Parallel()
+
+	t.Run("keeps created at and bumps updated at", func(t *testing.T) {
+		t.Parallel()
+
+		root := t.TempDir()
+		s := NewProject(root, tprefix)
+		at := tclock1
+		s.now = fixedClock(&at)
+
+		if err := s.Save(&Task{ID: tid1, Title: "T", Status: StatusTodo}); err != nil {
+			t.Fatalf("seeding %s: %v", tid1, err)
+		}
+
+		at = tclock2
+
+		if err := s.SetApproved(tid1, true); err != nil {
+			t.Fatalf("SetApproved() returned error: %v", err)
+		}
+
+		assertStamps(t, readRecord(t, root, tid1), tstamp1, tstamp2)
+	})
 }

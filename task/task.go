@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -17,14 +18,17 @@ const (
 )
 
 type Task struct {
-	ID         string   `yaml:"id"`
-	Title      string   `yaml:"title"`
-	Status     string   `yaml:"status"`
-	Approved   bool     `yaml:"approved,omitempty"`
-	Phase      int      `yaml:"phase,omitempty"`
-	PhaseLabel string   `yaml:"phase_label,omitempty"`
-	Order      []string `yaml:"order,omitempty"`
-	Body       string   `yaml:"-"`
+	ID         string    `yaml:"id"`
+	Title      string    `yaml:"title"`
+	Status     string    `yaml:"status"`
+	Approved   bool      `yaml:"approved,omitempty"`
+	Phase      int       `yaml:"phase,omitempty"`
+	PhaseLabel string    `yaml:"phase_label,omitempty"`
+	Order      []string  `yaml:"order,omitempty"`
+	Body       string    `yaml:"-"`
+	Project    string    `yaml:"-"`
+	CreatedAt  time.Time `yaml:"-"`
+	UpdatedAt  time.Time `yaml:"-"`
 }
 
 func Parse(data []byte) (*Task, error) {

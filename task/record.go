@@ -3,17 +3,21 @@ package task
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 )
 
 type taskRecord struct {
-	ID         string   `json:"id"`
-	Title      string   `json:"title"`
-	Status     string   `json:"status"`
-	Approved   bool     `json:"approved"`
-	Phase      int      `json:"phase"`
-	PhaseLabel string   `json:"phase_label"`
-	Order      []string `json:"order"`
-	Content    string   `json:"content"`
+	ID         string    `json:"id"`
+	Title      string    `json:"title"`
+	Status     string    `json:"status"`
+	Approved   bool      `json:"approved"`
+	Phase      int       `json:"phase"`
+	PhaseLabel string    `json:"phase_label"`
+	Order      []string  `json:"order"`
+	Content    string    `json:"content"`
+	Project    string    `json:"project"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 func newRecord(t *Task, content string) taskRecord {
@@ -31,6 +35,9 @@ func newRecord(t *Task, content string) taskRecord {
 		PhaseLabel: t.PhaseLabel,
 		Order:      order,
 		Content:    content,
+		Project:    t.Project,
+		CreatedAt:  t.CreatedAt,
+		UpdatedAt:  t.UpdatedAt,
 	}
 }
 
@@ -52,6 +59,9 @@ func (r taskRecord) task(body string) *Task {
 		Phase:      r.Phase,
 		PhaseLabel: r.PhaseLabel,
 		Body:       body,
+		Project:    r.Project,
+		CreatedAt:  r.CreatedAt,
+		UpdatedAt:  r.UpdatedAt,
 	}
 
 	for _, id := range r.Order {

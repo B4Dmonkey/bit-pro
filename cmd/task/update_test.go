@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/B4Dmonkey/bit-pro/task"
 )
@@ -52,6 +53,7 @@ func TestTaskUpdateCmd(t *testing.T) {
 				t.Fatalf("loading BIT-1: %v", err)
 			}
 
+			got.Project, got.CreatedAt, got.UpdatedAt = "", time.Time{}, time.Time{}
 			if !reflect.DeepEqual(*got, tt.want) {
 				t.Errorf("task = %+v, want %+v", *got, tt.want)
 			}
