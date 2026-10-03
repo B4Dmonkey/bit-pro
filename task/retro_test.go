@@ -23,8 +23,8 @@ func TestRetroName(t *testing.T) {
 		t.Run(tt.label, func(t *testing.T) {
 			t.Parallel()
 
-			if got := retroName(tt.code, tt.name); got != tt.want {
-				t.Errorf("retroName(%q, %q) = %q, want %q", tt.code, tt.name, got, tt.want)
+			if got := RetroName(tt.code, tt.name); got != tt.want {
+				t.Errorf("RetroName(%q, %q) = %q, want %q", tt.code, tt.name, got, tt.want)
 			}
 		})
 	}

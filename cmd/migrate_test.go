@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/git/gittest"
+	"github.com/B4Dmonkey/bit-pro/migrate"
 	"github.com/B4Dmonkey/bit-pro/project"
 	"github.com/B4Dmonkey/bit-pro/store"
 	"github.com/B4Dmonkey/bit-pro/task"
@@ -353,6 +354,51 @@ func TestMigrateCmd(t *testing.T) {
 		note := readRecord(t, filepath.Join(dataDir(t), "feedback", "BIT-1-001.md"))
 		if !reflect.DeepEqual(note["commits"], []any{}) {
 			t.Errorf("BIT-1-001 commits = %v, want []", note["commits"])
+		}
+	})
+
+	t.Run("a copy that doesn't match leaves nothing behind", func(t *testing.T) {
+		mcpSandbox(t)
+		gittest.Isolate(t)
+
+		dir := t.TempDir()
+		files := v1Files(t, map[string][]*task.Task{
+			testTasksDir: {{ID: testOwnTrack, Title: activeTitle, Status: task.StatusDoing}},
+		})
+		files[filepath.Join("feedback", "BIT-1-1.md")] = []byte("## What happened\n\nHand-numbered.\n")
+		writeV1Store(t, dir, files)
+		before := hashV1Store(t, dir, files)
+		t.Chdir(dir)
+
+		_, err := run(t, migrateCmdUse)
+		if !errors.Is(err, migrate.ErrVerify) {
+			t.Fatalf("bp migrate error = %v, want migrate.ErrVerify", err)
+		}
+
+		if !strings.Contains(err.Error(), "feedback/BIT-1-1.md") {
+			t.Errorf("bp migrate error = %q, want it to name feedback/BIT-1-1.md", err)
+		}
+
+		if projects := listProjects(t); len(projects) != 0 {
+			t.Errorf("ListProjects() = %v, want none", projects)
+		}
+
+		d := dataDir(t)
+
+		if _, err := os.Stat(filepath.Join(d, testPrefix)); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("stat %s project dir = %v, want fs.ErrNotExist", testPrefix, err)
+		}
+
+		if notes, _ := filepath.Glob(filepath.Join(d, "feedback", testPrefix+"-*")); len(notes) != 0 {
+			t.Errorf("feedback = %v, want no %s notes", notes, testPrefix)
+		}
+
+		if stages, _ := filepath.Glob(filepath.Join(d, ".migrate-*")); len(stages) != 0 {
+			t.Errorf("staging left behind: %v", stages)
+		}
+
+		if after := hashV1Store(t, dir, files); !slices.Equal(after, before) {
+			t.Errorf("source hashes changed: before %x, after %x", before, after)
 		}
 	})
 

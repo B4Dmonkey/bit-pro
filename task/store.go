@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -187,12 +188,37 @@ func (s *Store) removeFromOrder(parent, id string) error {
 }
 
 func (s *Store) Load(id string) (*Task, error) {
-	t, err := s.loadRecord(s.Path(id))
+	return s.LoadFrom(Active, id)
+}
+
+func (s *Store) LoadFrom(p Place, id string) (*Task, error) {
+	t, err := s.loadRecord(pathologize.Join(s.placeDir(p), NormalizeID(id)+recordExt))
 	if err != nil {
 		return nil, fmt.Errorf("loading task %s: %w", id, err)
 	}
 
 	return t, nil
+}
+
+func (s *Store) IDs(p Place) ([]string, error) {
+	entries, err := os.ReadDir(s.placeDir(p))
+	if errors.Is(err, fs.ErrNotExist) {
+		return []string{}, nil
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("listing %s: %w", s.placeDir(p), err)
+	}
+
+	ids := []string{}
+
+	for _, e := range entries {
+		if e.Type().IsRegular() && strings.HasSuffix(e.Name(), recordExt) {
+			ids = append(ids, strings.TrimSuffix(e.Name(), recordExt))
+		}
+	}
+
+	return ids, nil
 }
 
 func (s *Store) loadRecord(path string) (*Task, error) {

@@ -29,7 +29,7 @@ func (s *Store) retroDir() string {
 	return filepath.Join(s.data, retroSubdir)
 }
 
-func retroName(code, name string) string {
+func RetroName(code, name string) string {
 	if strings.HasPrefix(name, code+"-") {
 		return name
 	}
@@ -74,7 +74,7 @@ func (s *Store) WriteRetro(name, body string, head Commit) (string, error) {
 		return "", err
 	}
 
-	name = retroName(s.code, name)
+	name = RetroName(s.code, name)
 
 	if err := os.MkdirAll(s.retroDir(), dirMode); err != nil {
 		return "", fmt.Errorf("creating %s: %w", s.retroDir(), err)

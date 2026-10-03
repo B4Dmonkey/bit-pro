@@ -86,6 +86,30 @@ func TestRun(t *testing.T) {
 		}
 	})
 
+	t.Run("registers only after the files are in place", func(t *testing.T) {
+		dir := writeFixture(t)
+		q := runMigrate(t, Options{Dir: dir, Git: (&fakeGit{}).run, Now: now})
+
+		data, root := dirs(t)
+
+		if _, err := os.Stat(filepath.Join(root, "tasks", "BIT-1.json")); err != nil {
+			t.Errorf("tasks/BIT-1.json: %v", err)
+		}
+
+		projects, err := q.ListProjects(t.Context())
+		if err != nil {
+			t.Fatalf("ListProjects() returned error: %v", err)
+		}
+
+		if len(projects) != 1 || projects[0].Code != "BIT" {
+			t.Errorf("ListProjects() = %v, want one BIT row", projects)
+		}
+
+		if stages, _ := filepath.Glob(filepath.Join(data, ".migrate-*")); len(stages) != 0 {
+			t.Errorf("staging left behind: %v", stages)
+		}
+	})
+
 	t.Run("a folder with no git leaves git fields empty", func(t *testing.T) {
 		dir := writeFixture(t)
 		fake := &fakeGit{results: map[string]fakeResult{}}
@@ -109,7 +133,7 @@ func TestRun(t *testing.T) {
 	})
 }
 
-func runMigrate(t *testing.T, opts Options) {
+func runMigrate(t *testing.T, opts Options) *orm.Queries {
 	t.Helper()
 
 	sqlDB, err := db.Open()
@@ -119,9 +143,13 @@ func runMigrate(t *testing.T, opts Options) {
 
 	t.Cleanup(func() { _ = sqlDB.Close() })
 
-	if _, err := Run(t.Context(), orm.New(sqlDB), opts); err != nil {
+	q := orm.New(sqlDB)
+
+	if _, err := Run(t.Context(), q, opts); err != nil {
 		t.Fatalf("Run() returned error: %v", err)
 	}
+
+	return q
 }
 
 func writeFixture(t *testing.T) string {
