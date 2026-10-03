@@ -440,6 +440,56 @@ func TestMigrateCmd(t *testing.T) {
 		}
 	})
 
+	t.Run("stops on task files it can't copy exactly", func(t *testing.T) {
+		mcpSandbox(t)
+		gittest.Isolate(t)
+
+		dir := t.TempDir()
+		files := v1Fixture(t)
+
+		extra, err := (&task.Task{ID: testOwnTrack2, Title: "Extra", Status: task.StatusTodo}).Bytes()
+		if err != nil {
+			t.Fatalf("Bytes(BIT-2) returned error: %v", err)
+		}
+
+		extra = []byte(strings.Replace(string(extra), "---\n", "---\npriority: high\n", 1))
+		files[filepath.Join(testTasksDir, "BIT-2.md")] = extra
+
+		crlf, err := (&task.Task{ID: "BIT-3", Title: "Windows", Status: task.StatusDone}).Bytes()
+		if err != nil {
+			t.Fatalf("Bytes(BIT-3) returned error: %v", err)
+		}
+
+		files[filepath.Join(testCompletedDir, "BIT-3.md")] = []byte(strings.ReplaceAll(string(crlf), "\n", "\r\n"))
+		writeV1Store(t, dir, files)
+		t.Chdir(dir)
+
+		_, err = run(t, migrateCmdUse)
+		if !errors.Is(err, migrate.ErrTaskFiles) {
+			t.Fatalf("bp migrate error = %v, want migrate.ErrTaskFiles", err)
+		}
+
+		for _, want := range []string{"tasks/BIT-2.md: does not round-trip", "completed/BIT-3.md"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("bp migrate error = %q, want it to name %q", err, want)
+			}
+		}
+
+		if projects := listProjects(t); len(projects) != 0 {
+			t.Errorf("ListProjects() = %v, want none", projects)
+		}
+
+		d := dataDir(t)
+
+		if _, err := os.Stat(filepath.Join(d, testPrefix)); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("stat %s project dir = %v, want fs.ErrNotExist", testPrefix, err)
+		}
+
+		if stages, _ := filepath.Glob(filepath.Join(d, ".migrate-*")); len(stages) != 0 {
+			t.Errorf("staging left behind: %v", stages)
+		}
+	})
+
 	t.Run("a note on a missing track stops the migration", func(t *testing.T) {
 		mcpSandbox(t)
 		gittest.Isolate(t)

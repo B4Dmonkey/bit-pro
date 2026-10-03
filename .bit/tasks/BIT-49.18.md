@@ -1,7 +1,7 @@
 ---
 id: BIT-49.18
 title: migrate stops and lists task files that don't parse or don't round-trip byte for byte
-status: todo
+status: done
 approved: true
 phase: 2
 phase_label: bp migrate
