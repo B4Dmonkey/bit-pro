@@ -737,6 +737,48 @@ func TestMigrateCmd(t *testing.T) {
 			t.Errorf("bp migrate error = %q, want it to name BIT-9", err)
 		}
 	})
+	t.Run("walks up from a subfolder", func(t *testing.T) {
+		mcpSandbox(t)
+		gittest.Isolate(t)
+
+		dir := t.TempDir()
+		writeV1Store(t, dir, v1Fixture(t))
+
+		sub := filepath.Join(dir, "src", "pkg")
+		if err := os.MkdirAll(sub, 0o755); err != nil {
+			t.Fatalf("os.MkdirAll(%q) returned error: %v", sub, err)
+		}
+
+		t.Chdir(sub)
+
+		want, err := project.CanonicalPath(dir)
+		if err != nil {
+			t.Fatalf("project.CanonicalPath(%q) returned error: %v", dir, err)
+		}
+
+		out := mustRun(t, migrateCmdUse)
+
+		wantLine := "migrated " + testPrefix + " " + want
+		if first := strings.SplitN(out, "\n", 2)[0]; first != wantLine {
+			t.Errorf("first output line = %q, want %q", first, wantLine)
+		}
+
+		projects := listProjects(t)
+		if len(projects) != 1 || projects[0].Path != want {
+			t.Errorf("ListProjects() = %+v, want one row at %s", projects, want)
+		}
+	})
+
+	t.Run("no bit folder here or above", func(t *testing.T) {
+		mcpSandbox(t)
+		gittest.Isolate(t)
+
+		t.Chdir(t.TempDir())
+
+		if _, err := run(t, migrateCmdUse); !errors.Is(err, migrate.ErrNoBitDir) {
+			t.Fatalf("bp migrate error = %v, want migrate.ErrNoBitDir", err)
+		}
+	})
 }
 
 type migratedRecord struct {

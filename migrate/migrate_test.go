@@ -13,6 +13,7 @@ import (
 
 	"github.com/B4Dmonkey/bit-pro/db"
 	"github.com/B4Dmonkey/bit-pro/db/orm"
+	"github.com/B4Dmonkey/bit-pro/project"
 	"github.com/B4Dmonkey/bit-pro/store"
 	"github.com/B4Dmonkey/bit-pro/task"
 )
@@ -22,6 +23,7 @@ const (
 	headBranch  = "v2"
 	revParse    = "rev-parse HEAD"
 	symbolicRef = "symbolic-ref --short -q HEAD"
+	track       = "BIT-1"
 )
 
 type fakeResult struct {
@@ -131,6 +133,85 @@ func TestRun(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("in a claude worktree reads the main checkout", func(t *testing.T) {
+		dir := writeFixture(t)
+		writeTask(t, filepath.Join(dir, ".bit", "tasks"), &task.Task{ID: "BIT-2", Title: "Live", Status: task.StatusTodo})
+
+		wt := filepath.Join(dir, ".claude", "worktrees", "wt")
+
+		stale := filepath.Join(wt, ".bit")
+		if err := os.MkdirAll(stale, 0o755); err != nil {
+			t.Fatalf("os.MkdirAll(%q) returned error: %v", stale, err)
+		}
+
+		if err := os.WriteFile(filepath.Join(stale, "config.toml"), []byte("prefix = \"BIT\"\n"), 0o600); err != nil {
+			t.Fatalf("os.WriteFile(config.toml) returned error: %v", err)
+		}
+
+		writeTask(t, filepath.Join(stale, "tasks"), &task.Task{ID: track, Title: "Track", Status: task.StatusDoing})
+
+		fake := &fakeGit{results: map[string]fakeResult{
+			revParse:    {out: headSHA + "\n"},
+			symbolicRef: {out: "worktree-wt\n"},
+		}}
+
+		q := runMigrate(t, Options{Dir: wt, Git: fake.run, Now: now})
+
+		want, err := project.CanonicalPath(dir)
+		if err != nil {
+			t.Fatalf("project.CanonicalPath(%q) returned error: %v", dir, err)
+		}
+
+		projects, err := q.ListProjects(t.Context())
+		if err != nil {
+			t.Fatalf("ListProjects() returned error: %v", err)
+		}
+
+		if len(projects) != 1 || projects[0].Path != want {
+			t.Errorf("ListProjects() = %v, want one row at %s", projects, want)
+		}
+
+		_, root := dirs(t)
+
+		for _, id := range []string{track, "BIT-2"} {
+			if _, err := os.Stat(filepath.Join(root, "tasks", id+".json")); err != nil {
+				t.Errorf("tasks/%s.json: %v", id, err)
+			}
+		}
+
+		if got := readJSON(t, filepath.Join(root, "tasks", "BIT-2.json"))["branch"]; got != "worktree-wt" {
+			t.Errorf("BIT-2 branch = %v, want worktree-wt", got)
+		}
+
+		for _, d := range fake.dirs {
+			if d != wt {
+				t.Errorf("git dir = %q, want %q", d, wt)
+			}
+		}
+
+		if len(fake.dirs) == 0 {
+			t.Error("git was never called")
+		}
+	})
+}
+
+func writeTask(t *testing.T, dir string, tk *task.Task) {
+	t.Helper()
+
+	raw, err := tk.Bytes()
+	if err != nil {
+		t.Fatalf("Bytes(%s) returned error: %v", tk.ID, err)
+	}
+
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("os.MkdirAll(%q) returned error: %v", dir, err)
+	}
+
+	path := filepath.Join(dir, tk.ID+".md")
+	if err := os.WriteFile(path, raw, 0o600); err != nil {
+		t.Fatalf("os.WriteFile(%q) returned error: %v", path, err)
+	}
 }
 
 func runMigrate(t *testing.T, opts Options) *orm.Queries {
@@ -160,13 +241,13 @@ func writeFixture(t *testing.T) string {
 
 	files := map[string][]byte{
 		"config.toml": []byte("prefix = \"BIT\"\n"),
-		filepath.Join("feedback", "BIT-1-001.md"):      []byte("## What happened\n\nA note.\n"),
-		filepath.Join("research", "BIT-1", "index.md"): []byte("## Findings\n"),
-		filepath.Join("retro", "album-proposals.md"):   []byte("## Proposal 1\n"),
+		filepath.Join("feedback", "BIT-1-001.md"):    []byte("## What happened\n\nA note.\n"),
+		filepath.Join("research", track, "index.md"): []byte("## Findings\n"),
+		filepath.Join("retro", "album-proposals.md"): []byte("## Proposal 1\n"),
 	}
 
 	for place, tk := range map[string]*task.Task{
-		"tasks":     {ID: "BIT-1", Title: "Track", Status: task.StatusDoing, Order: []string{"BIT-1.1"}},
+		"tasks":     {ID: track, Title: "Track", Status: task.StatusDoing, Order: []string{"BIT-1.1"}},
 		"completed": {ID: "BIT-1.1", Title: "Bar", Status: task.StatusDone},
 	} {
 		raw, err := tk.Bytes()
@@ -219,7 +300,7 @@ func taskRecords(root string) []string {
 func sharedRecords(data, root string) []string {
 	return []string{
 		filepath.Join(data, "feedback", "BIT-1-001.json"),
-		filepath.Join(root, "research", "BIT-1", "index.json"),
+		filepath.Join(root, "research", track, "index.json"),
 		filepath.Join(data, "retro", "BIT-album-proposals.json"),
 	}
 }

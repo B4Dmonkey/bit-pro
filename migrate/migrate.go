@@ -41,15 +41,13 @@ type config struct {
 }
 
 func Run(ctx context.Context, q *orm.Queries, opts Options) (Result, error) {
-	src := filepath.Join(opts.Dir, ".bit")
-
-	h := git.ReadHead(ctx, opts.Git, opts.Dir)
-	head := task.Commit{SHA: h.SHA, Branch: h.Branch, At: opts.Now()}
-
-	path, err := project.CanonicalPath(filepath.Dir(src))
+	src, path, err := source(opts.Dir)
 	if err != nil {
 		return Result{}, err
 	}
+
+	h := git.ReadHead(ctx, opts.Git, opts.Dir)
+	head := task.Commit{SHA: h.SHA, Branch: h.Branch, At: opts.Now()}
 
 	ps, res, err := already(ctx, q, path)
 	if err != nil || res.Already {
