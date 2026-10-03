@@ -1,7 +1,7 @@
 ---
 id: BIT-46.21
 title: bp add on a removed project's path revives it with its archive intact
-status: todo
+status: done
 approved: true
 phase: 3
 phase_label: bp remove soft-deletes a project

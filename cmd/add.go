@@ -40,9 +40,8 @@ func newAddCmd(run claude.Runner) *cobra.Command {
 				return err
 			}
 
-			if registered(projects, path) {
-				fmt.Fprintln(cmd.OutOrStdout(), "already added")
-				return nil
+			if p, ok := project.ByPath(projects, path); ok {
+				return addExisting(cmd, queries, p)
 			}
 
 			if _, err := os.Stat(filepath.Join(path, ".bit")); err == nil {
@@ -75,14 +74,20 @@ func newAddCmd(run claude.Runner) *cobra.Command {
 	}
 }
 
-func registered(projects []project.Project, path string) bool {
-	for _, p := range projects {
-		if strings.EqualFold(p.Path, path) {
-			return true
-		}
+func addExisting(cmd *cobra.Command, queries *orm.Queries, p project.Project) error {
+	if !p.Removed {
+		fmt.Fprintln(cmd.OutOrStdout(), "already added")
+		return nil
 	}
 
-	return false
+	params := orm.SetProjectRemovedParams{Removed: 0, ID: p.ID}
+	if err := queries.SetProjectRemoved(cmd.Context(), params); err != nil {
+		return fmt.Errorf("reviving %s: %w", p.Path, err)
+	}
+
+	fmt.Fprintf(cmd.OutOrStdout(), "revived %s %s\n", p.Code, p.Path)
+
+	return nil
 }
 
 func readProjectCode(cmd *cobra.Command) (string, error) {

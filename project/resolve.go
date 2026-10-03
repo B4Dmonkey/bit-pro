@@ -87,6 +87,16 @@ func Resolve(projects []Project, dir string) (Project, error) {
 	return Project{}, fmt.Errorf("%s: %w", dir, ErrNotRegistered)
 }
 
+func ByPath(projects []Project, path string) (Project, bool) {
+	for _, p := range projects {
+		if strings.EqualFold(p.Path, path) {
+			return p, true
+		}
+	}
+
+	return Project{}, false
+}
+
 func Load(ctx context.Context, q *orm.Queries) ([]Project, error) {
 	rows, err := q.ListProjects(ctx)
 	if err != nil {

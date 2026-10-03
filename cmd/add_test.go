@@ -303,6 +303,69 @@ func TestAddCmd(t *testing.T) {
 		}
 	})
 
+	t.Run("revives a removed project", func(t *testing.T) {
+		tests := []struct {
+			name  string
+			typed func(path string) string
+		}{
+			{name: "same case", typed: func(path string) string { return path }},
+			{name: "different case", typed: strings.ToUpper},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				dir := initProject(t, testPrefix)
+				root := storeDir(t)
+
+				path, err := project.CanonicalPath(dir)
+				if err != nil {
+					t.Fatalf("CanonicalPath(%q) returned error: %v", dir, err)
+				}
+
+				mustRun(t, "task", "create", "One")
+				mustRun(t, "task", "create", "Two")
+
+				if _, err := runWithStdin(t, "y\n", removeCmdUse); err != nil {
+					t.Fatalf("bp remove returned error: %v", err)
+				}
+
+				var calls [][]string
+
+				runner := func(_ context.Context, name string, args ...string) error {
+					calls = append(calls, append([]string{name}, args...))
+					return nil
+				}
+
+				out, err := runWithRunner(t, runner, "", addCmdUse, tt.typed(path))
+				if err != nil {
+					t.Fatalf("bp add returned error: %v", err)
+				}
+
+				if wantOut := "revived " + testPrefix + " " + path + "\n"; out != wantOut {
+					t.Errorf("output = %q, want %q", out, wantOut)
+				}
+
+				if len(calls) != 0 {
+					t.Errorf("calls = %v, want none", calls)
+				}
+
+				if p := loadProject(t, path); p.Removed {
+					t.Errorf("project %s Removed = true, want false", path)
+				}
+
+				if out := mustRun(t, "task", "list"); strings.Contains(out, "BIT-") {
+					t.Errorf("bp task list = %q, want no tracks", out)
+				}
+
+				assertExists(t, filepath.Join(root, "archive", "tasks", "BIT-1.json"))
+
+				if out := mustRun(t, "task", "create", "Next"); out != "BIT-3\n" {
+					t.Errorf("bp task create = %q, want %q", out, "BIT-3\n")
+				}
+			})
+		}
+	})
+
 	t.Run("refuses a code already taken", func(t *testing.T) {
 		t.Setenv("HOME", t.TempDir())
 		t.Setenv("XDG_DATA_HOME", "")
