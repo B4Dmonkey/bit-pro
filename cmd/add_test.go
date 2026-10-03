@@ -16,48 +16,41 @@ import (
 )
 
 func TestAddCmd(t *testing.T) {
-	t.Run("enrolls using the bit prefix", func(t *testing.T) {
-		home := t.TempDir()
-		t.Setenv("HOME", home)
+	t.Run("refuses an unregistered folder with bit", func(t *testing.T) {
+		t.Setenv("HOME", t.TempDir())
 		t.Setenv("XDG_DATA_HOME", "")
+		t.Chdir(t.TempDir())
 
-		initProject(t, testPrefix)
-
-		want, err := filepath.Abs(".")
-		if err != nil {
-			t.Fatalf("filepath.Abs(.) returned error: %v", err)
+		if err := os.MkdirAll(".bit", 0o755); err != nil {
+			t.Fatalf("os.MkdirAll(.bit) returned error: %v", err)
 		}
 
-		out, err := runWithStdin(t, "\n", addCmdUse, ".")
-		if err != nil {
-			t.Fatalf("Execute() returned error: %v", err)
+		if err := os.WriteFile(filepath.Join(".bit", "config.toml"), []byte("prefix = \"BIT\"\n"), 0o600); err != nil {
+			t.Fatalf("os.WriteFile(.bit/config.toml) returned error: %v", err)
 		}
 
-		if wantOut := "Project code (BIT): added BIT " + want + "\n"; out != wantOut {
-			t.Errorf("output = %q, want %q", out, wantOut)
+		var calls [][]string
+
+		run := func(_ context.Context, name string, args ...string) error {
+			calls = append(calls, append([]string{name}, args...))
+			return nil
 		}
 
-		sqlDB, err := db.Open()
-		if err != nil {
-			t.Fatalf("db.Open() returned error: %v", err)
-		}
-		defer sqlDB.Close()
-
-		projects, err := orm.New(sqlDB).ListProjects(t.Context())
-		if err != nil {
-			t.Fatalf("ListProjects() returned error: %v", err)
+		out, err := runWithRunner(t, run, "BIT\n", addCmdUse, ".")
+		if !errors.Is(err, project.ErrNeedsMigrate) {
+			t.Fatalf("Execute() error = %v, want %v", err, project.ErrNeedsMigrate)
 		}
 
-		if len(projects) != 1 {
-			t.Fatalf("ListProjects() returned %d projects, want 1", len(projects))
+		if strings.Contains(out, "Project code") {
+			t.Errorf("output = %q, want no %q", out, "Project code")
 		}
 
-		if projects[0].Code != testPrefix {
-			t.Errorf("Code = %q, want %q", projects[0].Code, testPrefix)
+		if len(calls) != 0 {
+			t.Errorf("calls = %v, want none", calls)
 		}
 
-		if projects[0].Path != want {
-			t.Errorf("Path = %q, want %q", projects[0].Path, want)
+		if projects := listProjects(t); len(projects) != 0 {
+			t.Errorf("ListProjects() returned %d projects, want 0", len(projects))
 		}
 	})
 
@@ -74,9 +67,9 @@ func TestAddCmd(t *testing.T) {
 			return nil
 		}
 
-		want, err := filepath.Abs(".")
+		want, err := project.CanonicalPath(".")
 		if err != nil {
-			t.Fatalf("filepath.Abs(.) returned error: %v", err)
+			t.Fatalf("project.CanonicalPath(.) returned error: %v", err)
 		}
 
 		out, err := runWithRunner(t, run, "BIT\n", addCmdUse, ".")
@@ -146,15 +139,13 @@ func TestAddCmd(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
-				home := t.TempDir()
-				t.Setenv("HOME", home)
+				t.Setenv("HOME", t.TempDir())
 				t.Setenv("XDG_DATA_HOME", "")
+				t.Chdir(t.TempDir())
 
-				initProject(t, testPrefix)
-
-				want, err := filepath.Abs(".")
+				want, err := project.CanonicalPath(".")
 				if err != nil {
-					t.Fatalf("filepath.Abs(.) returned error: %v", err)
+					t.Fatalf("project.CanonicalPath(.) returned error: %v", err)
 				}
 
 				out, err := runWithStdin(t, tt.typed+"\n", addCmdUse, ".")
@@ -162,27 +153,25 @@ func TestAddCmd(t *testing.T) {
 					t.Fatalf("Execute() returned error: %v", err)
 				}
 
-				if wantOut := "Project code (BIT): added " + testCode + " " + want + "\n"; out != wantOut {
+				wantOut := "Project code: Bringing the bit plugin current...\n" +
+					"Registering bit MCP server...\n" +
+					"bit MCP server registered (local scope).\n" +
+					"added " + testCode + " " + want + "\n"
+				if out != wantOut {
 					t.Errorf("output = %q, want %q", out, wantOut)
 				}
 
-				sqlDB, err := db.Open()
-				if err != nil {
-					t.Fatalf("db.Open() returned error: %v", err)
-				}
-				defer sqlDB.Close()
-
-				projects, err := orm.New(sqlDB).ListProjects(t.Context())
-				if err != nil {
-					t.Fatalf("ListProjects() returned error: %v", err)
-				}
-
+				projects := listProjects(t)
 				if len(projects) != 1 {
 					t.Fatalf("ListProjects() returned %d projects, want 1", len(projects))
 				}
 
 				if projects[0].Code != testCode {
 					t.Errorf("Code = %q, want %q", projects[0].Code, testCode)
+				}
+
+				if projects[0].Path != want {
+					t.Errorf("Path = %q, want %q", projects[0].Path, want)
 				}
 			})
 		}
@@ -262,17 +251,26 @@ func TestAddCmd(t *testing.T) {
 	})
 
 	t.Run("skips a path already enrolled", func(t *testing.T) {
-		home := t.TempDir()
-		t.Setenv("HOME", home)
+		t.Setenv("HOME", t.TempDir())
 		t.Setenv("XDG_DATA_HOME", "")
 
-		initProject(t, testPrefix)
+		tmp := t.TempDir()
+		if err := os.Mkdir(filepath.Join(tmp, "Repo"), 0o755); err != nil {
+			t.Fatalf("os.Mkdir(Repo) returned error: %v", err)
+		}
 
-		if _, err := runWithStdin(t, "\n", addCmdUse, "."); err != nil {
+		if _, err := runWithStdin(t, testCode+"\n", addCmdUse, filepath.Join(tmp, "Repo")); err != nil {
 			t.Fatalf("first Execute() returned error: %v", err)
 		}
 
-		out, err := runWithStdin(t, "\n", addCmdUse, ".")
+		var calls [][]string
+
+		run := func(_ context.Context, name string, args ...string) error {
+			calls = append(calls, append([]string{name}, args...))
+			return nil
+		}
+
+		out, err := runWithRunner(t, run, testCode+"\n", addCmdUse, filepath.Join(tmp, "repo"))
 		if err != nil {
 			t.Fatalf("second Execute() returned error: %v", err)
 		}
@@ -281,19 +279,67 @@ func TestAddCmd(t *testing.T) {
 			t.Errorf("output = %q, want %q", out, wantOut)
 		}
 
-		sqlDB, err := db.Open()
-		if err != nil {
-			t.Fatalf("db.Open() returned error: %v", err)
-		}
-		defer sqlDB.Close()
-
-		projects, err := orm.New(sqlDB).ListProjects(t.Context())
-		if err != nil {
-			t.Fatalf("ListProjects() returned error: %v", err)
+		if len(calls) != 0 {
+			t.Errorf("calls = %v, want none", calls)
 		}
 
-		if len(projects) != 1 {
+		if projects := listProjects(t); len(projects) != 1 {
 			t.Fatalf("ListProjects() returned %d projects, want 1", len(projects))
 		}
 	})
+
+	t.Run("allows a path inside a registered path", func(t *testing.T) {
+		t.Setenv("HOME", t.TempDir())
+		t.Setenv("XDG_DATA_HOME", "")
+
+		tmp := t.TempDir()
+
+		if _, err := runWithStdin(t, "ACME\n", addCmdUse, tmp); err != nil {
+			t.Fatalf("first Execute() returned error: %v", err)
+		}
+
+		if _, err := runWithStdin(t, "API\n", addCmdUse, filepath.Join(tmp, "api")); err != nil {
+			t.Fatalf("second Execute() returned error: %v", err)
+		}
+
+		if projects := listProjects(t); len(projects) != 2 {
+			t.Fatalf("ListProjects() returned %d projects, want 2", len(projects))
+		}
+	})
+
+	t.Run("refuses a code already taken", func(t *testing.T) {
+		t.Setenv("HOME", t.TempDir())
+		t.Setenv("XDG_DATA_HOME", "")
+
+		tmp := t.TempDir()
+
+		if _, err := runWithStdin(t, testCode+"\n", addCmdUse, filepath.Join(tmp, "a")); err != nil {
+			t.Fatalf("first Execute() returned error: %v", err)
+		}
+
+		if _, err := runWithStdin(t, testCode+"\n", addCmdUse, filepath.Join(tmp, "b")); err == nil {
+			t.Fatal("second Execute() returned nil error, want one")
+		}
+
+		if projects := listProjects(t); len(projects) != 1 {
+			t.Fatalf("ListProjects() returned %d projects, want 1", len(projects))
+		}
+	})
+}
+
+func listProjects(t *testing.T) []orm.Project {
+	t.Helper()
+
+	sqlDB, err := db.Open()
+	if err != nil {
+		t.Fatalf("db.Open() returned error: %v", err)
+	}
+	defer sqlDB.Close()
+
+	projects, err := orm.New(sqlDB).ListProjects(t.Context())
+	if err != nil {
+		t.Fatalf("ListProjects() returned error: %v", err)
+	}
+
+	return projects
 }

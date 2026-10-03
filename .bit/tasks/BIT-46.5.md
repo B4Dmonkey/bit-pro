@@ -1,7 +1,7 @@
 ---
 id: BIT-46.5
 title: bp add registers the canonical path and refuses an unregistered .bit/ folder
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: registered project works from the central store

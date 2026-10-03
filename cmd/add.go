@@ -2,9 +2,7 @@ package cmd
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,7 +11,6 @@ import (
 	"github.com/B4Dmonkey/bit-pro/db"
 	"github.com/B4Dmonkey/bit-pro/db/orm"
 	"github.com/B4Dmonkey/bit-pro/project"
-	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/spf13/cobra"
 )
 
@@ -25,9 +22,9 @@ func newAddCmd(run claude.Runner) *cobra.Command {
 		Short: "Enroll a project in the registry",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			abs, err := filepath.Abs(args[0])
+			path, err := project.CanonicalPath(args[0])
 			if err != nil {
-				return fmt.Errorf("resolving %s: %w", args[0], err)
+				return err
 			}
 
 			sqlDB, err := db.Open()
@@ -38,22 +35,21 @@ func newAddCmd(run claude.Runner) *cobra.Command {
 
 			queries := orm.New(sqlDB)
 
-			enrolled, err := queries.ProjectExists(cmd.Context(), abs)
+			projects, err := project.Load(cmd.Context(), queries)
 			if err != nil {
-				return fmt.Errorf("looking up %s: %w", abs, err)
+				return err
 			}
 
-			if enrolled {
+			if registered(projects, path) {
 				fmt.Fprintln(cmd.OutOrStdout(), "already added")
 				return nil
 			}
 
-			var existing string
-			if cfg, err := task.New(filepath.Join(abs, ".bit")).Config(); err == nil {
-				existing = cfg.Prefix
+			if _, err := os.Stat(filepath.Join(path, ".bit")); err == nil {
+				return fmt.Errorf("%s: %w", path, project.ErrNeedsMigrate)
 			}
 
-			typed, err := readProjectCode(cmd, existing)
+			typed, err := readProjectCode(cmd)
 			if err != nil {
 				return err
 			}
@@ -63,40 +59,39 @@ func newAddCmd(run claude.Runner) *cobra.Command {
 				return err
 			}
 
-			if _, err := os.Stat(filepath.Join(abs, ".bit")); errors.Is(err, fs.ErrNotExist) {
-				if err := writeClaudeWiring(cmd, run, abs); err != nil {
-					return err
-				}
+			if err := writeClaudeWiring(cmd, run, path); err != nil {
+				return err
 			}
 
-			params := orm.CreateProjectParams{Path: abs, Code: code}
+			params := orm.CreateProjectParams{Path: path, Code: code}
 			if err := queries.CreateProject(cmd.Context(), params); err != nil {
-				return fmt.Errorf("registering %s: %w", abs, err)
+				return fmt.Errorf("registering %s: %w", path, err)
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "added %s %s\n", code, abs)
+			fmt.Fprintf(cmd.OutOrStdout(), "added %s %s\n", code, path)
 
 			return nil
 		},
 	}
 }
 
-func readProjectCode(cmd *cobra.Command, existing string) (string, error) {
-	if existing != "" {
-		fmt.Fprintf(cmd.OutOrStdout(), "Project code (%s): ", existing)
-	} else {
-		fmt.Fprint(cmd.OutOrStdout(), "Project code: ")
+func registered(projects []project.Project, path string) bool {
+	for _, p := range projects {
+		if strings.EqualFold(p.Path, path) {
+			return true
+		}
 	}
+
+	return false
+}
+
+func readProjectCode(cmd *cobra.Command) (string, error) {
+	fmt.Fprint(cmd.OutOrStdout(), "Project code: ")
 
 	line, err := bufio.NewReader(cmd.InOrStdin()).ReadString('\n')
 	if err != nil && line == "" {
 		return "", fmt.Errorf("reading project code: %w", err)
 	}
 
-	code := strings.TrimSpace(line)
-	if code == "" {
-		code = existing
-	}
-
-	return code, nil
+	return strings.TrimSpace(line), nil
 }
