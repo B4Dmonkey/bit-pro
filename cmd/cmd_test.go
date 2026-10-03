@@ -100,18 +100,6 @@ func storeDir(t *testing.T) string {
 	return dir
 }
 
-func mcpLookupCall() []string {
-	return []string{claudeBin, serveMCPCmdUse, "get", "bit"}
-}
-
-func pluginSyncCalls() [][]string {
-	return [][]string{
-		{claudeBin, "plugin", "marketplace", updateCmd, "bit-pro"},
-		{claudeBin, "plugin", updateCmd, "bit@bit-pro", "--scope", "project"},
-		mcpLookupCall(),
-	}
-}
-
 func createTask(t *testing.T, title, description string) {
 	t.Helper()
 	mustRun(t, "task", "create", title, "--description", description)

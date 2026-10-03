@@ -2,7 +2,6 @@ package cmd
 
 const (
 	updateCmd  = "update"
-	claudeBin  = "claude"
 	testPrefix = "BIT"
 	testCode   = "FOO"
 	v010       = "0.1.0"

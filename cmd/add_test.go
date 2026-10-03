@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/B4Dmonkey/bit-pro/claude"
 	"github.com/B4Dmonkey/bit-pro/db"
 	"github.com/B4Dmonkey/bit-pro/db/orm"
 	"github.com/B4Dmonkey/bit-pro/project"
@@ -73,33 +74,22 @@ func TestAddCmd(t *testing.T) {
 			t.Fatalf("Execute() returned error: %v", err)
 		}
 
-		wantOut := "Project code: Bringing the bit plugin current...\n" +
-			"Registering bit MCP server...\n" +
-			"bit MCP server registered (local scope).\n" +
-			"added BIT " + want + "\n"
+		wantOut := "Project code: added BIT " + want + "\n" +
+			"Setting up bit in Claude Code (user scope)...\n"
 		if out != wantOut {
 			t.Errorf("output = %q, want %q", out, wantOut)
 		}
 
-		prompt := strings.SplitN(out, "Bringing", 2)[0]
+		prompt := strings.SplitN(out, "added", 2)[0]
 		if strings.Contains(prompt, "(") {
 			t.Errorf("prompt = %q, want no %q", prompt, "(")
-		}
-
-		data, err := os.ReadFile(filepath.Join(".claude", "settings.json"))
-		if err != nil {
-			t.Fatalf("os.ReadFile(.claude/settings.json) returned error: %v", err)
-		}
-
-		if !strings.Contains(string(data), "bit@bit-pro") {
-			t.Errorf("settings.json = %s, want it to contain %q", data, "bit@bit-pro")
 		}
 
 		if _, err := os.Stat(".bit"); !errors.Is(err, fs.ErrNotExist) {
 			t.Errorf("os.Stat(.bit) error = %v, want fs.ErrNotExist", err)
 		}
 
-		wantCalls := pluginSyncCalls()
+		wantCalls := claude.GlobalWiring()
 		if !slices.EqualFunc(calls, wantCalls, slices.Equal) {
 			t.Errorf("calls = %v, want %v", calls, wantCalls)
 		}
@@ -149,10 +139,8 @@ func TestAddCmd(t *testing.T) {
 					t.Fatalf("Execute() returned error: %v", err)
 				}
 
-				wantOut := "Project code: Bringing the bit plugin current...\n" +
-					"Registering bit MCP server...\n" +
-					"bit MCP server registered (local scope).\n" +
-					"added " + testCode + " " + want + "\n"
+				wantOut := "Project code: added " + testCode + " " + want + "\n" +
+					"Setting up bit in Claude Code (user scope)...\n"
 				if out != wantOut {
 					t.Errorf("output = %q, want %q", out, wantOut)
 				}
@@ -182,10 +170,6 @@ func TestAddCmd(t *testing.T) {
 		_, err := runWithStdin(t, "\n", addCmdUse, ".")
 		if !errors.Is(err, project.ErrInvalidCode) {
 			t.Fatalf("Execute() error = %v, want %v", err, project.ErrInvalidCode)
-		}
-
-		if _, err := os.Stat(filepath.Join(".claude", "settings.json")); !errors.Is(err, fs.ErrNotExist) {
-			t.Errorf("os.Stat(.claude/settings.json) error = %v, want fs.ErrNotExist", err)
 		}
 
 		sqlDB, err := db.Open()
@@ -224,10 +208,6 @@ func TestAddCmd(t *testing.T) {
 
 		if len(calls) != 0 {
 			t.Errorf("calls = %v, want none", calls)
-		}
-
-		if _, err := os.Stat(filepath.Join(".claude", "settings.json")); !errors.Is(err, fs.ErrNotExist) {
-			t.Errorf("os.Stat(.claude/settings.json) error = %v, want fs.ErrNotExist", err)
 		}
 
 		sqlDB, err := db.Open()
@@ -432,8 +412,19 @@ func TestAddCmd(t *testing.T) {
 			t.Fatalf("first Execute() returned error: %v", err)
 		}
 
-		if _, err := runWithStdin(t, testCode+"\n", addCmdUse, filepath.Join(tmp, "b")); err == nil {
+		var calls [][]string
+
+		run := func(_ context.Context, name string, args ...string) error {
+			calls = append(calls, append([]string{name}, args...))
+			return nil
+		}
+
+		if _, err := runWithRunner(t, run, testCode+"\n", addCmdUse, filepath.Join(tmp, "b")); err == nil {
 			t.Fatal("second Execute() returned nil error, want one")
+		}
+
+		if len(calls) != 0 {
+			t.Errorf("calls = %v, want none", calls)
 		}
 
 		if projects := listProjects(t); len(projects) != 1 {

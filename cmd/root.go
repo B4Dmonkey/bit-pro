@@ -42,8 +42,6 @@ func pluginRoot() string {
 
 var refreshMarketplace = claude.RefreshMarketplace
 
-const claudeDir = ".claude"
-
 const (
 	quietAnnotation = "bit.quiet"
 	quietEnabled    = "true"

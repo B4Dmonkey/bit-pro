@@ -63,10 +63,6 @@ func newAddCmd(run claude.Runner) *cobra.Command {
 					p.Code, p.Path, project.ErrCodeRemoved)
 			}
 
-			if err := writeClaudeWiring(cmd, run, path); err != nil {
-				return err
-			}
-
 			params := orm.CreateProjectParams{Path: path, Code: code}
 			if err := queries.CreateProject(cmd.Context(), params); err != nil {
 				return fmt.Errorf("registering %s: %w", path, err)
@@ -74,7 +70,7 @@ func newAddCmd(run claude.Runner) *cobra.Command {
 
 			fmt.Fprintf(cmd.OutOrStdout(), "added %s %s\n", code, path)
 
-			return nil
+			return ensureGlobalWiring(cmd, run)
 		},
 	}
 }

@@ -1,7 +1,7 @@
 ---
 id: BIT-48.3
 title: A fresh bp add registers first, then ensures the global wiring
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: bp add sets bit up for the whole machine
