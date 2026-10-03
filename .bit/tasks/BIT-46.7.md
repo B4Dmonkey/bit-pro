@@ -1,7 +1,7 @@
 ---
 id: BIT-46.7
 title: bp init is gone and the test fixtures register their project
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: registered project works from the central store

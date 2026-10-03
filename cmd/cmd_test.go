@@ -8,6 +8,9 @@ import (
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/claude"
+	"github.com/B4Dmonkey/bit-pro/db/orm"
+	"github.com/B4Dmonkey/bit-pro/project"
+	"github.com/B4Dmonkey/bit-pro/task"
 )
 
 func run(t *testing.T, args ...string) (string, error) {
@@ -53,15 +56,24 @@ func mustRun(t *testing.T, args ...string) string {
 func initProject(t *testing.T, prefix string) string {
 	t.Helper()
 
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", "")
+
 	dir := t.TempDir()
 	t.Chdir(dir)
-	mustRun(t, "init", "--prefix", prefix)
+
+	path, err := project.CanonicalPath(dir)
+	if err != nil {
+		t.Fatalf("CanonicalPath(%q) returned error: %v", dir, err)
+	}
+
+	seedProject(t, orm.CreateProjectParams{Path: path, Code: prefix})
+
+	if err := task.New(".bit").SaveConfig(&task.Config{Prefix: prefix}); err != nil {
+		t.Fatalf("SaveConfig(%q) returned error: %v", prefix, err)
+	}
 
 	return dir
-}
-
-func mcpRegisterCall() []string {
-	return []string{claudeBin, serveMCPCmdUse, addCmdUse, "bit", "--", "bp", serveCmdUse, serveMCPCmdUse}
 }
 
 func mcpLookupCall() []string {

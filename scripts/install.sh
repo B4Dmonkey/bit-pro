@@ -19,4 +19,4 @@ claude plugin marketplace add B4Dmonkey/bit-pro
 
 echo
 echo "Installed $dir/bp"
-echo "Run 'bp init' in a project to set it up."
+echo "Run 'bp add <path>' in a project to register it."

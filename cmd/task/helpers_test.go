@@ -6,6 +6,9 @@ import (
 	"testing"
 
 	taskcmd "github.com/B4Dmonkey/bit-pro/cmd/task"
+	"github.com/B4Dmonkey/bit-pro/db"
+	"github.com/B4Dmonkey/bit-pro/db/orm"
+	"github.com/B4Dmonkey/bit-pro/project"
 	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/spf13/cobra"
 )
@@ -53,14 +56,39 @@ func mustRun(t *testing.T, args ...string) string {
 func initProject(t *testing.T, prefix string) string {
 	t.Helper()
 
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", "")
+
 	dir := t.TempDir()
 	t.Chdir(dir)
+
+	path, err := project.CanonicalPath(dir)
+	if err != nil {
+		t.Fatalf("CanonicalPath(%q) returned error: %v", dir, err)
+	}
+
+	seedProject(t, orm.CreateProjectParams{Path: path, Code: prefix})
 
 	if err := task.New(".bit").SaveConfig(&task.Config{Prefix: prefix}); err != nil {
 		t.Fatalf("SaveConfig(%q) returned error: %v", prefix, err)
 	}
 
 	return dir
+}
+
+func seedProject(t *testing.T, params orm.CreateProjectParams) {
+	t.Helper()
+
+	sqlDB, err := db.Open()
+	if err != nil {
+		t.Fatalf("db.Open() returned error: %v", err)
+	}
+
+	defer sqlDB.Close()
+
+	if err := orm.New(sqlDB).CreateProject(t.Context(), params); err != nil {
+		t.Fatalf("CreateProject(%+v) returned error: %v", params, err)
+	}
 }
 
 func approve(t *testing.T, id string) {
