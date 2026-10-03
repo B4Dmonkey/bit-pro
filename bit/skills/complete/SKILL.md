@@ -18,7 +18,7 @@ Take every track ID the user named. IDs are case-insensitive, and the tools norm
 ## For each track
 
 1. **Read it.** Run `mcp__bit__task_list` with `parent` set to the track to get its bars, and `mcp__bit__task_read` on the track to get its body.
-2. **Check where it landed.** Run `mcp__bit__task_landing` with the track's `id`. It reads git and never writes. It returns `trunk`, `branch`, `shallow`, `verdict`, `landing`, the `unfinished` bars, and each bar's class: `landed`, `pushed` (pushed but not merged), `local` (only on a local branch), `unresolvable`, or `no_hash`, with its `landing` and whether to `repoint` it.
+2. **Check where it landed.** Run `mcp__bit__task_landing` with the track's `id`. It reads git and never writes. It returns `trunk`, `branch`, `shallow`, `verdict`, `landing`, the `unfinished` bars, and each bar's class: `landed`, `squash` (landed through a GitHub squash that lists its subject), `pushed` (pushed but not merged), `local` (only on a local branch), `unresolvable`, or `no_hash`, with its `landing` and whether to `repoint` it.
 3. **Act on the first case that applies.** Unfinished bars are never marked `done` without the operator's OK, and `task_complete` refuses a track that still has them.
    - **`shallow` is true:** say "this clone is shallow, so git can't see where the work landed: run `git fetch --unshallow`, then `/bit:complete <ID>` again". Stop, and file nothing.
    - **`done`:** go on to step 4.
@@ -31,7 +31,7 @@ Take every track ID the user named. IDs are case-insensitive, and the tools norm
    - **"not on trunk":** relay it: the PR or commit isn't on `trunk`, so fetch and retry.
    - **a PR matching more than one commit:** show the SHAs it lists, ask which one, and call again with that `commit`.
    - **"not a commit":** say so and ask again.
-4. **Repoint bars.** For each bar the latest `task_landing` marked `repoint: true`, run `mcp__bit__task_update` with `{id: <bar>, commit: <its landing>}`, so the bar records the commit that reached trunk.
+4. **Repoint bars.** For each bar the latest `task_landing` marked `repoint: true`, run `mcp__bit__task_update` with `{id: <bar>, commit: <its landing>}`, so the bar records the commit that reached trunk. Bars landed through a GitHub squash (`class: squash`) are repointed this way to their own squash, and the track records the newest squash as its `landing`.
 5. **Mark the track done.** Run `mcp__bit__task_update` on the track with `status: done`. If the body has unchecked verse items (`- [ ]`), check them off in the same call by passing the edited `body`, so the track body agrees with its status.
 6. **File it.** Run `mcp__bit__task_complete` with the track's `id`, `commit` set to `landing`, and `branch` set to `branch`. This records the landing commit on the track, then files the track and all its bars as completed.
 7. **Confirm it landed.** Run `mcp__bit__task_list` with no `parent`. The track must be gone from the list. If it's still there, or `task_complete` returned an error, report the exact error and stop. Never tell the user a track is complete when it's still listed.
@@ -42,4 +42,4 @@ If one track fails, finish the others and report each track's result separately.
 
 ## Report
 
-Keep the report short, one line per track: the ID and its outcome: filed (with its landing commit, first 12 characters, and branch, when it has one, and the IDs of any repointed bars), kept open, archived, or waiting on fetch. There's nothing to commit afterwards: the store lives outside the repo, so filing leaves the working tree untouched.
+Keep the report short, one line per track: the ID and its outcome: filed (with its landing commit, first 12 characters, and branch, when it has one, and the IDs of any repointed bars, naming each squash-landed bar with its squash commit, first 12 characters), kept open, archived, or waiting on fetch. There's nothing to commit afterwards: the store lives outside the repo, so filing leaves the working tree untouched.

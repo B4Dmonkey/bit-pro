@@ -77,7 +77,7 @@ Completion moves from sign-off to after the work has landed (pushed). `/bit:comp
   Touches: `task_landing`'s classification, `bit/skills/complete/SKILL.md` and its evals. See topic `done-classification`.
 - [x] Verse 3 — When git can't place the work, or the work isn't on trunk, the operator answers with a PR number or a commit, and completion checks it on trunk and records it.
   Touches: `task_landing` (`(#N)` lookup), `bit/skills/complete/SKILL.md`. See topic `landing-ladder`.
-- [ ] Verse 4 — A track that landed as GitHub squashes completes on its own. Completion finds the squash that lists each bar's subject, records the newest as the track's commit and repoints each bar to its own squash.
+- [x] Verse 4 — A track that landed as GitHub squashes completes on its own. Completion finds the squash that lists each bar's subject, records the newest as the track's commit and repoints each bar to its own squash.
   Touches: `task_landing` (the squash rung), `bit/skills/complete/SKILL.md`. See topic `landing-ladder`.
 
 ## References

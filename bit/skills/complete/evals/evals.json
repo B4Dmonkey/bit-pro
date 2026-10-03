@@ -60,6 +60,12 @@
       "prompt": "complete BIT-13",
       "expected_output": "BIT-13's bars are pushed only to origin/feat, and feat was rebase-merged onto origin/main, so task_landing reports not_done. The skill says BIT-13 hasn't landed and offers fetch and retry, keep or archive, and a PR number or a commit. The operator answers with the rebased tip's SHA. task_landing is called again with that commit, each bar gets task_update with commit set to its landing before task_complete, and the track is filed with that commit. Nothing is archived.",
       "files": []
+    },
+    {
+      "id": 11,
+      "prompt": "BIT-31 is merged, complete it",
+      "expected_output": "BIT-31's bars 1-3 landed on origin/main in one GitHub squash that lists their subjects, and bar 4 in a later single-commit squash. task_landing reports done with each bar classed squash and repoint true. Each bar gets task_update with commit set to its own squash (bars 1-3 the first, bar 4 the later one) before task_complete, the track is filed with commit = the later squash, and the report names the squash-landed bars with their squash commits. Nothing is asked.",
+      "files": []
     }
   ]
 }
