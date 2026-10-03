@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -90,11 +91,36 @@ func (s *Store) AddNote(track, body string, head Commit) (string, error) {
 		return "", err
 	}
 
+	for {
+		path, err := s.writeNote(track, seq, body, head)
+		if errors.Is(err, fs.ErrExist) {
+			seq++
+
+			continue
+		}
+
+		return path, err
+	}
+}
+
+func (s *Store) writeNote(track string, seq int, body string, head Commit) (string, error) {
 	id := noteID(track, seq)
 
 	path := pathologize.Join(s.feedbackDir(), id+bodyExt)
-	if err := os.WriteFile(path, []byte(body), fileMode); err != nil {
-		return "", fmt.Errorf("writing note for %s: %w", track, err)
+
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, fileMode)
+	if err != nil {
+		return "", fmt.Errorf("creating note %s: %w", id, err)
+	}
+
+	if _, err := f.WriteString(body); err != nil {
+		_ = f.Close()
+
+		return "", fmt.Errorf("writing note %s: %w", id, err)
+	}
+
+	if err := f.Close(); err != nil {
+		return "", fmt.Errorf("closing note %s: %w", id, err)
 	}
 
 	commits := appendCommit(nil, head)

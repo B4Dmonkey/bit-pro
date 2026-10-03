@@ -112,6 +112,45 @@ func TestStoreAddNote(t *testing.T) {
 		}
 	})
 
+	t.Run("skips a number another writer claimed", func(t *testing.T) {
+		t.Parallel()
+
+		s, root := feedbackStore(t)
+
+		if _, err := s.AddNote(tid1, tnote, Commit{}); err != nil {
+			t.Fatalf("first AddNote() returned error: %v", err)
+		}
+
+		claimed := filepath.Join(root, "feedback", tid1+"-002.md")
+		if err := os.WriteFile(claimed, []byte("other session"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+
+		path, err := s.AddNote(tid1, "mine", Commit{})
+		if err != nil {
+			t.Fatalf("second AddNote() returned error: %v", err)
+		}
+
+		if want := filepath.Join(root, "feedback", tid1+"-003.md"); path != want {
+			t.Errorf("path = %q, want %q", path, want)
+		}
+
+		for file, want := range map[string]string{path: "mine", claimed: "other session"} {
+			got, err := os.ReadFile(file)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if string(got) != want {
+				t.Errorf("%s = %q, want %q", filepath.Base(file), got, want)
+			}
+		}
+
+		if seq := readNoteJSON(t, root, tid1+"-003")["seq"]; seq != float64(3) {
+			t.Errorf("seq = %v, want 3", seq)
+		}
+	})
+
 	t.Run("no commit writes an empty list", func(t *testing.T) {
 		t.Parallel()
 
