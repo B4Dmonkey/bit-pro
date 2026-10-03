@@ -1,7 +1,7 @@
 ---
 id: BIT-45.5
 title: Daemon scripts and notes are removed, and the whole v2 build runs without a daemon
-status: todo
+status: done
 phase: 1
 phase_label: No daemon in a v2 build
 ---
