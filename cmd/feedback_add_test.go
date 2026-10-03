@@ -7,6 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/B4Dmonkey/bit-pro/git/gittest"
 )
 
 const firstNote = "Happened at BIT-1.9.\n\n" +
@@ -210,6 +213,52 @@ func TestFeedbackAddCmd(t *testing.T) {
 
 		if _, err := os.Stat(filepath.Join(storeDir(t), "feedback")); !errors.Is(err, fs.ErrNotExist) {
 			t.Errorf("stat feedback dir = %v, want fs.ErrNotExist", err)
+		}
+	})
+
+	t.Run("records the current folder's head", func(t *testing.T) {
+		gittest.Isolate(t)
+
+		dir := initProject(t, "BIT")
+		createTask(t, "Track", "## Why\n\nA track.\n")
+		gittest.Run(t, dir, "init", "-b", "main")
+		gittest.Run(t, dir, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "--allow-empty", "-m", "init")
+		want := gittest.Run(t, dir, "rev-parse", "HEAD")
+
+		out := mustRun(t, "feedback", "add", "BIT-1", "-d", firstNote)
+
+		commits := recordCommits(t, strings.TrimSpace(out))
+		if len(commits) != 1 {
+			t.Fatalf("commits = %v, want one", commits)
+		}
+
+		if len(want) != 40 {
+			t.Fatalf("rev-parse HEAD = %q, want 40 characters", want)
+		}
+
+		if commits[0][testSHAKey] != want {
+			t.Errorf("sha = %v, want %s", commits[0][testSHAKey], want)
+		}
+
+		if commits[0][testBranchKey] != "main" {
+			t.Errorf("branch = %v, want main", commits[0][testBranchKey])
+		}
+
+		if _, err := time.Parse(time.RFC3339, commits[0][testAtKey].(string)); err != nil {
+			t.Errorf("at = %v: %v", commits[0][testAtKey], err)
+		}
+	})
+
+	t.Run("a folder outside git records no commit", func(t *testing.T) {
+		gittest.Isolate(t)
+
+		initProject(t, "BIT")
+		createTask(t, "Track", "## Why\n\nA track.\n")
+
+		out := mustRun(t, "feedback", "add", "BIT-1", "-d", firstNote)
+
+		if commits := recordCommits(t, strings.TrimSpace(out)); len(commits) != 0 {
+			t.Errorf("commits = %v, want none", commits)
 		}
 	})
 }

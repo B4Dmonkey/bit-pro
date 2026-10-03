@@ -1,7 +1,7 @@
 ---
 id: BIT-47.8
 title: bp feedback add records the current folder's HEAD on a new note
-status: todo
+status: done
 approved: true
 phase: 3
 phase_label: records show the commits they were written at
