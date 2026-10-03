@@ -97,3 +97,9 @@ func RemoteContains(ctx context.Context, run Runner, dir, sha string) bool {
 
 	return err == nil && strings.TrimSpace(out) != ""
 }
+
+func IsShallow(ctx context.Context, run Runner, dir string) bool {
+	out, err := run(ctx, dir, "rev-parse", "--is-shallow-repository")
+
+	return err == nil && strings.TrimSpace(out) == "true"
+}

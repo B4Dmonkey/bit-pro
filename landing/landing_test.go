@@ -3,6 +3,7 @@ package landing_test
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -82,6 +83,38 @@ func TestCheck(t *testing.T) {
 
 		if got.Verdict != landing.Done || got.Landing != b {
 			t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, landing.Done, b)
+		}
+
+		if got.Shallow {
+			t.Error("Shallow = true, want false")
+		}
+	})
+
+	t.Run("a shallow clone is reported and not classed", func(t *testing.T) {
+		r := gittest.New(t)
+
+		a := r.Commit("feat(bit): one")
+		r.Commit("feat(bit): two")
+		c := r.Commit("feat(bit): three")
+		r.Git("push", "origin", "main")
+
+		sd := filepath.Join(t.TempDir(), "shallow")
+		r.Git("clone", "--depth", "1", "file://"+r.Origin, sd)
+
+		got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: sd, Bars: []landing.Bar{
+			{ID: bar1, Status: done, Commit: a},
+			{ID: bar2, Status: done, Commit: c},
+		}})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if !got.Shallow || got.Verdict != landing.CantTell {
+			t.Errorf("Shallow, Verdict = %v, %q, want true, %q", got.Shallow, got.Verdict, landing.CantTell)
+		}
+
+		if want := []landing.Class{"", ""}; !slices.Equal(classes(got), want) {
+			t.Errorf("classes = %q, want %q", classes(got), want)
 		}
 	})
 

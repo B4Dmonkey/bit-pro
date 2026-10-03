@@ -51,13 +51,17 @@ type BarResult struct {
 type Report struct {
 	Trunk      string      `json:"trunk"`
 	Branch     string      `json:"branch"`
+	Shallow    bool        `json:"shallow"`
 	Verdict    Verdict     `json:"verdict"`
 	Landing    string      `json:"landing"`
 	Bars       []BarResult `json:"bars"`
 	Unfinished []string    `json:"unfinished"`
 }
 
-const statusDone = "done"
+const (
+	statusDone = "done"
+	mainBranch = "main"
+)
 
 var (
 	fullSHA = regexp.MustCompile(`^[0-9a-f]{40}$`)
@@ -79,21 +83,21 @@ func check(ctx context.Context, run git.Runner, q Query) (Report, error) {
 		return Report{}, err
 	}
 
+	if git.IsShallow(ctx, run, q.Dir) {
+		return shallow(name, q), nil
+	}
+
 	chain, err := git.FirstParents(ctx, run, q.Dir, trunk)
 	if err != nil {
 		return Report{}, fmt.Errorf("reading trunk %s: %w", name, err)
 	}
 
-	pos := make(map[string]int, len(chain))
-	for i, sha := range chain {
-		pos[sha] = i
-	}
-
+	pos := positions(chain)
 	newest := len(chain)
 
 	r := Report{
 		Trunk:      name,
-		Branch:     "main",
+		Branch:     mainBranch,
 		Bars:       make([]BarResult, 0, len(q.Bars)),
 		Unfinished: []string{},
 	}
@@ -135,8 +139,26 @@ func check(ctx context.Context, run git.Runner, q Query) (Report, error) {
 	return r, nil
 }
 
+func positions(chain []string) map[string]int {
+	pos := make(map[string]int, len(chain))
+	for i, sha := range chain {
+		pos[sha] = i
+	}
+
+	return pos
+}
+
 func noGit(q Query) Report {
-	r := Report{Verdict: NoGit, Bars: make([]BarResult, 0, len(q.Bars)), Unfinished: []string{}}
+	return unclassed(Report{Verdict: NoGit}, q)
+}
+
+func shallow(trunk string, q Query) Report {
+	return unclassed(Report{Trunk: trunk, Branch: mainBranch, Shallow: true, Verdict: CantTell}, q)
+}
+
+func unclassed(r Report, q Query) Report {
+	r.Bars = make([]BarResult, 0, len(q.Bars))
+	r.Unfinished = []string{}
 
 	for _, b := range q.Bars {
 		r.Bars = append(r.Bars, BarResult{ID: b.ID, Status: b.Status, Commit: b.Commit})
@@ -199,7 +221,7 @@ func resolveTrunk(ctx context.Context, run git.Runner, dir string) (string, stri
 	}
 
 	if sha, ok := git.ResolveCommit(ctx, run, dir, "refs/heads/main"); ok {
-		return "main", sha, nil
+		return mainBranch, sha, nil
 	}
 
 	return "", "", ErrNoTrunk

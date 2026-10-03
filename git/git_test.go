@@ -379,3 +379,30 @@ func TestAncestryPath(t *testing.T) {
 		})
 	}
 }
+
+func TestIsShallow(t *testing.T) {
+	const (
+		dir     = "/repo"
+		shallow = "rev-parse --is-shallow-repository"
+	)
+
+	tests := []struct {
+		name   string
+		result fakeResult
+		want   bool
+	}{
+		{name: "a shallow clone", result: fakeResult{out: "true\n"}, want: true},
+		{name: "a full clone", result: fakeResult{out: "false\n"}},
+		{name: caseGitFails, result: fakeResult{err: errors.New("exit status 128")}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := &fakeGit{results: map[string]fakeResult{shallow: tt.result}}
+
+			if got := IsShallow(t.Context(), fake.run, dir); got != tt.want {
+				t.Errorf("IsShallow() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
