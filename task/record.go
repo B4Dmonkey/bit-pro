@@ -76,3 +76,9 @@ func (r taskRecord) task(body string) *Task {
 
 	return t
 }
+
+type Commit struct {
+	SHA    string    `json:"sha"`
+	Branch string    `json:"branch"`
+	At     time.Time `json:"at"`
+}

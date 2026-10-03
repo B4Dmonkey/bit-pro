@@ -389,14 +389,14 @@ func assertToolErrorNames(t *testing.T, result *mcp.CallToolResult, want string)
 func seedEscapedResearch(t *testing.T, dir string) {
 	t.Helper()
 
-	registerProject(t, dir)
-
-	escaped := filepath.Join(filepath.Dir(projectStoreDir(t, dir)), testTrackID)
-	if err := os.MkdirAll(escaped, 0o755); err != nil {
+	if _, err := openProjectStore(t, dir).WriteResearch(testTrackID, testIndexTopic, testResearchBody); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile(filepath.Join(escaped, testIndexTopic+".md"), []byte(testResearchBody), 0o600); err != nil {
+	sd := projectStoreDir(t, dir)
+
+	escaped := filepath.Join(filepath.Dir(sd), testTrackID)
+	if err := os.Rename(filepath.Join(sd, testResearchDir, testTrackID), escaped); err != nil {
 		t.Fatal(err)
 	}
 }
