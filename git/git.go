@@ -85,3 +85,9 @@ func AncestryPath(ctx context.Context, run Runner, dir, sha, ref string) ([]stri
 
 	return strings.Fields(out), nil
 }
+
+func RemoteContains(ctx context.Context, run Runner, dir, sha string) bool {
+	out, err := run(ctx, dir, "branch", "-r", "--contains", sha)
+
+	return err == nil && strings.TrimSpace(out) != ""
+}

@@ -23,15 +23,20 @@ type Query struct {
 type Verdict string
 
 const (
-	Done    Verdict = "done"
-	NotDone Verdict = "not_done"
+	Done     Verdict = "done"
+	NotDone  Verdict = "not_done"
+	Partly   Verdict = "partly"
+	CantTell Verdict = "cant_tell"
 )
 
 type Class string
 
 const (
-	Landed    Class = "landed"
-	NotLanded Class = "not_landed"
+	Landed       Class = "landed"
+	Pushed       Class = "pushed"
+	Local        Class = "local"
+	Unresolvable Class = "unresolvable"
+	NoHash       Class = "no_hash"
 )
 
 type BarResult struct {
@@ -80,29 +85,30 @@ func Check(ctx context.Context, run git.Runner, q Query) (Report, error) {
 	r := Report{
 		Trunk:      name,
 		Branch:     "main",
-		Verdict:    Done,
 		Bars:       make([]BarResult, 0, len(q.Bars)),
 		Unfinished: []string{},
 	}
 
-	for _, b := range q.Bars {
-		res := BarResult{ID: b.ID, Status: b.Status, Commit: b.Commit, Class: NotLanded}
+	counts := map[Class]int{}
 
-		at, ok, err := landedAt(ctx, run, q.Dir, b.Commit, trunk, pos)
+	for _, b := range q.Bars {
+		res := BarResult{ID: b.ID, Status: b.Status, Commit: b.Commit}
+
+		class, at, err := classify(ctx, run, q.Dir, b.Commit, trunk, pos)
 		if err != nil {
 			return Report{}, err
 		}
 
-		if ok {
-			res.Class = Landed
+		res.Class = class
+		counts[class]++
+
+		if class == Landed {
 			res.Landing = chain[at]
 
 			if at < newest {
 				newest = at
 				r.Landing = chain[at]
 			}
-		} else {
-			r.Verdict = NotDone
 		}
 
 		if b.Status != statusDone {
@@ -112,11 +118,56 @@ func Check(ctx context.Context, run git.Runner, q Query) (Report, error) {
 		r.Bars = append(r.Bars, res)
 	}
 
-	if r.Verdict != Done {
+	r.Verdict = verdict(counts)
+	if r.Verdict != Done && r.Verdict != Partly {
 		r.Landing = ""
 	}
 
 	return r, nil
+}
+
+func verdict(counts map[Class]int) Verdict {
+	landed := counts[Landed]
+	elsewhere := counts[Pushed] + counts[Local]
+
+	switch {
+	case landed == 0 && elsewhere == 0:
+		return CantTell
+	case landed == 0:
+		return NotDone
+	case elsewhere+counts[Unresolvable] == 0:
+		return Done
+	default:
+		return Partly
+	}
+}
+
+func classify(ctx context.Context, run git.Runner, dir, commit, trunk string, pos map[string]int) (Class, int, error) {
+	if commit == "" {
+		return NoHash, 0, nil
+	}
+
+	if !fullSHA.MatchString(commit) {
+		return Unresolvable, 0, nil
+	}
+
+	sha, ok := git.ResolveCommit(ctx, run, dir, commit)
+	if !ok {
+		return Unresolvable, 0, nil
+	}
+
+	if git.IsAncestor(ctx, run, dir, sha, trunk) {
+		at, err := landedAt(ctx, run, dir, sha, trunk, pos)
+		if err != nil || at >= 0 {
+			return Landed, at, err
+		}
+	}
+
+	if git.RemoteContains(ctx, run, dir, sha) {
+		return Pushed, 0, nil
+	}
+
+	return Local, 0, nil
 }
 
 func resolveTrunk(ctx context.Context, run git.Runner, dir string) (string, string, error) {
@@ -131,28 +182,19 @@ func resolveTrunk(ctx context.Context, run git.Runner, dir string) (string, stri
 	return "", "", ErrNoTrunk
 }
 
-func landedAt(ctx context.Context, run git.Runner, dir, commit, trunk string, pos map[string]int) (int, bool, error) {
-	if !fullSHA.MatchString(commit) {
-		return 0, false, nil
-	}
-
-	sha, ok := git.ResolveCommit(ctx, run, dir, commit)
-	if !ok || !git.IsAncestor(ctx, run, dir, sha, trunk) {
-		return 0, false, nil
-	}
-
+func landedAt(ctx context.Context, run git.Runner, dir, sha, trunk string, pos map[string]int) (int, error) {
 	path, err := git.AncestryPath(ctx, run, dir, sha, trunk)
 	if err != nil {
-		return 0, false, fmt.Errorf("landing of %s: %w", sha, err)
+		return 0, fmt.Errorf("landing of %s: %w", sha, err)
 	}
 
-	at, found := -1, false
+	at := -1
 
 	for _, c := range append(path, sha) {
 		if i, on := pos[c]; on && i > at {
-			at, found = i, true
+			at = i
 		}
 	}
 
-	return at, found, nil
+	return at, nil
 }

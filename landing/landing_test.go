@@ -51,16 +51,16 @@ func TestCheck(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if got.Verdict != landing.NotDone || got.Landing != "" {
-			t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, landing.NotDone, "")
+		if got.Verdict != landing.Partly || got.Landing != a {
+			t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, landing.Partly, a)
 		}
 
 		if got.Bars[0].Class != landing.Landed || got.Bars[0].Landing != a {
 			t.Errorf("Bars[0] = %+v, want class %q landing %q", got.Bars[0], landing.Landed, a)
 		}
 
-		if got.Bars[1].Class != landing.NotLanded || got.Bars[1].Landing != "" {
-			t.Errorf("Bars[1] = %+v, want class %q landing %q", got.Bars[1], landing.NotLanded, "")
+		if got.Bars[1].Class != landing.Local || got.Bars[1].Landing != "" {
+			t.Errorf("Bars[1] = %+v, want class %q landing %q", got.Bars[1], landing.Local, "")
 		}
 	})
 
@@ -136,8 +136,8 @@ func TestCheck(t *testing.T) {
 		}
 
 		for i, b := range got.Bars {
-			if b.Class != landing.NotLanded {
-				t.Errorf("Bars[%d].Class = %q, want %q", i, b.Class, landing.NotLanded)
+			if b.Class != landing.Unresolvable {
+				t.Errorf("Bars[%d].Class = %q, want %q", i, b.Class, landing.Unresolvable)
 			}
 		}
 
@@ -259,6 +259,83 @@ func TestCheck(t *testing.T) {
 		}
 	})
 
+	t.Run("some bars landed and one only pushed to a branch", func(t *testing.T) {
+		r := gittest.New(t)
+
+		a := r.Commit("feat(bit): one")
+		r.Git("push", "origin", "main")
+		r.Git("checkout", "-b", "feat")
+		b := r.Commit("feat(bit): two")
+		r.Git("push", "origin", "feat")
+
+		got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: r.Dir, Bars: []landing.Bar{
+			{ID: bar1, Status: done, Commit: a},
+			{ID: bar2, Status: done, Commit: b},
+		}})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if got.Verdict != landing.Partly || got.Landing != a {
+			t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, landing.Partly, a)
+		}
+
+		if want := []landing.Class{landing.Landed, landing.Pushed}; !slices.Equal(classes(got), want) {
+			t.Errorf("classes = %q, want %q", classes(got), want)
+		}
+	})
+
+	t.Run("nothing landed and one bar local", func(t *testing.T) {
+		r := gittest.New(t)
+
+		r.Git("push", "origin", "main")
+		r.Git("checkout", "-b", "feat")
+		b := r.Commit("feat(bit): two")
+
+		assertVerdict(t, r.Dir, []landing.Bar{{ID: bar1, Status: done, Commit: b}},
+			landing.NotDone, "", []landing.Class{landing.Local})
+	})
+
+	t.Run("nothing landed and one bar pushed to a branch", func(t *testing.T) {
+		r := gittest.New(t)
+
+		r.Git("push", "origin", "main")
+		r.Git("checkout", "-b", "feat")
+		b := r.Commit("feat(bit): two")
+		r.Git("push", "origin", "feat")
+
+		assertVerdict(t, r.Dir, []landing.Bar{{ID: bar1, Status: done, Commit: b}},
+			landing.NotDone, "", []landing.Class{landing.Pushed})
+	})
+
+	t.Run("every hash unresolvable", func(t *testing.T) {
+		r := gittest.New(t)
+
+		r.Git("push", "origin", "main")
+
+		assertVerdict(t, r.Dir, []landing.Bar{{ID: bar1, Status: done, Commit: "0123456789abcdef0123456789abcdef01234567"}},
+			landing.CantTell, "", []landing.Class{landing.Unresolvable})
+	})
+
+	t.Run("no bar has a hash", func(t *testing.T) {
+		r := gittest.New(t)
+
+		r.Git("push", "origin", "main")
+
+		assertVerdict(t, r.Dir, []landing.Bar{{ID: bar1, Status: done}, {ID: bar2, Status: done}},
+			landing.CantTell, "", []landing.Class{landing.NoHash, landing.NoHash})
+	})
+
+	t.Run("a bar with no hash beside landed bars", func(t *testing.T) {
+		r := gittest.New(t)
+
+		a := r.Commit("feat(bit): one")
+		r.Git("push", "origin", "main")
+
+		assertVerdict(t, r.Dir, []landing.Bar{{ID: bar1, Status: done, Commit: a}, {ID: bar2, Status: done}},
+			landing.Done, a, []landing.Class{landing.Landed, landing.NoHash})
+	})
+
 	t.Run("an unfinished bar is listed", func(t *testing.T) {
 		r := gittest.New(t)
 
@@ -277,4 +354,32 @@ func TestCheck(t *testing.T) {
 			t.Errorf("Unfinished = %q, want %q", got.Unfinished, want)
 		}
 	})
+}
+
+func classes(r landing.Report) []landing.Class {
+	out := make([]landing.Class, 0, len(r.Bars))
+	for _, b := range r.Bars {
+		out = append(out, b.Class)
+	}
+
+	return out
+}
+
+func assertVerdict(
+	t *testing.T, dir string, bars []landing.Bar, verdict landing.Verdict, landingSHA string, want []landing.Class,
+) {
+	t.Helper()
+
+	got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: dir, Bars: bars})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got.Verdict != verdict || got.Landing != landingSHA {
+		t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, verdict, landingSHA)
+	}
+
+	if !slices.Equal(classes(got), want) {
+		t.Errorf("classes = %q, want %q", classes(got), want)
+	}
 }

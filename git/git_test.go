@@ -233,6 +233,38 @@ func TestIsAncestor(t *testing.T) {
 	}
 }
 
+func TestRemoteContains(t *testing.T) {
+	const (
+		sha      = "6a1d3459c0ffee000000000000000000000000ab"
+		dir      = "/repo"
+		contains = "branch -r --contains " + sha
+	)
+
+	tests := []struct {
+		name   string
+		result fakeResult
+		want   bool
+	}{
+		{name: "on a remote branch", result: fakeResult{out: "  origin/feat\n"}, want: true},
+		{name: caseEmptyOutput, result: fakeResult{}},
+		{name: caseGitFails, result: fakeResult{err: errors.New("exit status 129")}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := &fakeGit{results: map[string]fakeResult{contains: tt.result}}
+
+			if got := RemoteContains(t.Context(), fake.run, dir, sha); got != tt.want {
+				t.Errorf("RemoteContains() = %v, want %v", got, tt.want)
+			}
+
+			if want := []string{dir}; !slices.Equal(fake.dirs, want) {
+				t.Errorf("runner dirs = %q, want %q", fake.dirs, want)
+			}
+		})
+	}
+}
+
 func TestFirstParents(t *testing.T) {
 	const (
 		sha     = "6a1d3459c0ffee000000000000000000000000ab"
