@@ -1,0 +1,95 @@
+package migrate
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/BurntSushi/toml"
+
+	"github.com/B4Dmonkey/bit-pro/db/orm"
+	"github.com/B4Dmonkey/bit-pro/project"
+	"github.com/B4Dmonkey/bit-pro/store"
+	"github.com/B4Dmonkey/bit-pro/task"
+)
+
+type Options struct {
+	Dir string
+}
+
+type Result struct {
+	Code, Path string
+}
+
+type config struct {
+	Prefix string `toml:"prefix"`
+}
+
+func Run(ctx context.Context, q *orm.Queries, opts Options) (Result, error) {
+	src := filepath.Join(opts.Dir, ".bit")
+
+	var cfg config
+	if _, err := toml.DecodeFile(filepath.Join(src, "config.toml"), &cfg); err != nil {
+		return Result{}, fmt.Errorf("reading %s config: %w", src, err)
+	}
+
+	code := cfg.Prefix
+
+	path, err := project.CanonicalPath(filepath.Dir(src))
+	if err != nil {
+		return Result{}, err
+	}
+
+	data, err := store.Dir()
+	if err != nil {
+		return Result{}, err
+	}
+
+	root, err := store.ProjectDir(code)
+	if err != nil {
+		return Result{}, err
+	}
+
+	if err := copyTasks(filepath.Join(src, "tasks"), task.NewProject(root, code).WithDataRoot(data)); err != nil {
+		return Result{}, err
+	}
+
+	if err := q.CreateProject(ctx, orm.CreateProjectParams{Path: path, Code: code}); err != nil {
+		return Result{}, fmt.Errorf("registering %s: %w", path, err)
+	}
+
+	return Result{Code: code, Path: path}, nil
+}
+
+func copyTasks(dir string, s *task.Store) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return fmt.Errorf("reading %s: %w", dir, err)
+	}
+
+	for _, e := range entries {
+		if !strings.HasSuffix(e.Name(), ".md") {
+			continue
+		}
+
+		path := filepath.Join(dir, e.Name())
+
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("reading %s: %w", path, err)
+		}
+
+		t, err := task.Parse(raw)
+		if err != nil {
+			return fmt.Errorf("parsing %s: %w", path, err)
+		}
+
+		if err := s.Save(t); err != nil {
+			return fmt.Errorf("copying %s: %w", path, err)
+		}
+	}
+
+	return nil
+}

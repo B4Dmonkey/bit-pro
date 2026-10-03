@@ -1,7 +1,7 @@
 ---
 id: BIT-49.10
 title: bp migrate copies a v1 project's active tasks into the central store and registers the folder
-status: todo
+status: done
 approved: true
 phase: 2
 phase_label: bp migrate
