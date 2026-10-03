@@ -1,19 +1,19 @@
 # bit-pro
 
-A project-management CLI for LLM-driven development. Git-native, markdown-backed, and
-shaped around how an agent and its human actually move work forward: scope it, plan it,
+A project-management CLI for LLM-driven development. Markdown-backed, and shaped around how an agent and its human actually move work forward: scope it, plan it,
 do it, check it.
 
-The binary is `bp`. Work lives in a `.bit/` directory next to your code.
+The binary is `bp`. Work lives in a central store under `$XDG_DATA_HOME/bit` (default
+`~/.local/share/bit`), keyed by project code.
 
 ## Why
 
 Jira, Linear, and GitHub Projects are built for a human clicking through a web UI. When an
 LLM is doing the work, that's the wrong interface. The agent wants plain text, deterministic
-CLI commands, and task state that lives next to the code — not behind an API token.
+CLI commands, and task state on the local disk — not behind an API token.
 
-So: tasks are markdown files in git, the CLI is the primary interface, and `bp tui` is the
-human's window onto the same files. The TUI never becomes a second source of truth.
+So: task bodies are plain markdown in a local store, the CLI and the `mcp__bit__*` tools are
+the primary interface, and `bp tui` is the human's window onto the same store. The TUI never becomes a second source of truth.
 
 ## Install
 
@@ -44,7 +44,7 @@ claude mcp add -s user bit -- bp serve mcp
 
 ```
 cd your-project
-bp init                                    # prompts for a task ID prefix, creates .bit/
+bp add .                                   # prompts for a project code, registers the folder
 bp task create "Add OAuth login" -d "Why this matters…"
 bp task create "Write the token test" -p PREFIX-1 --phase 1 --phase-label "Token exchange"
 bp task list
@@ -52,8 +52,7 @@ bp task update PREFIX-1.1 -s doing
 bp tui                                     # the human view: board + list
 ```
 
-`bp init` is idempotent — re-run it any time. It sets the prefix, scaffolds `.bit/`, and
-keeps the `bit` plugin current in `.claude/settings.json`. It never touches your tasks.
+A project that already has a v1 `.bit/` directory runs `bp migrate` instead of `bp add`.
 
 ## Tracks and bars
 
@@ -69,22 +68,26 @@ without a prompt to answer.
 
 | Command | What it does |
 |---|---|
-| `bp init` | Set the ID prefix, scaffold `.bit/`, sync the plugin |
+| `bp add <path>` | Register a project under a code you type, setting bit up in Claude Code on first use |
+| `bp remove` | Archive this project's open work and remove it from the registry, after confirmation |
+| `bp list` | List the registered projects |
+| `bp migrate` | Copy this folder's v1 `.bit/` into the store and register it. Checks the files first, verifies the copy, and prints the cleanup step without running it |
+| `bp approve <id>` / `bp unapprove <id>` | Approve a task, or revoke its approval |
 | `bp task create <title>` | New task. `-p` parent, `--phase`/`--phase-label`, `--after` sibling, `-d` body |
 | `bp task read <id>` | Full content. `--body` prints just the markdown, for feeding back to a model |
 | `bp task list` | All tasks. `-p <track>` lists one plan, in step order |
 | `bp task update <id>` | `-s` status, `-t` title, `-d` body, `--phase`/`--phase-label` |
 | `bp task move <bar>` | `--before`/`--after` a sibling — resequence without renaming |
-| `bp task complete <id>` | File a signed-off track and its bars under `.bit/completed/` |
-| `bp task delete <id>` | Soft-delete into `.bit/archive/tasks/`. `-y` skips confirm, `-f` overrides the guard |
-| `bp feedback add <track>` | Record a correction as a note in `.bit/feedback/` |
+| `bp task complete <id>` | File a signed-off track and its bars as completed |
+| `bp task delete <id>` | Soft-delete into the archive. `-y` skips confirm, `-f` overrides the guard |
+| `bp feedback add <track>` | Record a correction as a note in the shared feedback store |
 | `bp tui` | Terminal UI |
 
 Notes on behavior worth knowing:
 
 - **Status is a plain field, not a state machine.** `todo`/`doing`/`done`, set directly.
   Rollup across a plan is workflow logic, left to the skills rather than enforced here.
-- **Nothing is destroyed.** `complete` and `delete` both just move files. A relocated ID is
+- **Nothing is destroyed.** `complete` and `delete` both just move records. A relocated ID is
   reserved forever and drops out of its parent's order. A track only relocates once every bar
   is `done` — absolute for `complete`, `--force`-able for `delete`.
 - **Order is separate from identity.** A reordered track carries an explicit list of its bar
@@ -92,12 +95,22 @@ Notes on behavior worth knowing:
 
 ## Agent skills
 
-`bp init` wires in the `bit` Claude Code plugin, which ships seven skills:
+`bp add` sets up the `bit` Claude Code plugin, which ships these skills:
 
-`bit_scope` → `bit_plan` → `bit_do` → `bit_check` is the main loop — frame the WHY, turn each
-phase into TDD steps, execute one commit at a time, audit the result. Alongside it,
-`bit_feedback` records a correction the moment it lands, `bit_retro` reads those notes for
-patterns, and `bit_learn` turns a pattern into a skill or CLI change.
+- `bit:analyze` — deep code research before a track is scoped, kept as research notes
+- `bit:scope` — frame the WHY and the delivery order as a track of verses
+- `bit:plan` — turn each verse into bars, one TDD step and one commit each
+- `bit:do` — execute one bar, run its checks, roll the track up
+- `bit:commit` — commit a bar's files after asking, and record the hash on the bar
+- `bit:check` — audit the finished work against the plan
+- `bit:complete` — sign off a finished track and file it as completed
+- `bit:feedback` — record a correction the moment it lands
+- `bit:retro` — read the feedback notes for patterns and write proposals
+- `bit:learn` — turn a proposal into a skill or CLI change
+
+It also ships three agents: `bot` (a general session agent that knows the task tools),
+`bot-dev` (runs one bar through `bit:do` and lands it), and `ruler` (takes new work through
+analyze, scope and plan to an approved plan).
 
 Skills release independently of the binary — edit one, `/reload-plugins`, done. No rebuild.
 
@@ -113,45 +126,32 @@ Opens on the kanban board, focused on the top of the Doing column.
 | `tab` | switch view | switch view |
 | `?` / `q` | help / quit | help / quit |
 
-It re-reads `.bit/tasks/` on a timer and refreshes only when something changed, so an agent's
+It re-reads the project's store on a timer and refreshes only when something changed, so an agent's
 edits in another terminal appear without a restart — selection, column, view mode, and open
 modal all survive. Colors come from your terminal's ANSI palette, so it matches your theme.
 
 ## Storage
 
 ```
-.bit/
-├── config.toml        # prefix = "BIT"
-├── tasks/             # live work
-│   ├── BIT-1.md
-│   └── BIT-1.1.md
-├── completed/         # signed-off work
-├── feedback/          # correction notes, e.g. BIT-20-001.md
-└── archive/
-    └── tasks/         # soft-deleted work
+$XDG_DATA_HOME/bit/
+├── main.db                                         registered projects
+├── <CODE>/tasks|completed|archive/tasks/<ID>.json + <ID>.md
+├── <CODE>/research/<TRACK>/<topic>.json + .md
+├── feedback/<TRACK>-NNN.json + .md                 every project, project field
+└── retro/<CODE>-<name>.json + .md                  every project, project field
 ```
 
-One markdown file per task, named for its ID. No index — `bp task list` globs and parses.
-Frontmatter is deliberately minimal and has grown additively:
+Each record is a pair: the `.json` holds its metadata and the `.md` holds its body unchanged.
+The `mcp__bit__*` tools and `bp` are the only way in. Bars additionally carry
+`phase`/`phase_label`; a reordered track carries an `order` list. IDs are never re-minted —
+the next number counts past the highest found across `tasks/`, `completed/`, and
+`archive/tasks/`.
 
-```markdown
----
-id: BIT-1
-title: CLI Bootstrap
-status: todo
----
-The task body, verbatim.
-```
-
-Bars additionally carry `phase`/`phase_label`; a reordered track carries an `order` list.
-IDs are never re-minted — the next number counts past the highest found across `tasks/`,
-`completed/`, and `archive/tasks/`.
-
-This project tracks its own work in `.bit/` — browse it with `bp task list` or `bp tui`.
+This project tracks its own work in the bit store — browse it with `bp task list` or `bp tui`.
 
 ## Roadmap
 
-`.bit/tasks/` is the live tracker; this is the summary.
+The bit store is the live tracker; this is the summary.
 
 **Up next:**
 
@@ -179,7 +179,7 @@ This project tracks its own work in `.bit/` — browse it with `bp task list` or
 - **Are the board columns fixed?** Hardcoded to To Do / Doing / Done. A project wanting
   `blocked` or `review` has nowhere to say so. Open: whether statuses become project config,
   and what that does to the skills, which assume the three by name.
-- **Filtering dimensions.** No tags, assignee, or dates in frontmatter — "filter by tag" is a
+- **Filtering dimensions.** No tags, assignee, or dates in a task record — "filter by tag" is a
   data-model decision before it's a UI one.
 - **How much workflow belongs in the CLI.** Rollup, sign-off, and archiving triggers live in
   the skills, which keeps the CLI to primitives. The cost: the rules aren't enforced and don't

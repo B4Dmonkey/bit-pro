@@ -12,7 +12,7 @@ changing; eventually these meanings become documentation reachable from `bit --h
 
 | Word      | What it is                        | In the code      | Addressable? |
 |-----------|-----------------------------------|------------------|--------------|
-| **album** | the project — one `.bit/` directory | the `Store` root | no — it's the container |
+| **album** | the project, one registered project code | the project's store | no — it's the container |
 | **track** | one deliverable: a scope, and the work under it | a task with no dot in its ID (`BIT-2`) | yes |
 | **verse** | a phase — a coarse group of bars inside a track | a label on a step | no — see below |
 | **bar**   | one step: the smallest unit of work, one commit | a task with a dot in its ID (`BIT-2.5`) | yes |
@@ -20,13 +20,13 @@ changing; eventually these meanings become documentation reachable from `bit --h
 ## How it fits together
 
 ```
-.bit/                album   the project
-├── BIT-1.md         track   CLI Bootstrap
-├── BIT-1.1.md       bar     phase: 1
-├── BIT-2.md         track   Task Management (CRUD)
-├── BIT-2.1.md       bar     phase: 1 — init wizard + create
-├── BIT-2.6.md       bar     phase: 2 — list & read
-└── BIT-2.13.md      bar     phase: 4 — delete
+<CODE>/tasks/                      album   the project
+├── BIT-1.json + BIT-1.md          track   CLI Bootstrap
+├── BIT-1.1.json + BIT-1.1.md      bar     phase: 1
+├── BIT-2.json + BIT-2.md          track   Task Management (CRUD)
+├── BIT-2.1.json + BIT-2.1.md      bar     phase: 1 — init wizard + create
+├── BIT-2.6.json + BIT-2.6.md      bar     phase: 2 — list & read
+└── BIT-2.13.json + BIT-2.13.md    bar     phase: 4 — delete
 ```
 
 A bar's ID names its track: `BIT-2.5` is the 5th bar of `BIT-2`. The parent is readable

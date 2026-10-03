@@ -1,7 +1,7 @@
 ---
 id: BIT-49.30
 title: The README and hierarchy.md describe the v2 store, bp add, bp remove and bp migrate
-status: todo
+status: done
 approved: true
 phase: 3
 phase_label: no .bit/ in sight
