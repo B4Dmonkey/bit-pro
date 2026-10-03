@@ -95,12 +95,12 @@ func TestFeedbackAddCmd(t *testing.T) {
 			t.Fatalf("reading feedback dir: %v", err)
 		}
 
-		if len(entries) != 2 {
-			t.Fatalf("feedback dir holds %d files, want 2", len(entries))
+		if len(entries) != 4 {
+			t.Fatalf("feedback dir holds %d files, want 4", len(entries))
 		}
 
 		for _, entry := range entries {
-			stem := strings.TrimSuffix(entry.Name(), ".md")
+			stem := strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))
 			if stem != strings.ToUpper(stem) {
 				t.Errorf("note filename = %q, want its track ID uppercase", entry.Name())
 			}

@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+
+	"github.com/B4Dmonkey/bit-pro/task"
 )
 
 func newFeedbackAddCmd() *cobra.Command {
@@ -19,7 +21,7 @@ func newFeedbackAddCmd() *cobra.Command {
 				return err
 			}
 
-			path, err := s.AddNote(args[0], description)
+			path, err := s.AddNote(args[0], description, task.Commit{})
 			if err != nil {
 				return err
 			}

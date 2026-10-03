@@ -1,28 +1,41 @@
 package task
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/spf13/pathologize"
 )
 
 const feedbackSubdir = "feedback"
 
+type noteRecord struct {
+	Project   string    `json:"project"`
+	ID        string    `json:"id"`
+	Track     string    `json:"track"`
+	Seq       int       `json:"seq"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Commits   []Commit  `json:"commits"`
+	Content   string    `json:"content"`
+}
+
 func (s *Store) feedbackDir() string {
 	return filepath.Join(s.root, feedbackSubdir)
 }
 
-func (s *Store) notePath(track string, seq int) string {
-	return pathologize.Join(s.feedbackDir(), fmt.Sprintf("%s-%03d.md", track, seq))
+func noteID(track string, seq int) string {
+	return fmt.Sprintf("%s-%03d", track, seq)
 }
 
 func (s *Store) nextNoteSeq(track string) (int, error) {
-	glob := track + "-*.md"
-	re := regexp.MustCompile(`^` + regexp.QuoteMeta(track) + `-(\d+)\.md$`)
+	glob := track + "-*" + recordExt
+	re := regexp.MustCompile(`^` + regexp.QuoteMeta(track) + `-(\d+)\.json$`)
 
 	highest, err := highestSuffix(s.feedbackDir(), glob, re)
 	if err != nil {
@@ -55,7 +68,7 @@ func (s *Store) resolveTrack(track string) (string, error) {
 	return track, nil
 }
 
-func (s *Store) AddNote(track, body string) (string, error) {
+func (s *Store) AddNote(track, body string, head Commit) (string, error) {
 	track, err := s.resolveTrack(track)
 	if err != nil {
 		return "", err
@@ -70,9 +83,38 @@ func (s *Store) AddNote(track, body string) (string, error) {
 		return "", err
 	}
 
-	path := s.notePath(track, seq)
+	id := noteID(track, seq)
+
+	path := pathologize.Join(s.feedbackDir(), id+bodyExt)
 	if err := os.WriteFile(path, []byte(body), fileMode); err != nil {
 		return "", fmt.Errorf("writing note for %s: %w", track, err)
+	}
+
+	commits := appendCommit(nil, head)
+	if commits == nil {
+		commits = []Commit{}
+	}
+
+	ts := s.now().UTC().Truncate(time.Second)
+	rec := noteRecord{
+		Project:   s.code,
+		ID:        id,
+		Track:     track,
+		Seq:       seq,
+		CreatedAt: ts,
+		UpdatedAt: ts,
+		Commits:   commits,
+		Content:   filepath.Base(path),
+	}
+
+	data, err := json.MarshalIndent(rec, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("marshaling note %s: %w", id, err)
+	}
+
+	recPath := pathologize.Join(s.feedbackDir(), id+recordExt)
+	if err := os.WriteFile(recPath, append(data, '\n'), fileMode); err != nil {
+		return "", fmt.Errorf("writing %s: %w", recPath, err)
 	}
 
 	return path, nil

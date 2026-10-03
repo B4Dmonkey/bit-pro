@@ -475,7 +475,7 @@ func feedbackAddHandler(root string) mcp.ToolHandlerFor[feedbackAddInput, feedba
 			return nil, feedbackAddOutput{}, err
 		}
 
-		path, err := store.AddNote(in.Track, in.Body)
+		path, err := store.AddNote(in.Track, in.Body, task.Commit{})
 		if err != nil {
 			return nil, feedbackAddOutput{}, fmt.Errorf("adding note for %s: %w", in.Track, err)
 		}

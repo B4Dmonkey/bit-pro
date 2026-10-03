@@ -19,4 +19,9 @@ const (
 	ttrack = "track"
 
 	tsha = "6a1d345"
+
+	kproject   = "project"
+	kcontent   = "content"
+	kcreatedAt = "created_at"
+	kupdatedAt = "updated_at"
 )

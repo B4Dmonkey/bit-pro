@@ -1,7 +1,7 @@
 ---
 id: BIT-46.17
 title: A feedback note is stored as a <TRACK>-NNN.json record beside its .md
-status: todo
+status: done
 approved: true
 phase: 2
 phase_label: records are JSON metadata plus markdown
