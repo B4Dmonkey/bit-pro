@@ -28,6 +28,7 @@ const (
 	taskDeleteTool    = "task_delete"
 	researchWriteTool = "research_write"
 	researchReadTool  = "research_read"
+	retroWriteTool    = "retro_write"
 
 	statusProperty = "status"
 )
@@ -113,6 +114,12 @@ const feedbackReadDescription = `Read one feedback note of the current project a
 
 Pass the note ID that feedback_list returns. Notes from every project share one folder, but this
 reads only the current project's notes: a note from another project is refused.`
+
+const retroWriteDescription = `Write one retro proposals record for the current project and return its stored name.
+
+Proposals from every project share one folder, so the server prefixes the project code to the name
+unless the name already starts with it, as in BIT-album-proposals. Writing a name that already
+exists replaces its body. The result is the stored name.`
 
 const researchWriteDescription = `Write one topic of a track's research and return its path.
 
@@ -212,6 +219,15 @@ type feedbackReadOutput struct {
 	Body string `json:"body"`
 }
 
+type retroWriteInput struct {
+	Name string `json:"name"`
+	Body string `json:"body"`
+}
+
+type retroWriteOutput struct {
+	Name string `json:"name"`
+}
+
 type researchWriteInput struct {
 	Track string `json:"track"`
 	Topic string `json:"topic"`
@@ -295,6 +311,7 @@ func runMCPServer(ctx context.Context, root string, run git.Runner, transport mc
 	mcp.AddTool(s, &mcp.Tool{Name: feedbackAddTool, Description: feedbackAddDescription}, feedbackAddHandler(root, run))
 	mcp.AddTool(s, &mcp.Tool{Name: feedbackListTool, Description: feedbackListDescription}, feedbackListHandler(root))
 	mcp.AddTool(s, &mcp.Tool{Name: feedbackReadTool, Description: feedbackReadDescription}, feedbackReadHandler(root))
+	mcp.AddTool(s, &mcp.Tool{Name: retroWriteTool, Description: retroWriteDescription}, retroWriteHandler(root))
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        researchWriteTool,
 		Description: researchWriteDescription,
@@ -573,6 +590,26 @@ func feedbackReadHandler(root string) mcp.ToolHandlerFor[feedbackReadInput, feed
 		}
 
 		return nil, feedbackReadOutput{Body: body}, nil
+	}
+}
+
+func retroWriteHandler(root string) mcp.ToolHandlerFor[retroWriteInput, retroWriteOutput] {
+	return func(
+		ctx context.Context,
+		_ *mcp.CallToolRequest,
+		in retroWriteInput,
+	) (*mcp.CallToolResult, retroWriteOutput, error) {
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, retroWriteOutput{}, err
+		}
+
+		name, err := store.WriteRetro(in.Name, in.Body, task.Commit{})
+		if err != nil {
+			return nil, retroWriteOutput{}, fmt.Errorf("writing retro %s: %w", in.Name, err)
+		}
+
+		return nil, retroWriteOutput{Name: name}, nil
 	}
 }
 

@@ -359,6 +359,7 @@ func TestMCPToolDescriptions(t *testing.T) {
 			},
 			{name: feedbackListTool, tool: feedbackListTool, want: []string{testOwnProjectOnly}},
 			{name: feedbackReadTool, tool: feedbackReadTool, want: []string{testOwnProjectOnly}},
+			{name: retroWriteTool, tool: retroWriteTool, want: []string{testCodePrefixed}},
 		}
 
 		for _, tt := range tests {

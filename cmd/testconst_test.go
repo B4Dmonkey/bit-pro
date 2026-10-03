@@ -9,4 +9,5 @@ const (
 	v090       = "0.9.0"
 
 	testOwnProjectOnly = "only the current project's notes"
+	testCodePrefixed   = "prefixes the project code"
 )
