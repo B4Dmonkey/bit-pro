@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/B4Dmonkey/bit-pro/git/gittest"
+	"github.com/B4Dmonkey/bit-pro/store"
 )
 
 const firstNote = "Happened at BIT-1.9.\n\n" +
@@ -33,13 +34,43 @@ func TestFeedbackAddCmd(t *testing.T) {
 			t.Errorf("feedback add stdout = %q, want %q", out, notePath(t, "BIT-1-001.md"))
 		}
 
-		data, err := os.ReadFile(filepath.Join(storeDir(t), "feedback", "BIT-1-001.md"))
+		data, err := os.ReadFile(filepath.Join(dataDir(t), "feedback", "BIT-1-001.md"))
 		if err != nil {
 			t.Fatalf("reading note: %v", err)
 		}
 
 		if string(data) != firstNote {
 			t.Errorf("note = %q, want %q", data, firstNote)
+		}
+	})
+
+	t.Run("writes to the shared feedback folder", func(t *testing.T) {
+		initProject(t, "BIT")
+		createTask(t, "Track", "## Why\n\nA track.\n")
+
+		out := mustRun(t, "feedback", "add", "BIT-1", "-d", firstNote)
+
+		d := dataDir(t)
+
+		if want := filepath.Join(d, "feedback", "BIT-1-001.md") + "\n"; out != want {
+			t.Errorf("feedback add stdout = %q, want %q", out, want)
+		}
+
+		data, err := os.ReadFile(filepath.Join(d, "feedback", "BIT-1-001.md"))
+		if err != nil {
+			t.Fatalf("reading note: %v", err)
+		}
+
+		if string(data) != firstNote {
+			t.Errorf("note = %q, want %q", data, firstNote)
+		}
+
+		if got := readRecord(t, filepath.Join(d, "feedback", "BIT-1-001.md"))["project"]; got != "BIT" {
+			t.Errorf("project = %v, want BIT", got)
+		}
+
+		if _, err := os.Stat(filepath.Join(d, "BIT", "feedback")); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("stat project feedback dir = %v, want fs.ErrNotExist", err)
 		}
 	})
 
@@ -54,7 +85,7 @@ func TestFeedbackAddCmd(t *testing.T) {
 			t.Errorf("second feedback add stdout = %q, want %q", out, want)
 		}
 
-		second, err := os.ReadFile(filepath.Join(storeDir(t), "feedback", "BIT-1-002.md"))
+		second, err := os.ReadFile(filepath.Join(dataDir(t), "feedback", "BIT-1-002.md"))
 		if err != nil {
 			t.Fatalf("reading second note: %v", err)
 		}
@@ -63,7 +94,7 @@ func TestFeedbackAddCmd(t *testing.T) {
 			t.Errorf("second note = %q, want %q", second, secondNote)
 		}
 
-		first, err := os.ReadFile(filepath.Join(storeDir(t), "feedback", "BIT-1-001.md"))
+		first, err := os.ReadFile(filepath.Join(dataDir(t), "feedback", "BIT-1-001.md"))
 		if err != nil {
 			t.Fatalf("reading first note: %v", err)
 		}
@@ -84,7 +115,7 @@ func TestFeedbackAddCmd(t *testing.T) {
 			t.Errorf("lowercase feedback add stdout = %q, want %q", out, want)
 		}
 
-		first, err := os.ReadFile(filepath.Join(storeDir(t), "feedback", "BIT-1-001.md"))
+		first, err := os.ReadFile(filepath.Join(dataDir(t), "feedback", "BIT-1-001.md"))
 		if err != nil {
 			t.Fatalf("reading first note: %v", err)
 		}
@@ -93,7 +124,7 @@ func TestFeedbackAddCmd(t *testing.T) {
 			t.Errorf("first note = %q, want %q", first, firstNote)
 		}
 
-		entries, err := os.ReadDir(filepath.Join(storeDir(t), "feedback"))
+		entries, err := os.ReadDir(filepath.Join(dataDir(t), "feedback"))
 		if err != nil {
 			t.Fatalf("reading feedback dir: %v", err)
 		}
@@ -122,7 +153,7 @@ func TestFeedbackAddCmd(t *testing.T) {
 			t.Errorf("feedback add against an archived track stdout = %q, want %q", out, notePath(t, "BIT-1-001.md"))
 		}
 
-		data, err := os.ReadFile(filepath.Join(storeDir(t), "feedback", "BIT-1-001.md"))
+		data, err := os.ReadFile(filepath.Join(dataDir(t), "feedback", "BIT-1-001.md"))
 		if err != nil {
 			t.Fatalf("reading note: %v", err)
 		}
@@ -144,7 +175,7 @@ func TestFeedbackAddCmd(t *testing.T) {
 			t.Errorf("feedback add against a completed track stdout = %q, want %q", out, notePath(t, "BIT-1-001.md"))
 		}
 
-		data, err := os.ReadFile(filepath.Join(storeDir(t), "feedback", "BIT-1-001.md"))
+		data, err := os.ReadFile(filepath.Join(dataDir(t), "feedback", "BIT-1-001.md"))
 		if err != nil {
 			t.Fatalf("reading note: %v", err)
 		}
@@ -161,7 +192,7 @@ func TestFeedbackAddCmd(t *testing.T) {
 
 		mustRun(t, "task", "update", "BIT-1", "-d", "## Why\n\nA wholesale rewritten scope body.\n")
 
-		data, err := os.ReadFile(filepath.Join(storeDir(t), "feedback", "BIT-1-001.md"))
+		data, err := os.ReadFile(filepath.Join(dataDir(t), "feedback", "BIT-1-001.md"))
 		if err != nil {
 			t.Fatalf("reading note after track rewrite: %v", err)
 		}
@@ -189,7 +220,7 @@ func TestFeedbackAddCmd(t *testing.T) {
 			t.Errorf("stat completed track = %v, want it relocated", err)
 		}
 
-		data, err := os.ReadFile(filepath.Join(storeDir(t), "feedback", "BIT-1-001.md"))
+		data, err := os.ReadFile(filepath.Join(dataDir(t), "feedback", "BIT-1-001.md"))
 		if err != nil {
 			t.Fatalf("reading note after track completion: %v", err)
 		}
@@ -207,11 +238,11 @@ func TestFeedbackAddCmd(t *testing.T) {
 			t.Fatal("feedback add against an unknown track returned no error")
 		}
 
-		if _, err := os.Stat(filepath.Join(storeDir(t), "feedback", "BIT-99-001.md")); !errors.Is(err, fs.ErrNotExist) {
+		if _, err := os.Stat(filepath.Join(dataDir(t), "feedback", "BIT-99-001.md")); !errors.Is(err, fs.ErrNotExist) {
 			t.Errorf("stat note = %v, want fs.ErrNotExist", err)
 		}
 
-		if _, err := os.Stat(filepath.Join(storeDir(t), "feedback")); !errors.Is(err, fs.ErrNotExist) {
+		if _, err := os.Stat(filepath.Join(dataDir(t), "feedback")); !errors.Is(err, fs.ErrNotExist) {
 			t.Errorf("stat feedback dir = %v, want fs.ErrNotExist", err)
 		}
 	})
@@ -266,5 +297,16 @@ func TestFeedbackAddCmd(t *testing.T) {
 func notePath(t *testing.T, name string) string {
 	t.Helper()
 
-	return filepath.Join(storeDir(t), "feedback", name) + "\n"
+	return filepath.Join(dataDir(t), "feedback", name) + "\n"
+}
+
+func dataDir(t *testing.T) string {
+	t.Helper()
+
+	d, err := store.Dir()
+	if err != nil {
+		t.Fatalf("store.Dir() returned error: %v", err)
+	}
+
+	return d
 }

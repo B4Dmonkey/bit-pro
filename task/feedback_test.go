@@ -26,13 +26,24 @@ func readNoteJSON(t *testing.T, root, id string) map[string]any {
 	return got
 }
 
-func TestStoreAddNote(t *testing.T) {
-	t.Parallel()
+func feedbackStore(t *testing.T) (*Store, string) {
+	t.Helper()
 
+	d := t.TempDir()
+	s := NewProject(filepath.Join(d, tprefix), tprefix).WithDataRoot(d)
+
+	if err := s.Save(&Task{ID: tid1, Title: ttrack, Status: StatusTodo}); err != nil {
+		t.Fatalf("seeding %s: %v", tid1, err)
+	}
+
+	return s, d
+}
+
+func TestStoreAddNote(t *testing.T) {
 	t.Run("writes a json record beside the body", func(t *testing.T) {
 		t.Parallel()
 
-		s, root := researchStore(t)
+		s, root := feedbackStore(t)
 		at := tclock1
 		s.now = fixedClock(&at)
 
@@ -75,7 +86,7 @@ func TestStoreAddNote(t *testing.T) {
 	t.Run("second note counts records only", func(t *testing.T) {
 		t.Parallel()
 
-		s, root := researchStore(t)
+		s, root := feedbackStore(t)
 
 		if _, err := s.AddNote(tid1, tnote, Commit{}); err != nil {
 			t.Fatalf("first AddNote() returned error: %v", err)
@@ -104,7 +115,7 @@ func TestStoreAddNote(t *testing.T) {
 	t.Run("no commit writes an empty list", func(t *testing.T) {
 		t.Parallel()
 
-		s, root := researchStore(t)
+		s, root := feedbackStore(t)
 
 		if _, err := s.AddNote(tid1, tnote, Commit{}); err != nil {
 			t.Fatalf("AddNote() returned error: %v", err)
@@ -119,7 +130,7 @@ func TestStoreAddNote(t *testing.T) {
 	t.Run("accepts an archived track", func(t *testing.T) {
 		t.Parallel()
 
-		s, root := researchStore(t)
+		s, root := feedbackStore(t)
 
 		if err := s.Relocate(tid1, false); err != nil {
 			t.Fatalf("Relocate() returned error: %v", err)
@@ -130,5 +141,58 @@ func TestStoreAddNote(t *testing.T) {
 		}
 
 		readNoteJSON(t, root, tid1+"-001")
+	})
+	t.Run("two projects share the folder", func(t *testing.T) {
+		t.Parallel()
+
+		d := t.TempDir()
+
+		for _, code := range []string{"BIT", "EX"} {
+			s := NewProject(filepath.Join(d, code), code).WithDataRoot(d)
+			track := code + "-1"
+
+			if err := s.Save(&Task{ID: track, Title: ttrack, Status: StatusTodo}); err != nil {
+				t.Fatalf("seeding %s: %v", track, err)
+			}
+
+			path, err := s.AddNote(track, tnote, Commit{})
+			if err != nil {
+				t.Fatalf("AddNote(%s) returned error: %v", track, err)
+			}
+
+			if want := filepath.Join(d, "feedback", track+"-001.md"); path != want {
+				t.Errorf("path = %q, want %q", path, want)
+			}
+		}
+
+		for _, code := range []string{"BIT", "EX"} {
+			if got := readNoteJSON(t, d, code+"-1-001")[kproject]; got != code {
+				t.Errorf("%s-1-001 project = %v, want %s", code, got, code)
+			}
+		}
+	})
+
+	t.Run("refuses without a data root", func(t *testing.T) {
+		t.Chdir(t.TempDir())
+
+		dir := t.TempDir()
+		s := NewProject(dir, tprefix)
+
+		if err := s.Save(&Task{ID: tid1, Title: ttrack, Status: StatusTodo}); err != nil {
+			t.Fatalf("seeding %s: %v", tid1, err)
+		}
+
+		if _, err := s.AddNote(tid1, tnote, Commit{}); err == nil {
+			t.Fatal("AddNote() returned no error")
+		}
+
+		entries, err := os.ReadDir(".")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(entries) != 0 {
+			t.Errorf("cwd holds %v, want nothing", entries)
+		}
 	})
 }

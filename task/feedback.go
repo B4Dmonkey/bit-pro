@@ -2,6 +2,7 @@ package task
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,6 +14,8 @@ import (
 )
 
 const feedbackSubdir = "feedback"
+
+var errNoDataRoot = errors.New("store has no data root")
 
 type noteRecord struct {
 	Project   string    `json:"project"`
@@ -26,7 +29,7 @@ type noteRecord struct {
 }
 
 func (s *Store) feedbackDir() string {
-	return filepath.Join(s.root, feedbackSubdir)
+	return filepath.Join(s.data, feedbackSubdir)
 }
 
 func noteID(track string, seq int) string {
@@ -69,6 +72,10 @@ func (s *Store) resolveTrack(track string) (string, error) {
 }
 
 func (s *Store) AddNote(track, body string, head Commit) (string, error) {
+	if s.data == "" {
+		return "", errNoDataRoot
+	}
+
 	track, err := s.resolveTrack(track)
 	if err != nil {
 		return "", err

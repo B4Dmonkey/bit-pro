@@ -1,7 +1,7 @@
 ---
 id: BIT-49
 title: 'v2: shared feedback and retro, bp migrate, and the .bit/ sweep'
-status: todo
+status: doing
 approved: true
 ---
 ## Why

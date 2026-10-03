@@ -24,8 +24,8 @@ const (
 )
 
 type Store struct {
-	root, code string
-	now        func() time.Time
+	root, code, data string
+	now              func() time.Time
 }
 
 func New(root string) *Store {
@@ -34,6 +34,12 @@ func New(root string) *Store {
 
 func NewProject(root, code string) *Store {
 	return &Store{root: root, code: code, now: time.Now}
+}
+
+func (s *Store) WithDataRoot(dir string) *Store {
+	s.data = dir
+
+	return s
 }
 
 func (s *Store) tasksDir() string {

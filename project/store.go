@@ -22,5 +22,10 @@ func StoreFor(p Project) (*task.Store, error) {
 		return nil, err
 	}
 
-	return task.NewProject(root, p.Code), nil
+	data, err := store.Dir()
+	if err != nil {
+		return nil, err
+	}
+
+	return task.NewProject(root, p.Code).WithDataRoot(data), nil
 }

@@ -594,7 +594,7 @@ func TestFeedbackAddHandler(t *testing.T) {
 			t.Fatalf("IsError = false, want true (content %v)", result.Content)
 		}
 
-		notes, err := filepath.Glob(filepath.Join(projectStoreDir(t, dir), testFeedbackDir, "*.md"))
+		notes, err := filepath.Glob(filepath.Join(dataDir(t), testFeedbackDir, "*.md"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -617,7 +617,7 @@ func TestFeedbackAddHandler(t *testing.T) {
 			t.Fatalf("IsError = false, want true (content %v)", result.Content)
 		}
 
-		notes, err := filepath.Glob(filepath.Join(projectStoreDir(t, dir), testFeedbackDir, "*.md"))
+		notes, err := filepath.Glob(filepath.Join(dataDir(t), testFeedbackDir, "*.md"))
 		if err != nil {
 			t.Fatal(err)
 		}
