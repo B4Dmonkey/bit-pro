@@ -2,7 +2,9 @@ package migrate
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -52,8 +54,19 @@ func Run(ctx context.Context, q *orm.Queries, opts Options) (Result, error) {
 		return Result{}, err
 	}
 
-	if err := copyTasks(filepath.Join(src, "tasks"), task.NewProject(root, code).WithDataRoot(data)); err != nil {
-		return Result{}, err
+	s := task.NewProject(root, code).WithDataRoot(data)
+
+	for _, pl := range []struct {
+		dir   string
+		place task.Place
+	}{
+		{"tasks", task.Active},
+		{"completed", task.Completed},
+		{filepath.Join("archive", "tasks"), task.Archived},
+	} {
+		if err := copyTasks(filepath.Join(src, pl.dir), s, pl.place); err != nil {
+			return Result{}, err
+		}
 	}
 
 	if err := q.CreateProject(ctx, orm.CreateProjectParams{Path: path, Code: code}); err != nil {
@@ -63,8 +76,12 @@ func Run(ctx context.Context, q *orm.Queries, opts Options) (Result, error) {
 	return Result{Code: code, Path: path}, nil
 }
 
-func copyTasks(dir string, s *task.Store) error {
+func copyTasks(dir string, s *task.Store, p task.Place) error {
 	entries, err := os.ReadDir(dir)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+
 	if err != nil {
 		return fmt.Errorf("reading %s: %w", dir, err)
 	}
@@ -86,7 +103,7 @@ func copyTasks(dir string, s *task.Store) error {
 			return fmt.Errorf("parsing %s: %w", path, err)
 		}
 
-		if err := s.Save(t); err != nil {
+		if err := s.SaveTo(p, t); err != nil {
 			return fmt.Errorf("copying %s: %w", path, err)
 		}
 	}

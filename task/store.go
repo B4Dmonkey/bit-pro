@@ -214,7 +214,30 @@ func (s *Store) loadRecord(path string) (*Task, error) {
 	return rec.task(string(body)), nil
 }
 
+type Place int
+
+const (
+	Active Place = iota
+	Completed
+	Archived
+)
+
+func (s *Store) placeDir(p Place) string {
+	switch p {
+	case Completed:
+		return s.completedDir()
+	case Archived:
+		return s.archiveTasksDir()
+	default:
+		return s.tasksDir()
+	}
+}
+
 func (s *Store) Save(t *Task) error {
+	return s.SaveTo(Active, t)
+}
+
+func (s *Store) SaveTo(p Place, t *Task) error {
 	t.Project = s.code
 
 	ts := s.now().UTC().Truncate(time.Second)
@@ -224,20 +247,22 @@ func (s *Store) Save(t *Task) error {
 
 	t.UpdatedAt = ts
 
-	data, err := newRecord(t, filepath.Base(bodyPath(s.tasksDir(), t.ID))).bytes()
+	dir := s.placeDir(p)
+
+	data, err := newRecord(t, filepath.Base(bodyPath(dir, t.ID))).bytes()
 	if err != nil {
 		return err
 	}
 
-	if err := os.MkdirAll(s.tasksDir(), dirMode); err != nil {
-		return fmt.Errorf("creating %s: %w", s.tasksDir(), err)
+	if err := os.MkdirAll(dir, dirMode); err != nil {
+		return fmt.Errorf("creating %s: %w", dir, err)
 	}
 
-	if err := os.WriteFile(bodyPath(s.tasksDir(), t.ID), []byte(t.Body), fileMode); err != nil {
+	if err := os.WriteFile(bodyPath(dir, t.ID), []byte(t.Body), fileMode); err != nil {
 		return fmt.Errorf("writing task %s body: %w", t.ID, err)
 	}
 
-	if err := os.WriteFile(s.Path(t.ID), data, fileMode); err != nil {
+	if err := os.WriteFile(pathologize.Join(dir, NormalizeID(t.ID)+recordExt), data, fileMode); err != nil {
 		return fmt.Errorf("writing task %s: %w", t.ID, err)
 	}
 

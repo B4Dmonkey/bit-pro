@@ -2,6 +2,9 @@ package cmd
 
 import (
 	"crypto/sha256"
+	"encoding/json"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
@@ -9,12 +12,15 @@ import (
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/project"
+	"github.com/B4Dmonkey/bit-pro/store"
 	"github.com/B4Dmonkey/bit-pro/task"
 )
 
 const (
 	migrateCmdUse = "migrate"
 	migratedBar   = "BIT-1.1"
+	splitBar      = "BIT-39.1"
+	listedBar     = "BIT-10.1"
 )
 
 func TestMigrateCmd(t *testing.T) {
@@ -96,6 +102,115 @@ func TestMigrateCmd(t *testing.T) {
 			t.Errorf("bp task create = %q, want %q", out, "BIT-2\n")
 		}
 	})
+
+	t.Run("keeps completed and archived records where they were", func(t *testing.T) {
+		mcpSandbox(t)
+
+		dir := t.TempDir()
+		writeV1Store(t, dir, v1Files(t, map[string][]*task.Task{
+			testTasksDir: {{ID: "BIT-40", Title: "Active", Status: task.StatusTodo}},
+			"completed": {
+				{ID: "BIT-39", Title: "Split", Status: task.StatusDoing, Order: []string{splitBar}},
+				{ID: splitBar, Title: "Done bar", Status: task.StatusDone},
+				{ID: "BIT-10", Title: "Partial", Status: task.StatusDone, Order: []string{listedBar}},
+				{ID: listedBar, Title: "Listed", Status: task.StatusDone},
+				{ID: "BIT-10.9", Title: "Unlisted", Status: task.StatusDone},
+			},
+			filepath.Join("archive", testTasksDir): {{ID: "BIT-39.13", Title: "Deleted bar", Status: task.StatusTodo}},
+		}))
+		t.Chdir(dir)
+
+		mustRun(t, migrateCmdUse)
+
+		root, err := store.ProjectDir(testPrefix)
+		if err != nil {
+			t.Fatalf("store.ProjectDir(%q) returned error: %v", testPrefix, err)
+		}
+
+		split := readMigratedRecord(t, filepath.Join(root, "completed", "BIT-39.json"))
+		if split.Status != task.StatusDoing || !slices.Equal(split.Order, []string{splitBar}) {
+			t.Errorf("completed/BIT-39 = {%q, %v}, want {%q, [BIT-39.1]}", split.Status, split.Order, task.StatusDoing)
+		}
+
+		if _, err := os.Stat(filepath.Join(root, "archive", "tasks", "BIT-39.13.json")); err != nil {
+			t.Errorf("archive/tasks/BIT-39.13.json: %v", err)
+		}
+
+		if _, err := os.Stat(filepath.Join(root, "completed", "BIT-39.13.json")); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("completed/BIT-39.13.json stat error = %v, want not exist", err)
+		}
+
+		partial := readMigratedRecord(t, filepath.Join(root, "completed", "BIT-10.json"))
+		if !slices.Equal(partial.Order, []string{listedBar}) {
+			t.Errorf("completed/BIT-10 order = %v, want [BIT-10.1]", partial.Order)
+		}
+
+		if _, err := os.Stat(filepath.Join(root, "completed", "BIT-10.9.json")); err != nil {
+			t.Errorf("completed/BIT-10.9.json: %v", err)
+		}
+
+		out := mustRun(t, "task", "list")
+		if !strings.Contains(out, "BIT-40") || strings.Count(out, "BIT-") != 1 {
+			t.Errorf("bp task list = %q, want only BIT-40", out)
+		}
+	})
+
+	t.Run("an archived track's id is never re-minted", func(t *testing.T) {
+		mcpSandbox(t)
+
+		dir := t.TempDir()
+		writeV1Store(t, dir, v1Files(t, map[string][]*task.Task{
+			testTasksDir:                           {{ID: testOwnTrack2, Title: "Active", Status: task.StatusTodo}},
+			filepath.Join("archive", testTasksDir): {{ID: "BIT-7", Title: "Deleted", Status: task.StatusTodo}},
+		}))
+		t.Chdir(dir)
+
+		mustRun(t, migrateCmdUse)
+
+		if out := mustRun(t, "task", "create", "T"); out != "BIT-8\n" {
+			t.Errorf("bp task create = %q, want %q", out, "BIT-8\n")
+		}
+	})
+}
+
+type migratedRecord struct {
+	Status string   `json:"status"`
+	Order  []string `json:"order"`
+}
+
+func readMigratedRecord(t *testing.T, path string) migratedRecord {
+	t.Helper()
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("os.ReadFile(%q) returned error: %v", path, err)
+	}
+
+	var rec migratedRecord
+	if err := json.Unmarshal(data, &rec); err != nil {
+		t.Fatalf("json.Unmarshal(%q) returned error: %v", path, err)
+	}
+
+	return rec
+}
+
+func v1Files(t *testing.T, places map[string][]*task.Task) map[string][]byte {
+	t.Helper()
+
+	files := map[string][]byte{"config.toml": []byte("prefix = \"BIT\"\n")}
+
+	for dir, tasks := range places {
+		for _, tk := range tasks {
+			data, err := tk.Bytes()
+			if err != nil {
+				t.Fatalf("Bytes(%s) returned error: %v", tk.ID, err)
+			}
+
+			files[filepath.Join(dir, tk.ID+".md")] = data
+		}
+	}
+
+	return files
 }
 
 func v1Track() *task.Task {
@@ -119,18 +234,7 @@ func v1Bars() []*task.Task {
 func v1Fixture(t *testing.T) map[string][]byte {
 	t.Helper()
 
-	files := map[string][]byte{"config.toml": []byte("prefix = \"BIT\"\n")}
-
-	for _, tk := range append([]*task.Task{v1Track()}, v1Bars()...) {
-		data, err := tk.Bytes()
-		if err != nil {
-			t.Fatalf("Bytes(%s) returned error: %v", tk.ID, err)
-		}
-
-		files[filepath.Join("tasks", tk.ID+".md")] = data
-	}
-
-	return files
+	return v1Files(t, map[string][]*task.Task{testTasksDir: append([]*task.Task{v1Track()}, v1Bars()...)})
 }
 
 func writeV1Store(t *testing.T, dir string, files map[string][]byte) {
