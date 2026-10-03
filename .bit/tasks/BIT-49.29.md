@@ -1,7 +1,7 @@
 ---
 id: BIT-49.29
 title: do and bot-dev stop staging .bit/ with the code
-status: todo
+status: done
 approved: true
 phase: 3
 phase_label: no .bit/ in sight
