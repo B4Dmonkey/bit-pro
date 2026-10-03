@@ -67,3 +67,21 @@ func IsAncestor(ctx context.Context, run Runner, dir, sha, ref string) bool {
 
 	return err == nil && strings.TrimSpace(out) == sha
 }
+
+func FirstParents(ctx context.Context, run Runner, dir, ref string) ([]string, error) {
+	out, err := run(ctx, dir, "rev-list", "--first-parent", ref)
+	if err != nil {
+		return nil, fmt.Errorf("first parents of %s: %w", ref, err)
+	}
+
+	return strings.Fields(out), nil
+}
+
+func AncestryPath(ctx context.Context, run Runner, dir, sha, ref string) ([]string, error) {
+	out, err := run(ctx, dir, "rev-list", "--ancestry-path", sha+".."+ref)
+	if err != nil {
+		return nil, fmt.Errorf("ancestry path %s..%s: %w", sha, ref, err)
+	}
+
+	return strings.Fields(out), nil
+}

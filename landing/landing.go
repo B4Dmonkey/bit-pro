@@ -3,6 +3,7 @@ package landing
 import (
 	"context"
 	"errors"
+	"fmt"
 	"regexp"
 
 	"github.com/B4Dmonkey/bit-pro/git"
@@ -64,6 +65,18 @@ func Check(ctx context.Context, run git.Runner, q Query) (Report, error) {
 		return Report{}, err
 	}
 
+	chain, err := git.FirstParents(ctx, run, q.Dir, trunk)
+	if err != nil {
+		return Report{}, fmt.Errorf("reading trunk %s: %w", name, err)
+	}
+
+	pos := make(map[string]int, len(chain))
+	for i, sha := range chain {
+		pos[sha] = i
+	}
+
+	newest := len(chain)
+
 	r := Report{
 		Trunk:      name,
 		Branch:     "main",
@@ -75,10 +88,19 @@ func Check(ctx context.Context, run git.Runner, q Query) (Report, error) {
 	for _, b := range q.Bars {
 		res := BarResult{ID: b.ID, Status: b.Status, Commit: b.Commit, Class: NotLanded}
 
-		if sha, ok := landedAt(ctx, run, q.Dir, b.Commit, trunk); ok {
+		at, ok, err := landedAt(ctx, run, q.Dir, b.Commit, trunk, pos)
+		if err != nil {
+			return Report{}, err
+		}
+
+		if ok {
 			res.Class = Landed
-			res.Landing = sha
-			r.Landing = sha
+			res.Landing = chain[at]
+
+			if at < newest {
+				newest = at
+				r.Landing = chain[at]
+			}
 		} else {
 			r.Verdict = NotDone
 		}
@@ -109,15 +131,28 @@ func resolveTrunk(ctx context.Context, run git.Runner, dir string) (string, stri
 	return "", "", ErrNoTrunk
 }
 
-func landedAt(ctx context.Context, run git.Runner, dir, commit, trunk string) (string, bool) {
+func landedAt(ctx context.Context, run git.Runner, dir, commit, trunk string, pos map[string]int) (int, bool, error) {
 	if !fullSHA.MatchString(commit) {
-		return "", false
+		return 0, false, nil
 	}
 
 	sha, ok := git.ResolveCommit(ctx, run, dir, commit)
 	if !ok || !git.IsAncestor(ctx, run, dir, sha, trunk) {
-		return "", false
+		return 0, false, nil
 	}
 
-	return sha, true
+	path, err := git.AncestryPath(ctx, run, dir, sha, trunk)
+	if err != nil {
+		return 0, false, fmt.Errorf("landing of %s: %w", sha, err)
+	}
+
+	at, found := -1, false
+
+	for _, c := range append(path, sha) {
+		if i, on := pos[c]; on && i > at {
+			at, found = i, true
+		}
+	}
+
+	return at, found, nil
 }

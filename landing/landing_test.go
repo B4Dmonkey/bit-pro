@@ -124,6 +124,7 @@ func TestCheck(t *testing.T) {
 		bad := []string{"--output=/tmp/x", "abc123"}
 		fake := &recordingGit{results: map[string]string{
 			"rev-parse --verify -q refs/remotes/origin/main^{commit}": trunk,
+			"rev-list --first-parent " + trunk:                        trunk,
 		}}
 
 		got, err := landing.Check(t.Context(), fake.run, landing.Query{Dir: "/repo", Bars: []landing.Bar{
@@ -146,6 +147,115 @@ func TestCheck(t *testing.T) {
 					t.Errorf("git call %q contains %q", call, v)
 				}
 			}
+		}
+	})
+
+	t.Run("a bar merged through a true merge lands at the merge", func(t *testing.T) {
+		r := gittest.New(t)
+
+		r.Git("checkout", "-b", "feat")
+		b1 := r.Commit("feat(bit): on a branch")
+		r.Git("checkout", "main")
+		r.Commit("chore: trunk moves")
+		r.Git("merge", "--no-ff", "-m", "Merge branch 'feat'", "feat")
+		m := r.Git("rev-parse", "HEAD")
+		r.Git("push", "origin", "main")
+
+		got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: r.Dir, Bars: []landing.Bar{
+			{ID: bar1, Status: done, Commit: b1},
+		}})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if got.Bars[0].Landing != m {
+			t.Errorf("Bars[0].Landing = %q, want %q", got.Bars[0].Landing, m)
+		}
+
+		if got.Verdict != landing.Done || got.Landing != m {
+			t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, landing.Done, m)
+		}
+	})
+
+	t.Run("a bar from before a back merge lands at the merge", func(t *testing.T) {
+		r := gittest.New(t)
+
+		r.Git("checkout", "-b", "feat")
+		b1 := r.Commit("feat(bit): one")
+		r.Git("checkout", "main")
+		r.Commit("chore: trunk moves")
+		r.Git("checkout", "feat")
+		r.Git("merge", "--no-ff", "-m", "Merge branch 'main' into feat", "main")
+		b2 := r.Commit("feat(bit): two")
+		r.Git("checkout", "main")
+		r.Git("merge", "--no-ff", "-m", "Merge branch 'feat'", "feat")
+		m := r.Git("rev-parse", "HEAD")
+		r.Commit("chore: trunk moves again")
+		r.Git("push", "origin", "main")
+
+		got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: r.Dir, Bars: []landing.Bar{
+			{ID: bar1, Status: done, Commit: b1},
+			{ID: bar2, Status: done, Commit: b2},
+		}})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for i, b := range got.Bars {
+			if b.Landing != m {
+				t.Errorf("Bars[%d].Landing = %q, want %q", i, b.Landing, m)
+			}
+		}
+
+		if got.Landing != m {
+			t.Errorf("Landing = %q, want %q", got.Landing, m)
+		}
+	})
+
+	t.Run("a fast forward merge lands each bar at itself", func(t *testing.T) {
+		r := gittest.New(t)
+
+		r.Git("checkout", "-b", "feat")
+		b1 := r.Commit("feat(bit): one")
+		b2 := r.Commit("feat(bit): two")
+		r.Git("checkout", "main")
+		r.Git("merge", "--ff-only", "feat")
+		r.Git("push", "origin", "main")
+
+		got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: r.Dir, Bars: []landing.Bar{
+			{ID: bar1, Status: done, Commit: b1},
+			{ID: bar2, Status: done, Commit: b2},
+		}})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if got.Bars[0].Landing != b1 || got.Bars[1].Landing != b2 {
+			t.Errorf("Landings = %q, %q, want %q, %q", got.Bars[0].Landing, got.Bars[1].Landing, b1, b2)
+		}
+
+		if got.Landing != b2 {
+			t.Errorf("Landing = %q, want %q", got.Landing, b2)
+		}
+	})
+
+	t.Run("the newest landing wins whatever the bar order", func(t *testing.T) {
+		r := gittest.New(t)
+
+		c2 := r.Commit("feat(bit): two")
+		c1 := r.Commit("feat(bit): one")
+		r.Git("push", "origin", "main")
+
+		got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: r.Dir, Bars: []landing.Bar{
+			{ID: bar1, Status: done, Commit: c1},
+			{ID: bar2, Status: done, Commit: c2},
+		}})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if got.Landing != c1 {
+			t.Errorf("Landing = %q, want %q", got.Landing, c1)
 		}
 	})
 

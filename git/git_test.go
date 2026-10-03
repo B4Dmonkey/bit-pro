@@ -10,6 +10,11 @@ import (
 	"github.com/B4Dmonkey/bit-pro/git/gittest"
 )
 
+const (
+	caseGitFails    = "git fails"
+	caseEmptyOutput = "empty output"
+)
+
 type fakeResult struct {
 	out string
 	err error
@@ -141,7 +146,7 @@ func TestTracks(t *testing.T) {
 	}{
 		{name: "tracked files", result: fakeResult{out: ".bit/config.toml\n"}, want: true},
 		{name: "nothing tracked", result: fakeResult{}, want: false},
-		{name: "git fails", result: fakeResult{err: errors.New("exit status 128")}, want: false},
+		{name: caseGitFails, result: fakeResult{err: errors.New("exit status 128")}, want: false},
 	}
 
 	for _, tt := range tests {
@@ -175,7 +180,7 @@ func TestResolveCommit(t *testing.T) {
 	}{
 		{name: "resolves", result: fakeResult{out: sha + "\n"}, want: sha, wantOK: true},
 		{name: "rev-parse fails", result: fakeResult{err: errors.New("exit status 1")}},
-		{name: "empty output", result: fakeResult{}},
+		{name: caseEmptyOutput, result: fakeResult{}},
 	}
 
 	for _, tt := range tests {
@@ -210,7 +215,7 @@ func TestIsAncestor(t *testing.T) {
 	}{
 		{name: "ancestor", result: fakeResult{out: sha + "\n"}, want: true},
 		{name: "another merge base", result: fakeResult{out: other + "\n"}},
-		{name: "git fails", result: fakeResult{err: errors.New("exit status 128")}},
+		{name: caseGitFails, result: fakeResult{err: errors.New("exit status 128")}},
 	}
 
 	for _, tt := range tests {
@@ -219,6 +224,91 @@ func TestIsAncestor(t *testing.T) {
 
 			if got := IsAncestor(t.Context(), fake.run, dir, sha, "origin/main"); got != tt.want {
 				t.Errorf("IsAncestor() = %v, want %v", got, tt.want)
+			}
+
+			if want := []string{dir}; !slices.Equal(fake.dirs, want) {
+				t.Errorf("runner dirs = %q, want %q", fake.dirs, want)
+			}
+		})
+	}
+}
+
+func TestFirstParents(t *testing.T) {
+	const (
+		sha     = "6a1d3459c0ffee000000000000000000000000ab"
+		other   = "0000000000000000000000000000000000000001"
+		dir     = "/repo"
+		revList = "rev-list --first-parent origin/main"
+	)
+
+	failed := errors.New("exit status 128")
+
+	tests := []struct {
+		name    string
+		result  fakeResult
+		want    []string
+		wantErr error
+	}{
+		{name: "newest first", result: fakeResult{out: sha + "\n" + other + "\n"}, want: []string{sha, other}},
+		{name: caseEmptyOutput, result: fakeResult{}, want: []string{}},
+		{name: caseGitFails, result: fakeResult{err: failed}, wantErr: failed},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := &fakeGit{results: map[string]fakeResult{revList: tt.result}}
+
+			got, err := FirstParents(t.Context(), fake.run, dir, "origin/main")
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("FirstParents() error = %v, want %v", err, tt.wantErr)
+			}
+
+			if tt.wantErr == nil && (got == nil || !slices.Equal(got, tt.want)) {
+				t.Errorf("FirstParents() = %#v, want %#v", got, tt.want)
+			}
+
+			if want := []string{dir}; !slices.Equal(fake.dirs, want) {
+				t.Errorf("runner dirs = %q, want %q", fake.dirs, want)
+			}
+		})
+	}
+}
+
+func TestAncestryPath(t *testing.T) {
+	const (
+		sha     = "6a1d3459c0ffee000000000000000000000000ab"
+		other   = "0000000000000000000000000000000000000001"
+		third   = "0000000000000000000000000000000000000002"
+		dir     = "/repo"
+		revList = "rev-list --ancestry-path " + sha + "..origin/main"
+	)
+
+	failed := errors.New("exit status 128")
+
+	tests := []struct {
+		name    string
+		result  fakeResult
+		want    []string
+		wantErr error
+	}{
+		{name: "newest first", result: fakeResult{out: other + "\n" + third + "\n"}, want: []string{other, third}},
+		{name: caseEmptyOutput, result: fakeResult{}, want: []string{}},
+		{name: caseGitFails, result: fakeResult{err: failed}, wantErr: failed},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := &fakeGit{results: map[string]fakeResult{revList: tt.result}}
+
+			got, err := AncestryPath(t.Context(), fake.run, dir, sha, "origin/main")
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("AncestryPath() error = %v, want %v", err, tt.wantErr)
+			}
+
+			if tt.wantErr == nil && (got == nil || !slices.Equal(got, tt.want)) {
+				t.Errorf("AncestryPath() = %#v, want %#v", got, tt.want)
 			}
 
 			if want := []string{dir}; !slices.Equal(fake.dirs, want) {

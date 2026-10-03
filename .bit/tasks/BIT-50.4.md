@@ -1,7 +1,7 @@
 ---
 id: BIT-50.4
 title: A bar lands at the oldest first-parent trunk commit that contains it, and the track at the newest of those
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: complete after push
