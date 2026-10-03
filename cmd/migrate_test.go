@@ -771,6 +771,60 @@ func TestMigrateCmd(t *testing.T) {
 		}
 	})
 
+	t.Run("prints the cleanup step for an untracked bit folder", func(t *testing.T) {
+		mcpSandbox(t)
+		gittest.Isolate(t)
+
+		dir := t.TempDir()
+		files := v1Fixture(t)
+		writeV1Store(t, dir, files)
+		before := hashV1Store(t, dir, files)
+		t.Chdir(dir)
+
+		want, err := project.CanonicalPath(dir)
+		if err != nil {
+			t.Fatalf("project.CanonicalPath(%q) returned error: %v", dir, err)
+		}
+
+		out := mustRun(t, migrateCmdUse)
+
+		if rm := "rm -rf " + filepath.Join(want, ".bit"); !strings.Contains(out, rm) {
+			t.Errorf("output = %q, want it to contain %q", out, rm)
+		}
+
+		if strings.Contains(out, "git rm") {
+			t.Errorf("output = %q, want no git rm", out)
+		}
+
+		if after := hashV1Store(t, dir, files); !slices.Equal(after, before) {
+			t.Errorf("source hashes changed: before %x, after %x", before, after)
+		}
+	})
+
+	t.Run("prints git rm for a tracked bit folder", func(t *testing.T) {
+		mcpSandbox(t)
+		gittest.Isolate(t)
+
+		dir := t.TempDir()
+		writeV1Store(t, dir, v1Fixture(t))
+		gittest.Run(t, dir, "init", "-b", "main")
+		gittest.Run(t, dir, "add", ".bit")
+		gittest.Run(t, dir, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-m", "v1")
+		t.Chdir(dir)
+
+		out := mustRun(t, migrateCmdUse)
+
+		for _, step := range []string{"git rm -r .bit", "rm -rf .bit"} {
+			if !strings.Contains(out, step) {
+				t.Errorf("output = %q, want it to contain %q", out, step)
+			}
+		}
+
+		if status := gittest.Run(t, dir, "status", "--porcelain"); status != "" {
+			t.Errorf("git status --porcelain = %q, want clean", status)
+		}
+	})
+
 	t.Run("first migration ensures the global wiring", func(t *testing.T) {
 		mcpSandbox(t)
 		gittest.Isolate(t)

@@ -32,6 +32,7 @@ type Options struct {
 type Result struct {
 	Code, Path string
 	Already    bool
+	Tracked    bool
 }
 
 var ErrCodeTaken = errors.New("code belongs to another project")
@@ -98,7 +99,7 @@ func Run(ctx context.Context, q *orm.Queries, opts Options) (Result, error) {
 		return Result{}, fmt.Errorf("registering %s: %w", path, err)
 	}
 
-	return Result{Code: code, Path: path}, nil
+	return Result{Code: code, Path: path, Tracked: git.Tracks(ctx, opts.Git, filepath.Dir(src), ".bit")}, nil
 }
 
 func already(ctx context.Context, q *orm.Queries, path string) ([]project.Project, Result, error) {

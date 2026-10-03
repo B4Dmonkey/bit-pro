@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/B4Dmonkey/bit-pro/claude"
@@ -42,8 +43,18 @@ func newMigrateCmd(run claude.Runner) *cobra.Command {
 			}
 
 			fmt.Fprintf(cmd.OutOrStdout(), "migrated %s %s\n", res.Code, res.Path)
+			fmt.Fprintln(cmd.OutOrStdout(), cleanupStep(res))
 
 			return ensureGlobalWiring(cmd, run)
 		},
 	}
+}
+
+func cleanupStep(res migrate.Result) string {
+	if res.Tracked {
+		return fmt.Sprintf("cleanup: in %s, run `git rm -r .bit` and commit, "+
+			"then `rm -rf .bit` to delete the untracked files git leaves behind", res.Path)
+	}
+
+	return fmt.Sprintf("cleanup: remove the v1 folder with `rm -rf %s`", filepath.Join(res.Path, ".bit"))
 }

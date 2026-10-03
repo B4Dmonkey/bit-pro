@@ -44,3 +44,9 @@ func ReadHead(ctx context.Context, run Runner, dir string) Head {
 
 	return h
 }
+
+func Tracks(ctx context.Context, run Runner, dir, path string) bool {
+	out, err := run(ctx, dir, "ls-files", "--", path)
+
+	return err == nil && strings.TrimSpace(out) != ""
+}

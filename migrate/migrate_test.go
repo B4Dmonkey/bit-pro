@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -23,6 +24,7 @@ const (
 	headBranch  = "v2"
 	revParse    = "rev-parse HEAD"
 	symbolicRef = "symbolic-ref --short -q HEAD"
+	lsFiles     = "ls-files -- .bit"
 	track       = "BIT-1"
 )
 
@@ -34,12 +36,21 @@ type fakeResult struct {
 type fakeGit struct {
 	results map[string]fakeResult
 	dirs    []string
+	asked   map[string][]string
 }
 
 func (f *fakeGit) run(_ context.Context, dir string, args ...string) (string, error) {
 	f.dirs = append(f.dirs, dir)
 
-	r, ok := f.results[strings.Join(args, " ")]
+	key := strings.Join(args, " ")
+
+	if f.asked == nil {
+		f.asked = map[string][]string{}
+	}
+
+	f.asked[key] = append(f.asked[key], dir)
+
+	r, ok := f.results[key]
 	if !ok {
 		return "", errors.New("unexpected git " + strings.Join(args, " "))
 	}
@@ -90,7 +101,7 @@ func TestRun(t *testing.T) {
 
 	t.Run("registers only after the files are in place", func(t *testing.T) {
 		dir := writeFixture(t)
-		q := runMigrate(t, Options{Dir: dir, Git: (&fakeGit{}).run, Now: now})
+		q, _ := runMigrate(t, Options{Dir: dir, Git: (&fakeGit{}).run, Now: now})
 
 		data, root := dirs(t)
 
@@ -156,7 +167,7 @@ func TestRun(t *testing.T) {
 			symbolicRef: {out: "worktree-wt\n"},
 		}}
 
-		q := runMigrate(t, Options{Dir: wt, Git: fake.run, Now: now})
+		q, _ := runMigrate(t, Options{Dir: wt, Git: fake.run, Now: now})
 
 		want, err := project.CanonicalPath(dir)
 		if err != nil {
@@ -184,14 +195,35 @@ func TestRun(t *testing.T) {
 			t.Errorf("BIT-2 branch = %v, want worktree-wt", got)
 		}
 
-		for _, d := range fake.dirs {
-			if d != wt {
-				t.Errorf("git dir = %q, want %q", d, wt)
+		for _, key := range []string{revParse, symbolicRef} {
+			if got := fake.asked[key]; !slices.Equal(got, []string{wt}) {
+				t.Errorf("git %s dirs = %q, want [%q]", key, got, wt)
 			}
 		}
+	})
 
-		if len(fake.dirs) == 0 {
-			t.Error("git was never called")
+	t.Run("reports a tracked bit folder", func(t *testing.T) {
+		dir := writeFixture(t)
+
+		wt := filepath.Join(dir, ".claude", "worktrees", "wt")
+		if err := os.MkdirAll(wt, 0o755); err != nil {
+			t.Fatalf("os.MkdirAll(%q) returned error: %v", wt, err)
+		}
+
+		fake := &fakeGit{results: map[string]fakeResult{
+			revParse:    {out: headSHA + "\n"},
+			symbolicRef: {out: "worktree-wt\n"},
+			lsFiles:     {out: ".bit/config.toml\n"},
+		}}
+
+		_, res := runMigrate(t, Options{Dir: wt, Git: fake.run, Now: now})
+
+		if !res.Tracked {
+			t.Error("Tracked = false, want true")
+		}
+
+		if got := fake.asked[lsFiles]; !slices.Equal(got, []string{dir}) {
+			t.Errorf("git %s dirs = %q, want [%q]", lsFiles, got, dir)
 		}
 	})
 }
@@ -214,7 +246,7 @@ func writeTask(t *testing.T, dir string, tk *task.Task) {
 	}
 }
 
-func runMigrate(t *testing.T, opts Options) *orm.Queries {
+func runMigrate(t *testing.T, opts Options) (*orm.Queries, Result) {
 	t.Helper()
 
 	sqlDB, err := db.Open()
@@ -226,11 +258,12 @@ func runMigrate(t *testing.T, opts Options) *orm.Queries {
 
 	q := orm.New(sqlDB)
 
-	if _, err := Run(t.Context(), q, opts); err != nil {
+	res, err := Run(t.Context(), q, opts)
+	if err != nil {
 		t.Fatalf("Run() returned error: %v", err)
 	}
 
-	return q
+	return q, res
 }
 
 func writeFixture(t *testing.T) string {

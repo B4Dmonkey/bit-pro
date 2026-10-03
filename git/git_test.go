@@ -127,3 +127,34 @@ func TestExecRunner(t *testing.T) {
 		}
 	})
 }
+
+func TestTracks(t *testing.T) {
+	const (
+		dir     = "/repo"
+		lsFiles = "ls-files -- .bit"
+	)
+
+	tests := []struct {
+		name   string
+		result fakeResult
+		want   bool
+	}{
+		{name: "tracked files", result: fakeResult{out: ".bit/config.toml\n"}, want: true},
+		{name: "nothing tracked", result: fakeResult{}, want: false},
+		{name: "git fails", result: fakeResult{err: errors.New("exit status 128")}, want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := &fakeGit{results: map[string]fakeResult{lsFiles: tt.result}}
+
+			if got := Tracks(t.Context(), fake.run, dir, ".bit"); got != tt.want {
+				t.Errorf("Tracks() = %v, want %v", got, tt.want)
+			}
+
+			if want := []string{dir}; !slices.Equal(fake.dirs, want) {
+				t.Errorf("runner dirs = %q, want %q", fake.dirs, want)
+			}
+		})
+	}
+}

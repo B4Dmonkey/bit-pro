@@ -1,7 +1,7 @@
 ---
 id: BIT-49.25
 title: migrate prints the cleanup step for a tracked or untracked .bit/ and never runs it
-status: todo
+status: done
 approved: true
 phase: 2
 phase_label: bp migrate
