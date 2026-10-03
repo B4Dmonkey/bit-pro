@@ -358,6 +358,7 @@ func TestMCPToolDescriptions(t *testing.T) {
 				want: []string{testGitKeepsApproval},
 			},
 			{name: feedbackListTool, tool: feedbackListTool, want: []string{testOwnProjectOnly}},
+			{name: feedbackReadTool, tool: feedbackReadTool, want: []string{testOwnProjectOnly}},
 		}
 
 		for _, tt := range tests {

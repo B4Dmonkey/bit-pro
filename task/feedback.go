@@ -19,6 +19,8 @@ const feedbackSubdir = "feedback"
 
 var errNoDataRoot = errors.New("store has no data root")
 
+var ErrOtherProject = errors.New("note belongs to another project")
+
 type noteRecord struct {
 	Project   string    `json:"project"`
 	ID        string    `json:"id"`
@@ -201,4 +203,34 @@ func (s *Store) ListNotes(track string) ([]string, error) {
 	}
 
 	return ids, nil
+}
+
+func (s *Store) ReadNote(id string) (string, error) {
+	if strings.Contains(id, "..") || strings.ContainsAny(id, `/\`) {
+		return "", fmt.Errorf("note ID %q looks like a path", id)
+	}
+
+	id = NormalizeID(id)
+	dir := s.feedbackDir()
+
+	data, err := os.ReadFile(pathologize.Join(dir, id+recordExt))
+	if err != nil {
+		return "", fmt.Errorf("reading note %s: %w", id, err)
+	}
+
+	var rec noteRecord
+	if err := json.Unmarshal(data, &rec); err != nil {
+		return "", fmt.Errorf("parsing note %s: %w", id, err)
+	}
+
+	if rec.Project != s.code {
+		return "", fmt.Errorf("%s: %w", id, ErrOtherProject)
+	}
+
+	body, err := os.ReadFile(pathologize.Join(dir, rec.Content))
+	if err != nil {
+		return "", fmt.Errorf("reading note %s body: %w", id, err)
+	}
+
+	return string(body), nil
 }

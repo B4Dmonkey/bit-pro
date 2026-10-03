@@ -1,7 +1,7 @@
 ---
 id: BIT-49.4
 title: feedback_read returns a note's body and refuses another project's note
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: feedback and retro are shared across projects

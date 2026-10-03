@@ -22,6 +22,8 @@ const (
 	testOwnNote1    = "BIT-1-001"
 	testOwnNote2    = "BIT-1-002"
 	testOwnNoteBIT2 = "BIT-2-001"
+	testOtherNote   = "EX-1-001"
+	testNoteIDKey   = "id"
 )
 
 func seedCodedProject(t *testing.T, dir, code string, tracks ...string) {
@@ -119,6 +121,46 @@ func TestFeedbackListHandler(t *testing.T) {
 		result := callToolResult(t, mcpSession(t, dir), feedbackListTool, map[string]any{testTrackKey: testMissingOwn})
 		if !result.IsError {
 			t.Fatalf("IsError = false, want true (content %v)", result.Content)
+		}
+	})
+}
+
+func TestFeedbackReadHandler(t *testing.T) {
+	t.Run("returns the note body", func(t *testing.T) {
+		dir := t.TempDir()
+		seedCodedProject(t, dir, testOwnCode, testOwnTrack)
+
+		session := mcpSession(t, dir)
+		addNote(t, session, testOwnTrack)
+
+		got := callTool(t, session, feedbackReadTool, map[string]any{testNoteIDKey: testOwnNote1})
+		if got[testBodyKey] != testNoteBody {
+			t.Errorf("body = %q, want %q", got[testBodyKey], testNoteBody)
+		}
+	})
+
+	t.Run("refuses another project's note", func(t *testing.T) {
+		result := callToolResult(t, seedTwoProjectsNotes(t), feedbackReadTool, map[string]any{testNoteIDKey: testOtherNote})
+
+		assertToolErrorNames(t, result, "another project")
+	})
+
+	t.Run("refuses an unknown or path-like id", func(t *testing.T) {
+		tests := []struct {
+			name string
+			id   string
+		}{
+			{name: "unknown", id: "BIT-1-099"},
+			{name: "path-like", id: "../" + testOwnNote1},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result := callToolResult(t, seedTwoProjectsNotes(t), feedbackReadTool, map[string]any{testNoteIDKey: tt.id})
+				if !result.IsError {
+					t.Fatalf("IsError = false, want true (content %v)", result.Content)
+				}
+			})
 		}
 	})
 }

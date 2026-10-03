@@ -23,6 +23,7 @@ const (
 	taskMoveTool      = "task_move"
 	feedbackAddTool   = "feedback_add"
 	feedbackListTool  = "feedback_list"
+	feedbackReadTool  = "feedback_read"
 	taskCompleteTool  = "task_complete"
 	taskDeleteTool    = "task_delete"
 	researchWriteTool = "research_write"
@@ -107,6 +108,11 @@ Notes from every project share one folder, but this lists only the current proje
 from another project is never listed. A track is a top-level task, whose ID has no dot, as in BIT-7.
 Set track to list only that track's notes; omit it to list every note of the project. IDs come
 ordered by track, then by note number, and a project with no notes lists none.`
+
+const feedbackReadDescription = `Read one feedback note of the current project and return its body.
+
+Pass the note ID that feedback_list returns. Notes from every project share one folder, but this
+reads only the current project's notes: a note from another project is refused.`
 
 const researchWriteDescription = `Write one topic of a track's research and return its path.
 
@@ -198,6 +204,14 @@ type feedbackListOutput struct {
 	Notes []string `json:"notes"`
 }
 
+type feedbackReadInput struct {
+	ID string `json:"id"`
+}
+
+type feedbackReadOutput struct {
+	Body string `json:"body"`
+}
+
 type researchWriteInput struct {
 	Track string `json:"track"`
 	Topic string `json:"topic"`
@@ -280,6 +294,7 @@ func runMCPServer(ctx context.Context, root string, run git.Runner, transport mc
 	mcp.AddTool(s, &mcp.Tool{Name: taskMoveTool, Description: taskMoveDescription}, taskMoveHandler(root))
 	mcp.AddTool(s, &mcp.Tool{Name: feedbackAddTool, Description: feedbackAddDescription}, feedbackAddHandler(root, run))
 	mcp.AddTool(s, &mcp.Tool{Name: feedbackListTool, Description: feedbackListDescription}, feedbackListHandler(root))
+	mcp.AddTool(s, &mcp.Tool{Name: feedbackReadTool, Description: feedbackReadDescription}, feedbackReadHandler(root))
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        researchWriteTool,
 		Description: researchWriteDescription,
@@ -538,6 +553,26 @@ func feedbackListHandler(root string) mcp.ToolHandlerFor[feedbackListInput, feed
 		}
 
 		return nil, feedbackListOutput{Notes: notes}, nil
+	}
+}
+
+func feedbackReadHandler(root string) mcp.ToolHandlerFor[feedbackReadInput, feedbackReadOutput] {
+	return func(
+		ctx context.Context,
+		_ *mcp.CallToolRequest,
+		in feedbackReadInput,
+	) (*mcp.CallToolResult, feedbackReadOutput, error) {
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, feedbackReadOutput{}, err
+		}
+
+		body, err := store.ReadNote(in.ID)
+		if err != nil {
+			return nil, feedbackReadOutput{}, fmt.Errorf("reading note: %w", err)
+		}
+
+		return nil, feedbackReadOutput{Body: body}, nil
 	}
 }
 
