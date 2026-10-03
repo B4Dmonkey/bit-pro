@@ -218,6 +218,7 @@ type squashes struct {
 	trunk  string
 	pos    map[string]int
 	list   []git.Squash
+	lines  []map[string]int
 	loaded bool
 }
 
@@ -228,7 +229,7 @@ func (s *squashes) match(ctx context.Context, sha string) (int, bool, error) {
 			return 0, false, err
 		}
 
-		s.list, s.loaded = list, true
+		s.list, s.lines, s.loaded = list, lineCounts(list), true
 	}
 
 	subject, at, ok := git.Subject(ctx, s.run, s.dir, sha)
@@ -236,17 +237,32 @@ func (s *squashes) match(ctx context.Context, sha string) (int, bool, error) {
 		return -1, false, nil
 	}
 
-	for _, sq := range slices.Backward(s.list) {
-		if sq.Time < at || (sq.Subject != subject && !slices.Contains(sq.Listed, subject)) {
+	for i, sq := range slices.Backward(s.list) {
+		if sq.Time < at || s.lines[i][subject] == 0 {
 			continue
 		}
 
-		if i, on := s.pos[sq.SHA]; on {
-			return i, true, nil
+		if p, on := s.pos[sq.SHA]; on {
+			s.lines[i][subject]--
+
+			return p, true, nil
 		}
 	}
 
 	return -1, false, nil
+}
+
+func lineCounts(list []git.Squash) []map[string]int {
+	counts := make([]map[string]int, len(list))
+
+	for i, sq := range list {
+		counts[i] = map[string]int{sq.Subject: 1}
+		for _, line := range sq.Listed {
+			counts[i][line]++
+		}
+	}
+
+	return counts
 }
 
 func placeAnswer(

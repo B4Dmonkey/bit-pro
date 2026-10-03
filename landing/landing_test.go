@@ -21,6 +21,7 @@ const (
 
 	play  = "feat(tui): play prompt"
 	queue = "feat(tui): queue view"
+	tidy  = "chore(bit): tidy"
 )
 
 type recordingGit struct {
@@ -703,6 +704,57 @@ func TestCheck(t *testing.T) {
 		}
 
 		assertSquashed(t, got, five, five, six)
+	})
+
+	t.Run("two bars with one shared subject claim one line each", func(t *testing.T) {
+		r := gittest.New(t)
+
+		r.Git("checkout", "-b", "feat")
+		t1 := r.Commit(tidy)
+		t2 := r.Commit(tidy)
+		r.Git("push", "origin", "feat")
+		s := squash(r, "Tidy (#8)", "* "+tidy)
+
+		got := check(t, r.Dir, []landing.Bar{{ID: bar1, Status: done, Commit: t1}, {ID: bar2, Status: done, Commit: t2}})
+
+		if got.Verdict != landing.Partly || got.Bars[0].Landing != s {
+			t.Errorf("Verdict, Bars[0].Landing = %q, %q, want %q, %q", got.Verdict, got.Bars[0].Landing, landing.Partly, s)
+		}
+
+		if want := []landing.Class{landing.Squash, landing.Pushed}; !slices.Equal(classes(got), want) {
+			t.Errorf("classes = %q, want %q", classes(got), want)
+		}
+	})
+
+	t.Run("a subject listed twice lands both bars", func(t *testing.T) {
+		r := gittest.New(t)
+
+		r.Git("checkout", "-b", "feat")
+		t1 := r.Commit(tidy)
+		t2 := r.Commit(tidy)
+		r.Git("push", "origin", "feat")
+		s := squash(r, "Tidy (#8)", "* "+tidy+"\n\n* "+tidy)
+
+		assertSquashed(t, check(t, r.Dir, []landing.Bar{
+			{ID: bar1, Status: done, Commit: t1}, {ID: bar2, Status: done, Commit: t2},
+		}), s, s)
+	})
+
+	t.Run("a bar passed over moves to a later squash", func(t *testing.T) {
+		r := gittest.New(t)
+
+		r.Git("checkout", "-b", "feat")
+		t1 := r.Commit(tidy)
+		t2 := r.Commit(tidy)
+		r.Git("push", "origin", "feat")
+		eight := squash(r, "Tidy (#8)", "* "+tidy)
+		r.Git("checkout", "feat")
+		r.Commit("chore: more")
+		nine := squash(r, "Tidy again (#9)", "* "+tidy)
+
+		assertSquashed(t, check(t, r.Dir, []landing.Bar{
+			{ID: bar1, Status: done, Commit: t1}, {ID: bar2, Status: done, Commit: t2},
+		}), eight, nine)
 	})
 
 	t.Run("a mention that isn't a list line doesn't match", func(t *testing.T) {
