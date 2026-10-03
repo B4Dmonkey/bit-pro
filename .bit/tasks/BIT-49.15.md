@@ -1,7 +1,7 @@
 ---
 id: BIT-49.15
 title: Migrated records carry HEAD and the branch of the session dir
-status: todo
+status: done
 approved: true
 phase: 2
 phase_label: bp migrate

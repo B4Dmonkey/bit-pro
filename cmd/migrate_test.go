@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/B4Dmonkey/bit-pro/git/gittest"
 	"github.com/B4Dmonkey/bit-pro/project"
 	"github.com/B4Dmonkey/bit-pro/store"
 	"github.com/B4Dmonkey/bit-pro/task"
@@ -31,6 +32,7 @@ const (
 func TestMigrateCmd(t *testing.T) {
 	t.Run("copies active tasks and registers the folder", func(t *testing.T) {
 		mcpSandbox(t)
+		gittest.Isolate(t)
 
 		dir := t.TempDir()
 		files := v1Fixture(t)
@@ -96,6 +98,7 @@ func TestMigrateCmd(t *testing.T) {
 
 	t.Run("a migrated project works with bp task commands", func(t *testing.T) {
 		mcpSandbox(t)
+		gittest.Isolate(t)
 
 		dir := t.TempDir()
 		writeV1Store(t, dir, v1Fixture(t))
@@ -110,6 +113,7 @@ func TestMigrateCmd(t *testing.T) {
 
 	t.Run("keeps completed and archived records where they were", func(t *testing.T) {
 		mcpSandbox(t)
+		gittest.Isolate(t)
 
 		dir := t.TempDir()
 		writeV1Store(t, dir, v1Files(t, map[string][]*task.Task{
@@ -162,6 +166,7 @@ func TestMigrateCmd(t *testing.T) {
 
 	t.Run("an archived track's id is never re-minted", func(t *testing.T) {
 		mcpSandbox(t)
+		gittest.Isolate(t)
 
 		dir := t.TempDir()
 		writeV1Store(t, dir, v1Files(t, map[string][]*task.Task{
@@ -179,6 +184,7 @@ func TestMigrateCmd(t *testing.T) {
 
 	t.Run("moves feedback notes with their numbers", func(t *testing.T) {
 		mcpSandbox(t)
+		gittest.Isolate(t)
 
 		dir := t.TempDir()
 		files := v1Files(t, map[string][]*task.Task{
@@ -236,6 +242,7 @@ func TestMigrateCmd(t *testing.T) {
 
 	t.Run("carries research topics", func(t *testing.T) {
 		mcpSandbox(t)
+		gittest.Isolate(t)
 
 		dir := t.TempDir()
 		files := v1Files(t, map[string][]*task.Task{
@@ -281,6 +288,7 @@ func TestMigrateCmd(t *testing.T) {
 
 	t.Run("stores retro proposals under the prefix rule", func(t *testing.T) {
 		mcpSandbox(t)
+		gittest.Isolate(t)
 
 		dir := t.TempDir()
 		files := v1Files(t, map[string][]*task.Task{
@@ -320,8 +328,37 @@ func TestMigrateCmd(t *testing.T) {
 		}
 	})
 
+	t.Run("migrates a folder outside git", func(t *testing.T) {
+		mcpSandbox(t)
+		gittest.Isolate(t)
+
+		dir := t.TempDir()
+		files := v1Fixture(t)
+		files[filepath.Join("feedback", "BIT-1-001.md")] = []byte("## What happened\n\nA note.\n")
+		writeV1Store(t, dir, files)
+		t.Chdir(dir)
+
+		mustRun(t, migrateCmdUse)
+
+		root, err := store.ProjectDir(testPrefix)
+		if err != nil {
+			t.Fatalf("store.ProjectDir(%q) returned error: %v", testPrefix, err)
+		}
+
+		rec := readRecord(t, filepath.Join(root, testTasksDir, testOwnTrack+".md"))
+		if rec["branch"] != "" || rec["commit"] != "" {
+			t.Errorf("BIT-1 = {branch %v, commit %v}, want empty", rec["branch"], rec["commit"])
+		}
+
+		note := readRecord(t, filepath.Join(dataDir(t), "feedback", "BIT-1-001.md"))
+		if !reflect.DeepEqual(note["commits"], []any{}) {
+			t.Errorf("BIT-1-001 commits = %v, want []", note["commits"])
+		}
+	})
+
 	t.Run("a note on a missing track stops the migration", func(t *testing.T) {
 		mcpSandbox(t)
+		gittest.Isolate(t)
 
 		dir := t.TempDir()
 		files := v1Fixture(t)

@@ -3,9 +3,11 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/B4Dmonkey/bit-pro/db"
 	"github.com/B4Dmonkey/bit-pro/db/orm"
+	"github.com/B4Dmonkey/bit-pro/git"
 	"github.com/B4Dmonkey/bit-pro/migrate"
 	"github.com/spf13/cobra"
 )
@@ -27,7 +29,7 @@ func newMigrateCmd() *cobra.Command {
 			}
 			defer sqlDB.Close()
 
-			res, err := migrate.Run(cmd.Context(), orm.New(sqlDB), migrate.Options{Dir: wd})
+			res, err := migrate.Run(cmd.Context(), orm.New(sqlDB), migrate.Options{Dir: wd, Git: git.ExecRunner, Now: time.Now})
 			if err != nil {
 				return err
 			}

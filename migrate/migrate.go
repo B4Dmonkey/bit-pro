@@ -10,10 +10,12 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/BurntSushi/toml"
 
 	"github.com/B4Dmonkey/bit-pro/db/orm"
+	"github.com/B4Dmonkey/bit-pro/git"
 	"github.com/B4Dmonkey/bit-pro/project"
 	"github.com/B4Dmonkey/bit-pro/store"
 	"github.com/B4Dmonkey/bit-pro/task"
@@ -21,6 +23,8 @@ import (
 
 type Options struct {
 	Dir string
+	Git git.Runner
+	Now func() time.Time
 }
 
 type Result struct {
@@ -33,6 +37,9 @@ type config struct {
 
 func Run(ctx context.Context, q *orm.Queries, opts Options) (Result, error) {
 	src := filepath.Join(opts.Dir, ".bit")
+
+	h := git.ReadHead(ctx, opts.Git, opts.Dir)
+	head := task.Commit{SHA: h.SHA, Branch: h.Branch, At: opts.Now()}
 
 	var cfg config
 	if _, err := toml.DecodeFile(filepath.Join(src, "config.toml"), &cfg); err != nil {
@@ -66,20 +73,20 @@ func Run(ctx context.Context, q *orm.Queries, opts Options) (Result, error) {
 		{"completed", task.Completed},
 		{filepath.Join("archive", "tasks"), task.Archived},
 	} {
-		if err := copyTasks(filepath.Join(src, pl.dir), s, pl.place); err != nil {
+		if err := copyTasks(filepath.Join(src, pl.dir), s, pl.place, h); err != nil {
 			return Result{}, err
 		}
 	}
 
-	if err := copyNotes(filepath.Join(src, "feedback"), s); err != nil {
+	if err := copyNotes(filepath.Join(src, "feedback"), s, head); err != nil {
 		return Result{}, err
 	}
 
-	if err := copyResearch(filepath.Join(src, "research"), s); err != nil {
+	if err := copyResearch(filepath.Join(src, "research"), s, head); err != nil {
 		return Result{}, err
 	}
 
-	if err := copyRetro(filepath.Join(src, "retro"), s); err != nil {
+	if err := copyRetro(filepath.Join(src, "retro"), s, head); err != nil {
 		return Result{}, err
 	}
 
@@ -90,7 +97,7 @@ func Run(ctx context.Context, q *orm.Queries, opts Options) (Result, error) {
 	return Result{Code: code, Path: path}, nil
 }
 
-func copyTasks(dir string, s *task.Store, p task.Place) error {
+func copyTasks(dir string, s *task.Store, p task.Place, h git.Head) error {
 	entries, err := os.ReadDir(dir)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil
@@ -117,6 +124,9 @@ func copyTasks(dir string, s *task.Store, p task.Place) error {
 			return fmt.Errorf("parsing %s: %w", path, err)
 		}
 
+		t.Branch = h.Branch
+		t.Commit = h.SHA
+
 		if err := s.SaveTo(p, t); err != nil {
 			return fmt.Errorf("copying %s: %w", path, err)
 		}
@@ -127,7 +137,7 @@ func copyTasks(dir string, s *task.Store, p task.Place) error {
 
 var noteName = regexp.MustCompile(`^(.+)-(\d+)\.md$`)
 
-func copyNotes(dir string, s *task.Store) error {
+func copyNotes(dir string, s *task.Store, head task.Commit) error {
 	entries, err := os.ReadDir(dir)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil
@@ -155,7 +165,7 @@ func copyNotes(dir string, s *task.Store) error {
 			return fmt.Errorf("reading %s: %w", path, err)
 		}
 
-		if _, err := s.ImportNote(m[1], seq, string(raw), task.Commit{}); err != nil {
+		if _, err := s.ImportNote(m[1], seq, string(raw), head); err != nil {
 			return fmt.Errorf("copying %s: %w", path, err)
 		}
 	}
@@ -163,7 +173,7 @@ func copyNotes(dir string, s *task.Store) error {
 	return nil
 }
 
-func copyResearch(dir string, s *task.Store) error {
+func copyResearch(dir string, s *task.Store, head task.Commit) error {
 	tracks, err := os.ReadDir(dir)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil
@@ -198,7 +208,7 @@ func copyResearch(dir string, s *task.Store) error {
 			}
 
 			topic := strings.TrimSuffix(e.Name(), ".md")
-			if _, err := s.WriteResearch(tr.Name(), topic, string(raw), task.Commit{}); err != nil {
+			if _, err := s.WriteResearch(tr.Name(), topic, string(raw), head); err != nil {
 				return fmt.Errorf("copying %s: %w", path, err)
 			}
 		}
@@ -207,7 +217,7 @@ func copyResearch(dir string, s *task.Store) error {
 	return nil
 }
 
-func copyRetro(dir string, s *task.Store) error {
+func copyRetro(dir string, s *task.Store, head task.Commit) error {
 	entries, err := os.ReadDir(dir)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil
@@ -229,7 +239,7 @@ func copyRetro(dir string, s *task.Store) error {
 			return fmt.Errorf("reading %s: %w", path, err)
 		}
 
-		if _, err := s.WriteRetro(strings.TrimSuffix(e.Name(), ".md"), string(raw), task.Commit{}); err != nil {
+		if _, err := s.WriteRetro(strings.TrimSuffix(e.Name(), ".md"), string(raw), head); err != nil {
 			return fmt.Errorf("copying %s: %w", path, err)
 		}
 	}
