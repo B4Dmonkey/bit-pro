@@ -6,9 +6,16 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-const testRetroBody = "## Proposal 1\n\n**Pattern:** ...\n"
+const (
+	testRetroBody = "## Proposal 1\n\n**Pattern:** ...\n"
+	testRetroName = "album-proposals"
+	testNameKey   = "name"
+)
 
 func TestRetroWriteHandler(t *testing.T) {
 	t.Run("stores a proposal under the code-prefixed name", func(t *testing.T) {
@@ -16,13 +23,13 @@ func TestRetroWriteHandler(t *testing.T) {
 		seedCodedProject(t, dir, testOwnCode, testOwnTrack)
 
 		got := callTool(t, mcpSession(t, dir), retroWriteTool, map[string]any{
-			"name":      "album-proposals",
+			testNameKey: testRetroName,
 			testBodyKey: testRetroBody,
 		})
 
 		const want = "BIT-album-proposals"
-		if got["name"] != want {
-			t.Errorf("name = %v, want %q", got["name"], want)
+		if got[testNameKey] != want {
+			t.Errorf("name = %v, want %q", got[testNameKey], want)
 		}
 
 		retroDir := filepath.Join(dataDir(t), "retro")
@@ -47,14 +54,97 @@ func TestRetroWriteHandler(t *testing.T) {
 		}
 
 		for key, wantVal := range map[string]any{
-			"project": testOwnCode,
-			"name":    want,
-			"commits": []any{},
-			"content": want + ".md",
+			"project":   testOwnCode,
+			testNameKey: want,
+			"commits":   []any{},
+			"content":   want + ".md",
 		} {
 			if !reflect.DeepEqual(rec[key], wantVal) {
 				t.Errorf("record[%q] = %#v, want %#v", key, rec[key], wantVal)
 			}
 		}
 	})
+
+	t.Run("records the session head", func(t *testing.T) {
+		dir := t.TempDir()
+		seedCodedProject(t, dir, testOwnCode, testOwnTrack)
+
+		fake := headGit(testHeadSHA)
+		start := time.Now().UTC().Truncate(time.Second)
+
+		path := writeRetro(t, mcpSessionWithGit(t, dir, fake.run))
+
+		end := time.Now().UTC()
+
+		commits := recordCommits(t, path)
+		if len(commits) != 1 {
+			t.Fatalf("commits = %v, want one", commits)
+		}
+
+		assertCommit(t, commits[0], testHeadSHA)
+
+		at, err := time.Parse(time.RFC3339, commits[0][testAtKey].(string))
+		if err != nil {
+			t.Fatalf("at = %v: %v", commits[0][testAtKey], err)
+		}
+
+		if at.Before(start) || at.After(end) {
+			t.Errorf("at = %v, want between %v and %v", at, start, end)
+		}
+
+		assertDirs(t, fake.dirs, dir)
+	})
+
+	t.Run("a re-run after a new commit appends", func(t *testing.T) {
+		dir := t.TempDir()
+		seedCodedProject(t, dir, testOwnCode, testOwnTrack)
+
+		fake := headGit(testHeadSHA)
+		session := mcpSessionWithGit(t, dir, fake.run)
+
+		path := writeRetro(t, session)
+		created := readRecord(t, path)["created_at"]
+
+		fake.replies[testRevParseArgs] = gitReply{out: testNextHeadSHA + "\n"}
+
+		writeRetro(t, session)
+
+		commits := recordCommits(t, path)
+		if len(commits) != 2 {
+			t.Fatalf("commits = %v, want two", commits)
+		}
+
+		assertCommit(t, commits[0], testHeadSHA)
+		assertCommit(t, commits[1], testNextHeadSHA)
+
+		if got := readRecord(t, path)["created_at"]; got != created {
+			t.Errorf("created_at = %v, want %v", got, created)
+		}
+	})
+
+	t.Run("no git records no commit", func(t *testing.T) {
+		dir := t.TempDir()
+		seedCodedProject(t, dir, testOwnCode, testOwnTrack)
+
+		commits := recordCommits(t, writeRetro(t, mcpSession(t, dir)))
+		if len(commits) != 0 {
+			t.Errorf("commits = %v, want none", commits)
+		}
+	})
+}
+
+func writeRetro(t *testing.T, s *mcp.ClientSession) string {
+	t.Helper()
+
+	got := callTool(t, s, retroWriteTool, map[string]any{
+		testNameKey: testRetroName,
+		testBodyKey: testRetroBody,
+	})
+
+	name, ok := got[testNameKey].(string)
+	if !ok {
+		t.Fatalf("name = %v, want a string", got[testNameKey])
+	}
+
+	return filepath.Join(dataDir(t), "retro", name+".md")
 }

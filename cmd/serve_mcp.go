@@ -311,7 +311,7 @@ func runMCPServer(ctx context.Context, root string, run git.Runner, transport mc
 	mcp.AddTool(s, &mcp.Tool{Name: feedbackAddTool, Description: feedbackAddDescription}, feedbackAddHandler(root, run))
 	mcp.AddTool(s, &mcp.Tool{Name: feedbackListTool, Description: feedbackListDescription}, feedbackListHandler(root))
 	mcp.AddTool(s, &mcp.Tool{Name: feedbackReadTool, Description: feedbackReadDescription}, feedbackReadHandler(root))
-	mcp.AddTool(s, &mcp.Tool{Name: retroWriteTool, Description: retroWriteDescription}, retroWriteHandler(root))
+	mcp.AddTool(s, &mcp.Tool{Name: retroWriteTool, Description: retroWriteDescription}, retroWriteHandler(root, run))
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        researchWriteTool,
 		Description: researchWriteDescription,
@@ -593,18 +593,23 @@ func feedbackReadHandler(root string) mcp.ToolHandlerFor[feedbackReadInput, feed
 	}
 }
 
-func retroWriteHandler(root string) mcp.ToolHandlerFor[retroWriteInput, retroWriteOutput] {
+func retroWriteHandler(root string, run git.Runner) mcp.ToolHandlerFor[retroWriteInput, retroWriteOutput] {
 	return func(
 		ctx context.Context,
 		_ *mcp.CallToolRequest,
 		in retroWriteInput,
 	) (*mcp.CallToolResult, retroWriteOutput, error) {
+		dir, err := sessionDir(root)
+		if err != nil {
+			return nil, retroWriteOutput{}, err
+		}
+
 		store, err := mcpStore(ctx, root)
 		if err != nil {
 			return nil, retroWriteOutput{}, err
 		}
 
-		name, err := store.WriteRetro(in.Name, in.Body, task.Commit{})
+		name, err := store.WriteRetro(in.Name, in.Body, sessionHead(ctx, run, dir))
 		if err != nil {
 			return nil, retroWriteOutput{}, fmt.Errorf("writing retro %s: %w", in.Name, err)
 		}
