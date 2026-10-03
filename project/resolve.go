@@ -17,6 +17,7 @@ var (
 	ErrNotRegistered = errors.New("not a bit project; run `bp add`")
 	ErrNeedsMigrate  = errors.New("found a v1 .bit/ directory; run `bp migrate`")
 	ErrRemoved       = errors.New("this project was removed; run `bp add` here to revive it")
+	ErrCodeRemoved   = errors.New("code belongs to a removed project")
 )
 
 type Project struct {
@@ -90,6 +91,16 @@ func Resolve(projects []Project, dir string) (Project, error) {
 func ByPath(projects []Project, path string) (Project, bool) {
 	for _, p := range projects {
 		if strings.EqualFold(p.Path, path) {
+			return p, true
+		}
+	}
+
+	return Project{}, false
+}
+
+func ByCode(projects []Project, code string) (Project, bool) {
+	for _, p := range projects {
+		if strings.EqualFold(p.Code, code) {
 			return p, true
 		}
 	}

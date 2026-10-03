@@ -366,6 +366,62 @@ func TestAddCmd(t *testing.T) {
 		}
 	})
 
+	t.Run("refuses a removed project code", func(t *testing.T) {
+		t.Setenv("HOME", t.TempDir())
+		t.Setenv("XDG_DATA_HOME", "")
+
+		tmp := t.TempDir()
+		old := filepath.Join(tmp, "old")
+
+		if err := os.Mkdir(old, 0o755); err != nil {
+			t.Fatalf("os.Mkdir(old) returned error: %v", err)
+		}
+
+		oldPath, err := project.CanonicalPath(old)
+		if err != nil {
+			t.Fatalf("CanonicalPath(%q) returned error: %v", old, err)
+		}
+
+		if _, err := runWithStdin(t, testCode+"\n", addCmdUse, old); err != nil {
+			t.Fatalf("first bp add returned error: %v", err)
+		}
+
+		t.Chdir(old)
+
+		if _, err := runWithStdin(t, "y\n", removeCmdUse); err != nil {
+			t.Fatalf("bp remove returned error: %v", err)
+		}
+
+		var calls [][]string
+
+		run := func(_ context.Context, name string, args ...string) error {
+			calls = append(calls, append([]string{name}, args...))
+			return nil
+		}
+
+		_, err = runWithRunner(t, run, "foo\n", addCmdUse, filepath.Join(tmp, "new"))
+		if !errors.Is(err, project.ErrCodeRemoved) {
+			t.Fatalf("second bp add error = %v, want %v", err, project.ErrCodeRemoved)
+		}
+
+		if msg := err.Error(); !strings.Contains(msg, testCode) || !strings.Contains(msg, oldPath) {
+			t.Errorf("error = %q, want it to contain %q and %q", msg, testCode, oldPath)
+		}
+
+		if len(calls) != 0 {
+			t.Errorf("calls = %v, want none", calls)
+		}
+
+		projects := listProjects(t)
+		if len(projects) != 1 {
+			t.Fatalf("ListProjects() returned %d projects, want 1", len(projects))
+		}
+
+		if projects[0].Path != oldPath || projects[0].Removed == 0 {
+			t.Errorf("project = %+v, want %s removed", projects[0], oldPath)
+		}
+	})
+
 	t.Run("refuses a code already taken", func(t *testing.T) {
 		t.Setenv("HOME", t.TempDir())
 		t.Setenv("XDG_DATA_HOME", "")

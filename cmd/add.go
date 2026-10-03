@@ -58,6 +58,11 @@ func newAddCmd(run claude.Runner) *cobra.Command {
 				return err
 			}
 
+			if p, ok := project.ByCode(projects, code); ok && p.Removed {
+				return fmt.Errorf("%s at %s: %w; run `bp add` there to revive it, or pick another code",
+					p.Code, p.Path, project.ErrCodeRemoved)
+			}
+
 			if err := writeClaudeWiring(cmd, run, path); err != nil {
 				return err
 			}
