@@ -107,8 +107,12 @@ func already(ctx context.Context, q *orm.Queries, path string) (Result, bool, er
 	}
 
 	p, ok := project.ByPath(ps, path)
-	if !ok || p.Removed {
+	if !ok {
 		return Result{}, false, nil
+	}
+
+	if p.Removed {
+		return Result{}, false, fmt.Errorf("%s: %w", path, project.ErrRemoved)
 	}
 
 	return Result{Code: p.Code, Path: p.Path, Already: true}, true, nil

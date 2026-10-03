@@ -474,6 +474,39 @@ func TestMigrateCmd(t *testing.T) {
 		}
 	})
 
+	t.Run("refuses a removed project's folder", func(t *testing.T) {
+		mcpSandbox(t)
+		gittest.Isolate(t)
+
+		dir := t.TempDir()
+		writeV1Store(t, dir, v1Fixture(t))
+		t.Chdir(dir)
+
+		mustRun(t, migrateCmdUse)
+		markRemoved(t, "BIT")
+
+		d := dataDir(t)
+		before := snapshotData(t, d)
+
+		_, err := run(t, migrateCmdUse)
+		if !errors.Is(err, project.ErrRemoved) {
+			t.Fatalf("second bp migrate error = %v, want %v", err, project.ErrRemoved)
+		}
+
+		if !strings.Contains(err.Error(), "bp add") {
+			t.Errorf("error %q does not mention bp add", err)
+		}
+
+		projects := listProjects(t)
+		if len(projects) != 1 || projects[0].Removed == 0 {
+			t.Errorf("ListProjects() = %+v, want one removed row", projects)
+		}
+
+		if after := snapshotData(t, d); !reflect.DeepEqual(after, before) {
+			t.Errorf("data dir changed:\nbefore %v\nafter  %v", before, after)
+		}
+	})
+
 	t.Run("stops on task files it can't copy exactly", func(t *testing.T) {
 		mcpSandbox(t)
 		gittest.Isolate(t)
