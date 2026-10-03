@@ -279,6 +279,47 @@ func TestMigrateCmd(t *testing.T) {
 		}
 	})
 
+	t.Run("stores retro proposals under the prefix rule", func(t *testing.T) {
+		mcpSandbox(t)
+
+		dir := t.TempDir()
+		files := v1Files(t, map[string][]*task.Task{
+			testTasksDir: {{ID: "BIT-12", Title: activeTitle, Status: task.StatusDoing}},
+		})
+		albumBody := []byte("## Proposal 1\n\nAlbum.\n")
+		files[filepath.Join("retro", "album-proposals.md")] = albumBody
+		files[filepath.Join("retro", "BIT-12-proposals.md")] = []byte("## Proposal 1\n\nTrack.\n")
+		writeV1Store(t, dir, files)
+		t.Chdir(dir)
+
+		mustRun(t, migrateCmdUse)
+
+		var got struct {
+			Proposals []map[string]string `json:"proposals"`
+		}
+
+		decodeToolResult(t, mcpSession(t, dir), retroListTool, map[string]any{}, &got)
+
+		want := []map[string]string{
+			{testNameKey: "BIT-12-proposals", testProjectKey: testPrefix},
+			{testNameKey: "BIT-album-proposals", testProjectKey: testPrefix},
+		}
+		if !reflect.DeepEqual(got.Proposals, want) {
+			t.Errorf("proposals = %v, want %v", got.Proposals, want)
+		}
+
+		path := filepath.Join(dataDir(t), "retro", "BIT-album-proposals.md")
+
+		body, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("os.ReadFile(%q) returned error: %v", path, err)
+		}
+
+		if string(body) != string(albumBody) {
+			t.Errorf("BIT-album-proposals.md = %q, want %q", body, albumBody)
+		}
+	})
+
 	t.Run("a note on a missing track stops the migration", func(t *testing.T) {
 		mcpSandbox(t)
 

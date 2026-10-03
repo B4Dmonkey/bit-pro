@@ -79,6 +79,10 @@ func Run(ctx context.Context, q *orm.Queries, opts Options) (Result, error) {
 		return Result{}, err
 	}
 
+	if err := copyRetro(filepath.Join(src, "retro"), s); err != nil {
+		return Result{}, err
+	}
+
 	if err := q.CreateProject(ctx, orm.CreateProjectParams{Path: path, Code: code}); err != nil {
 		return Result{}, fmt.Errorf("registering %s: %w", path, err)
 	}
@@ -197,6 +201,36 @@ func copyResearch(dir string, s *task.Store) error {
 			if _, err := s.WriteResearch(tr.Name(), topic, string(raw), task.Commit{}); err != nil {
 				return fmt.Errorf("copying %s: %w", path, err)
 			}
+		}
+	}
+
+	return nil
+}
+
+func copyRetro(dir string, s *task.Store) error {
+	entries, err := os.ReadDir(dir)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+
+	if err != nil {
+		return fmt.Errorf("reading %s: %w", dir, err)
+	}
+
+	for _, e := range entries {
+		if !strings.HasSuffix(e.Name(), "-proposals.md") {
+			continue
+		}
+
+		path := filepath.Join(dir, e.Name())
+
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("reading %s: %w", path, err)
+		}
+
+		if _, err := s.WriteRetro(strings.TrimSuffix(e.Name(), ".md"), string(raw), task.Commit{}); err != nil {
+			return fmt.Errorf("copying %s: %w", path, err)
 		}
 	}
 
