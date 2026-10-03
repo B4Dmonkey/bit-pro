@@ -81,7 +81,7 @@ relative to — a sibling being another bar under the same track. A bar's ID is 
 moving it keeps every existing reference to it — a commit message, a feedback note, a plan
 citation — valid.`
 
-const taskCompleteDescription = `File a signed-off track and its bars under .bit/completed/.
+const taskCompleteDescription = `Complete a signed-off track, filing it and its bars as completed.
 
 A track is a top-level task — one whole scope — and its ID has no dot, as in BIT-7. Completing one
 relocates the track and every bar under it out of the active list, so a finished cycle stops
@@ -89,7 +89,7 @@ showing up in task_list. It refuses a track that still has an unfinished bar and
 override — set every bar's status to done first. The ID stays reserved rather than being freed, so
 older commit messages and feedback notes that reference it remain valid.`
 
-const taskDeleteDescription = `Remove a task from the active list by relocating it to .bit/archive/tasks/.
+const taskDeleteDescription = `Remove a task from the active list by moving it to the archive.
 
 The task file is relocated rather than destroyed, so it stays recoverable on disk, and its ID stays
 reserved rather than being freed — a commit message or feedback note that cites it remains valid,
@@ -138,14 +138,14 @@ that wrote it, and the body.`
 
 const researchWriteDescription = `Write one topic of a track's research and return its path.
 
-Research is an agent scratchpad kept per track under .bit/research/<track>/, one file per topic. A
+Research is an agent scratchpad kept per track in the store, one record per topic. A
 track is a top-level task, whose ID has no dot, as in BIT-7. Writing a topic that already exists
 replaces it. The topic named index is the conventional summary of findings with links to the other
 topics, and readers open it first.`
 
 const researchReadDescription = `Read a track's research: list its topic names, or return one topic's body.
 
-Research is an agent scratchpad kept per track under .bit/research/<track>/, one file per topic. A
+Research is an agent scratchpad kept per track in the store, one record per topic. A
 track is a top-level task, whose ID has no dot, as in BIT-7. Without a topic, this lists the
 track's topic names, so an agent sees what exists before loading any; a track with no research yet
 lists none. With a topic, it returns that topic's body. By convention, read the index topic first:
