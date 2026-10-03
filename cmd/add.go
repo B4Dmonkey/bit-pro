@@ -12,6 +12,7 @@ import (
 	"github.com/B4Dmonkey/bit-pro/claude"
 	"github.com/B4Dmonkey/bit-pro/db"
 	"github.com/B4Dmonkey/bit-pro/db/orm"
+	"github.com/B4Dmonkey/bit-pro/project"
 	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/spf13/cobra"
 )
@@ -52,16 +53,15 @@ func newAddCmd(run claude.Runner) *cobra.Command {
 				existing = cfg.Prefix
 			}
 
-			code, err := readProjectCode(cmd, existing)
+			typed, err := readProjectCode(cmd, existing)
 			if err != nil {
 				return err
 			}
 
-			if code == "" {
-				return errors.New("project code cannot be empty")
+			code, err := project.ValidateCode(typed)
+			if err != nil {
+				return err
 			}
-
-			code = task.NormalizeID(code)
 
 			if _, err := os.Stat(filepath.Join(abs, ".bit")); errors.Is(err, fs.ErrNotExist) {
 				if err := writeClaudeWiring(cmd, run, abs); err != nil {

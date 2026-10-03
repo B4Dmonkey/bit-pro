@@ -1,7 +1,7 @@
 ---
 id: BIT-46.3
 title: bp add refuses a code that can't name a store dir
-status: todo
+status: done
 phase: 1
 phase_label: registered project works from the central store
 ---
