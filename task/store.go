@@ -248,6 +248,8 @@ type CreateParams struct {
 	After      string
 	Phase      int
 	PhaseLabel string
+	Branch     string
+	Commit     string
 }
 
 // Create mints the next ID for p, writes the task, and maintains the parent's
@@ -282,6 +284,8 @@ func (s *Store) Create(p CreateParams) (*Task, error) {
 		Phase:      p.Phase,
 		PhaseLabel: p.PhaseLabel,
 		Body:       p.Body,
+		Branch:     p.Branch,
+		Commit:     p.Commit,
 	}
 
 	if err := s.Save(t); err != nil {
@@ -307,6 +311,8 @@ type Patch struct {
 	Status     *string
 	Phase      *int
 	PhaseLabel *string
+	Branch     *string
+	Commit     *string
 }
 
 // Update applies p to the task and saves it, returning the updated task.
@@ -319,25 +325,13 @@ func (s *Store) Update(id string, p Patch) (*Task, error) {
 		return nil, err
 	}
 
-	if p.Title != nil {
-		t.Title = *p.Title
-	}
-
-	if p.Body != nil {
-		t.Body = *p.Body
-	}
-
-	if p.Status != nil {
-		t.Status = *p.Status
-	}
-
-	if p.Phase != nil {
-		t.Phase = *p.Phase
-	}
-
-	if p.PhaseLabel != nil {
-		t.PhaseLabel = *p.PhaseLabel
-	}
+	setIfSent(&t.Title, p.Title)
+	setIfSent(&t.Body, p.Body)
+	setIfSent(&t.Status, p.Status)
+	setIfSent(&t.Phase, p.Phase)
+	setIfSent(&t.PhaseLabel, p.PhaseLabel)
+	setIfSent(&t.Branch, p.Branch)
+	setIfSent(&t.Commit, p.Commit)
 
 	contentChanged := p.Title != nil || p.Body != nil || p.Phase != nil || p.PhaseLabel != nil
 	sentBack := p.Status != nil && *p.Status == StatusTodo
@@ -351,6 +345,12 @@ func (s *Store) Update(id string, p Patch) (*Task, error) {
 	}
 
 	return t, nil
+}
+
+func setIfSent[T any](dst, sent *T) {
+	if sent != nil {
+		*dst = *sent
+	}
 }
 
 func (s *Store) SetApproved(id string, approved bool) error {

@@ -563,6 +563,8 @@ func TestStoreSave(t *testing.T) {
 			"project":     tprefix,
 			"created_at":  tstamp1,
 			"updated_at":  tstamp1,
+			"branch":      "",
+			"commit":      "",
 		}
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("record = %v, want %v", got, want)
@@ -1075,6 +1077,49 @@ func TestStoreCreate(t *testing.T) {
 		assertStamps(t, readRecord(t, root, tid1), tstamp1, tstamp2)
 	})
 
+	t.Run("writes git fields as given", func(t *testing.T) {
+		t.Parallel()
+
+		tests := []struct {
+			name       string
+			params     CreateParams
+			wantBranch string
+			wantCommit string
+		}{
+			{name: "no git fields", params: CreateParams{Title: "T"}},
+			{
+				name:       "branch and commit",
+				params:     CreateParams{Title: "T", Branch: "v2", Commit: tsha},
+				wantBranch: "v2",
+				wantCommit: tsha,
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+
+				root := t.TempDir()
+				s := NewProject(root, tprefix)
+
+				created, err := s.Create(tt.params)
+				if err != nil {
+					t.Fatalf("Create() returned error: %v", err)
+				}
+
+				rec := readRecord(t, root, created.ID)
+
+				if rec["branch"] != tt.wantBranch {
+					t.Errorf("branch = %v, want %q", rec["branch"], tt.wantBranch)
+				}
+
+				if rec["commit"] != tt.wantCommit {
+					t.Errorf("commit = %v, want %q", rec["commit"], tt.wantCommit)
+				}
+			})
+		}
+	})
+
 	t.Run("rejects unknown parent", func(t *testing.T) {
 		t.Parallel()
 
@@ -1227,6 +1272,38 @@ func TestStoreUpdate(t *testing.T) {
 		assertStamps(t, readRecord(t, root, tid1), tstamp1, tstamp2)
 	})
 
+	t.Run("sets commit without revoking approval", func(t *testing.T) {
+		t.Parallel()
+
+		s := New(t.TempDir())
+		if err := s.Save(&Task{ID: tid1_1, Title: "T", Status: StatusDone, Approved: true, Body: "b"}); err != nil {
+			t.Fatalf("seeding %s: %v", tid1_1, err)
+		}
+
+		sha := tsha
+
+		if _, err := s.Update(tid1_1, Patch{Commit: &sha}); err != nil {
+			t.Fatalf("Update() returned error: %v", err)
+		}
+
+		loaded, err := s.Load(tid1_1)
+		if err != nil {
+			t.Fatalf("loading %s: %v", tid1_1, err)
+		}
+
+		if loaded.Commit != sha {
+			t.Errorf("Commit = %q, want %q", loaded.Commit, sha)
+		}
+
+		if !loaded.Approved {
+			t.Error("Approved = false, want true")
+		}
+
+		if loaded.Title != "T" || loaded.Body != "b" {
+			t.Errorf("Title, Body = %q, %q, want %q, %q", loaded.Title, loaded.Body, "T", "b")
+		}
+	})
+
 	t.Run("approval revocation", func(t *testing.T) {
 		t.Parallel()
 
@@ -1248,6 +1325,12 @@ func TestStoreUpdate(t *testing.T) {
 				wantApproved: true,
 			},
 			{name: "an empty patch keeps approval", approved: true, patch: Patch{}, wantApproved: true},
+			{
+				name:         "a branch change keeps approval",
+				approved:     true,
+				patch:        Patch{Branch: ptr("v2")},
+				wantApproved: true,
+			},
 			{name: "an unapproved task stays unapproved", approved: false, patch: Patch{Title: ptr("x")}},
 		}
 

@@ -18,6 +18,8 @@ type taskRecord struct {
 	Project    string    `json:"project"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
+	Branch     string    `json:"branch"`
+	Commit     string    `json:"commit"`
 }
 
 func newRecord(t *Task, content string) taskRecord {
@@ -38,6 +40,8 @@ func newRecord(t *Task, content string) taskRecord {
 		Project:    t.Project,
 		CreatedAt:  t.CreatedAt,
 		UpdatedAt:  t.UpdatedAt,
+		Branch:     t.Branch,
+		Commit:     t.Commit,
 	}
 }
 
@@ -62,6 +66,8 @@ func (r taskRecord) task(body string) *Task {
 		Project:    r.Project,
 		CreatedAt:  r.CreatedAt,
 		UpdatedAt:  r.UpdatedAt,
+		Branch:     r.Branch,
+		Commit:     r.Commit,
 	}
 
 	for _, id := range r.Order {

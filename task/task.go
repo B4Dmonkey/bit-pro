@@ -29,6 +29,8 @@ type Task struct {
 	Project    string    `yaml:"-"`
 	CreatedAt  time.Time `yaml:"-"`
 	UpdatedAt  time.Time `yaml:"-"`
+	Branch     string    `yaml:"-"`
+	Commit     string    `yaml:"-"`
 }
 
 func Parse(data []byte) (*Task, error) {
