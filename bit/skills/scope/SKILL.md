@@ -1,13 +1,13 @@
 ---
 name: bit_scope
-description: Create or refine a high-level scope (an RFC-style overview) for a feature or change BEFORE any detailed planning. Use this first — whenever the user wants to frame WHAT is changing and WHY at a high level, sketch the shape of a feature request, decide the order of delivery, or surface risks and unknowns to de-risk before committing to a detailed plan. Triggers on "scope this out", "give me a high-level overview", "what's the shape of this feature", "let's write an RFC", "think through the delivery order", "before we plan", or describing a feature request where implementation detail isn't wanted yet. Also use it when a **spike has come back with a result** — "the spike worked", "here's what we learned", "the plugin update does/doesn't apply" — because the answer turns an unknown into a decision and the verses that depended on it have to be revised here before they can be planned. Authors the scope as a track in `.bit/` through the `mcp__bit__*` tools — the motivation (WHY), a coarse checklist of value-delivering verses (each a usable vertical slice, ordered for incremental value), light pointers to the code areas each verse touches, the open risks/unknowns, and the decisions that iteration has settled. This is the overview that feeds bit_plan — bit_scope owns the WHY and the delivery order; bit_plan turns each verse into detailed TDD steps; bit_do executes. Reach for bit_scope for the high-level shape, bit_plan for the detailed plan, bit_do to build it.
+description: Create or refine a high-level scope (an RFC-style overview) for a feature or change BEFORE any detailed planning. Use this first — whenever the user wants to frame WHAT is changing and WHY at a high level, sketch the shape of a feature request, decide the order of delivery, or surface risks and unknowns to de-risk before committing to a detailed plan. Triggers on "scope this out", "give me a high-level overview", "what's the shape of this feature", "let's write an RFC", "think through the delivery order", "before we plan", or describing a feature request where implementation detail isn't wanted yet. Also use it when a **spike has come back with a result** — "the spike worked", "here's what we learned", "the plugin update does/doesn't apply" — because the answer turns an unknown into a decision and the verses that depended on it have to be revised here before they can be planned. Authors the scope as a track through the `mcp__bit__*` tools — the motivation (WHY), a coarse checklist of value-delivering verses (each a usable vertical slice, ordered for incremental value), light pointers to the code areas each verse touches, the open risks/unknowns, and the decisions that iteration has settled. This is the overview that feeds bit_plan — bit_scope owns the WHY and the delivery order; bit_plan turns each verse into detailed TDD steps; bit_do executes. Reach for bit_scope for the high-level shape, bit_plan for the detailed plan, bit_do to build it.
 ---
 
 # Scope Creator
 
 You write and refine a **scope** — a short, high-level overview of a proposed software change. You do NOT write code, name functions, or produce a granular task list; a later skill (bit_plan) does that. Your job is clarity about **what** is changing, **why**, and **in what order** value gets delivered.
 
-A scope lives as a **track** in `.bit/` — a top-level task whose body holds the scope prose — authored and refined through the `mcp__bit__*` tools. The user refines it until they're happy with the shape of the work. It is the first of three artifacts:
+A scope lives as a **track** in the store — a top-level task whose body holds the scope prose — authored and refined through the `mcp__bit__*` tools. The user refines it until they're happy with the shape of the work. It is the first of three artifacts:
 
 - **bit_scope** (this skill) — the high-level shape: why, and the order of delivery. Owns the WHY.
 - **bit_plan** — turns the scope's verses into detailed, contradiction-driven TDD steps, one **bar** (child task) per step under this track.
@@ -17,7 +17,7 @@ A **verse** is one value slice in the delivery order (the checklist you write he
 
 Because bit_scope owns the WHY, the plan won't repeat it — the bars live under this track, so a reader gets the WHY by reading the track body. That makes the motivation in this document load-bearing: get it right.
 
-Three tools cover everything this skill writes: `mcp__bit__task_create` to mint the track, `mcp__bit__task_read` to read a body back, and `mcp__bit__task_update` to write a refined one. A fourth, `mcp__bit__research_read`, reads the track's research notes when bit_analyze has left some (see *Build on research first*). Never hand-edit `.bit/tasks/*.md` — that rule is the one the whole tool surface exists to enforce — and never read `.bit/research/` directly; the tool is the way in.
+Three tools cover everything this skill writes: `mcp__bit__task_create` to mint the track, `mcp__bit__task_read` to read a body back, and `mcp__bit__task_update` to write a refined one. A fourth, `mcp__bit__research_read`, reads the track's research notes when bit_analyze has left some (see *Build on research first*). The `mcp__bit__*` tools are the only way in — that rule is the one the whole tool surface exists to enforce — and that holds for research too: `mcp__bit__research_read` is the way in.
 
 ---
 
@@ -107,7 +107,7 @@ What you must never do is **dissolve an open question into a verse's prose** —
 
 ## Build on research first
 
-A track may already have **research notes** — deep findings bit_analyze wrote under `.bit/research/<track>/`, with an `index` topic that summarizes them and links the rest. When they exist, they are better evidence than anything light research would turn up, and the scope should stand on them rather than redo them.
+A track may already have **research notes** — deep findings bit_analyze wrote through `mcp__bit__research_write`, with an `index` topic that summarizes them and links the rest. When they exist, they are better evidence than anything light research would turn up, and the scope should stand on them rather than redo them.
 
 So whenever the track already exists — a Refine, or a Create where bit:ruler minted a stub track before analyzing — call `mcp__bit__research_read` with only the track first. It returns the topic names; an empty result means there is no research yet.
 
@@ -202,7 +202,7 @@ When the track has research notes, add one line pointing at them, so a reader kn
 the evidence behind the cited topics lives.]
 
 - `path/to/doc.md` — what this doc is and which verses it informs
-- `.bit/research/<track>/` — research notes from bit_analyze; start at the `index` topic
+- Research notes from bit_analyze, read with `mcp__bit__research_read`; start at the `index` topic
 ```
 
 Keep it tight. This is an overview a reader skims to grasp the shape of the work before a detailed plan exists. Prefer clarity over completeness.
@@ -224,7 +224,7 @@ Keep it tight. This is an overview a reader skims to grasp the shape of the work
    - Is each named by the capability unlocked, not the component built?
 5. Check that no verse has slid into implementation detail, **and that no verse is smuggling an open question** — a "TBD", a "deferred to plan-time", a "the technical question is…". The "touches" pointer is a locator only; flag anything prescribing *how*, and flag any unknown hiding in a verse: it belongs in Risks & unknowns, or answered in Decisions — never in the verse text.
 6. Check the spikes: is every verse that exists to answer an unknown marked `(spike)`, and does its Risks entry state the question, the yes/no observation, what's downstream, and whether the artifact is kept? A spike missing the downstream call is the one bit_plan can't act on. And check the inverse — a verse marked `(spike)` whose question an inline probe could answer right now shouldn't be a verse; run the probe and write the Decision.
-7. Check the References section: did the user provide any reference docs during this session that aren't captured there? If so, add them. If the track has research notes and References doesn't point at `.bit/research/<track>/` yet, add that line. If no references exist, none were provided, and there's no research, omit the section entirely.
+7. Check the References section: did the user provide any reference docs during this session that aren't captured there? If so, add them. If the track has research notes and References doesn't point at them yet, add that line. If no references exist, none were provided, and there's no research, omit the section entirely.
 8. Propose edits with reasoning — don't silently rewrite large sections. Confirm before rewriting more than a few lines.
 
 The user drives this loop; keep refining with them until they're happy enough to move to bit_plan.
