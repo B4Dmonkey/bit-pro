@@ -31,6 +31,7 @@ type Options struct {
 
 type Result struct {
 	Code, Path string
+	Already    bool
 }
 
 type config struct {
@@ -43,14 +44,16 @@ func Run(ctx context.Context, q *orm.Queries, opts Options) (Result, error) {
 	h := git.ReadHead(ctx, opts.Git, opts.Dir)
 	head := task.Commit{SHA: h.SHA, Branch: h.Branch, At: opts.Now()}
 
-	cfg, err := readSource(src)
+	path, err := project.CanonicalPath(filepath.Dir(src))
 	if err != nil {
 		return Result{}, err
 	}
 
-	code := cfg.Prefix
+	if res, ok, err := already(ctx, q, path); err != nil || ok {
+		return res, err
+	}
 
-	path, err := project.CanonicalPath(filepath.Dir(src))
+	code, err := readSource(src)
 	if err != nil {
 		return Result{}, err
 	}
@@ -97,13 +100,27 @@ func Run(ctx context.Context, q *orm.Queries, opts Options) (Result, error) {
 	return Result{Code: code, Path: path}, nil
 }
 
-func readSource(src string) (config, error) {
-	var cfg config
-	if _, err := toml.DecodeFile(filepath.Join(src, "config.toml"), &cfg); err != nil {
-		return config{}, fmt.Errorf("reading %s config: %w", src, err)
+func already(ctx context.Context, q *orm.Queries, path string) (Result, bool, error) {
+	ps, err := project.Load(ctx, q)
+	if err != nil {
+		return Result{}, false, err
 	}
 
-	return cfg, checkKnown(src, cfg.Prefix)
+	p, ok := project.ByPath(ps, path)
+	if !ok || p.Removed {
+		return Result{}, false, nil
+	}
+
+	return Result{Code: p.Code, Path: p.Path, Already: true}, true, nil
+}
+
+func readSource(src string) (string, error) {
+	var cfg config
+	if _, err := toml.DecodeFile(filepath.Join(src, "config.toml"), &cfg); err != nil {
+		return "", fmt.Errorf("reading %s config: %w", src, err)
+	}
+
+	return cfg.Prefix, checkKnown(src, cfg.Prefix)
 }
 
 const dirMode = 0o755

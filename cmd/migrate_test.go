@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/B4Dmonkey/bit-pro/git/gittest"
 	"github.com/B4Dmonkey/bit-pro/migrate"
@@ -440,6 +441,39 @@ func TestMigrateCmd(t *testing.T) {
 		}
 	})
 
+	t.Run("a re-run says already migrated and changes nothing", func(t *testing.T) {
+		mcpSandbox(t)
+		gittest.Isolate(t)
+
+		dir := t.TempDir()
+		writeV1Store(t, dir, v1Fixture(t))
+		t.Chdir(dir)
+
+		mustRun(t, migrateCmdUse)
+
+		writeV1Store(t, dir, map[string][]byte{"notes.txt": []byte("notes\n")})
+
+		d := dataDir(t)
+		before := snapshotData(t, d)
+
+		out, err := run(t, migrateCmdUse)
+		if err != nil {
+			t.Fatalf("second bp migrate returned error: %v", err)
+		}
+
+		if want := "already migrated\n"; out != want {
+			t.Errorf("output = %q, want %q", out, want)
+		}
+
+		if projects := listProjects(t); len(projects) != 1 {
+			t.Errorf("ListProjects() returned %d projects, want 1", len(projects))
+		}
+
+		if after := snapshotData(t, d); !reflect.DeepEqual(after, before) {
+			t.Errorf("data dir changed:\nbefore %v\nafter  %v", before, after)
+		}
+	})
+
 	t.Run("stops on task files it can't copy exactly", func(t *testing.T) {
 		mcpSandbox(t)
 		gittest.Isolate(t)
@@ -652,4 +686,34 @@ func hashV1Store(t *testing.T, dir string, files map[string][]byte) [][sha256.Si
 	}
 
 	return sums
+}
+
+func snapshotData(t *testing.T, dir string) map[string]time.Time {
+	t.Helper()
+
+	snap := map[string]time.Time{}
+
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if strings.HasPrefix(d.Name(), "main.db") {
+			return nil
+		}
+
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+
+		snap[path] = info.ModTime()
+
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("filepath.WalkDir(%q) returned error: %v", dir, err)
+	}
+
+	return snap
 }

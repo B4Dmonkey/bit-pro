@@ -1,7 +1,7 @@
 ---
 id: BIT-49.20
 title: Re-running migrate on a registered project says "already migrated" and changes nothing
-status: todo
+status: done
 approved: true
 phase: 2
 phase_label: bp migrate

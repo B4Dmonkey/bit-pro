@@ -34,6 +34,12 @@ func newMigrateCmd() *cobra.Command {
 				return err
 			}
 
+			if res.Already {
+				fmt.Fprintln(cmd.OutOrStdout(), "already migrated")
+
+				return nil
+			}
+
 			fmt.Fprintf(cmd.OutOrStdout(), "migrated %s %s\n", res.Code, res.Path)
 
 			return nil
