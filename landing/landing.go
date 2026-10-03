@@ -16,8 +16,9 @@ type Bar struct {
 }
 
 type Query struct {
-	Dir  string
-	Bars []Bar
+	Dir    string
+	Bars   []Bar
+	Commit string
 }
 
 type Verdict string
@@ -46,6 +47,7 @@ type BarResult struct {
 	Commit  string `json:"commit"`
 	Class   Class  `json:"class"`
 	Landing string `json:"landing"`
+	Repoint bool   `json:"repoint"`
 }
 
 type Report struct {
@@ -64,9 +66,12 @@ const (
 )
 
 var (
-	fullSHA = regexp.MustCompile(`^[0-9a-f]{40}$`)
+	fullSHA   = regexp.MustCompile(`^[0-9a-f]{40}$`)
+	answerSHA = regexp.MustCompile(`^[0-9a-fA-F]{4,40}$`)
 
-	ErrNoTrunk = errors.New("no trunk: neither origin/main nor main exists")
+	ErrNoTrunk    = errors.New("no trunk: neither origin/main nor main exists")
+	ErrBadAnswer  = errors.New("not a commit")
+	ErrNotOnTrunk = errors.New("not on trunk")
 )
 
 func Check(ctx context.Context, run git.Runner, q Query) (Report, error) {
@@ -87,12 +92,11 @@ func check(ctx context.Context, run git.Runner, q Query) (Report, error) {
 		return shallow(name, q), nil
 	}
 
-	chain, err := git.FirstParents(ctx, run, q.Dir, trunk)
+	chain, pos, answer, err := readTrunk(ctx, run, q, name, trunk)
 	if err != nil {
-		return Report{}, fmt.Errorf("reading trunk %s: %w", name, err)
+		return Report{}, err
 	}
 
-	pos := positions(chain)
 	newest := len(chain)
 
 	r := Report{
@@ -105,17 +109,15 @@ func check(ctx context.Context, run git.Runner, q Query) (Report, error) {
 	counts := map[Class]int{}
 
 	for _, b := range q.Bars {
-		res := BarResult{ID: b.ID, Status: b.Status, Commit: b.Commit}
-
-		class, at, err := classify(ctx, run, q.Dir, b.Commit, trunk, pos)
+		res, at, err := place(ctx, run, q.Dir, b, trunk, pos, answer)
 		if err != nil {
 			return Report{}, err
 		}
 
-		res.Class = class
-		counts[class]++
-
-		if class == Landed {
+		if at < 0 {
+			counts[res.Class]++
+		} else {
+			counts[Landed]++
 			res.Landing = chain[at]
 
 			if at < newest {
@@ -137,6 +139,75 @@ func check(ctx context.Context, run git.Runner, q Query) (Report, error) {
 	}
 
 	return r, nil
+}
+
+func readTrunk(
+	ctx context.Context, run git.Runner, q Query, name, trunk string,
+) ([]string, map[string]int, int, error) {
+	chain, err := git.FirstParents(ctx, run, q.Dir, trunk)
+	if err != nil {
+		return nil, nil, 0, fmt.Errorf("reading trunk %s: %w", name, err)
+	}
+
+	pos := positions(chain)
+
+	answer, err := placeAnswer(ctx, run, q.Dir, q.Commit, name, trunk, pos)
+
+	return chain, pos, answer, err
+}
+
+func place(
+	ctx context.Context, run git.Runner, dir string, b Bar, trunk string, pos map[string]int, answer int,
+) (BarResult, int, error) {
+	res := BarResult{ID: b.ID, Status: b.Status, Commit: b.Commit}
+
+	class, at, err := classify(ctx, run, dir, b.Commit, trunk, pos)
+	if err != nil {
+		return BarResult{}, 0, err
+	}
+
+	res.Class = class
+
+	switch {
+	case class == Landed:
+		return res, at, nil
+	case answer >= 0:
+		res.Repoint = true
+
+		return res, answer, nil
+	default:
+		return res, -1, nil
+	}
+}
+
+func placeAnswer(
+	ctx context.Context, run git.Runner, dir, commit, name, trunk string, pos map[string]int,
+) (int, error) {
+	if commit == "" {
+		return -1, nil
+	}
+
+	if !answerSHA.MatchString(commit) {
+		return 0, fmt.Errorf("%q: %w", commit, ErrBadAnswer)
+	}
+
+	notOnTrunk := fmt.Errorf("%s %w %s: fetch and retry", commit, ErrNotOnTrunk, name)
+
+	sha, ok := git.ResolveCommit(ctx, run, dir, commit)
+	if !ok || !git.IsAncestor(ctx, run, dir, sha, trunk) {
+		return 0, notOnTrunk
+	}
+
+	at, err := landedAt(ctx, run, dir, sha, trunk, pos)
+	if err != nil {
+		return 0, err
+	}
+
+	if at < 0 {
+		return 0, notOnTrunk
+	}
+
+	return at, nil
 }
 
 func positions(chain []string) map[string]int {

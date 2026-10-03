@@ -443,6 +443,129 @@ func TestCheck(t *testing.T) {
 		assertVerdict(t, r.Dir, []landing.Bar{{ID: bar1, Status: done, Commit: a}, {ID: bar2, Status: todo}},
 			landing.Partly, a, []landing.Class{landing.Landed, landing.NoHash})
 	})
+
+	t.Run("a commit answer places bars that haven't landed", func(t *testing.T) {
+		for _, tt := range []struct {
+			name  string
+			class landing.Class
+			bar   func(r *gittest.Repo) string
+		}{
+			{name: "no hash", class: landing.NoHash, bar: func(*gittest.Repo) string { return "" }},
+			{name: "stale hash", class: landing.Unresolvable, bar: func(*gittest.Repo) string {
+				return "0123456789abcdef0123456789abcdef01234567"
+			}},
+			{name: "pushed to a branch", class: landing.Pushed, bar: func(r *gittest.Repo) string {
+				r.Git("checkout", "-b", "feat")
+				b := r.Commit("feat(bit): one")
+				r.Git("push", "origin", "feat")
+				r.Git("checkout", "main")
+
+				return b
+			}},
+			{name: "local only", class: landing.Local, bar: func(r *gittest.Repo) string {
+				r.Git("checkout", "-b", "feat")
+				b := r.Commit("feat(bit): one")
+				r.Git("checkout", "main")
+
+				return b
+			}},
+		} {
+			t.Run(tt.name, func(t *testing.T) {
+				r := gittest.New(t)
+
+				b := tt.bar(r)
+				x := r.Commit("feat(bit): landed by hand")
+				r.Git("push", "origin", "main")
+
+				got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{
+					Dir: r.Dir, Commit: x[:12], Bars: []landing.Bar{{ID: bar1, Status: done, Commit: b}},
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				if got.Verdict != landing.Done || got.Landing != x {
+					t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, landing.Done, x)
+				}
+
+				bar := got.Bars[0]
+				if bar.Landing != x || !bar.Repoint || bar.Class != tt.class {
+					t.Errorf("Bars[0] = %+v, want landing %q, repoint, class %q", bar, x, tt.class)
+				}
+			})
+		}
+	})
+
+	t.Run("an answer not on trunk is refused", func(t *testing.T) {
+		r := gittest.New(t)
+
+		r.Git("checkout", "-b", "feat")
+		y := r.Commit("feat(bit): off trunk")
+
+		_, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{
+			Dir: r.Dir, Commit: y, Bars: []landing.Bar{{ID: bar1, Status: done}},
+		})
+		if !errors.Is(err, landing.ErrNotOnTrunk) {
+			t.Errorf("err = %v, want %v", err, landing.ErrNotOnTrunk)
+		}
+	})
+
+	t.Run("an answer that isn't a commit is refused", func(t *testing.T) {
+		const trunk = "6a1d3459c0ffee000000000000000000000000ab"
+
+		for _, answer := range []string{"--all", "zz"} {
+			fake := &recordingGit{results: map[string]string{
+				"rev-parse --git-dir": ".git",
+				"rev-parse --verify -q refs/remotes/origin/main^{commit}": trunk,
+				"rev-list --first-parent " + trunk:                        trunk,
+			}}
+
+			_, err := landing.Check(t.Context(), fake.run, landing.Query{
+				Dir: "/repo", Commit: answer, Bars: []landing.Bar{{ID: bar1, Status: done}},
+			})
+			if !errors.Is(err, landing.ErrBadAnswer) {
+				t.Errorf("Commit %q: err = %v, want %v", answer, err, landing.ErrBadAnswer)
+			}
+
+			for _, call := range fake.calls {
+				if strings.Contains(call, answer) {
+					t.Errorf("git call %q contains %q", call, answer)
+				}
+			}
+		}
+	})
+
+	t.Run("a landed bar keeps its own commit", func(t *testing.T) {
+		r := gittest.New(t)
+
+		a := r.Commit("feat(bit): one")
+		r.Git("push", "origin", "main")
+		r.Git("checkout", "-b", "feat")
+		b := r.Commit("feat(bit): two")
+		r.Git("push", "origin", "feat")
+		r.Git("checkout", "main")
+		x := r.Commit("feat(bit): landed by hand")
+		r.Git("push", "origin", "main")
+
+		got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: r.Dir, Commit: x, Bars: []landing.Bar{
+			{ID: bar1, Status: done, Commit: a},
+			{ID: bar2, Status: done, Commit: b},
+			{ID: "BIT-1.3", Status: done},
+		}})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if bar := got.Bars[0]; bar.Repoint || bar.Landing != a {
+			t.Errorf("Bars[0] = %+v, want no repoint, landing %q", bar, a)
+		}
+
+		for i, bar := range got.Bars[1:] {
+			if !bar.Repoint || bar.Landing != x {
+				t.Errorf("Bars[%d] = %+v, want repoint, landing %q", i+1, bar, x)
+			}
+		}
+	})
 }
 
 func classes(r landing.Report) []landing.Class {

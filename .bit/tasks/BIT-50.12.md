@@ -1,7 +1,7 @@
 ---
 id: BIT-50.12
 title: A commit answer places every bar that hasn't landed, and is refused when it isn't on trunk
-status: todo
+status: done
 approved: true
 phase: 3
 phase_label: PR or commit answer

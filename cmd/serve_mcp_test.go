@@ -442,6 +442,30 @@ func TestTaskLandingHandler(t *testing.T) {
 		}
 	})
 
+	t.Run("a commit answer reaches the check", func(t *testing.T) {
+		r := landingRepo(t)
+
+		x := r.Commit("feat(bit): landed by hand")
+		r.Git("push", "origin", "main")
+
+		seedLandingBar(t, openProjectStore(t, r.Dir), "")
+
+		got := callTool(t, mcpSessionWithGit(t, r.Dir, git.ExecRunner), taskLandingTool,
+			map[string]any{"id": testNewTrackID, "commit": x})
+		if got["verdict"] != "done" {
+			t.Errorf("verdict = %v, want %q", got["verdict"], "done")
+		}
+
+		bars, ok := got["bars"].([]any)
+		if !ok || len(bars) != 1 {
+			t.Fatalf("bars = %v, want 1 entry", got["bars"])
+		}
+
+		if bar, _ := bars[0].(map[string]any); bar["repoint"] != true {
+			t.Errorf("bars[0].repoint = %v, want true", bar["repoint"])
+		}
+	})
+
 	t.Run("an unknown track is a tool error", func(t *testing.T) {
 		r := landingRepo(t)
 

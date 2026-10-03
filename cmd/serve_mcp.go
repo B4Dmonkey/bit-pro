@@ -99,7 +99,7 @@ A track is a top-level task — one whole scope — and its ID has no dot, as in
 origin/main, else main. The result names the trunk and branch, a verdict for the track, the
 track's landing commit, and for each bar its status, commit, class and landing commit. The check is
 read-only: it never fetches and never writes, so a commit that hasn't been fetched or pushed reads
-as not landed.`
+as not landed. commit is the operator's answer when git can't place the work or it isn't on trunk.`
 
 const taskDeleteDescription = `Remove a task from the active list by moving it to the archive.
 
@@ -219,7 +219,8 @@ type taskCompleteInput struct {
 }
 
 type taskLandingInput struct {
-	ID string `json:"id"`
+	ID     string `json:"id"`
+	Commit string `json:"commit,omitempty"`
 }
 
 type taskDeleteInput struct {
@@ -594,7 +595,7 @@ func taskLandingHandler(root string, run git.Runner) mcp.ToolHandlerFor[taskLand
 			return nil, landing.Report{}, err
 		}
 
-		report, err := checkLanding(ctx, store, root, run, in.ID)
+		report, err := checkLanding(ctx, store, root, run, in.ID, in.Commit)
 		if err != nil {
 			return nil, landing.Report{}, fmt.Errorf("checking landing of %s: %w", in.ID, err)
 		}
@@ -608,7 +609,7 @@ func checkLanding(
 	store *task.Store,
 	root string,
 	run git.Runner,
-	id string,
+	id, commit string,
 ) (landing.Report, error) {
 	if _, err := store.Load(id); err != nil {
 		return landing.Report{}, err
@@ -629,7 +630,7 @@ func checkLanding(
 		return landing.Report{}, err
 	}
 
-	return landing.Check(ctx, run, landing.Query{Dir: dir, Bars: bars})
+	return landing.Check(ctx, run, landing.Query{Dir: dir, Bars: bars, Commit: commit})
 }
 
 func taskDeleteHandler(root string) mcp.ToolHandlerFor[taskDeleteInput, emptyOutput] {
