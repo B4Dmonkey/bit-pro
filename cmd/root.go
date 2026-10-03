@@ -9,9 +9,9 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/B4Dmonkey/bit-pro/bitdir"
 	"github.com/B4Dmonkey/bit-pro/claude"
 	taskcmd "github.com/B4Dmonkey/bit-pro/cmd/task"
+	"github.com/B4Dmonkey/bit-pro/project"
 	"github.com/spf13/cobra"
 )
 
@@ -23,7 +23,21 @@ var pluginState = func() (installed, latest string, ok bool) {
 		return "", "", false
 	}
 
-	return claude.PluginState(home, bitdir.Root())
+	return claude.PluginState(home, pluginRoot())
+}
+
+func pluginRoot() string {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "."
+	}
+
+	p, err := project.Find(context.Background(), wd)
+	if err != nil {
+		return wd
+	}
+
+	return p.Path
 }
 
 var refreshMarketplace = claude.RefreshMarketplace

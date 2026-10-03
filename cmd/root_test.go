@@ -3,11 +3,14 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"testing"
 	"time"
 
+	"github.com/B4Dmonkey/bit-pro/project"
 	"github.com/spf13/cobra"
 )
 
@@ -239,6 +242,59 @@ func TestBehind(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := behind(tt.installed, tt.latest); got != tt.want {
 				t.Errorf("behind(%q, %q) = %v, want %v", tt.installed, tt.latest, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPluginRoot(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(t *testing.T) string
+	}{
+		{
+			name: "registered subfolder",
+			setup: func(t *testing.T) string {
+				dir := initProject(t, "BIT")
+
+				sub := filepath.Join(dir, "src")
+				if err := os.Mkdir(sub, 0o755); err != nil {
+					t.Fatalf("Mkdir(%q) returned error: %v", sub, err)
+				}
+
+				t.Chdir(sub)
+
+				want, err := project.CanonicalPath(dir)
+				if err != nil {
+					t.Fatalf("CanonicalPath(%q) returned error: %v", dir, err)
+				}
+
+				return want
+			},
+		},
+		{
+			name: "unregistered folder",
+			setup: func(t *testing.T) string {
+				t.Setenv("HOME", t.TempDir())
+				t.Setenv("XDG_DATA_HOME", "")
+				t.Chdir(t.TempDir())
+
+				want, err := os.Getwd()
+				if err != nil {
+					t.Fatalf("Getwd returned error: %v", err)
+				}
+
+				return want
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			want := tt.setup(t)
+
+			if got := pluginRoot(); got != want {
+				t.Errorf("pluginRoot() = %q, want %q", got, want)
 			}
 		})
 	}

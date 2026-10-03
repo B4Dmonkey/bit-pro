@@ -1,7 +1,7 @@
 ---
 id: BIT-46.10
 title: The plugin-behind notice reads the resolved project's root
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: registered project works from the central store
