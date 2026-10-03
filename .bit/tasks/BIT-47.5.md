@@ -1,7 +1,7 @@
 ---
 id: BIT-47.5
 title: 'bit:plan''s bars end in a ## Commit section, and plan no longer says Claude never commits'
-status: todo
+status: done
 approved: true
 phase: 2
 phase_label: the skills describe Claude committing

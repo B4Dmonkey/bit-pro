@@ -301,7 +301,7 @@ check the task runner, README, or an already-correct bar elsewhere in the same t
 invocation convention exists yet for this new capability, that's a scope Decision, not something
 to guess in the plan — hand back to bit_scope.
 
-**Claude never commits.** The plan includes a suggested commit message per step, but committing is always the user's action.
+**Claude commits through bit_commit, and only after the operator says yes.** Each bar ends with a `## Commit` section holding its suggested message. bit_commit reads it, asks, commits, and records the hash on the bar.
 
 ---
 
@@ -358,7 +358,7 @@ see Gathering context. Name the actual mechanism, not just that one is needed.]
 ## User verifies
 - [ ] [concrete manual check — do X, observe Y; omit on a pure-plumbing bar. A verse's integration/feel check goes on its *last* bar. Never a decision-in-disguise ("reads naturally", "is acceptable") — that's a scope Decision, hand it back.]
 
-## Commit (user)
+## Commit
 `feat(scope): short description`
 ```
 
@@ -395,7 +395,7 @@ Same frame, different middle: the TDD cycle is replaced by the question and how 
 ## Report back
 - [ ] Take the answer to bit_scope: the unknown becomes a Decision, and Verses N–M get revised against it before they're planned.
 
-## Commit (user)
+## Commit
 `<type>(scope): short description`
 ```
 
