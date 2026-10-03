@@ -354,6 +354,40 @@ func TestCheck(t *testing.T) {
 			t.Errorf("Unfinished = %q, want %q", got.Unfinished, want)
 		}
 	})
+
+	t.Run("an unfinished bar makes a landed track partly done", func(t *testing.T) {
+		r := gittest.New(t)
+
+		a := r.Commit("feat(bit): one")
+		b := r.Commit("feat(bit): two")
+		r.Git("push", "origin", "main")
+
+		got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: r.Dir, Bars: []landing.Bar{
+			{ID: bar1, Status: done, Commit: a},
+			{ID: bar2, Status: "doing", Commit: b},
+		}})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if got.Verdict != landing.Partly || got.Landing != b {
+			t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, landing.Partly, b)
+		}
+
+		if want := []string{bar2}; !slices.Equal(got.Unfinished, want) {
+			t.Errorf("Unfinished = %q, want %q", got.Unfinished, want)
+		}
+	})
+
+	t.Run("a todo bar with no hash", func(t *testing.T) {
+		r := gittest.New(t)
+
+		a := r.Commit("feat(bit): one")
+		r.Git("push", "origin", "main")
+
+		assertVerdict(t, r.Dir, []landing.Bar{{ID: bar1, Status: done, Commit: a}, {ID: bar2, Status: "todo"}},
+			landing.Partly, a, []landing.Class{landing.Landed, landing.NoHash})
+	})
 }
 
 func classes(r landing.Report) []landing.Class {

@@ -118,7 +118,7 @@ func Check(ctx context.Context, run git.Runner, q Query) (Report, error) {
 		r.Bars = append(r.Bars, res)
 	}
 
-	r.Verdict = verdict(counts)
+	r.Verdict = verdict(counts, len(r.Unfinished))
 	if r.Verdict != Done && r.Verdict != Partly {
 		r.Landing = ""
 	}
@@ -126,7 +126,7 @@ func Check(ctx context.Context, run git.Runner, q Query) (Report, error) {
 	return r, nil
 }
 
-func verdict(counts map[Class]int) Verdict {
+func verdict(counts map[Class]int, unfinished int) Verdict {
 	landed := counts[Landed]
 	elsewhere := counts[Pushed] + counts[Local]
 
@@ -135,7 +135,7 @@ func verdict(counts map[Class]int) Verdict {
 		return CantTell
 	case landed == 0:
 		return NotDone
-	case elsewhere+counts[Unresolvable] == 0:
+	case elsewhere+counts[Unresolvable]+unfinished == 0:
 		return Done
 	default:
 		return Partly

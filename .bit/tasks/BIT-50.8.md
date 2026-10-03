@@ -1,7 +1,7 @@
 ---
 id: BIT-50.8
 title: An unfinished bar makes an otherwise landed track partly done
-status: todo
+status: done
 approved: true
 phase: 2
 phase_label: operator decides partial landings
