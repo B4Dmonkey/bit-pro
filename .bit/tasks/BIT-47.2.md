@@ -1,7 +1,7 @@
 ---
 id: BIT-47.2
 title: task_update records a bar's commit and branch and keeps its approval
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: a bar lands as a real commit with its hash recorded

@@ -60,7 +60,9 @@ already blessed — revocation fires on the field being sent, not on its value d
 rewrite of an approved task comes back with approved false even if the text is unchanged.
 Writing status todo revokes approval too, because a task pulled back for rework has to be
 re-reviewed before it runs again, while a forward move to doing or done keeps approval, being the
-act of doing work that was already approved.
+act of doing work that was already approved. Sending commit or branch keeps approval too: they
+record the full SHA and the branch a bar's approved work was committed as, not what was reviewed.
+An empty branch is written as empty, which is how a commit on a detached HEAD is recorded.
 
 Status does not cascade to the parent: setting a bar's status leaves its track untouched, so a
 caller that wants the track to reflect its bars sets the track's status in a separate call. The
@@ -157,6 +159,8 @@ type taskUpdateInput struct {
 	Status     *string `json:"status,omitempty"`
 	Phase      *int    `json:"phase,omitempty"`
 	PhaseLabel *string `json:"phase_label,omitempty"`
+	Commit     *string `json:"commit,omitempty"`
+	Branch     *string `json:"branch,omitempty"`
 }
 
 type taskCompleteInput struct {
@@ -406,6 +410,8 @@ func taskUpdateHandler(root string) mcp.ToolHandlerFor[taskUpdateInput, taskUpda
 			Status:     in.Status,
 			Phase:      in.Phase,
 			PhaseLabel: in.PhaseLabel,
+			Commit:     in.Commit,
+			Branch:     in.Branch,
 		})
 		if err != nil {
 			return nil, taskUpdateOutput{}, fmt.Errorf("updating task %s: %w", in.ID, err)

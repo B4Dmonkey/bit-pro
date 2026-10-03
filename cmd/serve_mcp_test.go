@@ -50,6 +50,7 @@ const (
 	testRevokingFields       = "title, body, phase or phase_label revokes it"
 	testTodoRevokes          = "Writing status todo revokes approval"
 	testForwardKeepsApproval = "a forward move to doing or done keeps approval"
+	testGitKeepsApproval     = "Sending commit or branch keeps approval"
 
 	testNoCascade     = "does not cascade"
 	testCallerRollsUp = "sets the track's status in a separate call"
@@ -350,6 +351,11 @@ func TestMCPToolDescriptions(t *testing.T) {
 				name: taskUpdateTool + " rollup",
 				tool: taskUpdateTool,
 				want: []string{testNoCascade, testCallerRollsUp},
+			},
+			{
+				name: taskUpdateTool + " git keeps approval",
+				tool: taskUpdateTool,
+				want: []string{testGitKeepsApproval},
 			},
 		}
 

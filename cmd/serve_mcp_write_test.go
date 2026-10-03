@@ -294,6 +294,15 @@ func TestTaskUpdateHandler(t *testing.T) {
 				args: map[string]any{"id": testBarID},
 				want: seed,
 			},
+			{
+				name: "commit and branch only leave the rest alone",
+				args: map[string]any{"id": testBarID, testCommitKey: testBarSHA, testBranchKey: "v2"},
+				want: task.Task{
+					ID: testBarID, Title: testSeedBarTitle, Status: task.StatusTodo,
+					Phase: testSeedPhase, PhaseLabel: testSeedPhaseLabel, Body: testSeedBarBody,
+					Commit: testBarSHA, Branch: "v2",
+				},
+			},
 		}
 
 		for _, tt := range tests {
@@ -314,6 +323,66 @@ func TestTaskUpdateHandler(t *testing.T) {
 					t.Errorf("task = %+v, want %+v", *got, tt.want)
 				}
 			})
+		}
+	})
+
+	t.Run("records commit and branch without revoking approval", func(t *testing.T) {
+		dir := t.TempDir()
+		seedTasks(t, dir,
+			&task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusDoing},
+			&task.Task{
+				ID: testBarID, Title: testSeedBarTitle, Status: task.StatusDoing, Approved: true,
+				Phase: testSeedPhase, PhaseLabel: testSeedPhaseLabel, Body: testSeedBarBody,
+			},
+		)
+
+		session := mcpSession(t, dir)
+
+		updated := callTool(t, session, taskUpdateTool, map[string]any{
+			"id": testBarID, testCommitKey: testBarSHA, testBranchKey: "v2", testStatusKey: task.StatusDone,
+		})
+
+		if updated[testApprovedKey] != true {
+			t.Errorf("update approved = %v, want true", updated[testApprovedKey])
+		}
+
+		got := callTool(t, session, taskReadTool, map[string]any{"id": testBarID})
+
+		want := map[string]any{
+			testStatusKey: task.StatusDone, testCommitKey: testBarSHA, testBranchKey: "v2",
+			testApprovedKey: true, testTitleKey: testSeedBarTitle, testBodyKey: testSeedBarBody,
+			testPhaseKey: float64(testSeedPhase), testPhaseLabelKey: testSeedPhaseLabel,
+		}
+
+		for key, wantValue := range want {
+			if got[key] != wantValue {
+				t.Errorf("%s = %v, want %v", key, got[key], wantValue)
+			}
+		}
+	})
+
+	t.Run("an empty branch overwrites the stored branch", func(t *testing.T) {
+		dir := t.TempDir()
+		seedTasks(t, dir, &task.Task{
+			ID: testBarID, Title: testSeedBarTitle, Status: task.StatusDone,
+			Commit: strings.Repeat("a", 40), Branch: "v2",
+		})
+
+		callTool(t, mcpSession(t, dir), taskUpdateTool, map[string]any{
+			"id": testBarID, testCommitKey: testBarSHA, testBranchKey: "",
+		})
+
+		got, err := openProjectStore(t, dir).Load(testBarID)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if got.Commit != testBarSHA {
+			t.Errorf("Commit = %q, want %q", got.Commit, testBarSHA)
+		}
+
+		if got.Branch != "" {
+			t.Errorf("Branch = %q, want empty", got.Branch)
 		}
 	})
 
