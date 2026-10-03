@@ -1,7 +1,7 @@
 ---
 id: BIT-45.2
 title: Orphaned daemon, dispatch and counts packages are deleted
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: No daemon in a v2 build
