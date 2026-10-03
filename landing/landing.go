@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/B4Dmonkey/bit-pro/git"
 )
@@ -19,6 +20,16 @@ type Query struct {
 	Dir    string
 	Bars   []Bar
 	Commit string
+	PR     int
+}
+
+type AmbiguousPRError struct {
+	PR   int
+	SHAs []string
+}
+
+func (e *AmbiguousPRError) Error() string {
+	return fmt.Sprintf("PR #%d matches more than one commit on trunk:\n%s", e.PR, strings.Join(e.SHAs, "\n"))
 }
 
 type Verdict string
@@ -151,7 +162,15 @@ func readTrunk(
 
 	pos := positions(chain)
 
-	answer, err := placeAnswer(ctx, run, q.Dir, q.Commit, name, trunk, pos)
+	commit := q.Commit
+	if commit == "" && q.PR > 0 {
+		commit, err = prCommit(ctx, run, q.Dir, q.PR, name, trunk)
+		if err != nil {
+			return nil, nil, 0, err
+		}
+	}
+
+	answer, err := placeAnswer(ctx, run, q.Dir, commit, name, trunk, pos)
 
 	return chain, pos, answer, err
 }
@@ -208,6 +227,22 @@ func placeAnswer(
 	}
 
 	return at, nil
+}
+
+func prCommit(ctx context.Context, run git.Runner, dir string, pr int, name, trunk string) (string, error) {
+	shas, err := git.PRCommits(ctx, run, dir, trunk, pr)
+	if err != nil {
+		return "", err
+	}
+
+	switch len(shas) {
+	case 0:
+		return "", fmt.Errorf("PR #%d isn't on %s: fetch and retry: %w", pr, name, ErrNotOnTrunk)
+	case 1:
+		return shas[0], nil
+	default:
+		return "", &AmbiguousPRError{PR: pr, SHAs: shas}
+	}
 }
 
 func positions(chain []string) map[string]int {

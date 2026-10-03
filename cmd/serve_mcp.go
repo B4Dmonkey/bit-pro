@@ -221,6 +221,7 @@ type taskCompleteInput struct {
 type taskLandingInput struct {
 	ID     string `json:"id"`
 	Commit string `json:"commit,omitempty"`
+	PR     int    `json:"pr,omitempty"`
 }
 
 type taskDeleteInput struct {
@@ -595,7 +596,7 @@ func taskLandingHandler(root string, run git.Runner) mcp.ToolHandlerFor[taskLand
 			return nil, landing.Report{}, err
 		}
 
-		report, err := checkLanding(ctx, store, root, run, in.ID, in.Commit)
+		report, err := checkLanding(ctx, store, root, run, in)
 		if err != nil {
 			return nil, landing.Report{}, fmt.Errorf("checking landing of %s: %w", in.ID, err)
 		}
@@ -609,13 +610,13 @@ func checkLanding(
 	store *task.Store,
 	root string,
 	run git.Runner,
-	id, commit string,
+	in taskLandingInput,
 ) (landing.Report, error) {
-	if _, err := store.Load(id); err != nil {
+	if _, err := store.Load(in.ID); err != nil {
 		return landing.Report{}, err
 	}
 
-	children, err := store.Children(id)
+	children, err := store.Children(in.ID)
 	if err != nil {
 		return landing.Report{}, err
 	}
@@ -630,7 +631,7 @@ func checkLanding(
 		return landing.Report{}, err
 	}
 
-	return landing.Check(ctx, run, landing.Query{Dir: dir, Bars: bars, Commit: commit})
+	return landing.Check(ctx, run, landing.Query{Dir: dir, Bars: bars, Commit: in.Commit, PR: in.PR})
 }
 
 func taskDeleteHandler(root string) mcp.ToolHandlerFor[taskDeleteInput, emptyOutput] {

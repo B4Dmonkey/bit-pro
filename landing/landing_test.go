@@ -566,6 +566,83 @@ func TestCheck(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("a pr number finds its squash on trunk", func(t *testing.T) {
+		r := gittest.New(t)
+
+		r.Git("checkout", "-b", "feat")
+		r.Commit("feat(tui): overlay")
+		r.Git("checkout", "main")
+		r.Git("merge", "--squash", "feat")
+		r.Git("commit", "-m", "Worktree bit 31 (#5)")
+		s := r.Git("rev-parse", "HEAD")
+		r.Git("push", "origin", "main")
+
+		got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{
+			Dir: r.Dir, PR: 5, Bars: []landing.Bar{{ID: bar1, Status: done}},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if got.Verdict != landing.Done || got.Landing != s {
+			t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, landing.Done, s)
+		}
+
+		if !got.Bars[0].Repoint {
+			t.Errorf("Bars[0] = %+v, want repoint", got.Bars[0])
+		}
+	})
+
+	t.Run("a pr that isn't on trunk is refused", func(t *testing.T) {
+		r := gittest.New(t)
+
+		r.Commit("feat(bit): one (#5)")
+		r.Git("push", "origin", "main")
+
+		assertPRNotOnTrunk(t, r.Dir, 6)
+	})
+
+	t.Run("two commits ending in the same pr number are refused", func(t *testing.T) {
+		r := gittest.New(t)
+
+		x := r.Commit("x (#7)")
+		y := r.Commit("y (#7)")
+		r.Git("push", "origin", "main")
+
+		_, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{
+			Dir: r.Dir, PR: 7, Bars: []landing.Bar{{ID: bar1, Status: done}},
+		})
+
+		var ambiguous *landing.AmbiguousPRError
+		if !errors.As(err, &ambiguous) {
+			t.Fatalf("err = %v, want *AmbiguousPRError", err)
+		}
+
+		if !slices.Contains(ambiguous.SHAs, x) || !slices.Contains(ambiguous.SHAs, y) || len(ambiguous.SHAs) != 2 {
+			t.Errorf("SHAs = %q, want %q and %q", ambiguous.SHAs, x, y)
+		}
+	})
+
+	t.Run("pr 1 doesn't match pr 17", func(t *testing.T) {
+		r := gittest.New(t)
+
+		r.Commit("z (#17)")
+		r.Git("push", "origin", "main")
+
+		assertPRNotOnTrunk(t, r.Dir, 1)
+	})
+}
+
+func assertPRNotOnTrunk(t *testing.T, dir string, pr int) {
+	t.Helper()
+
+	_, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{
+		Dir: dir, PR: pr, Bars: []landing.Bar{{ID: bar1, Status: done}},
+	})
+	if !errors.Is(err, landing.ErrNotOnTrunk) {
+		t.Errorf("PR %d: err = %v, want %v", pr, err, landing.ErrNotOnTrunk)
+	}
 }
 
 func classes(r landing.Report) []landing.Class {

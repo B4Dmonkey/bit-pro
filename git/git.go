@@ -103,3 +103,22 @@ func IsShallow(ctx context.Context, run Runner, dir string) bool {
 
 	return err == nil && strings.TrimSpace(out) == "true"
 }
+
+func PRCommits(ctx context.Context, run Runner, dir, ref string, n int) ([]string, error) {
+	out, err := run(ctx, dir, "log", "--first-parent", "--format=%H%x00%s", ref)
+	if err != nil {
+		return nil, fmt.Errorf("pr #%d commits on %s: %w", n, ref, err)
+	}
+
+	suffix := fmt.Sprintf(" (#%d)", n)
+	shas := []string{}
+
+	for line := range strings.Lines(out) {
+		sha, subject, ok := strings.Cut(strings.TrimSuffix(line, "\n"), "\x00")
+		if ok && strings.HasSuffix(subject, suffix) {
+			shas = append(shas, sha)
+		}
+	}
+
+	return shas, nil
+}

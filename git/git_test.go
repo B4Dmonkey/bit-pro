@@ -380,6 +380,53 @@ func TestAncestryPath(t *testing.T) {
 	}
 }
 
+func TestPRCommits(t *testing.T) {
+	const (
+		a   = "6a1d3459c0ffee000000000000000000000000ab"
+		b   = "0000000000000000000000000000000000000001"
+		c   = "0000000000000000000000000000000000000002"
+		dir = "/repo"
+		log = "log --first-parent --format=%H%x00%s origin/main"
+	)
+
+	failed := errors.New("exit status 128")
+
+	tests := []struct {
+		name    string
+		result  fakeResult
+		want    []string
+		wantErr error
+	}{
+		{
+			name:   "keeps subjects ending in the pr number",
+			result: fakeResult{out: a + "\x00x (#5)\n" + b + "\x00Revert \"x (#5)\"\n" + c + "\x00y (#15)"},
+			want:   []string{a},
+		},
+		{name: caseEmptyOutput, result: fakeResult{}, want: []string{}},
+		{name: caseGitFails, result: fakeResult{err: failed}, wantErr: failed},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := &fakeGit{results: map[string]fakeResult{log: tt.result}}
+
+			got, err := PRCommits(t.Context(), fake.run, dir, "origin/main", 5)
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("PRCommits() error = %v, want %v", err, tt.wantErr)
+			}
+
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("PRCommits() = %#v, want %#v", got, tt.want)
+			}
+
+			if want := []string{dir}; !slices.Equal(fake.dirs, want) {
+				t.Errorf("runner dirs = %q, want %q", fake.dirs, want)
+			}
+		})
+	}
+}
+
 func TestIsShallow(t *testing.T) {
 	const (
 		dir     = "/repo"

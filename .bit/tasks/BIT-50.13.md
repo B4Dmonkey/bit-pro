@@ -1,7 +1,7 @@
 ---
 id: BIT-50.13
 title: A PR number finds its (#N) commit on trunk, and two matches are refused with both SHAs
-status: todo
+status: done
 approved: true
 phase: 3
 phase_label: PR or commit answer

@@ -466,6 +466,22 @@ func TestTaskLandingHandler(t *testing.T) {
 		}
 	})
 
+	t.Run("an ambiguous pr is a tool error listing both commits", func(t *testing.T) {
+		r := landingRepo(t)
+
+		x := r.Commit("x (#7)")
+		y := r.Commit("y (#7)")
+		r.Git("push", "origin", "main")
+
+		seedLandingBar(t, openProjectStore(t, r.Dir), "")
+
+		result := callToolResult(t, mcpSessionWithGit(t, r.Dir, git.ExecRunner), taskLandingTool,
+			map[string]any{"id": testNewTrackID, "pr": 7})
+		for _, sha := range []string{x, y} {
+			assertToolErrorNames(t, result, sha)
+		}
+	})
+
 	t.Run("an unknown track is a tool error", func(t *testing.T) {
 		r := landingRepo(t)
 
