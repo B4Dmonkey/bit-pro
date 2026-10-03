@@ -1,7 +1,7 @@
 ---
 id: BIT-46
 title: 'v2: central registry, resolver and record format'
-status: todo
+status: doing
 ---
 ## Why
 bit keeps each project's state in a `.bit/` folder inside the repo, so knowledge is scattered across repos. That also breaks down for a client like `acme/`, where cross-cutting work happens in a folder that isn't a repo and has nowhere to keep state. On top of that, four separate code paths work out which project bp is in, and running bp from a subfolder doesn't find the project at all. Moving every project's state into one store under `~/.local/share/bit/` gives multi-repo work (linking comes later) a home, and makes the operator's daily tool resolve projects one way, everywhere. The operator uses v1 daily, so v2 is built alongside it and v1 keeps working.

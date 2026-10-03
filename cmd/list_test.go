@@ -54,8 +54,8 @@ func TestListCmd(t *testing.T) {
 			}
 
 			if tt.want != "" {
-				if _, err := os.Stat(filepath.Join(home, ".local", "share", "bit-pro", "bit.db")); err != nil {
-					t.Errorf("os.Stat(bit.db) returned error: %v", err)
+				if _, err := os.Stat(filepath.Join(home, ".local", "share", "bit", "main.db")); err != nil {
+					t.Errorf("os.Stat(main.db) returned error: %v", err)
 				}
 			}
 		})

@@ -1,8 +1,8 @@
 -- migrate:up
 CREATE TABLE projects (
     id INTEGER PRIMARY KEY,
-    path TEXT NOT NULL UNIQUE,
-    code TEXT NOT NULL
+    code TEXT NOT NULL UNIQUE,
+    path TEXT NOT NULL UNIQUE
 );
 
 -- migrate:down
