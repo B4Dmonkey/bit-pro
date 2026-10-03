@@ -27,6 +27,19 @@ registers this repo as a Claude Code plugin marketplace. That bin dir must be on
 
 Needs Go. The agent skills need Claude Code; the CLI itself doesn't.
 
+## Claude Code setup
+
+`bp add` runs these commands once, the first time it registers a project, at user scope,
+so bit loads in every Claude session. If a step fails, or the wiring is removed later,
+run them by hand.
+
+```
+claude plugin marketplace add B4Dmonkey/bit-pro
+claude plugin marketplace update bit-pro
+claude plugin install bit@bit-pro --scope user
+claude mcp add -s user bit -- bp serve mcp
+```
+
 ## Quickstart
 
 ```

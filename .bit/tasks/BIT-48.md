@@ -2,7 +2,6 @@
 id: BIT-48
 title: 'v2: global Claude wiring'
 status: doing
-approved: true
 ---
 ## Why
 v1 sets bit up in Claude Code one project at a time. `bp init` wrote a project `.claude/settings.json`, installed the plugin at project scope and added a local `bit` MCP entry. `bp add` runs the same per-project wiring, but only for a folder with no `.bit/` (`cmd/add.go:66`), before it saves the registration (`:67` vs `:73`), and from bp's own folder rather than the target path, because the `claude` runner sets no working directory (`claude/sync.go:13`; corrected 2026-10-02). So each new project needs its own setup, each release needs a refresh in every project, and the "plugin behind" notice only sees project-scope installs (`claude/plugin.go:26-31`). Once BIT-46 resolves every project from one central registry, there's no per-project state left for that wiring to serve, so bit can be set up once per machine.
@@ -38,7 +37,7 @@ One idempotent "ensure global wiring" step installs the marketplace, the plugin 
 - **Cutover belongs to the operator.** The operator alone decides when v2 is ready and merges the branch, and no track gates it. Removing each project's old per-project wiring is a manual step on the cutover checklist in `v2-sketch.md`.
 
 ## Verses
-- [ ] Verse 1 — `bp add` sets bit up for the whole machine. Registering a new project ensures the user-scope marketplace, plugin and MCP server. Re-running `bp add` on a registered project changes nothing. If a wiring step fails, the operator is told which `claude` commands to run, and the same commands are in the README.
+- [x] Verse 1 — `bp add` sets bit up for the whole machine. Registering a new project ensures the user-scope marketplace, plugin and MCP server. Re-running `bp add` on a registered project changes nothing. If a wiring step fails, the operator is told which `claude` commands to run, and the same commands are in the README.
   Touches: `claude/{sync,settings}.go` and their tests, `cmd/add.go` and `cmd/add_test.go` (`:62-134`), the `writeClaudeWiring` helper BIT-46 kept in `cmd/init.go`, `claudeDir` (`cmd/root.go:32`), the helpers in `cmd/cmd_test.go`, `cmd/testconst_test.go`, and `README.md`. See BIT-46 topics `init-and-update` and `soundness-2`, and BIT-48 topics `review-2026-10-02` and `claim-audit-2026-10-02`.
 - [ ] Verse 2 — The operator gets told when the global plugin is behind, with the right update command.
   Touches: `claude/plugin.go` and `claude/plugin_test.go` (`:42-82`, `:129-177`), `cmd/root.go`, `cmd/root_test.go` (`:153`, `:164`, `:267`). It doesn't depend on Verse 1 and can be built first.
