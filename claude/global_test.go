@@ -2,6 +2,7 @@ package claude
 
 import (
 	"errors"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -14,26 +15,67 @@ const (
 )
 
 func TestEnsureGlobal(t *testing.T) {
-	t.Run("runs the four commands in order", func(t *testing.T) {
-		home := t.TempDir()
-		rec := newRecorder(nil)
+	all := [][]string{
+		{claudeBin, pluginSubCmd, marketplaceSubCmd, addSubCmd, "B4Dmonkey/bit-pro"},
+		{claudeBin, pluginSubCmd, marketplaceSubCmd, updateSubCmd, bitProMarketplace},
+		{claudeBin, pluginSubCmd, "install", bitProPlugin, scopeFlag, "user"},
+		{claudeBin, mcpSubCmd, addSubCmd, "-s", "user", bitServer, "--", "bp", "serve", mcpSubCmd},
+	}
 
-		if err := EnsureGlobal(t.Context(), rec.Run, home); err != nil {
-			t.Fatalf("EnsureGlobal returned error: %v", err)
-		}
+	tests := []struct {
+		name       string
+		claudeJSON string
+		want       [][]string
+	}{
+		{
+			name: "skips mcp add when a user entry exists",
+			claudeJSON: `{"mcpServers": {"bit": {"type": "stdio", "command": "bp", "args": ["serve", "mcp"], "env": {}}}, ` +
+				`"projects": {}}`,
+			want: all[:3],
+		},
+		{
+			name: "runs the four commands in order",
+			want: all,
+		},
+		{
+			name:       "adds mcp for a local-only entry",
+			claudeJSON: `{"projects": {"/p/a": {"mcpServers": {"bit": {"command": "bp"}}}}}`,
+			want:       all,
+		},
+		{
+			name:       "adds mcp when only another user server exists",
+			claudeJSON: `{"mcpServers": {"other": {}}}`,
+			want:       all,
+		},
+		{
+			name:       "adds mcp when claude json is malformed",
+			claudeJSON: `{`,
+			want:       all,
+		},
+	}
 
-		want := [][]string{
-			{claudeBin, pluginSubCmd, marketplaceSubCmd, addSubCmd, "B4Dmonkey/bit-pro"},
-			{claudeBin, pluginSubCmd, marketplaceSubCmd, updateSubCmd, bitProMarketplace},
-			{claudeBin, pluginSubCmd, "install", bitProPlugin, scopeFlag, "user"},
-			{claudeBin, mcpSubCmd, addSubCmd, "-s", "user", bitServer, "--", "bp", "serve", mcpSubCmd},
-		}
-		if !slices.EqualFunc(rec.calls, want, slices.Equal) {
-			t.Errorf("calls = %v, want %v", rec.calls, want)
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			home := t.TempDir()
+			if tt.claudeJSON != "" {
+				writeFixture(t, filepath.Join(home, ".claude.json"), tt.claudeJSON)
+			}
 
-		if got := GlobalWiring(); !slices.EqualFunc(got, want, slices.Equal) {
-			t.Errorf("GlobalWiring() = %v, want %v", got, want)
+			rec := newRecorder(nil)
+
+			if err := EnsureGlobal(t.Context(), rec.Run, home); err != nil {
+				t.Fatalf("EnsureGlobal returned error: %v", err)
+			}
+
+			if !slices.EqualFunc(rec.calls, tt.want, slices.Equal) {
+				t.Errorf("calls = %v, want %v", rec.calls, tt.want)
+			}
+		})
+	}
+
+	t.Run("GlobalWiring lists the four commands", func(t *testing.T) {
+		if got := GlobalWiring(); !slices.EqualFunc(got, all, slices.Equal) {
+			t.Errorf("GlobalWiring() = %v, want %v", got, all)
 		}
 	})
 

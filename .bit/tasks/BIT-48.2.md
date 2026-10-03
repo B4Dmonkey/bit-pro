@@ -1,7 +1,7 @@
 ---
 id: BIT-48.2
 title: An existing user-scope bit MCP entry skips the mcp add step
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: bp add sets bit up for the whole machine
