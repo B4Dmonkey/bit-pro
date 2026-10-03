@@ -23,11 +23,15 @@ const (
 )
 
 type Store struct {
-	root string
+	root, code string
 }
 
 func New(root string) *Store {
-	return &Store{root: root}
+	return NewProject(root, "")
+}
+
+func NewProject(root, code string) *Store {
+	return &Store{root: root, code: code}
 }
 
 func (s *Store) tasksDir() string {
@@ -199,6 +203,20 @@ type CreateParams struct {
 	PhaseLabel string
 }
 
+func (s *Store) nextTrackID() (string, error) {
+	prefix := s.code
+	if prefix == "" {
+		cfg, err := s.Config()
+		if err != nil {
+			return "", err
+		}
+
+		prefix = cfg.Prefix
+	}
+
+	return s.NextID(prefix)
+}
+
 // Create mints the next ID for p, writes the task, and maintains the parent's
 // explicit order. A bad After anchor fails before anything is written, so a
 // rejected placement never leaves an orphan task file behind.
@@ -211,14 +229,7 @@ func (s *Store) Create(p CreateParams) (*Task, error) {
 	if p.Parent != "" {
 		id, err = s.NextChildID(p.Parent)
 	} else {
-		var cfg *Config
-
-		cfg, err = s.Config()
-		if err != nil {
-			return nil, err
-		}
-
-		id, err = s.NextID(cfg.Prefix)
+		id, err = s.nextTrackID()
 	}
 
 	if err != nil {
