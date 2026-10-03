@@ -30,6 +30,10 @@ func newListCmd() *cobra.Command {
 			out := cmd.OutOrStdout()
 
 			for _, p := range projects {
+				if p.Removed != 0 {
+					continue
+				}
+
 				fmt.Fprintf(out, "%s\t%s\n", p.Code, p.Path)
 			}
 

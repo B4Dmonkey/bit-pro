@@ -16,9 +16,10 @@ const (
 
 func TestListCmd(t *testing.T) {
 	tests := []struct {
-		name string
-		seed []orm.CreateProjectParams
-		want string
+		name   string
+		seed   []orm.CreateProjectParams
+		remove []string
+		want   string
 	}{
 		{
 			name: "three projects",
@@ -32,6 +33,15 @@ func TestListCmd(t *testing.T) {
 		{
 			name: "no database yet",
 		},
+		{
+			name: "hides removed projects",
+			seed: []orm.CreateProjectParams{
+				{Path: "/tmp/ace", Code: aceCode},
+				{Path: "/tmp/mid", Code: midCode},
+			},
+			remove: []string{midCode},
+			want:   "ACE /tmp/ace",
+		},
 	}
 
 	for _, tt := range tests {
@@ -42,6 +52,10 @@ func TestListCmd(t *testing.T) {
 
 			for _, p := range tt.seed {
 				seedProject(t, p)
+			}
+
+			for _, code := range tt.remove {
+				markRemoved(t, code)
 			}
 
 			out, err := run(t, listCmdUse)
@@ -75,4 +89,36 @@ func seedProject(t *testing.T, params orm.CreateProjectParams) {
 	if err := orm.New(sqlDB).CreateProject(t.Context(), params); err != nil {
 		t.Fatalf("CreateProject(%+v) returned error: %v", params, err)
 	}
+}
+
+func markRemoved(t *testing.T, code string) {
+	t.Helper()
+
+	sqlDB, err := db.Open()
+	if err != nil {
+		t.Fatalf("db.Open() returned error: %v", err)
+	}
+
+	defer sqlDB.Close()
+
+	q := orm.New(sqlDB)
+
+	projects, err := q.ListProjects(t.Context())
+	if err != nil {
+		t.Fatalf("ListProjects() returned error: %v", err)
+	}
+
+	for _, p := range projects {
+		if p.Code != code {
+			continue
+		}
+
+		if err := q.SetProjectRemoved(t.Context(), orm.SetProjectRemovedParams{Removed: 1, ID: p.ID}); err != nil {
+			t.Fatalf("SetProjectRemoved(%s) returned error: %v", code, err)
+		}
+
+		return
+	}
+
+	t.Fatalf("no project with code %s", code)
 }
