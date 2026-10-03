@@ -1,7 +1,8 @@
 ---
 id: BIT-46.4
 title: The longest registered path containing a folder resolves its project
-status: todo
+status: done
+approved: true
 phase: 1
 phase_label: registered project works from the central store
 ---
