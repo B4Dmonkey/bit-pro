@@ -23,7 +23,7 @@ override: the real database is only ever migrated by the binary through the embe
 `Justfile` must not reimplement `store.Dir()`'s XDG-or-`HOME` resolution.
 
 ## References
-- `/Users/appstack/Developer/UniqueDataManagement/clients/engage-voters/evus/justfiles/db.just` —
+- `<client>/justfiles/db.just` —
   the pattern to follow. Take the target names and the `--no-dump-schema` /
   `--migrations-dir "{{MIGRATIONS_DIR}}"` shape; drop the `docker compose` indirection (dbmate is on
   PATH here) and the postgres URL assembly.

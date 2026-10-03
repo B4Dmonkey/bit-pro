@@ -25,16 +25,13 @@ const (
 	modeBoard
 )
 
-const targetBar = "bar"
-
 type item struct {
 	t *task.Task
 }
 
 type reloadedMsg struct {
-	tasks  []*task.Task
-	queued []string
-	err    error
+	tasks []*task.Task
+	err   error
 }
 
 type tickMsg struct{}
@@ -69,34 +66,27 @@ func (k keyMap) FullHelp() [][]key.Binding {
 
 type model struct {
 	list.Model
-	viewport          viewport.Model
-	modalViewport     viewport.Model
-	help              help.Model
-	keys              keyMap
-	boardKeys         boardKeyMap
-	mode              viewMode
-	boardCols         [3]list.Model
-	activeCol         int
-	detailWidth       int
-	listWidth         int
-	winWidth          int
-	winHeight         int
-	height            int
-	style             string
-	renderer          *glamour.TermRenderer
-	reload            func() ([]*task.Task, error)
-	approve           func(id string, approved bool) error
-	enqueue           func(targetIDs []string, targetTyp string) error
-	listQueue         func() ([]string, error)
-	queuedIDs         map[string]bool
-	loaded            []*task.Task
-	detailFocused     bool
-	modalOpen         bool
-	detailExpanded    bool
-	playPromptOpen    bool
-	playPromptTitle   string
-	playPromptTrackID string
-	pendingApprovalID string
+	viewport       viewport.Model
+	modalViewport  viewport.Model
+	help           help.Model
+	keys           keyMap
+	boardKeys      boardKeyMap
+	mode           viewMode
+	boardCols      [3]list.Model
+	activeCol      int
+	detailWidth    int
+	listWidth      int
+	winWidth       int
+	winHeight      int
+	height         int
+	style          string
+	renderer       *glamour.TermRenderer
+	reload         func() ([]*task.Task, error)
+	approve        func(id string, approved bool) error
+	loaded         []*task.Task
+	detailFocused  bool
+	modalOpen      bool
+	detailExpanded bool
 }
 
 func New(tasks []*task.Task) model {
@@ -122,7 +112,7 @@ func New(tasks []*task.Task) model {
 
 	var boardCols [3]list.Model
 	for i, cards := range cols {
-		boardCols[i] = newColumnList(cards, nil)
+		boardCols[i] = newColumnList(cards)
 	}
 
 	activeCol := defaultColumn(cols)
@@ -171,16 +161,6 @@ func (m model) WithApprove(f func(id string, approved bool) error) model {
 	return m
 }
 
-func (m model) WithEnqueue(f func(targetIDs []string, targetTyp string) error) model {
-	m.enqueue = f
-	return m
-}
-
-func (m model) WithListQueue(f func() ([]string, error)) model {
-	m.listQueue = f
-	return m
-}
-
 func (m model) Init() tea.Cmd {
 	if m.reload != nil {
 		return tick()
@@ -195,17 +175,11 @@ func (m model) reloadCmd() tea.Cmd {
 	}
 
 	reload := m.reload
-	listQueue := m.listQueue
 
 	return func() tea.Msg {
 		tasks, err := reload()
-		if err != nil || listQueue == nil {
-			return reloadedMsg{tasks: tasks, err: err}
-		}
 
-		queued, err := listQueue()
-
-		return reloadedMsg{tasks: tasks, queued: queued, err: err}
+		return reloadedMsg{tasks: tasks, err: err}
 	}
 }
 
@@ -244,7 +218,7 @@ func (m *model) setTasks(tasks []*task.Task) {
 	}
 
 	for i, cards := range groupByStatus(tasks) {
-		m.boardCols[i] = newColumnList(cards, m.queuedIDs)
+		m.boardCols[i] = newColumnList(cards)
 	}
 
 	if prevBoardID != "" {
@@ -270,115 +244,16 @@ func (m model) handleReloaded(msg reloadedMsg) (tea.Model, tea.Cmd) {
 		return m, tick()
 	}
 
-	m.queuedIDs = idSet(msg.queued)
-	m.applyQueued()
-
 	if sameTasks(m.loaded, msg.tasks) {
 		return m, tick()
 	}
 
 	m.setTasks(msg.tasks)
 
-	if m.pendingApprovalID != "" {
-		parentID := strings.SplitN(m.pendingApprovalID, ".", 2)[0]
-		bars := barChildrenOf(parentID, msg.tasks)
-
-		if len(bars) >= 1 && allApproved(bars) {
-			m.playPromptOpen = true
-			m.playPromptTitle = trackTitle(parentID, msg.tasks)
-			m.playPromptTrackID = parentID
-		}
-
-		m.pendingApprovalID = ""
-	}
-
 	return m, tick()
 }
 
-func idSet(ids []string) map[string]bool {
-	if len(ids) == 0 {
-		return nil
-	}
-
-	set := make(map[string]bool, len(ids))
-	for _, id := range ids {
-		set[id] = true
-	}
-
-	return set
-}
-
-func (m *model) applyQueued() {
-	m.SetDelegate(delegate{queued: m.queuedIDs})
-
-	for i := range m.boardCols {
-		m.boardCols[i].SetDelegate(delegate{board: true, queued: m.queuedIDs})
-	}
-}
-
-func (m model) handlePlayPrompt(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "y":
-		m.playPromptOpen = false
-
-		if ids := m.enqueueableBarIDs(m.playPromptTrackID); len(ids) > 0 && m.enqueue != nil {
-			_ = m.enqueue(ids, targetBar)
-		}
-
-		return m, nil
-	case "n", keyEsc:
-		m.playPromptOpen = false
-		return m, nil
-	case keyCtrlC:
-		return m, tea.Quit
-	}
-
-	return m, nil
-}
-
-func (m model) enqueueableBarIDs(trackID string) []string {
-	var ids []string
-
-	for _, t := range barChildrenOf(trackID, m.loaded) {
-		if t.Approved && t.Status != task.StatusDone {
-			ids = append(ids, t.ID)
-		}
-	}
-
-	return ids
-}
-
-func (m model) enqueueSelected() {
-	if m.enqueue == nil {
-		return
-	}
-
-	t := m.selected()
-	if m.mode == modeBoard {
-		t = m.boardSelected()
-	}
-
-	if t == nil {
-		return
-	}
-
-	ids := []string{t.ID}
-	if !isBar(t.ID) {
-		ids = m.enqueueableBarIDs(t.ID)
-	}
-
-	if len(ids) == 0 {
-		return
-	}
-
-	_ = m.enqueue(ids, targetBar)
-}
-
 func (m model) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	if m.playPromptOpen {
-		return m.handlePlayPrompt(msg)
-	}
-
 	if m.mode == modeBoard && m.modalOpen {
 		return m.updateBoard(msg)
 	}
@@ -410,10 +285,6 @@ func (m model) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 func (m model) handleApprove() (tea.Model, tea.Cmd) {
 	if m.approve != nil {
 		if t := m.selected(); t != nil {
-			if !t.Approved && isBar(t.ID) {
-				m.pendingApprovalID = t.ID
-			}
-
 			_ = m.approve(t.ID, !t.Approved)
 
 			return m, m.reloadCmd()
@@ -435,10 +306,6 @@ func (m model) handleListKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "q", keyEsc, keyCtrlC:
 		return m, tea.Quit
-	case "e":
-		m.enqueueSelected()
-
-		return m, nil
 	case keyRight, "l":
 		if m.detailExpanded {
 			m.Select(min(m.Index()+1, len(m.Items())-1))
@@ -633,7 +500,7 @@ func (m model) content() string {
 
 	if m.mode == modeBoard {
 		b := boardView(m)
-		if m.modalOpen && !m.playPromptOpen {
+		if m.modalOpen {
 			b = modalView(m, b)
 		}
 
@@ -643,10 +510,6 @@ func (m model) content() string {
 		listPane := titledBorder(m.Model.View(), listTitle, max(m.listWidth-2, 0), max(m.height-2, 0), !m.detailFocused)
 		detailPane := titledBorder(m.viewport.View(), "Details", max(m.detailWidth-2, 0), max(m.height-2, 0), m.detailFocused)
 		canvas = lipgloss.JoinHorizontal(lipgloss.Top, listPane, detailPane)
-	}
-
-	if m.playPromptOpen {
-		return lipgloss.JoinVertical(lipgloss.Left, playPromptView(m, canvas), m.help.View(m.helpKeys()))
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Left, canvas, m.help.View(m.helpKeys()))
@@ -716,40 +579,6 @@ func splitWidthExpanded(total int) (listW, detailW int) {
 
 func isBar(id string) bool {
 	return strings.Contains(id, ".")
-}
-
-func barChildrenOf(parentID string, tasks []*task.Task) []*task.Task {
-	prefix := parentID + "."
-
-	var bars []*task.Task
-
-	for _, t := range tasks {
-		if strings.HasPrefix(t.ID, prefix) {
-			bars = append(bars, t)
-		}
-	}
-
-	return bars
-}
-
-func trackTitle(trackID string, tasks []*task.Task) string {
-	for _, t := range tasks {
-		if t.ID == trackID {
-			return t.Title
-		}
-	}
-
-	return trackID
-}
-
-func allApproved(tasks []*task.Task) bool {
-	for _, t := range tasks {
-		if !t.Approved {
-			return false
-		}
-	}
-
-	return true
 }
 
 func verse(t *task.Task) string {

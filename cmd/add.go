@@ -21,7 +21,7 @@ const addCmdUse = "add"
 func newAddCmd(run claude.Runner) *cobra.Command {
 	return &cobra.Command{
 		Use:   "add <path>",
-		Short: "Enroll a project in the registry the daemon watches",
+		Short: "Enroll a project in the registry",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			abs, err := filepath.Abs(args[0])

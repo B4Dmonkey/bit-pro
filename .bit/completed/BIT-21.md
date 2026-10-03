@@ -86,8 +86,8 @@ $ head -3 .bit/tasks/BIT-1.1.md              → id: bit-1.1
   carries" — a transform is simpler, has no ambiguity to resolve, and needs no directory scan.
 
 - **Uppercase over lowercase, knowing which project pays.** Measured: this repo and the
-  marketplace clone are uppercase; the `evus` client project is lowercase (105 files, zero
-  uppercase `id:` fields). Lowercase would have left `evus` untouched and migrated bit-pro;
+  marketplace clone are uppercase; a client project is lowercase (105 files, zero
+  uppercase `id:` fields). Lowercase would have left the client project untouched and migrated bit-pro;
   uppercase does the reverse. Uppercase was chosen deliberately with that cost accepted, since
   the operator runs all three projects and the migration is a one-time task.
 

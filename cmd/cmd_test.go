@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/claude"
-	"github.com/B4Dmonkey/bit-pro/daemon"
 )
 
 func run(t *testing.T, args ...string) (string, error) {
@@ -21,29 +20,10 @@ func runWithStdin(t *testing.T, stdin string, args ...string) (string, error) {
 	return runWithRunner(t, func(context.Context, string, ...string) error { return nil }, stdin, args...)
 }
 
-func nothingLoaded(context.Context, string, ...string) (string, int, error) {
-	return "", 113, nil
-}
-
-func runWithDaemon(t *testing.T, lc daemon.Runner, args ...string) (string, error) {
-	t.Helper()
-
-	root := newRootCmd(func(context.Context, string, ...string) error { return nil }, lc)
-	out := &bytes.Buffer{}
-	root.SetOut(out)
-	root.SetErr(out)
-	root.SetIn(strings.NewReader(""))
-	root.SetArgs(args)
-
-	err := root.Execute()
-
-	return out.String(), err
-}
-
 func runWithRunner(t *testing.T, run claude.Runner, stdin string, args ...string) (string, error) {
 	t.Helper()
 
-	root := newRootCmd(run, nothingLoaded)
+	root := newRootCmd(run)
 	out := &bytes.Buffer{}
 	root.SetOut(out)
 	root.SetErr(out)
@@ -51,21 +31,6 @@ func runWithRunner(t *testing.T, run claude.Runner, stdin string, args ...string
 	root.SetArgs(args)
 
 	err := root.Execute()
-
-	return out.String(), err
-}
-
-func runWithContext(t *testing.T, ctx context.Context, args ...string) (string, error) {
-	t.Helper()
-
-	root := newRootCmd(func(context.Context, string, ...string) error { return nil }, nothingLoaded)
-	out := &bytes.Buffer{}
-	root.SetOut(out)
-	root.SetErr(out)
-	root.SetIn(strings.NewReader(""))
-	root.SetArgs(args)
-
-	err := root.ExecuteContext(ctx)
 
 	return out.String(), err
 }
@@ -125,7 +90,7 @@ func TestMain(m *testing.M) {
 func runSplit(t *testing.T, args ...string) (string, string, error) {
 	t.Helper()
 
-	root := newRootCmd(func(context.Context, string, ...string) error { return nil }, nothingLoaded)
+	root := newRootCmd(func(context.Context, string, ...string) error { return nil })
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 

@@ -16,12 +16,10 @@ var (
 	verseStyle         = lipgloss.NewStyle().Faint(true).Italic(true)
 	selectedStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Bold(true)
 	selectedBoardStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Reverse(true)
-	queuedColor        = lipgloss.Color("6")
 )
 
 type delegate struct {
-	board  bool
-	queued map[string]bool
+	board bool
 }
 
 func (delegate) Height() int                         { return 1 }
@@ -30,10 +28,6 @@ func (delegate) Update(tea.Msg, *list.Model) tea.Cmd { return nil }
 
 func (d delegate) resolveStyle(main lipgloss.Style, t *task.Task, selected bool) lipgloss.Style {
 	if !selected {
-		if d.queued[t.ID] {
-			return main.Foreground(queuedColor)
-		}
-
 		if !t.Approved {
 			return main.Foreground(lipgloss.Color("3"))
 		}

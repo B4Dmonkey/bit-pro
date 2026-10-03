@@ -9,9 +9,6 @@ and the command contract has to spend half its length teaching shell technique r
 the domain. An MCP server makes the tool surface typed and enumerable, and makes the commands
 Claude should never run *absent* rather than merely denied.
 
-This phase runs **during or after** the automation phase (`automation-notes.md`); the two are
-mostly orthogonal, but see "Relationship to the automation phase".
-
 Everything under "Measured facts" was checked on 2026-08-22 — the first half read out of this
 repo, the second half looked up from the SDK and Claude Code docs.
 
@@ -27,9 +24,8 @@ Each line is done when its "done when" clause is true.
 - [x] `bp serve mcp` runs a stdio MCP server exposing exactly one read-only tool, `task_read`.
       *Done when:* Claude Code lists the tool in a project wired to it, and a `task_read` on a
       real track returns its body.
-      *Depends on:* the `serve` parent existing — see the pending rename in `automation-notes.md`.
-      Landing this under a bare `bp mcp` first and moving it later is fine; the two-word form is
-      where it ends up.
+      *Depends on:* the `serve` parent existing. Landing this under a bare `bp mcp` first and
+      moving it later is fine; the two-word form is where it ends up.
       *Built on:* `github.com/modelcontextprotocol/go-sdk/mcp` — `NewServer`, the generic
       `AddTool`, `StdioTransport`. See Measured facts for why not hand-rolled.
 - [x] The server is a plain foreground process speaking stdio on stdin/stdout, so it can be driven
@@ -75,8 +71,6 @@ code path corrupts the protocol stream. This is the one mechanical hazard of the
 - [ ] It registers by shelling out to `claude mcp add bit -- bp serve mcp`, not by editing
       `~/.claude.json` directly.
       *Done when:* `bp init` adds the entry and leaves the rest of the file untouched.
-Getting the server in front of a **dispatched** session is the daemon's job, not this phase's —
-see "Scope boundary" under Decisions, and the dispatch step in `automation-notes.md`.
 
 ### 5. Skills migration
 
@@ -97,7 +91,7 @@ step-5 gate" under Decisions.
       contract are deleted as part of this step (see Decisions).
       *Done when:* no skill runs `bp instructions` and no skill has lost the domain it taught.
 - [ ] This is skill-creator work, not code — and it ships through the plugin, so remember the
-      GitHub coupling under "Relationship to the automation phase".
+      GitHub coupling under "Open gaps".
 
 ### 6. Close the Bash path
 
@@ -122,11 +116,8 @@ step-5 gate" under Decisions.
 **Scope boundary** — settled 2026-08-22.
 - **This phase is exactly one thing: how Claude reaches `bp`, moving from Bash to a typed
   surface.** Not orchestration, not sessions, not worktrees.
-- **Worktrees are the daemon's.** The MCP server needs no worktree machinery of its own — it
-  resolves `.bit/` through the same BIT-27 path cut the CLI already uses, so a worktree session
-  lands on the canonical store for free. Everything else about worktrees — creating them, spawning
-  into them, and passing the server config to a session started in one — belongs to
-  `automation-notes.md`.
+- **The MCP server needs no worktree machinery of its own.** It resolves `.bit/` through the same
+  BIT-27 path cut the CLI already uses, so a worktree session lands on the canonical store for free.
 
 **What the MCP is for**
 - **Typed and enumerable beats documented.** The tools appear in the tool list with schemas.
@@ -216,20 +207,14 @@ step-5 gate" under Decisions.
   fallback, so it stays behind "after a real cycle has run" rather than following step 5 directly.
 
 **Same binary, not a second one**
-- `bp serve mcp` lives in the `bp` binary, like the daemon. One install, one version, no separate
+- `bp serve mcp` lives in the `bp` binary. One install, one version, no separate
   distribution story. It also means the MCP and the CLI share the task package, so there is no
   second implementation of the file format to drift.
 
-**Two servers under one verb** — settled 2026-08-22, the naming half of the same question.
-- **`bp serve` is a parent with two children: `daemon` and `mcp`.** They are grouped because they
-  are the same *shape* — a plain foreground process that assumes nothing about launchd — not because
-  they share an audience. `--help` then says there are exactly two servers and neither one is *the*
-  server, which is the thing a single `bp serve` plus a single `bp mcp` could never say.
-- **The daemon's rename is the automation phase's work**, not this one. See "Pending rename" in
-  `automation-notes.md`, including the stale-plist trap that comes with it.
+**One server under `bp serve`** — settled 2026-08-22, the naming half of the same question.
+- **`bp serve` is a parent with one child: `mcp`.**
 - **Nobody types `bp serve mcp`.** Claude Code's config does, per session. So it is not a service in
-  the operator's sense: `bp start`/`stop`/`status` stay daemon-only and never gain an MCP mode, and
-  there is no plist, no label, and no liveness question here.
+  the operator's sense: there is no plist, no label, and no liveness question here.
 
 **Where the server is registered** — settled 2026-08-22.
 - **Local scope: the nested `projects."<abs path>".mcpServers` entry in `~/.claude.json`.** Per
@@ -247,10 +232,7 @@ step-5 gate" under Decisions.
 - **`bp init` shells out to `claude mcp add bit -- bp serve mcp`** (local is the default scope)
   rather than editing `~/.claude.json` itself. That file holds all of Claude Code's per-project
   state, so `bp` must not read-modify-write it. Cost: `bp init` now requires `claude` on `PATH`.
-- **Getting the server in front of a dispatched session is not this phase's problem.** Local scope
-  covers the sessions this phase is about — an operator working in the checkout. Whether a session
-  the daemon spawns elsewhere also needs the server, and how, is a property of dispatch; it is
-  owned in `automation-notes.md` and changes nothing here.
+- **Local scope covers the sessions this phase is about** — an operator working in the checkout.
 
 **How the server finds `.bit/`** — settled 2026-08-22, once the lookups came back.
 - **Read `CLAUDE_PROJECT_DIR`, not cwd.** It is set in the server's own environment to the stable
@@ -262,17 +244,6 @@ step-5 gate" under Decisions.
 - **So no project/root param on every tool, and no `roots/list`** — the latter is deprecated at
   the `2026-07-28` revision anyway.
 
-**MCP does not dispatch; the daemon does**
-- **An MCP tool only fires while a session is already alive and chooses to call it.** Dispatch has to
-  happen when no session exists — that is the entire point of the automation phase — so the MCP
-  server structurally cannot be the dispatcher. It cannot spawn the thing that calls it.
-- **The split is by what each owns.** The daemon owns *time and the queue*: pop the head, spawn the
-  session, one bar in flight per project, poll `claude agents --json` for completion. The MCP server
-  owns *the ledger, per session*: typed reads and writes for whichever session happens to be alive,
-  dispatched or interactive.
-- **They meet at exactly one point** — the session the daemon spawns is a client of the MCP server.
-  That is also the ordering argument: see "Relationship to the automation phase".
-
 ---
 
 ## Command inventory
@@ -281,7 +252,7 @@ The full surface as of 2026-08-22, split by who actually runs it.
 
 | | commands | fate |
 | --- | --- | --- |
-| **Operator-only** | `tui`, `approve`, `unapprove`, `init`, `add`, `list`, `start`, `stop`, `status`, `serve daemon` | stay CLI; **never** become MCP tools |
+| **Operator-only** | `tui`, `approve`, `unapprove`, `init`, `add`, `list` | stay CLI; **never** become MCP tools |
 | **Claude-only** | `task read`, `task list`, `task create`, `task update`, `task move`, `feedback add` | become tools, then delete from the CLI (step 7) |
 | **Retired** | `instructions` | deleted in step 5 along with `assets/bit-cli.md`; the domain it taught rides the tool descriptions |
 | **Both** | `task complete`, `task delete` | become tools **and** stay CLI — one task-package implementation, two callers |
@@ -324,27 +295,6 @@ Notes on the map:
 
 ---
 
-## Relationship to the automation phase
-
-- **Version skew is a new failure mode.** The skills ship via the plugin **from GitHub**
-  (`claude.WriteSettings` wires `bit@bit-pro` from `B4Dmonkey/bit-pro`), while `bp serve mcp` is the
-  locally installed binary. A skill that calls a tool the installed binary does not have yet
-  fails in a way the Bash route never could — Bash at least produced a legible `unknown
-  command`. Nothing about this is solved; it is the sharpest new risk in the phase.
-- **The daemon is the MCP server's most important client.** The two phases are not competing for the
-  same job — the daemon spawns sessions, those sessions talk MCP. See "MCP does not dispatch; the
-  daemon does" for the split.
-- **Dispatched sessions are the strongest argument for landing this early — but it stays an
-  argument, not a constraint.** A `bit:bot-dev` session spawned by the daemon into a worktree has
-  no operator watching it choose `mv` over `bp task move`. Ordering is settled as unconstrained
-  (see Decisions); this is the cost of dispatching on Bash in the meantime.
-- **Registering the server for a dispatched session is the daemon's line item**, recorded in
-  `automation-notes.md`, not here — see "Scope boundary" under Decisions.
-- **The server itself needs nothing for worktrees.** It runs the same BIT-27 path cut the CLI
-  does — see "How the server finds `.bit/`" under Decisions.
-
----
-
 ## Measured facts
 
 ### Read out of the repo on 2026-08-22
@@ -369,8 +319,7 @@ Notes on the map:
 - **The plugin manifest is metadata only.** `bit/.claude-plugin/plugin.json` carries `$schema`,
   `name`, `displayName`, `description` — nothing else.
 - **`go.mod` has no MCP dependency.** Go 1.26.5, Cobra 1.10.2, bubbletea/lipgloss, dbmate,
-  modernc sqlite, pathologize, yaml.v3. An SDK would be the first new direct dependency since
-  the daemon work.
+  modernc sqlite, pathologize, yaml.v3.
 - **`task delete` has `-y/--yes` and `-f/--force`; nothing else Claude-facing has a prompt.**
   A confirmation flag is a tell that the command was built for a human.
 - **`approve`/`unapprove` take any task ID and print nothing on success.** No separate track
@@ -414,8 +363,7 @@ Sources under Docs. These are the answers to what used to be the Unverified sect
   name across the three scopes, and the whole entry from the winning source is used with no
   field merging.
 - **`--mcp-config` takes JSON files or inline JSON strings, space-separated**, and its servers
-  run with the working directory Claude Code started in. Noted because dispatch may want it; the
-  decision is `automation-notes.md`'s.
+  run with the working directory Claude Code started in.
 - **A plugin manifest can declare MCP servers, and the inline form is currently broken.**
   `plugin.json` documents `mcpServers` as either an inline object or a path string
   (`"mcpServers": "./.mcp.json"`), with `${CLAUDE_PLUGIN_ROOT}`, `${CLAUDE_PLUGIN_DATA}`, and
@@ -439,12 +387,10 @@ Sources under Docs. These are the answers to what used to be the Unverified sect
   own worktree.
 - **cwd is unreliable, but only outside the CLI.** The CLI launches stdio servers from the
   project directory; the **desktop app** launches them with `cwd=$HOME` (issue #75266, open).
-  The daemon spawns the CLI, so dispatch is unaffected — but it is a second reason to read the
-  env var rather than `os.Getwd`.
+  It is a second reason to read the env var rather than `os.Getwd`.
 - **Project-scoped `.mcp.json` servers load without the approval prompt in `claude -p`, Agent
   SDK, and cloud sessions**, because those sessions cannot show the prompt. Interactive sessions
-  approve once, and `claude mcp reset-project-choices` resets that choice. So a tracked
-  `.mcp.json` needs zero interaction in exactly the sessions the daemon dispatches.
+  approve once, and `claude mcp reset-project-choices` resets that choice.
 - **Claude Code namespaces every MCP tool as `mcp__<server>__<tool>`**, normalizing invalid
   characters to underscores. A server named `bit` yields `mcp__bit__task_read`. Provenance is
   visible in transcripts, and these are the names step 6's deny rules have to spell.
@@ -456,9 +402,12 @@ Sources under Docs. These are the answers to what used to be the Unverified sect
 Everything here needs the operator's review. The two under "Assumptions" would change the
 plan, not just fill it in.
 
-- **Version skew between plugin skills and the installed binary.** Stated as a risk under
-  "Relationship to the automation phase"; no mitigation designed. A version handshake, a
-  capability check at session start, and "just live with it" are all on the table.
+- **Version skew between plugin skills and the installed binary.** The skills ship via the plugin
+  **from GitHub** (`claude.WriteSettings` wires `bit@bit-pro` from `B4Dmonkey/bit-pro`), while
+  `bp serve mcp` is the locally installed binary. A skill that calls a tool the installed binary
+  does not have yet fails in a way the Bash route never could — Bash at least produced a legible
+  `unknown command`. No mitigation designed. A version handshake, a capability check at session
+  start, and "just live with it" are all on the table.
 
 ### Assumptions — both confirmed 2026-08-22
 
