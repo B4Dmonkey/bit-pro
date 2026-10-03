@@ -402,6 +402,44 @@ func TestMigrateCmd(t *testing.T) {
 		}
 	})
 
+	t.Run("stops on unknown files", func(t *testing.T) {
+		mcpSandbox(t)
+		gittest.Isolate(t)
+
+		dir := t.TempDir()
+		files := v1Fixture(t)
+		files[filepath.Join("archive", "BIT-3.md")] = []byte("flat archive\n")
+		files["notes.txt"] = []byte("notes\n")
+		files[filepath.Join(testResearchDir, testOwnTrack, "diagram.png")] = []byte("png\n")
+		files[".DS_Store"] = []byte("finder\n")
+		writeV1Store(t, dir, files)
+		t.Chdir(dir)
+
+		_, err := run(t, migrateCmdUse)
+		if !errors.Is(err, migrate.ErrUnknownFiles) {
+			t.Fatalf("bp migrate error = %v, want migrate.ErrUnknownFiles", err)
+		}
+
+		want := ".DS_Store\n  archive/BIT-3.md\n  notes.txt\n  research/BIT-1/diagram.png"
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("bp migrate error = %q, want it to list %q", err, want)
+		}
+
+		if projects := listProjects(t); len(projects) != 0 {
+			t.Errorf("ListProjects() = %v, want none", projects)
+		}
+
+		d := dataDir(t)
+
+		if _, err := os.Stat(filepath.Join(d, testPrefix)); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("stat %s project dir = %v, want fs.ErrNotExist", testPrefix, err)
+		}
+
+		if stages, _ := filepath.Glob(filepath.Join(d, ".migrate-*")); len(stages) != 0 {
+			t.Errorf("staging left behind: %v", stages)
+		}
+	})
+
 	t.Run("a note on a missing track stops the migration", func(t *testing.T) {
 		mcpSandbox(t)
 		gittest.Isolate(t)

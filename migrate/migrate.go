@@ -43,9 +43,9 @@ func Run(ctx context.Context, q *orm.Queries, opts Options) (Result, error) {
 	h := git.ReadHead(ctx, opts.Git, opts.Dir)
 	head := task.Commit{SHA: h.SHA, Branch: h.Branch, At: opts.Now()}
 
-	var cfg config
-	if _, err := toml.DecodeFile(filepath.Join(src, "config.toml"), &cfg); err != nil {
-		return Result{}, fmt.Errorf("reading %s config: %w", src, err)
+	cfg, err := readSource(src)
+	if err != nil {
+		return Result{}, err
 	}
 
 	code := cfg.Prefix
@@ -95,6 +95,15 @@ func Run(ctx context.Context, q *orm.Queries, opts Options) (Result, error) {
 	}
 
 	return Result{Code: code, Path: path}, nil
+}
+
+func readSource(src string) (config, error) {
+	var cfg config
+	if _, err := toml.DecodeFile(filepath.Join(src, "config.toml"), &cfg); err != nil {
+		return config{}, fmt.Errorf("reading %s config: %w", src, err)
+	}
+
+	return cfg, checkKnown(src)
 }
 
 const dirMode = 0o755

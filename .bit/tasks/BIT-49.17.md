@@ -1,7 +1,7 @@
 ---
 id: BIT-49.17
 title: migrate stops and lists unknown files under .bit/ before writing anything
-status: todo
+status: done
 approved: true
 phase: 2
 phase_label: bp migrate
