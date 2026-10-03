@@ -17,29 +17,3 @@ func ExecRunner(ctx context.Context, name string, args ...string) error {
 
 	return nil
 }
-
-func RegisterMCP(ctx context.Context, run Runner) error {
-	if run(ctx, "claude", "mcp", "get", "bit") == nil {
-		return nil
-	}
-
-	if err := run(ctx, "claude", "mcp", "add", "bit", "--", "bp", "serve", "mcp"); err != nil {
-		return fmt.Errorf("registering bit MCP server: %w", err)
-	}
-
-	return nil
-}
-
-func SyncPlugin(ctx context.Context, run Runner) error {
-	if err := run(ctx, "claude", "plugin", "marketplace", "update", "bit-pro"); err != nil {
-		return fmt.Errorf("refreshing the bit-pro marketplace: %w", err)
-	}
-
-	if err := run(ctx, "claude", "plugin", "update", "bit@bit-pro", "--scope", "project"); err != nil {
-		if err := run(ctx, "claude", "plugin", "install", "bit@bit-pro", "--scope", "project"); err != nil {
-			return fmt.Errorf("installing the bit plugin: %w", err)
-		}
-	}
-
-	return nil
-}

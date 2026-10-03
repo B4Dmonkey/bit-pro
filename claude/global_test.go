@@ -1,6 +1,7 @@
 package claude
 
 import (
+	"context"
 	"errors"
 	"path/filepath"
 	"slices"
@@ -9,10 +10,31 @@ import (
 )
 
 const (
+	claudeBin         = "claude"
+	scopeFlag         = "--scope"
+	pluginSubCmd      = "plugin"
+	bitProPlugin      = "bit@bit-pro"
+	updateSubCmd      = "update"
+	mcpSubCmd         = "mcp"
+	bitServer         = "bit"
 	addSubCmd         = "add"
 	bitProMarketplace = "bit-pro"
 	marketplaceSubCmd = "marketplace"
 )
+
+type recorder struct {
+	calls [][]string
+	errs  map[int]error
+}
+
+func newRecorder(errs map[int]error) *recorder {
+	return &recorder{errs: errs}
+}
+
+func (r *recorder) Run(_ context.Context, name string, args ...string) error {
+	r.calls = append(r.calls, append([]string{name}, args...))
+	return r.errs[len(r.calls)-1]
+}
 
 func TestEnsureGlobal(t *testing.T) {
 	all := [][]string{

@@ -7,6 +7,11 @@ import (
 	"path/filepath"
 )
 
+const (
+	pluginKey       = "bit@bit-pro"
+	marketplaceName = "bit-pro"
+)
+
 func InstalledVersion(home, projectRoot string) (string, bool) {
 	data, err := os.ReadFile(filepath.Join(home, ".claude", "plugins", "installed_plugins.json"))
 	if err != nil {
