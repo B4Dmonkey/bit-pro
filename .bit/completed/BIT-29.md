@@ -39,7 +39,7 @@ SQLite database at `~/.local/share/bit-pro/bit.db` with a `projects` table (id, 
 - **`bp list` output: `code\tpath` rows, tab-separated, no headers.** Monospace tab-stop alignment is enough; no library needed.
 - **`bp list` orders rows alphabetically by code.** A stable order that does not shift as projects are enrolled, so two runs are comparable.
 - **`bp list` creates and migrates the DB when it is absent, then prints nothing.** Same `CreateAndMigrate` path as `bp add`, so a first run on a fresh machine is never an error: zero rows is zero lines of output and exit 0, and anything piping `bp list` needs no special case.
-- **Just targets for the dev workflow follow the evus pattern:** `db-migrate <name>`, `db-up`, `db-down`, `db-status`, `db-gen-queries`. They drive the `dbmate` CLI, same as evus.
+- **Just targets for the dev workflow follow a client project's pattern:** `db-migrate <name>`, `db-up`, `db-down`, `db-status`, `db-gen-queries`. They drive the `dbmate` CLI, same as that client project.
 - **The `db-*` just targets drive a repo-local, gitignored `db/bit.db` — a testing database, not the real registry.** They exist to rehearse migrations; `db-down` against `~/.local/share/bit-pro/bit.db` would delete live enrollments, and later, queued work. No env override: the real database is only ever migrated by the binary through the embedded FS, so the Justfile never reimplements `store.Dir()`'s XDG-or-`HOME` resolution.
 
 ## Verses
@@ -56,4 +56,4 @@ SQLite database at `~/.local/share/bit-pro/bit.db` with a `projects` table (id, 
 ## References
 
 - `automation-notes.md` (repo root, untracked) — the working notes for the automation phase; this track is its step 2. Holds the ordered todo, the settled decisions, and the measured facts the whole phase rests on. Informs all verses.
-- `/Users/appstack/Developer/UniqueDataManagement/clients/engage-voters/evus/justfiles/db.just` — the dbmate + sqlc + just pattern this track's dev workflow follows. Informs Verse 1.
+- `<client>/justfiles/db.just` — the dbmate + sqlc + just pattern this track's dev workflow follows. Informs Verse 1.

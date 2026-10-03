@@ -1,0 +1,42 @@
+---
+id: BIT-45
+title: 'v2: remove the daemon and queue'
+status: todo
+---
+## Why
+The daemon/queue automation (`bp serve daemon`, `start`/`stop`/`status`, the TUI enqueue) is unused: the launchd service isn't loaded, and its log last ran 2026-08-29. It's also the main thing in v1's registry db besides project registration. The queue table and the project counts exist only for it, while `bp add`, `bp list` and the TUI use the db for registration and lookup (`cmd/add.go:32`, `cmd/list.go:19`, `cmd/tui.go:36`). v2 replaces that db with a central store (BIT-46), so keeping the daemon would mean porting its queue and count queries onto the new db only to delete them later. Removing it first shrinks `db/`, `cmd/`, `tui/` and `claude/`, so the central store is built on a smaller surface.
+
+## Summary
+Delete the daemon, its dispatch code, its commands and the queue, plus the TUI's enqueue path and "Play?" prompt. `bp add` and `bp list` keep working as project registration, and the TUI keeps browse, reload and approve. This work is on the `v2` branch; v1 on `main` is untouched.
+
+## Decisions
+- **The daemon/queue feature is removed outright, not ported.** The operator doesn't use it.
+- **The TUI "Play? (y/n)" prompt is dropped.** Enqueue was its only action. The TUI's queued-state display (`WithListQueue`, `cmd/tui.go:33,46`) goes with it, and so do the board's `e` enqueue key (`tui/board.go:226`) and `playPromptView` (`tui/board.go:271`).
+- **`bp status` is deleted.** Nothing in it survives (launchd status plus counts).
+- **`bp add` and `bp list` survive**, with `list` losing its counts (`cmd/list.go:33-34`). `claude.Runner` stays, because `init`/`add` use it for plugin sync and MCP registration. Help text that mentions the daemon (e.g. `cmd/add.go:24`, "the daemon watches") is reworded.
+- **No drop migrations.** BIT-46 starts a fresh db with a new initial migration set, so the old queue and count migrations stay until then.
+- **The count queries are trimmed now, but the count columns stay in the schema (Claude default).** `ListProjects` stops selecting the counts and `UpdateProjectCounts` is deleted (`db/queries/projects.sql`), because nothing reads or writes them once the daemon and `list`'s counts are gone. This doesn't conflict with "no drop migrations": the columns are dropped with the old schema in BIT-46. `GetProjectByPath` has no caller left after the removal and goes too (Claude default, 2026-10-02; the trial removal deleted it with everything green, topic `claim-audit-2026-10-02`).
+- **Dev runs never use `just install`, and run with `XDG_DATA_HOME` and `HOME` sandboxed (Claude default, 2026-10-01; the same rule as BIT-46).**
+  - `just install` replaces the daily `bp` on PATH, which every daily Claude session runs as its MCP server. On `v2` work this overrides the habit of running `just install` after code changes. Build with `just run`, or to a temp path.
+  - Until BIT-46 moves the db, a v2 build opens v1's live `~/.local/share/bit-pro/bit.db` (`store/store.go:22`, `db/open.go:25`). And `bp add` on a folder without `.bit/` runs the real `claude` wiring against `~/.claude*` (`cmd/add.go:66`).
+- **Each bar leaves the build and tests green (Claude default, 2026-10-01).** Callers go before the packages they import: `daemon/` is imported by `cmd/{root,serve,start,stop,status}.go` and `cmd/{cmd,start,stop,status}_test.go`, and `claude/dispatch.go` only by `daemon/` and `cmd/serve.go`.
+- **"Green" means `just lint` and `just test` pass (Claude default, 2026-10-02).** That's what the pre-commit hook runs (`.pre-commit-config.yaml`). A removal that only passes `go build` and `go test` fails lint, because the `unused` linter flags what the daemon leaves behind.
+- **Code the removal leaves unused is deleted in the same bar (Claude default, 2026-10-02).** That covers `listCompleted` (`task/store.go:442`), `task.ParentID` (`task/store.go:548`, only the daemon calls it), `runWithContext` (`cmd/cmd_test.go:58`), `serveDaemonCmdUse` and `claudeBinFallback`, the TUI helpers `barChildrenOf`, `trackTitle`, `allApproved`, `pendingApprovalID` and `playPromptView`, and `claude/testdata/agents.json`. `claude.DirRunner`/`ExecDirRunner` go with `claude/dispatch.go`. BIT-49's git helper is new code; if it wants the same "run in a dir, get output and exit code" shape, it can copy it from `git show 6a1d345:claude/dispatch.go` (topic `claim-audit-2026-10-02`).
+- **The stale generated `db/orm/queue.sql.go` is deleted by hand when the queue queries go (Claude default, 2026-10-02).** `db/orm/` is gitignored (`.gitignore:3`), and `sqlc generate` doesn't remove files for deleted query files. A stale file still compiles and can hide a missed caller.
+- **`abort-run.md` is deleted with `clear-queue.sh` (Claude default, 2026-10-02).** It's a playbook for aborting a daemon-dispatched run (`abort-run.md:1-4`), and nothing dispatches once the daemon is gone.
+- **BIT-42 ("Unapproved bars must never read as queued") is superseded by this track (Claude default, 2026-10-02).** It's on hold, and every verse fixes the queue or the queued colour that this track removes. It's archived with `task_delete` when this track is completed.
+- **Cutover belongs to the operator.** The operator alone decides when v2 is ready and merges the branch, and no track gates it.
+- **Machine cleanup is manual.** `~/Library/LaunchAgents/com.github.b4dmonkey.bit-pro.plist` (present, not loaded) is deleted by hand, as a step on the cutover checklist in `v2-sketch.md`.
+- **`bp add <path>` running its `claude` wiring in bp's own folder rather than `<path>` is pre-existing and left alone here (fact, 2026-10-02).** `claude.Runner` takes no directory (`claude/sync.go:10-13`). BIT-48's user-scope wiring doesn't depend on the folder, so the question disappears there.
+
+## Verses
+- [ ] Verse 1 — The operator runs a v2 build with no daemon. `bp serve mcp`, `add`, `list` and the TUI (browse, reload, approve) work as before, and the daemon commands, queue and "Play?" prompt are gone.
+  Touches:
+  - Code: `daemon/`, `claude/dispatch.go` and `claude/testdata/agents.json`, `cmd/{start,stop,status,serve,root,tui,add,list}.go` (the start/stop/status wiring is at `cmd/root.go:147-149`), `task/counts.go`, `task/store.go` (`listCompleted`, `ParentID`), `db/queries/queue.sql`, `db/queries/projects.sql` (the count queries and `GetProjectByPath`), `tui/{model,board,delegate}.go`, `clear-queue.sh`, `abort-run.md`, and `automation-notes.md` (deleted whole) and the daemon content of `mcp-notes.md` (`:78`, `:125`, `:219`, `:224-231`, `:252-253`, `:265-274`, `:284`, `:327-345`, `:373`, `:442-447`, plus the `automation-notes.md` pointers at `:12`, `:30`, `:79`, `:129`, `:229`, `:253`, `:342`, `:418`).
+  - Tests: every `newRootCmd` caller (`cmd/task_test.go:18`, `cmd/cmd_test.go:31,46,61,128`, `cmd/root_test.go:223,243`); the counts tests in `cmd/list_test.go` (`:67-115`, plus the counts that `TestListCmd_PrintsProjectsByCode` expects at `:30-32`); `cmd/{cmd,root,serve,start,stop,status}_test.go` (including the "daemon" help check at `cmd/serve_test.go:166`); `db/queue_test.go`; `claude/dispatch_test.go`; `task/counts_test.go`; `tui/{model,board,delegate}_test.go` (`model_test.go:38-169` and `:1456-1699`, and the `nil` queue argument at `board_test.go:237,246-248,259`). `db/queries_test.go` needs no change. The earlier list named it, but none of its tests touch the queue or the counts (topic `claim-audit-2026-10-02`).
+  - `db/orm/` is gitignored, so a stale generated `queue.sql.go` can linger locally; delete it, then regenerate.
+  - See research topics `daemon-removal`, `soundness`, `soundness-2`, `review-2026-10-02` and `claim-audit-2026-10-02`. The last one has a bar order that was trial-run in a copy of HEAD with build, vet, test and lint green after each bar.
+
+## References
+- `v2-sketch.md` (repo root): the v2 direction and the operator's decisions.
+- `.bit/research/BIT-45/`: research notes for the whole v2 transition (BIT-45 to BIT-50). Start at the `index` topic. This track uses `daemon-removal`, `soundness` and `soundness-2`. `review-2026-10-02`, `claim-audit-2026-10-02` and `claim-audit-2026-10-02-b` (2026-10-02) verify each claim against the code and win where older topics differ. The operator decisions of 2026-09-30 and 2026-10-01 are in topic `decisions`.

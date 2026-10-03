@@ -1,0 +1,25 @@
+# BIT-46 soundness pass (v2 @ 6a1d345)
+
+> **Note (2026-10-01):** this pass predates the split and uses the original BIT-46 verse numbers. Verses 1–2 are still BIT-46 Verses 1–2 (the wiring parts of Verse 1 are now BIT-48). Verse 3 is BIT-49 Verse 1, Verse 4 is BIT-49 Verse 2, and Verse 5 is BIT-49 Verse 3. The git helper is BIT-49's. `bp init` is deleted in BIT-46 Verse 1. See BIT-46 topic `decisions`.
+
+**Checked:** the verses' Touches and claims against the code, gaps no verse covers, ordering, and contradictions with v2-sketch.md and the BIT-45 research notes.
+
+## Issues
+- **blocking (verse 1) — task creation needs `config.toml`.** `task/store.go:216-221`: `Create` for a track calls `s.Config()` and mints from `cfg.Prefix`, read from `<store root>/config.toml` (`task/config.go:15-21`). The Decisions drop `config.toml`, and verse 1 says tasks are written under `<CODE>/` — so `task_create` for a track fails unless the code comes from the `projects` row (or a config.toml is written into the store dir, contradicting the decision). `task/store.go` is not in verse 1 Touches (verse 2 lists `task/`).
+- **should-fix — `bp init` has no verse.** `cmd/init.go:23,39,75` writes `.bit/config.toml` through `bitdir.Current()`. Replacing bitdir forces a change, but what `init` means in v2 (delete? merge into `add`? — `daemon-removal` suggests merging) is an undecided product question sitting inside verse 1. `cmd/init.go` not in any Touches. The fixture's `reset.sh` "blank" checkpoint relies on `bp init` (`tools/example/reset.sh:4`).
+- **should-fix — `bp add` semantics with a `.bit/` present.** `cmd/add.go:51` reads `.bit/config.toml` for the default code; `:66` skips Claude wiring when `.bit/` exists. Verse 1 says an unregistered folder with `.bit/` gets "run bp migrate", but doesn't say whether `bp add` on such a folder is refused. If allowed, `migrate` then hits an already-registered project (migrate "registers last").
+- **should-fix — verse 1 Touches incomplete.** `bitdir.Current()` callers not listed: `cmd/task/{create,complete,list,delete,read,move,update}.go`, `cmd/approve.go:15,26`, `cmd/feedback_add.go:19`, `cmd/init.go`. TUI resolution is in `cmd/tui.go:24`, not `tui/`. `cmd/root.go:27` `pluginState` needs a repo root (`bitdir.Root()`).
+- **should-fix — test surface is ~18 files, not ~11.** Files creating `.bit/`: cmd/{add,approve,feedback_add,init,mcp_harness,root,serve_mcp_research,serve_mcp_write,serve,task}_test.go, cmd/task/{complete,create,delete,helpers,list,read,update}_test.go, task/store_test.go (`grep -rln '"\.bit"\|\.bit/' --include='*_test.go'`, minus daemon/counts which BIT-45 deletes).
+- **should-fix — `code` isn't UNIQUE.** `db/migrations/20260820232810_create_projects.sql`: only `path UNIQUE`. The store dir is named by code, so the new initial migration must make `code UNIQUE`; no Decision says so (only research `project-resolution`).
+- **should-fix — migrate needs git.** Decision: commit fields get HEAD at migration. bp has no git exec today (only `claude`/`launchctl`: `claude/sync.go:13`, `claude/plugin.go:78`, `daemon/daemon.go:22`). Verse 4 must add a git helper that BIT-47 will also need; say which track owns it.
+- **should-fix — migrate should require uppercase IDs.** `update/normalize.sh` is the v1 one-off that uppercases IDs/prefix; nothing says migrate verifies or refuses a non-normalized `.bit/`. With uppercase dirs and case-insensitive APFS, a lowercase `bit-20.md` would collide.
+- **nit — broken window verses 1→3.** From verse 1, `AddNote` writes to `<CODE>/feedback/` (`task/feedback.go:16`) while retro/learn skills still read repo `.bit/feedback`; retro/learn don't work in dev sessions until verse 3. Verse 2 also silently invalidates any verse-1 markdown stores (sandbox only; state it).
+- **nit — verse 5 misses `bit/.claude-plugin/plugin.json:5`** (description says "tracked in .bit/") and `cmd/task/complete.go:12`, `cmd/init.go:23` Short strings.
+
+## Contradictions with research notes (stale notes, track is right)
+BIT-45 `migrate` still says `bit.db` (:12), lowercase `<code>` (:18), timestamps from `git log --follow`/mtime (:33, also `json-schema` :17), and "copy unknown files raw or refuse" (:26). The track and v2-sketch now say `main.db`, uppercase, migration time, and stop-and-list. v2-sketch "Proposed delivery order" puts anchors (step 4) before feedback/migrate; tracks put BIT-47 after all of BIT-46. Cutover is in no track by design (sketch + BIT-46 Decision agree).
+
+## Sound
+- Ordering 2→3→4: migrate needs the JSON format (v2) and the top-level feedback/retro layout (v3) — correct order. Nothing forces verse 2 before verse 1: `task.New(root)` is already root-parameterised (`cmd/serve_mcp.go:294-489`).
+- MCP reads `CLAUDE_PROJECT_DIR` once at start (`cmd/serve_mcp.go:231`); per-call resolve is a real change, correctly planned. `opencode.json` passes no env, so cwd fallback is needed — confirmed.
+- Claude worktrees (`.claude/worktrees`, gitignored) sit inside the repo path, so longest-prefix covers them; `worktreeCut` (`bitdir/bitdir.go:57`) can go.

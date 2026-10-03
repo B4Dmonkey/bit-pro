@@ -27,7 +27,7 @@ The arguments are the directories that *contain* `.bit/` — not the `.bit/` pat
 Pass as many as you like; each is migrated independently.
 
 ```bash
-bash update/normalize.sh ~/Developer/bit-pro ~/Developer/evus ~/Developer/marketplace
+bash update/normalize.sh ~/Developer/bit-pro ~/Developer/<client> ~/Developer/marketplace
 ```
 
 A successful run prints nothing and exits 0 — the confirmation is the `git status` diff, not
