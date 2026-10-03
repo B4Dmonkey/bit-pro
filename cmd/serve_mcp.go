@@ -29,6 +29,7 @@ const (
 	researchWriteTool = "research_write"
 	researchReadTool  = "research_read"
 	retroWriteTool    = "retro_write"
+	retroListTool     = "retro_list"
 
 	statusProperty = "status"
 )
@@ -120,6 +121,12 @@ const retroWriteDescription = `Write one retro proposals record for the current 
 Proposals from every project share one folder, so the server prefixes the project code to the name
 unless the name already starts with it, as in BIT-album-proposals. Writing a name that already
 exists replaces its body. The result is the stored name.`
+
+const retroListDescription = `List every project's proposals, each with its project.
+
+Proposals from every project share one folder, and this lists them all rather than only the
+current project's, so learn sees every proposal and retro can avoid re-proposing a pattern. Each
+entry carries the stored name and the code of the project that wrote it, ordered by name.`
 
 const researchWriteDescription = `Write one topic of a track's research and return its path.
 
@@ -228,6 +235,12 @@ type retroWriteOutput struct {
 	Name string `json:"name"`
 }
 
+type retroListInput struct{}
+
+type retroListOutput struct {
+	Proposals []task.Proposal `json:"proposals"`
+}
+
 type researchWriteInput struct {
 	Track string `json:"track"`
 	Topic string `json:"topic"`
@@ -312,6 +325,7 @@ func runMCPServer(ctx context.Context, root string, run git.Runner, transport mc
 	mcp.AddTool(s, &mcp.Tool{Name: feedbackListTool, Description: feedbackListDescription}, feedbackListHandler(root))
 	mcp.AddTool(s, &mcp.Tool{Name: feedbackReadTool, Description: feedbackReadDescription}, feedbackReadHandler(root))
 	mcp.AddTool(s, &mcp.Tool{Name: retroWriteTool, Description: retroWriteDescription}, retroWriteHandler(root, run))
+	mcp.AddTool(s, &mcp.Tool{Name: retroListTool, Description: retroListDescription}, retroListHandler(root))
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        researchWriteTool,
 		Description: researchWriteDescription,
@@ -669,6 +683,26 @@ func researchReadHandler(root string) mcp.ToolHandlerFor[researchReadInput, rese
 		}
 
 		return nil, researchReadOutput{Body: body}, nil
+	}
+}
+
+func retroListHandler(root string) mcp.ToolHandlerFor[retroListInput, retroListOutput] {
+	return func(
+		ctx context.Context,
+		_ *mcp.CallToolRequest,
+		_ retroListInput,
+	) (*mcp.CallToolResult, retroListOutput, error) {
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, retroListOutput{}, err
+		}
+
+		proposals, err := store.ListRetro()
+		if err != nil {
+			return nil, retroListOutput{}, fmt.Errorf("listing proposals: %w", err)
+		}
+
+		return nil, retroListOutput{Proposals: proposals}, nil
 	}
 }
 

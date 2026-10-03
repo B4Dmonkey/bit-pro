@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -116,4 +117,31 @@ func (s *Store) WriteRetro(name, body string, head Commit) (string, error) {
 	}
 
 	return name, nil
+}
+
+type Proposal struct {
+	Name    string `json:"name"`
+	Project string `json:"project"`
+}
+
+func (s *Store) ListRetro() ([]Proposal, error) {
+	paths, err := filepath.Glob(filepath.Join(s.retroDir(), "*"+recordExt))
+	if err != nil {
+		return nil, fmt.Errorf("listing %s: %w", s.retroDir(), err)
+	}
+
+	proposals := make([]Proposal, 0, len(paths))
+
+	for _, path := range paths {
+		rec, err := readRetroRecord(path)
+		if err != nil {
+			return nil, fmt.Errorf("reading %s: %w", path, err)
+		}
+
+		proposals = append(proposals, Proposal{Name: rec.Name, Project: rec.Project})
+	}
+
+	slices.SortFunc(proposals, func(a, b Proposal) int { return strings.Compare(a.Name, b.Name) })
+
+	return proposals, nil
 }

@@ -1,7 +1,7 @@
 ---
 id: BIT-49.6
 title: retro_list shows every project's proposals with each one's project
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: feedback and retro are shared across projects

@@ -12,9 +12,10 @@ import (
 )
 
 const (
-	testRetroBody = "## Proposal 1\n\n**Pattern:** ...\n"
-	testRetroName = "album-proposals"
-	testNameKey   = "name"
+	testRetroBody  = "## Proposal 1\n\n**Pattern:** ...\n"
+	testRetroName  = "album-proposals"
+	testNameKey    = "name"
+	testProjectKey = "project"
 )
 
 func TestRetroWriteHandler(t *testing.T) {
@@ -54,10 +55,10 @@ func TestRetroWriteHandler(t *testing.T) {
 		}
 
 		for key, wantVal := range map[string]any{
-			"project":   testOwnCode,
-			testNameKey: want,
-			"commits":   []any{},
-			"content":   want + ".md",
+			testProjectKey: testOwnCode,
+			testNameKey:    want,
+			"commits":      []any{},
+			"content":      want + ".md",
 		} {
 			if !reflect.DeepEqual(rec[key], wantVal) {
 				t.Errorf("record[%q] = %#v, want %#v", key, rec[key], wantVal)
@@ -147,4 +148,47 @@ func writeRetro(t *testing.T, s *mcp.ClientSession) string {
 	}
 
 	return filepath.Join(dataDir(t), "retro", name+".md")
+}
+
+func TestRetroListHandler(t *testing.T) {
+	t.Run("lists every project's proposals", func(t *testing.T) {
+		dir := t.TempDir()
+		other := t.TempDir()
+
+		seedCodedProject(t, dir, testOwnCode, testOwnTrack)
+		seedCodedProject(t, other, testOtherCode, testOtherTrack)
+
+		session := mcpSession(t, dir)
+		callTool(t, session, retroWriteTool, map[string]any{testNameKey: "BIT-49-proposals", testBodyKey: testRetroBody})
+		callTool(t, mcpSession(t, other), retroWriteTool, map[string]any{
+			testNameKey: testRetroName,
+			testBodyKey: testRetroBody,
+		})
+
+		var got struct {
+			Proposals []map[string]string `json:"proposals"`
+		}
+
+		decodeToolResult(t, session, retroListTool, map[string]any{}, &got)
+
+		want := []map[string]string{
+			{testNameKey: "BIT-49-proposals", testProjectKey: testOwnCode},
+			{testNameKey: "EX-album-proposals", testProjectKey: testOtherCode},
+		}
+		if !reflect.DeepEqual(got.Proposals, want) {
+			t.Errorf("proposals = %v, want %v", got.Proposals, want)
+		}
+	})
+
+	t.Run("no proposals lists none", func(t *testing.T) {
+		dir := t.TempDir()
+		seedCodedProject(t, dir, testOwnCode, testOwnTrack)
+
+		got := callTool(t, mcpSession(t, dir), retroListTool, map[string]any{})
+
+		proposals, ok := got["proposals"].([]any)
+		if !ok || len(proposals) != 0 {
+			t.Errorf("proposals = %#v, want []", got["proposals"])
+		}
+	})
 }
