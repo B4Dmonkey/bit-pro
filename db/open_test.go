@@ -1,7 +1,10 @@
 package db
 
 import (
+	"bytes"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -63,4 +66,75 @@ func TestOpen(t *testing.T) {
 			t.Errorf("applied migrations = %d, want 1", applied)
 		}
 	})
+
+	t.Run("concurrent first opens migrate once", func(t *testing.T) {
+		dataHome := t.TempDir()
+		t.Setenv("XDG_DATA_HOME", dataHome)
+
+		const openers = 8
+
+		testBinary, err := os.Executable()
+		if err != nil {
+			t.Fatalf("os.Executable() returned error: %v", err)
+		}
+
+		cmds := make([]*exec.Cmd, openers)
+		outputs := make([]*bytes.Buffer, openers)
+
+		for i := range openers {
+			cmd := exec.Command(testBinary, "-test.run=^TestHelperProcessOpen$")
+
+			cmd.Env = append(os.Environ(), "BIT_OPEN_HELPER=1", "XDG_DATA_HOME="+dataHome)
+			outputs[i] = &bytes.Buffer{}
+			cmd.Stdout = outputs[i]
+			cmd.Stderr = outputs[i]
+			cmds[i] = cmd
+		}
+
+		for i, cmd := range cmds {
+			if err := cmd.Start(); err != nil {
+				t.Fatalf("starting opener %d: %v", i, err)
+			}
+		}
+
+		for i, cmd := range cmds {
+			if err := cmd.Wait(); err != nil {
+				t.Errorf("opener %d: %v\n%s", i, err, outputs[i].String())
+			}
+		}
+
+		sqlDB, err := Open()
+		if err != nil {
+			t.Fatalf("Open() returned error: %v", err)
+		}
+		defer sqlDB.Close()
+
+		var applied int
+		if err := sqlDB.QueryRow("SELECT count(*) FROM schema_migrations").Scan(&applied); err != nil {
+			t.Fatalf("counting applied migrations: %v", err)
+		}
+
+		if applied != 1 {
+			t.Errorf("applied migrations = %d, want 1", applied)
+		}
+	})
+}
+
+func TestHelperProcessOpen(t *testing.T) {
+	if os.Getenv("BIT_OPEN_HELPER") != "1" {
+		return
+	}
+
+	sqlDB, err := Open()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Open() returned error: %v\n", err)
+		os.Exit(1)
+	}
+	defer sqlDB.Close()
+
+	var count int
+	if err := sqlDB.QueryRow("SELECT count(*) FROM projects").Scan(&count); err != nil {
+		fmt.Fprintf(os.Stderr, "counting projects: %v\n", err)
+		os.Exit(1)
+	}
 }

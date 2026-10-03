@@ -1,7 +1,7 @@
 ---
 id: BIT-46.2
 title: Concurrent first opens of main.db migrate exactly once
-status: todo
+status: done
 approved: true
 phase: 1
 phase_label: registered project works from the central store

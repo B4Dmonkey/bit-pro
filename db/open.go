@@ -30,7 +30,7 @@ func Open() (*sql.DB, error) {
 	mate.AutoDumpSchema = false
 	mate.Log = io.Discard
 
-	if err := mate.CreateAndMigrate(); err != nil {
+	if err := withLock(path+".lock", mate.CreateAndMigrate); err != nil {
 		return nil, fmt.Errorf("migrating %s: %w", path, err)
 	}
 
