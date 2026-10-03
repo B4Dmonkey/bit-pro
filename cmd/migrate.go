@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/B4Dmonkey/bit-pro/claude"
 	"github.com/B4Dmonkey/bit-pro/db"
 	"github.com/B4Dmonkey/bit-pro/db/orm"
 	"github.com/B4Dmonkey/bit-pro/git"
@@ -12,7 +13,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newMigrateCmd() *cobra.Command {
+func newMigrateCmd(run claude.Runner) *cobra.Command {
 	return &cobra.Command{
 		Use:   "migrate",
 		Short: "Copy this folder's v1 .bit/ into the central store and register it",
@@ -42,7 +43,7 @@ func newMigrateCmd() *cobra.Command {
 
 			fmt.Fprintf(cmd.OutOrStdout(), "migrated %s %s\n", res.Code, res.Path)
 
-			return nil
+			return ensureGlobalWiring(cmd, run)
 		},
 	}
 }

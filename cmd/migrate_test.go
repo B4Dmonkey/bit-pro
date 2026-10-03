@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
@@ -13,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/B4Dmonkey/bit-pro/claude"
 	"github.com/B4Dmonkey/bit-pro/git/gittest"
 	"github.com/B4Dmonkey/bit-pro/migrate"
 	"github.com/B4Dmonkey/bit-pro/project"
@@ -769,6 +771,109 @@ func TestMigrateCmd(t *testing.T) {
 		}
 	})
 
+	t.Run("first migration ensures the global wiring", func(t *testing.T) {
+		mcpSandbox(t)
+		gittest.Isolate(t)
+
+		dir := t.TempDir()
+		writeV1Store(t, dir, v1Fixture(t))
+		t.Chdir(dir)
+
+		var calls [][]string
+
+		out, err := runWithRunner(t, recordCalls(&calls, -1), "", migrateCmdUse)
+		if err != nil {
+			t.Fatalf("bp migrate returned error: %v", err)
+		}
+
+		if !strings.HasPrefix(out, "migrated "+testPrefix) {
+			t.Errorf("output = %q, want it to start with %q", out, "migrated "+testPrefix)
+		}
+
+		if want := claude.GlobalWiring(); !slices.EqualFunc(calls, want, slices.Equal) {
+			t.Errorf("calls = %v, want %v", calls, want)
+		}
+
+		if projects := listProjects(t); len(projects) != 1 {
+			t.Errorf("ListProjects() returned %d projects, want 1", len(projects))
+		}
+	})
+
+	t.Run("a re-run does not wire again", func(t *testing.T) {
+		mcpSandbox(t)
+		gittest.Isolate(t)
+
+		dir := t.TempDir()
+		writeV1Store(t, dir, v1Fixture(t))
+		t.Chdir(dir)
+
+		mustRun(t, migrateCmdUse)
+
+		var calls [][]string
+
+		out, err := runWithRunner(t, recordCalls(&calls, -1), "", migrateCmdUse)
+		if err != nil {
+			t.Fatalf("second bp migrate returned error: %v", err)
+		}
+
+		if want := "already migrated\n"; out != want {
+			t.Errorf("output = %q, want %q", out, want)
+		}
+
+		if len(calls) != 0 {
+			t.Errorf("calls = %v, want none", calls)
+		}
+	})
+
+	t.Run("a wiring failure exits non-zero and keeps the project", func(t *testing.T) {
+		mcpSandbox(t)
+		gittest.Isolate(t)
+
+		dir := t.TempDir()
+		writeV1Store(t, dir, v1Fixture(t))
+		t.Chdir(dir)
+
+		var calls [][]string
+
+		if _, err := runWithRunner(t, recordCalls(&calls, 2), "", migrateCmdUse); err == nil {
+			t.Fatal("bp migrate with a failing wiring step returned no error")
+		}
+
+		if projects := listProjects(t); len(projects) != 1 {
+			t.Errorf("ListProjects() returned %d projects, want 1", len(projects))
+		}
+
+		root, err := store.ProjectDir(testPrefix)
+		if err != nil {
+			t.Fatalf("store.ProjectDir(%q) returned error: %v", testPrefix, err)
+		}
+
+		if _, err := os.Stat(root); err != nil {
+			t.Errorf("stat project dir: %v", err)
+		}
+	})
+
+	t.Run("a refused migration does not wire", func(t *testing.T) {
+		mcpSandbox(t)
+		gittest.Isolate(t)
+
+		dir := t.TempDir()
+		files := v1Fixture(t)
+		files["notes.txt"] = []byte("notes\n")
+		writeV1Store(t, dir, files)
+		t.Chdir(dir)
+
+		var calls [][]string
+
+		if _, err := runWithRunner(t, recordCalls(&calls, -1), "", migrateCmdUse); !errors.Is(err, migrate.ErrUnknownFiles) {
+			t.Fatalf("bp migrate error = %v, want migrate.ErrUnknownFiles", err)
+		}
+
+		if len(calls) != 0 {
+			t.Errorf("calls = %v, want none", calls)
+		}
+	})
+
 	t.Run("no bit folder here or above", func(t *testing.T) {
 		mcpSandbox(t)
 		gittest.Isolate(t)
@@ -779,6 +884,17 @@ func TestMigrateCmd(t *testing.T) {
 			t.Fatalf("bp migrate error = %v, want migrate.ErrNoBitDir", err)
 		}
 	})
+}
+
+func recordCalls(calls *[][]string, failAt int) claude.Runner {
+	return func(_ context.Context, name string, args ...string) error {
+		*calls = append(*calls, append([]string{name}, args...))
+		if len(*calls)-1 == failAt {
+			return errors.New("wiring step failed")
+		}
+
+		return nil
+	}
 }
 
 type migratedRecord struct {
