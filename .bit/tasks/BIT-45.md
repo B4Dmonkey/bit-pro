@@ -1,7 +1,7 @@
 ---
 id: BIT-45
 title: 'v2: remove the daemon and queue'
-status: todo
+status: doing
 ---
 ## Why
 The daemon/queue automation (`bp serve daemon`, `start`/`stop`/`status`, the TUI enqueue) is unused: the launchd service isn't loaded, and its log last ran 2026-08-29. It's also the main thing in v1's registry db besides project registration. The queue table and the project counts exist only for it, while `bp add`, `bp list` and the TUI use the db for registration and lookup (`cmd/add.go:32`, `cmd/list.go:19`, `cmd/tui.go:36`). v2 replaces that db with a central store (BIT-46), so keeping the daemon would mean porting its queue and count queries onto the new db only to delete them later. Removing it first shrinks `db/`, `cmd/`, `tui/` and `claude/`, so the central store is built on a smaller surface.

@@ -12,7 +12,6 @@ import (
 	"github.com/B4Dmonkey/bit-pro/bitdir"
 	"github.com/B4Dmonkey/bit-pro/claude"
 	taskcmd "github.com/B4Dmonkey/bit-pro/cmd/task"
-	"github.com/B4Dmonkey/bit-pro/daemon"
 	"github.com/spf13/cobra"
 )
 
@@ -122,10 +121,10 @@ func notice(installed, latest string) string {
 }
 
 func NewRootCmd() *cobra.Command {
-	return newRootCmd(claude.ExecRunner, daemon.ExecRunner)
+	return newRootCmd(claude.ExecRunner)
 }
 
-func newRootCmd(run claude.Runner, lc daemon.Runner) *cobra.Command {
+func newRootCmd(run claude.Runner) *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:           "bp",
 		Short:         "bp is a project-management CLI for LLM-driven development workflows",
@@ -144,9 +143,6 @@ func newRootCmd(run claude.Runner, lc daemon.Runner) *cobra.Command {
 	rootCmd.AddCommand(newInitCmd(run))
 	rootCmd.AddCommand(newListCmd())
 	rootCmd.AddCommand(newServeCmd())
-	rootCmd.AddCommand(newStartCmd(lc))
-	rootCmd.AddCommand(newStatusCmd(lc))
-	rootCmd.AddCommand(newStopCmd(lc))
 	rootCmd.AddCommand(taskcmd.NewCmd())
 	rootCmd.AddCommand(newTUICmd())
 	rootCmd.AddCommand(newUnapproveCmd())

@@ -1,7 +1,7 @@
 ---
 id: BIT-45.1
 title: bp start/stop/status and serve daemon are unknown commands
-status: todo
+status: done
 phase: 1
 phase_label: No daemon in a v2 build
 ---
