@@ -16,12 +16,14 @@ import (
 var (
 	ErrNotRegistered = errors.New("not a bit project; run `bp add`")
 	ErrNeedsMigrate  = errors.New("found a v1 .bit/ directory; run `bp migrate`")
+	ErrRemoved       = errors.New("this project was removed; run `bp add` here to revive it")
 )
 
 type Project struct {
-	ID   int64
-	Code string
-	Path string
+	ID      int64
+	Code    string
+	Path    string
+	Removed bool
 }
 
 func CanonicalPath(path string) (string, error) {
@@ -70,6 +72,10 @@ func Resolve(projects []Project, dir string) (Project, error) {
 		}
 	}
 
+	if best.Removed {
+		return Project{}, fmt.Errorf("%s: %w", dir, ErrRemoved)
+	}
+
 	if bestPath != "" {
 		return best, nil
 	}
@@ -89,7 +95,7 @@ func Load(ctx context.Context, q *orm.Queries) ([]Project, error) {
 
 	projects := make([]Project, 0, len(rows))
 	for _, row := range rows {
-		projects = append(projects, Project(row))
+		projects = append(projects, Project{ID: row.ID, Code: row.Code, Path: row.Path, Removed: row.Removed != 0})
 	}
 
 	return projects, nil

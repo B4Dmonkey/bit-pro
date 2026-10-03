@@ -75,6 +75,42 @@ func TestCreateProject(t *testing.T) {
 	}
 }
 
+func TestSetProjectRemoved(t *testing.T) {
+	t.Run("keeps the row and toggles the flag", func(t *testing.T) {
+		q := openQueries(t)
+
+		if err := q.CreateProject(t.Context(), orm.CreateProjectParams{Path: alphaPath, Code: alphaCode}); err != nil {
+			t.Fatalf("CreateProject() returned error: %v", err)
+		}
+
+		created, err := q.ListProjects(t.Context())
+		if err != nil {
+			t.Fatalf("ListProjects() returned error: %v", err)
+		}
+
+		id := created[0].ID
+
+		for _, want := range []int64{1, 0} {
+			if err := q.SetProjectRemoved(t.Context(), orm.SetProjectRemovedParams{Removed: want, ID: id}); err != nil {
+				t.Fatalf("SetProjectRemoved(%d) returned error: %v", want, err)
+			}
+
+			projects, err := q.ListProjects(t.Context())
+			if err != nil {
+				t.Fatalf("ListProjects() returned error: %v", err)
+			}
+
+			if len(projects) != 1 {
+				t.Fatalf("ListProjects() returned %d projects, want 1", len(projects))
+			}
+
+			if projects[0].Removed != want {
+				t.Errorf("Removed = %d, want %d", projects[0].Removed, want)
+			}
+		}
+	})
+}
+
 func openQueries(t *testing.T) *orm.Queries {
 	t.Helper()
 

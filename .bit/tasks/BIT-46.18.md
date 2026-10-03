@@ -1,7 +1,7 @@
 ---
 id: BIT-46.18
 title: A removed project's folder resolves to a "was removed" error
-status: todo
+status: done
 approved: true
 phase: 3
 phase_label: bp remove soft-deletes a project

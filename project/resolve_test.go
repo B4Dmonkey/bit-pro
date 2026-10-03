@@ -11,7 +11,11 @@ import (
 	"github.com/B4Dmonkey/bit-pro/db/orm"
 )
 
-const testCode = "BIT"
+const (
+	testCode  = "BIT"
+	outerCode = "ACME"
+	innerCode = "API"
+)
 
 func evalSymlinks(t *testing.T, path string) string {
 	t.Helper()
@@ -40,7 +44,7 @@ func TestResolve(t *testing.T) {
 	}
 
 	nested := func(root, _ string) []Project {
-		return []Project{{Code: "API", Path: filepath.Join(root, "api")}, {Code: "ACME", Path: root}}
+		return []Project{{Code: innerCode, Path: filepath.Join(root, "api")}, {Code: outerCode, Path: root}}
 	}
 
 	under := func(sub string) func(root, real string) string {
@@ -75,14 +79,24 @@ func TestResolve(t *testing.T) {
 			dirs:     []string{"api/x"},
 			projects: nested,
 			dir:      under("api/x"),
-			wantCode: "API",
+			wantCode: innerCode,
 		},
 		{
 			name:     "nested registration outer folder",
 			dirs:     []string{"api", "docs"},
 			projects: nested,
 			dir:      under("docs"),
-			wantCode: "ACME",
+			wantCode: outerCode,
+		},
+		{
+			name: "removed longest match is refused",
+			dirs: []string{"api/x"},
+			projects: func(root, _ string) []Project {
+				return []Project{{Code: outerCode, Path: root}, {Code: innerCode, Path: filepath.Join(root, "api"), Removed: true}}
+			},
+			dir:     under("api/x"),
+			wantErr: ErrRemoved,
+			wantMsg: "removed; run `bp add`",
 		},
 		{
 			name:     "claude worktree",
@@ -195,23 +209,33 @@ func TestCanonicalPath(t *testing.T) {
 	}
 }
 
+func registerRoot(t *testing.T) (*orm.Queries, string) {
+	t.Helper()
+
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", "")
+
+	root := t.TempDir()
+	mkdirs(t, root, "sub")
+
+	sqlDB, err := db.Open()
+	if err != nil {
+		t.Fatalf("db.Open() returned error: %v", err)
+	}
+
+	t.Cleanup(func() { sqlDB.Close() })
+
+	q := orm.New(sqlDB)
+	if err := q.CreateProject(t.Context(), orm.CreateProjectParams{Path: root, Code: testCode}); err != nil {
+		t.Fatalf("CreateProject() returned error: %v", err)
+	}
+
+	return q, root
+}
+
 func TestFind(t *testing.T) {
 	t.Run("resolves through the registry", func(t *testing.T) {
-		t.Setenv("HOME", t.TempDir())
-		t.Setenv("XDG_DATA_HOME", "")
-
-		root := t.TempDir()
-		mkdirs(t, root, "sub")
-
-		sqlDB, err := db.Open()
-		if err != nil {
-			t.Fatalf("db.Open() returned error: %v", err)
-		}
-		defer sqlDB.Close()
-
-		if err := orm.New(sqlDB).CreateProject(t.Context(), orm.CreateProjectParams{Path: root, Code: testCode}); err != nil {
-			t.Fatalf("CreateProject() returned error: %v", err)
-		}
+		_, root := registerRoot(t)
 
 		got, err := Find(t.Context(), filepath.Join(root, "sub"))
 		if err != nil {
@@ -220,6 +244,22 @@ func TestFind(t *testing.T) {
 
 		if got.Code != testCode {
 			t.Errorf("Find() code = %q, want %q", got.Code, testCode)
+		}
+	})
+	t.Run("refuses a removed project", func(t *testing.T) {
+		q, root := registerRoot(t)
+
+		projects, err := q.ListProjects(t.Context())
+		if err != nil {
+			t.Fatalf("ListProjects() returned error: %v", err)
+		}
+
+		if err := q.SetProjectRemoved(t.Context(), orm.SetProjectRemovedParams{Removed: 1, ID: projects[0].ID}); err != nil {
+			t.Fatalf("SetProjectRemoved() returned error: %v", err)
+		}
+
+		if _, err := Find(t.Context(), filepath.Join(root, "sub")); !errors.Is(err, ErrRemoved) {
+			t.Errorf("Find() error = %v, want %v", err, ErrRemoved)
 		}
 	})
 }
