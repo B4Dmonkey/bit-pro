@@ -1,7 +1,7 @@
 ---
 id: BIT-45.4
 title: bp list prints code and path only, and the queue and count queries are gone
-status: todo
+status: done
 phase: 1
 phase_label: No daemon in a v2 build
 ---

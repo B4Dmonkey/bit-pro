@@ -30,8 +30,7 @@ func newListCmd() *cobra.Command {
 			out := cmd.OutOrStdout()
 
 			for _, p := range projects {
-				fmt.Fprintf(out, "%s\t%s\tbacklog:%d\ttodo:%d\tdone:%d\tcompleted:%d\n",
-					p.Code, p.Path, p.Backlog, p.Todo, p.Done, p.Completed)
+				fmt.Fprintf(out, "%s\t%s\n", p.Code, p.Path)
 			}
 
 			return nil
