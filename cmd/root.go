@@ -130,7 +130,6 @@ func newRootCmd(run claude.Runner) *cobra.Command {
 		SilenceErrors: true,
 	}
 	rootCmd.AddCommand(newAddCmd(run))
-	rootCmd.AddCommand(newApproveCmd())
 	rootCmd.AddCommand(newFeedbackCmd())
 	rootCmd.AddCommand(newListCmd())
 	rootCmd.AddCommand(newMigrateCmd(run))
@@ -138,7 +137,6 @@ func newRootCmd(run claude.Runner) *cobra.Command {
 	rootCmd.AddCommand(newServeCmd())
 	rootCmd.AddCommand(taskcmd.NewCmd())
 	rootCmd.AddCommand(newTUICmd())
-	rootCmd.AddCommand(newUnapproveCmd())
 
 	return rootCmd
 }

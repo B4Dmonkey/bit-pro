@@ -37,7 +37,7 @@ A commit that nobody can see isn't landed, so push it — but only after `bit:co
 
 ## What stays the operator's
 
-- **Approval.** Never run `bp approve`. A bar that isn't approved is a full stop — report it and end the session; clearing your own gate defeats it.
+- **Approval.** Never approve a bar yourself; only the operator does, in the TUI. A bar that isn't approved is a full stop — report it and end the session; clearing your own gate defeats it.
 - **Every commit.** `bit:commit` asks each time, and dispatching you isn't a yes.
 - **Track sign-off.** Finishing the last bar makes a track *ready*, never `done`. Don't set the track `done` and don't call `mcp__bit__task_complete`; tell the operator to push if needed, then run `/bit:complete`.
 - **The next bar.** One bar per session, always. A fresh session per bar is the anti-drift mechanism.
