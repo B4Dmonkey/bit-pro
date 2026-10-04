@@ -16,7 +16,6 @@ func NewCmd() *cobra.Command {
 		Use:   CmdUse,
 		Short: "Manage tasks",
 	}
-	taskCmd.AddCommand(newCreateCmd())
 	taskCmd.AddCommand(newListCmd())
 	taskCmd.AddCommand(newReadCmd())
 	taskCmd.AddCommand(newUpdateCmd())

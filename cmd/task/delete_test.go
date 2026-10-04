@@ -43,7 +43,7 @@ func TestTaskDeleteCmd(t *testing.T) {
 	t.Run("force deletes unfinished", func(t *testing.T) {
 		initProject(t, "BIT")
 		createTask(t, "Track", "A track with an unfinished bar.")
-		mustRun(t, "task", "create", "Bar", "--parent", trackID, "--description", "Still todo.")
+		createBar(t, trackID, "Bar", "Still todo.")
 
 		mustRun(t, "task", "delete", trackID, "--yes", "--force")
 
@@ -61,7 +61,7 @@ func TestTaskDeleteCmd(t *testing.T) {
 	t.Run("refuses unfinished without force", func(t *testing.T) {
 		initProject(t, "BIT")
 		createTask(t, "Track", "A track with an unfinished bar.")
-		mustRun(t, "task", "create", "Bar", "--parent", trackID, "--description", "Still todo.")
+		createBar(t, trackID, "Bar", "Still todo.")
 
 		_, err := run(t, "task", "delete", trackID, "--yes")
 

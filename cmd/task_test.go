@@ -39,7 +39,7 @@ func TestTaskCmd(t *testing.T) {
 
 		slices.Sort(got)
 
-		want := []string{"create", "delete", "list", "move", "read", "update"}
+		want := []string{"delete", "list", "move", "read", "update"}
 		if !slices.Equal(got, want) {
 			t.Errorf("bp task subcommands = %v, want %v", got, want)
 		}
@@ -48,10 +48,7 @@ func TestTaskCmd(t *testing.T) {
 	t.Run("lifecycle runs through the root command", func(t *testing.T) {
 		initProject(t, testPrefix)
 
-		id := strings.TrimSpace(mustRun(t, "task", "create", "Wired track", "--description", "Body."))
-		if id != "BIT-1" {
-			t.Fatalf("bp task create printed %q, want BIT-1", id)
-		}
+		id := createTask(t, "Wired track", "Body.")
 
 		mustRun(t, "task", updateCmd, id, "-s", "done")
 

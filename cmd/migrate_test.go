@@ -110,8 +110,8 @@ func TestMigrateCmd(t *testing.T) {
 
 		mustRun(t, migrateCmdUse)
 
-		if out := mustRun(t, "task", "create", "Next"); out != "BIT-2\n" {
-			t.Errorf("bp task create = %q, want %q", out, "BIT-2\n")
+		if id := createTask(t, "Next", ""); id != testOwnTrack2 {
+			t.Errorf("created ID = %q, want %q", id, testOwnTrack2)
 		}
 	})
 
@@ -181,8 +181,8 @@ func TestMigrateCmd(t *testing.T) {
 
 		mustRun(t, migrateCmdUse)
 
-		if out := mustRun(t, "task", "create", "T"); out != "BIT-8\n" {
-			t.Errorf("bp task create = %q, want %q", out, "BIT-8\n")
+		if id := createTask(t, "T", ""); id != "BIT-8" {
+			t.Errorf("created ID = %q, want %q", id, "BIT-8")
 		}
 	})
 

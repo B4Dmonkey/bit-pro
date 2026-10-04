@@ -302,8 +302,8 @@ func TestAddCmd(t *testing.T) {
 					t.Fatalf("CanonicalPath(%q) returned error: %v", dir, err)
 				}
 
-				mustRun(t, "task", "create", "One")
-				mustRun(t, "task", "create", "Two")
+				createTask(t, "One", "")
+				createTask(t, "Two", "")
 
 				if _, err := runWithStdin(t, "y\n", removeCmdUse); err != nil {
 					t.Fatalf("bp remove returned error: %v", err)
@@ -339,8 +339,8 @@ func TestAddCmd(t *testing.T) {
 
 				assertExists(t, filepath.Join(root, "archive", "tasks", "BIT-1.json"))
 
-				if out := mustRun(t, "task", "create", "Next"); out != "BIT-3\n" {
-					t.Errorf("bp task create = %q, want %q", out, "BIT-3\n")
+				if id := createTask(t, "Next", ""); id != "BIT-3" {
+					t.Errorf("created ID = %q, want %q", id, "BIT-3")
 				}
 			})
 		}

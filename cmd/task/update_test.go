@@ -63,8 +63,9 @@ func TestTaskUpdateCmd(t *testing.T) {
 	t.Run("changes phase", func(t *testing.T) {
 		initProject(t, "BIT")
 		createTask(t, "Track", "...")
-		mustRun(t, "task", "create", "Bar", "-d", "...", "--parent", trackID,
-			"--phase", "2", "--phase-label", "List & read")
+		createWith(t, task.CreateParams{
+			Title: "Bar", Parent: trackID, Phase: 2, PhaseLabel: "List & read",
+		})
 
 		mustRun(t, taskCmdUse, updateCmd, firstBarID, "--phase", "3", "--phase-label", "Update")
 

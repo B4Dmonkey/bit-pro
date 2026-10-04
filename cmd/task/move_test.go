@@ -10,8 +10,8 @@ func TestTaskMoveCmd(t *testing.T) {
 	t.Run("reorders parent list", func(t *testing.T) {
 		initProject(t, "BIT")
 		createTask(t, "Track", "...")
-		mustRun(t, "task", "create", "First bar", "-d", "...", "--parent", trackID)
-		mustRun(t, "task", "create", "Second bar", "-d", "...", "--parent", trackID)
+		createBar(t, trackID, "First bar", "...")
+		createBar(t, trackID, "Second bar", "...")
 
 		mustRun(t, taskCmdUse, "move", secondBarID, "--before", firstBarID)
 
@@ -44,8 +44,8 @@ func TestTaskMoveCmd(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				initProject(t, "BIT")
 				createTask(t, "Track", "...")
-				mustRun(t, "task", "create", "First bar", "-d", "...", "--parent", trackID)
-				mustRun(t, "task", "create", "Second bar", "-d", "...", "--parent", trackID)
+				createBar(t, trackID, "First bar", "...")
+				createBar(t, trackID, "Second bar", "...")
 
 				if _, err := run(t, tt.args...); err == nil {
 					t.Fatalf("bit %s returned nil error, want non-nil", strings.Join(tt.args, " "))

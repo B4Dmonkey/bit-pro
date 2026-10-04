@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/B4Dmonkey/bit-pro/task"
 )
 
 func TestTaskListCmd(t *testing.T) {
@@ -47,9 +49,9 @@ func TestTaskListCmd(t *testing.T) {
 		initProject(t, "BIT")
 		createTask(t, "One", "...")
 		createTask(t, "Two", "...")
-		mustRun(t, "task", "create", "One.1", "-d", "...", "--parent", "BIT-1")
-		mustRun(t, "task", "create", "One.2", "-d", "...", "--parent", "BIT-1")
-		mustRun(t, "task", "create", "Two.1", "-d", "...", "--parent", "BIT-2")
+		createBar(t, "BIT-1", "One.1", "...")
+		createBar(t, "BIT-1", "One.2", "...")
+		createBar(t, "BIT-2", "Two.1", "...")
 
 		out := mustRun(t, "task", "list")
 
@@ -68,9 +70,9 @@ func TestTaskListCmd(t *testing.T) {
 		initProject(t, "BIT")
 		createTask(t, "One", "...")
 		createTask(t, "Two", "...")
-		mustRun(t, "task", "create", "One.1", "-d", "...", "--parent", "BIT-1")
-		mustRun(t, "task", "create", "One.2", "-d", "...", "--parent", "BIT-1")
-		mustRun(t, "task", "create", "Two.1", "-d", "...", "--parent", "BIT-2")
+		createBar(t, "BIT-1", "One.1", "...")
+		createBar(t, "BIT-1", "One.2", "...")
+		createBar(t, "BIT-2", "Two.1", "...")
 
 		out := mustRun(t, "task", "list", "--parent", "BIT-1")
 
@@ -83,8 +85,8 @@ func TestTaskListCmd(t *testing.T) {
 	t.Run("lowercase parent still lists the bars", func(t *testing.T) {
 		initProject(t, "BIT")
 		createTask(t, "Track", "...")
-		mustRun(t, "task", "create", "Bar one", "-d", "...", "--parent", "BIT-1")
-		mustRun(t, "task", "create", "Bar two", "-d", "...", "--parent", "BIT-1")
+		createBar(t, "BIT-1", "Bar one", "...")
+		createBar(t, "BIT-1", "Bar two", "...")
 
 		out := mustRun(t, "task", "list", "--parent", "bit-1")
 
@@ -97,8 +99,8 @@ func TestTaskListCmd(t *testing.T) {
 	t.Run("hand edited lowercase order still ranks bars", func(t *testing.T) {
 		initProject(t, "BIT")
 		createTask(t, "Track", "...")
-		mustRun(t, "task", "create", "Bar one", "-d", "...", "--parent", "BIT-1")
-		mustRun(t, "task", "create", "Bar two", "-d", "...", "--parent", "BIT-1")
+		createBar(t, "BIT-1", "Bar one", "...")
+		createBar(t, "BIT-1", "Bar two", "...")
 
 		track := `{"id": "BIT-1", "title": "Track", "status": "todo", "approved": false, "phase": 0, "phase_label": "", ` +
 			`"order": ["bit-1.2", "bit-1.1"], "content": "BIT-1.md"}` + "\n"
@@ -128,10 +130,8 @@ func TestTaskListCmd(t *testing.T) {
 	t.Run("shows phase on bars", func(t *testing.T) {
 		initProject(t, "BIT")
 		createTask(t, "Track", "...")
-		mustRun(t, "task", "create", "Bar one", "-d", "...", "--parent", "BIT-1",
-			"--phase", "1", "--phase-label", "First")
-		mustRun(t, "task", "create", "Bar two", "-d", "...", "--parent", "BIT-1",
-			"--phase", "2", "--phase-label", "Second")
+		createWith(t, task.CreateParams{Title: "Bar one", Parent: trackID, Phase: 1, PhaseLabel: "First"})
+		createWith(t, task.CreateParams{Title: "Bar two", Parent: trackID, Phase: 2, PhaseLabel: "Second"})
 
 		out := mustRun(t, "task", "list")
 

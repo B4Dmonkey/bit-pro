@@ -208,7 +208,7 @@ func TestFeedbackAddCmd(t *testing.T) {
 	t.Run("note survives track completion", func(t *testing.T) {
 		initProject(t, "BIT")
 		createTask(t, "Ship the bit plugin", "## Why\n\nThe skills only exist in this repo.\n")
-		mustRun(t, "task", "create", "A bar", "--parent", "BIT-1", "--description", "One step.")
+		createBar(t, "BIT-1", "A bar", "One step.")
 		mustRun(t, "feedback", "add", "BIT-1", "-d", firstNote)
 		mustRun(t, "task", "update", "BIT-1.1", "-s", "done")
 		mustRun(t, "task", "update", "BIT-1", "-s", "done")

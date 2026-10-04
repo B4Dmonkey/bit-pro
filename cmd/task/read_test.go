@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/B4Dmonkey/bit-pro/task"
 )
 
 func TestTaskReadCmd(t *testing.T) {
@@ -35,7 +37,7 @@ func TestTaskReadCmd(t *testing.T) {
 
 	t.Run("body only empty", func(t *testing.T) {
 		initProject(t, "BIT")
-		mustRun(t, "task", "create", "No body", "-d", "")
+		createTask(t, "No body", "")
 
 		out := mustRun(t, "task", "read", "BIT-1", "--body")
 
@@ -47,8 +49,9 @@ func TestTaskReadCmd(t *testing.T) {
 	t.Run("shows phase", func(t *testing.T) {
 		initProject(t, "BIT")
 		createTask(t, "Track", "...")
-		mustRun(t, "task", "create", "List cmd", "-d", "...", "--parent", "BIT-1",
-			"--phase", "2", "--phase-label", "List & read")
+		createWith(t, task.CreateParams{
+			Title: "List cmd", Parent: trackID, Phase: 2, PhaseLabel: "List & read",
+		})
 
 		out := mustRun(t, "task", "read", "BIT-1.1")
 

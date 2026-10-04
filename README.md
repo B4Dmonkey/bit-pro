@@ -45,19 +45,19 @@ claude mcp add -s user bit -- bp serve mcp
 ```
 cd your-project
 bp add .                                   # prompts for a project code, registers the folder
-bp task create "Add OAuth login" -d "Why this matters…"
-bp task create "Write the token test" -p PREFIX-1 --phase 1 --phase-label "Token exchange"
 bp task list
 bp task update PREFIX-1.1 -s doing
 bp tui                                     # the human view: board + list
 ```
+
+Tasks are created by Claude through the bit MCP tools (`task_create`).
 
 A project that already has a v1 `.bit/` directory runs `bp migrate` instead of `bp add`.
 
 ## Tracks and bars
 
 A **track** is a top-level task — one scope, one deliverable. Its ID has no dot: `BIT-7`.
-A **bar** is one step of that track's plan, minted with `--parent`: `BIT-7.3`. The parent is
+A **bar** is one step of that track's plan, created under its track (`task_create` with `parent`): `BIT-7.3`. The parent is
 readable straight out of the ID — no index, no lookup, and `ls` shows the tree.
 See [hierarchy.md](./hierarchy.md) for the full vocabulary.
 
@@ -73,7 +73,6 @@ without a prompt to answer.
 | `bp list` | List the registered projects |
 | `bp migrate` | Copy this folder's v1 `.bit/` into the store and register it. Checks the files first, verifies the copy, and prints the cleanup step without running it |
 | `bp approve <id>` / `bp unapprove <id>` | Approve a task, or revoke its approval |
-| `bp task create <title>` | New task. `-p` parent, `--phase`/`--phase-label`, `--after` sibling, `-d` body |
 | `bp task read <id>` | Full content. `--body` prints just the markdown, for feeding back to a model |
 | `bp task list` | All tasks. `-p <track>` lists one plan, in step order |
 | `bp task update <id>` | `-s` status, `-t` title, `-d` body, `--phase`/`--phase-label` |

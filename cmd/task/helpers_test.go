@@ -125,9 +125,27 @@ func approve(t *testing.T, id string) {
 	}
 }
 
-func createTask(t *testing.T, title, description string) {
+func createTask(t *testing.T, title, description string) string {
 	t.Helper()
-	mustRun(t, taskCmdUse, "create", title, "--description", description)
+
+	return createWith(t, task.CreateParams{Title: title, Body: description})
+}
+
+func createBar(t *testing.T, parent, title, description string) string {
+	t.Helper()
+
+	return createWith(t, task.CreateParams{Title: title, Body: description, Parent: parent})
+}
+
+func createWith(t *testing.T, p task.CreateParams) string {
+	t.Helper()
+
+	created, err := projectStore(t).Create(p)
+	if err != nil {
+		t.Fatalf("Create(%+v) returned error: %v", p, err)
+	}
+
+	return created.ID
 }
 
 func writeRawTask(t *testing.T, path, id, title, status string) {
