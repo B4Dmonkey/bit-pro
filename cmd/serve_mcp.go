@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/B4Dmonkey/bit-pro/git"
-	"github.com/B4Dmonkey/bit-pro/landing"
+	"github.com/B4Dmonkey/bit-pro/mergecheck"
 	"github.com/B4Dmonkey/bit-pro/project"
 	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/google/jsonschema-go/jsonschema"
@@ -586,20 +586,20 @@ func landingPatch(commit, branch string) task.Patch {
 	return p
 }
 
-func taskLandingHandler(root string, run git.Runner) mcp.ToolHandlerFor[taskLandingInput, landing.Report] {
+func taskLandingHandler(root string, run git.Runner) mcp.ToolHandlerFor[taskLandingInput, mergecheck.Report] {
 	return func(
 		ctx context.Context,
 		_ *mcp.CallToolRequest,
 		in taskLandingInput,
-	) (*mcp.CallToolResult, landing.Report, error) {
+	) (*mcp.CallToolResult, mergecheck.Report, error) {
 		store, err := mcpStore(ctx, root)
 		if err != nil {
-			return nil, landing.Report{}, err
+			return nil, mergecheck.Report{}, err
 		}
 
 		report, err := checkLanding(ctx, store, root, run, in)
 		if err != nil {
-			return nil, landing.Report{}, fmt.Errorf("checking landing of %s: %w", in.ID, err)
+			return nil, mergecheck.Report{}, fmt.Errorf("checking landing of %s: %w", in.ID, err)
 		}
 
 		return nil, report, nil
@@ -612,27 +612,27 @@ func checkLanding(
 	root string,
 	run git.Runner,
 	in taskLandingInput,
-) (landing.Report, error) {
+) (mergecheck.Report, error) {
 	if _, err := store.Load(in.ID); err != nil {
-		return landing.Report{}, err
+		return mergecheck.Report{}, err
 	}
 
 	children, err := store.Children(in.ID)
 	if err != nil {
-		return landing.Report{}, err
+		return mergecheck.Report{}, err
 	}
 
-	bars := make([]landing.Bar, 0, len(children))
+	bars := make([]mergecheck.Bar, 0, len(children))
 	for _, c := range children {
-		bars = append(bars, landing.Bar{ID: c.ID, Status: c.Status, Commit: c.Commit})
+		bars = append(bars, mergecheck.Bar{ID: c.ID, Status: c.Status, Commit: c.Commit})
 	}
 
 	dir, err := sessionDir(root)
 	if err != nil {
-		return landing.Report{}, err
+		return mergecheck.Report{}, err
 	}
 
-	return landing.Check(ctx, run, landing.Query{Dir: dir, Bars: bars, Commit: in.Commit, PR: in.PR})
+	return mergecheck.Run(ctx, run, mergecheck.Query{Dir: dir, Bars: bars, Commit: in.Commit, PR: in.PR})
 }
 
 func taskDeleteHandler(root string) mcp.ToolHandlerFor[taskDeleteInput, emptyOutput] {

@@ -1,4 +1,4 @@
-package landing_test
+package mergecheck_test
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 
 	"github.com/B4Dmonkey/bit-pro/git"
 	"github.com/B4Dmonkey/bit-pro/git/gittest"
-	"github.com/B4Dmonkey/bit-pro/landing"
+	"github.com/B4Dmonkey/bit-pro/mergecheck"
 )
 
 const (
@@ -41,7 +41,7 @@ func (f *recordingGit) run(_ context.Context, _ string, args ...string) (string,
 	return out, nil
 }
 
-func TestCheck(t *testing.T) {
+func TestRun(t *testing.T) {
 	t.Run("a bar committed but not pushed", func(t *testing.T) {
 		r := gittest.New(t)
 
@@ -49,7 +49,7 @@ func TestCheck(t *testing.T) {
 		r.Git("push", "origin", "main")
 		b := r.Commit("feat(bit): two")
 
-		got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: r.Dir, Bars: []landing.Bar{
+		got, err := mergecheck.Run(t.Context(), git.ExecRunner, mergecheck.Query{Dir: r.Dir, Bars: []mergecheck.Bar{
 			{ID: bar1, Status: done, Commit: a},
 			{ID: bar2, Status: done, Commit: b},
 		}})
@@ -57,16 +57,16 @@ func TestCheck(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if got.Verdict != landing.Partly || got.Landing != a {
-			t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, landing.Partly, a)
+		if got.Verdict != mergecheck.Partly || got.Landing != a {
+			t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, mergecheck.Partly, a)
 		}
 
-		if got.Bars[0].Class != landing.Landed || got.Bars[0].Landing != a {
-			t.Errorf("Bars[0] = %+v, want class %q landing %q", got.Bars[0], landing.Landed, a)
+		if got.Bars[0].Class != mergecheck.Landed || got.Bars[0].Landing != a {
+			t.Errorf("Bars[0] = %+v, want class %q landing %q", got.Bars[0], mergecheck.Landed, a)
 		}
 
-		if got.Bars[1].Class != landing.Local || got.Bars[1].Landing != "" {
-			t.Errorf("Bars[1] = %+v, want class %q landing %q", got.Bars[1], landing.Local, "")
+		if got.Bars[1].Class != mergecheck.Local || got.Bars[1].Landing != "" {
+			t.Errorf("Bars[1] = %+v, want class %q landing %q", got.Bars[1], mergecheck.Local, "")
 		}
 	})
 
@@ -77,7 +77,7 @@ func TestCheck(t *testing.T) {
 		b := r.Commit("feat(bit): two")
 		r.Git("push", "origin", "main")
 
-		got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: r.Dir, Bars: []landing.Bar{
+		got, err := mergecheck.Run(t.Context(), git.ExecRunner, mergecheck.Query{Dir: r.Dir, Bars: []mergecheck.Bar{
 			{ID: bar1, Status: done, Commit: a},
 			{ID: bar2, Status: done, Commit: b},
 		}})
@@ -85,8 +85,8 @@ func TestCheck(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if got.Verdict != landing.Done || got.Landing != b {
-			t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, landing.Done, b)
+		if got.Verdict != mergecheck.Done || got.Landing != b {
+			t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, mergecheck.Done, b)
 		}
 
 		if got.Shallow {
@@ -105,7 +105,7 @@ func TestCheck(t *testing.T) {
 		sd := filepath.Join(t.TempDir(), "shallow")
 		r.Git("clone", "--depth", "1", "file://"+r.Origin, sd)
 
-		got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: sd, Bars: []landing.Bar{
+		got, err := mergecheck.Run(t.Context(), git.ExecRunner, mergecheck.Query{Dir: sd, Bars: []mergecheck.Bar{
 			{ID: bar1, Status: done, Commit: a},
 			{ID: bar2, Status: done, Commit: c},
 		}})
@@ -113,11 +113,11 @@ func TestCheck(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if !got.Shallow || got.Verdict != landing.CantTell {
-			t.Errorf("Shallow, Verdict = %v, %q, want true, %q", got.Shallow, got.Verdict, landing.CantTell)
+		if !got.Shallow || got.Verdict != mergecheck.CantTell {
+			t.Errorf("Shallow, Verdict = %v, %q, want true, %q", got.Shallow, got.Verdict, mergecheck.CantTell)
 		}
 
-		if want := []landing.Class{"", ""}; !slices.Equal(classes(got), want) {
+		if want := []mergecheck.Class{"", ""}; !slices.Equal(classes(got), want) {
 			t.Errorf("classes = %q, want %q", classes(got), want)
 		}
 	})
@@ -128,7 +128,7 @@ func TestCheck(t *testing.T) {
 		r.Git("remote", "remove", "origin")
 		a := r.Commit("feat(bit): local")
 
-		got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: r.Dir, Bars: []landing.Bar{
+		got, err := mergecheck.Run(t.Context(), git.ExecRunner, mergecheck.Query{Dir: r.Dir, Bars: []mergecheck.Bar{
 			{ID: bar1, Status: done, Commit: a},
 		}})
 		if err != nil {
@@ -139,8 +139,8 @@ func TestCheck(t *testing.T) {
 			t.Errorf("Trunk, Branch = %q, %q, want %q, %q", got.Trunk, got.Branch, "main", "main")
 		}
 
-		if got.Verdict != landing.Done || got.Landing != a {
-			t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, landing.Done, a)
+		if got.Verdict != mergecheck.Done || got.Landing != a {
+			t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, mergecheck.Done, a)
 		}
 	})
 
@@ -150,16 +150,16 @@ func TestCheck(t *testing.T) {
 		r.Git("remote", "remove", "origin")
 		r.Git("branch", "-m", "main", "trunk")
 
-		_, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: r.Dir})
-		if !errors.Is(err, landing.ErrNoTrunk) {
-			t.Errorf("err = %v, want %v", err, landing.ErrNoTrunk)
+		_, err := mergecheck.Run(t.Context(), git.ExecRunner, mergecheck.Query{Dir: r.Dir})
+		if !errors.Is(err, mergecheck.ErrNoTrunk) {
+			t.Errorf("err = %v, want %v", err, mergecheck.ErrNoTrunk)
 		}
 	})
 
 	t.Run("a folder with no git", func(t *testing.T) {
 		gittest.Isolate(t)
 
-		got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: t.TempDir(), Bars: []landing.Bar{
+		got, err := mergecheck.Run(t.Context(), git.ExecRunner, mergecheck.Query{Dir: t.TempDir(), Bars: []mergecheck.Bar{
 			{ID: bar1, Status: done},
 			{ID: bar2, Status: todo},
 		}})
@@ -167,8 +167,8 @@ func TestCheck(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if got.Verdict != landing.NoGit || got.Trunk != "" {
-			t.Errorf("Verdict, Trunk = %q, %q, want %q, \"\"", got.Verdict, got.Trunk, landing.NoGit)
+		if got.Verdict != mergecheck.NoGit || got.Trunk != "" {
+			t.Errorf("Verdict, Trunk = %q, %q, want %q, \"\"", got.Verdict, got.Trunk, mergecheck.NoGit)
 		}
 
 		if want := []string{bar2}; !slices.Equal(got.Unfinished, want) {
@@ -186,7 +186,7 @@ func TestCheck(t *testing.T) {
 			"rev-list --first-parent " + trunk:                        trunk,
 		}}
 
-		got, err := landing.Check(t.Context(), fake.run, landing.Query{Dir: "/repo", Bars: []landing.Bar{
+		got, err := mergecheck.Run(t.Context(), fake.run, mergecheck.Query{Dir: "/repo", Bars: []mergecheck.Bar{
 			{ID: bar1, Status: done, Commit: bad[0]},
 			{ID: bar2, Status: done, Commit: bad[1]},
 		}})
@@ -195,8 +195,8 @@ func TestCheck(t *testing.T) {
 		}
 
 		for i, b := range got.Bars {
-			if b.Class != landing.Unresolvable {
-				t.Errorf("Bars[%d].Class = %q, want %q", i, b.Class, landing.Unresolvable)
+			if b.Class != mergecheck.Unresolvable {
+				t.Errorf("Bars[%d].Class = %q, want %q", i, b.Class, mergecheck.Unresolvable)
 			}
 		}
 
@@ -220,7 +220,7 @@ func TestCheck(t *testing.T) {
 		m := r.Git("rev-parse", "HEAD")
 		r.Git("push", "origin", "main")
 
-		got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: r.Dir, Bars: []landing.Bar{
+		got, err := mergecheck.Run(t.Context(), git.ExecRunner, mergecheck.Query{Dir: r.Dir, Bars: []mergecheck.Bar{
 			{ID: bar1, Status: done, Commit: b1},
 		}})
 		if err != nil {
@@ -231,8 +231,8 @@ func TestCheck(t *testing.T) {
 			t.Errorf("Bars[0].Landing = %q, want %q", got.Bars[0].Landing, m)
 		}
 
-		if got.Verdict != landing.Done || got.Landing != m {
-			t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, landing.Done, m)
+		if got.Verdict != mergecheck.Done || got.Landing != m {
+			t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, mergecheck.Done, m)
 		}
 	})
 
@@ -252,7 +252,7 @@ func TestCheck(t *testing.T) {
 		r.Commit("chore: trunk moves again")
 		r.Git("push", "origin", "main")
 
-		got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: r.Dir, Bars: []landing.Bar{
+		got, err := mergecheck.Run(t.Context(), git.ExecRunner, mergecheck.Query{Dir: r.Dir, Bars: []mergecheck.Bar{
 			{ID: bar1, Status: done, Commit: b1},
 			{ID: bar2, Status: done, Commit: b2},
 		}})
@@ -281,7 +281,7 @@ func TestCheck(t *testing.T) {
 		r.Git("merge", "--ff-only", "feat")
 		r.Git("push", "origin", "main")
 
-		got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: r.Dir, Bars: []landing.Bar{
+		got, err := mergecheck.Run(t.Context(), git.ExecRunner, mergecheck.Query{Dir: r.Dir, Bars: []mergecheck.Bar{
 			{ID: bar1, Status: done, Commit: b1},
 			{ID: bar2, Status: done, Commit: b2},
 		}})
@@ -305,7 +305,7 @@ func TestCheck(t *testing.T) {
 		c1 := r.Commit("feat(bit): one")
 		r.Git("push", "origin", "main")
 
-		got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: r.Dir, Bars: []landing.Bar{
+		got, err := mergecheck.Run(t.Context(), git.ExecRunner, mergecheck.Query{Dir: r.Dir, Bars: []mergecheck.Bar{
 			{ID: bar1, Status: done, Commit: c1},
 			{ID: bar2, Status: done, Commit: c2},
 		}})
@@ -327,7 +327,7 @@ func TestCheck(t *testing.T) {
 		b := r.Commit("feat(bit): two")
 		r.Git("push", "origin", "feat")
 
-		got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: r.Dir, Bars: []landing.Bar{
+		got, err := mergecheck.Run(t.Context(), git.ExecRunner, mergecheck.Query{Dir: r.Dir, Bars: []mergecheck.Bar{
 			{ID: bar1, Status: done, Commit: a},
 			{ID: bar2, Status: done, Commit: b},
 		}})
@@ -335,11 +335,11 @@ func TestCheck(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if got.Verdict != landing.Partly || got.Landing != a {
-			t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, landing.Partly, a)
+		if got.Verdict != mergecheck.Partly || got.Landing != a {
+			t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, mergecheck.Partly, a)
 		}
 
-		if want := []landing.Class{landing.Landed, landing.Pushed}; !slices.Equal(classes(got), want) {
+		if want := []mergecheck.Class{mergecheck.Landed, mergecheck.Pushed}; !slices.Equal(classes(got), want) {
 			t.Errorf("classes = %q, want %q", classes(got), want)
 		}
 	})
@@ -351,8 +351,8 @@ func TestCheck(t *testing.T) {
 		r.Git("checkout", "-b", "feat")
 		b := r.Commit("feat(bit): two")
 
-		assertVerdict(t, r.Dir, []landing.Bar{{ID: bar1, Status: done, Commit: b}},
-			landing.NotDone, "", []landing.Class{landing.Local})
+		assertVerdict(t, r.Dir, []mergecheck.Bar{{ID: bar1, Status: done, Commit: b}},
+			mergecheck.NotDone, "", []mergecheck.Class{mergecheck.Local})
 	})
 
 	t.Run("nothing landed and one bar pushed to a branch", func(t *testing.T) {
@@ -363,8 +363,8 @@ func TestCheck(t *testing.T) {
 		b := r.Commit("feat(bit): two")
 		r.Git("push", "origin", "feat")
 
-		assertVerdict(t, r.Dir, []landing.Bar{{ID: bar1, Status: done, Commit: b}},
-			landing.NotDone, "", []landing.Class{landing.Pushed})
+		assertVerdict(t, r.Dir, []mergecheck.Bar{{ID: bar1, Status: done, Commit: b}},
+			mergecheck.NotDone, "", []mergecheck.Class{mergecheck.Pushed})
 	})
 
 	t.Run("every hash unresolvable", func(t *testing.T) {
@@ -372,8 +372,10 @@ func TestCheck(t *testing.T) {
 
 		r.Git("push", "origin", "main")
 
-		assertVerdict(t, r.Dir, []landing.Bar{{ID: bar1, Status: done, Commit: "0123456789abcdef0123456789abcdef01234567"}},
-			landing.CantTell, "", []landing.Class{landing.Unresolvable})
+		const missing = "0123456789abcdef0123456789abcdef01234567"
+
+		assertVerdict(t, r.Dir, []mergecheck.Bar{{ID: bar1, Status: done, Commit: missing}},
+			mergecheck.CantTell, "", []mergecheck.Class{mergecheck.Unresolvable})
 	})
 
 	t.Run("no bar has a hash", func(t *testing.T) {
@@ -381,8 +383,8 @@ func TestCheck(t *testing.T) {
 
 		r.Git("push", "origin", "main")
 
-		assertVerdict(t, r.Dir, []landing.Bar{{ID: bar1, Status: done}, {ID: bar2, Status: done}},
-			landing.CantTell, "", []landing.Class{landing.NoHash, landing.NoHash})
+		assertVerdict(t, r.Dir, []mergecheck.Bar{{ID: bar1, Status: done}, {ID: bar2, Status: done}},
+			mergecheck.CantTell, "", []mergecheck.Class{mergecheck.NoHash, mergecheck.NoHash})
 	})
 
 	t.Run("a bar with no hash beside landed bars", func(t *testing.T) {
@@ -391,8 +393,8 @@ func TestCheck(t *testing.T) {
 		a := r.Commit("feat(bit): one")
 		r.Git("push", "origin", "main")
 
-		assertVerdict(t, r.Dir, []landing.Bar{{ID: bar1, Status: done, Commit: a}, {ID: bar2, Status: done}},
-			landing.Done, a, []landing.Class{landing.Landed, landing.NoHash})
+		assertVerdict(t, r.Dir, []mergecheck.Bar{{ID: bar1, Status: done, Commit: a}, {ID: bar2, Status: done}},
+			mergecheck.Done, a, []mergecheck.Class{mergecheck.Landed, mergecheck.NoHash})
 	})
 
 	t.Run("an unfinished bar is listed", func(t *testing.T) {
@@ -401,7 +403,7 @@ func TestCheck(t *testing.T) {
 		a := r.Commit("feat(bit): one")
 		r.Git("push", "origin", "main")
 
-		got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: r.Dir, Bars: []landing.Bar{
+		got, err := mergecheck.Run(t.Context(), git.ExecRunner, mergecheck.Query{Dir: r.Dir, Bars: []mergecheck.Bar{
 			{ID: bar1, Status: done, Commit: a},
 			{ID: bar2, Status: todo},
 		}})
@@ -421,7 +423,7 @@ func TestCheck(t *testing.T) {
 		b := r.Commit("feat(bit): two")
 		r.Git("push", "origin", "main")
 
-		got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: r.Dir, Bars: []landing.Bar{
+		got, err := mergecheck.Run(t.Context(), git.ExecRunner, mergecheck.Query{Dir: r.Dir, Bars: []mergecheck.Bar{
 			{ID: bar1, Status: done, Commit: a},
 			{ID: bar2, Status: "doing", Commit: b},
 		}})
@@ -429,8 +431,8 @@ func TestCheck(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if got.Verdict != landing.Partly || got.Landing != b {
-			t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, landing.Partly, b)
+		if got.Verdict != mergecheck.Partly || got.Landing != b {
+			t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, mergecheck.Partly, b)
 		}
 
 		if want := []string{bar2}; !slices.Equal(got.Unfinished, want) {
@@ -444,21 +446,21 @@ func TestCheck(t *testing.T) {
 		a := r.Commit("feat(bit): one")
 		r.Git("push", "origin", "main")
 
-		assertVerdict(t, r.Dir, []landing.Bar{{ID: bar1, Status: done, Commit: a}, {ID: bar2, Status: todo}},
-			landing.Partly, a, []landing.Class{landing.Landed, landing.NoHash})
+		assertVerdict(t, r.Dir, []mergecheck.Bar{{ID: bar1, Status: done, Commit: a}, {ID: bar2, Status: todo}},
+			mergecheck.Partly, a, []mergecheck.Class{mergecheck.Landed, mergecheck.NoHash})
 	})
 
 	t.Run("a commit answer places bars that haven't landed", func(t *testing.T) {
 		for _, tt := range []struct {
 			name  string
-			class landing.Class
+			class mergecheck.Class
 			bar   func(r *gittest.Repo) string
 		}{
-			{name: "no hash", class: landing.NoHash, bar: func(*gittest.Repo) string { return "" }},
-			{name: "stale hash", class: landing.Unresolvable, bar: func(*gittest.Repo) string {
+			{name: "no hash", class: mergecheck.NoHash, bar: func(*gittest.Repo) string { return "" }},
+			{name: "stale hash", class: mergecheck.Unresolvable, bar: func(*gittest.Repo) string {
 				return "0123456789abcdef0123456789abcdef01234567"
 			}},
-			{name: "pushed to a branch", class: landing.Pushed, bar: func(r *gittest.Repo) string {
+			{name: "pushed to a branch", class: mergecheck.Pushed, bar: func(r *gittest.Repo) string {
 				r.Git("checkout", "-b", "feat")
 				b := r.Commit("feat(bit): one")
 				r.Git("push", "origin", "feat")
@@ -466,7 +468,7 @@ func TestCheck(t *testing.T) {
 
 				return b
 			}},
-			{name: "local only", class: landing.Local, bar: func(r *gittest.Repo) string {
+			{name: "local only", class: mergecheck.Local, bar: func(r *gittest.Repo) string {
 				r.Git("checkout", "-b", "feat")
 				b := r.Commit("feat(bit): one")
 				r.Git("checkout", "main")
@@ -481,15 +483,15 @@ func TestCheck(t *testing.T) {
 				x := r.Commit("feat(bit): landed by hand")
 				r.Git("push", "origin", "main")
 
-				got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{
-					Dir: r.Dir, Commit: x[:12], Bars: []landing.Bar{{ID: bar1, Status: done, Commit: b}},
+				got, err := mergecheck.Run(t.Context(), git.ExecRunner, mergecheck.Query{
+					Dir: r.Dir, Commit: x[:12], Bars: []mergecheck.Bar{{ID: bar1, Status: done, Commit: b}},
 				})
 				if err != nil {
 					t.Fatal(err)
 				}
 
-				if got.Verdict != landing.Done || got.Landing != x {
-					t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, landing.Done, x)
+				if got.Verdict != mergecheck.Done || got.Landing != x {
+					t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, mergecheck.Done, x)
 				}
 
 				bar := got.Bars[0]
@@ -506,11 +508,11 @@ func TestCheck(t *testing.T) {
 		r.Git("checkout", "-b", "feat")
 		y := r.Commit("feat(bit): off trunk")
 
-		_, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{
-			Dir: r.Dir, Commit: y, Bars: []landing.Bar{{ID: bar1, Status: done}},
+		_, err := mergecheck.Run(t.Context(), git.ExecRunner, mergecheck.Query{
+			Dir: r.Dir, Commit: y, Bars: []mergecheck.Bar{{ID: bar1, Status: done}},
 		})
-		if !errors.Is(err, landing.ErrNotOnTrunk) {
-			t.Errorf("err = %v, want %v", err, landing.ErrNotOnTrunk)
+		if !errors.Is(err, mergecheck.ErrNotOnTrunk) {
+			t.Errorf("err = %v, want %v", err, mergecheck.ErrNotOnTrunk)
 		}
 	})
 
@@ -524,11 +526,11 @@ func TestCheck(t *testing.T) {
 				"rev-list --first-parent " + trunk:                        trunk,
 			}}
 
-			_, err := landing.Check(t.Context(), fake.run, landing.Query{
-				Dir: "/repo", Commit: answer, Bars: []landing.Bar{{ID: bar1, Status: done}},
+			_, err := mergecheck.Run(t.Context(), fake.run, mergecheck.Query{
+				Dir: "/repo", Commit: answer, Bars: []mergecheck.Bar{{ID: bar1, Status: done}},
 			})
-			if !errors.Is(err, landing.ErrBadAnswer) {
-				t.Errorf("Commit %q: err = %v, want %v", answer, err, landing.ErrBadAnswer)
+			if !errors.Is(err, mergecheck.ErrBadAnswer) {
+				t.Errorf("Commit %q: err = %v, want %v", answer, err, mergecheck.ErrBadAnswer)
 			}
 
 			for _, call := range fake.calls {
@@ -551,11 +553,13 @@ func TestCheck(t *testing.T) {
 		x := r.Commit("feat(bit): landed by hand")
 		r.Git("push", "origin", "main")
 
-		got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: r.Dir, Commit: x, Bars: []landing.Bar{
-			{ID: bar1, Status: done, Commit: a},
-			{ID: bar2, Status: done, Commit: b},
-			{ID: "BIT-1.3", Status: done},
-		}})
+		got, err := mergecheck.Run(t.Context(), git.ExecRunner, mergecheck.Query{
+			Dir: r.Dir, Commit: x, Bars: []mergecheck.Bar{
+				{ID: bar1, Status: done, Commit: a},
+				{ID: bar2, Status: done, Commit: b},
+				{ID: "BIT-1.3", Status: done},
+			},
+		})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -582,15 +586,15 @@ func TestCheck(t *testing.T) {
 		s := r.Git("rev-parse", "HEAD")
 		r.Git("push", "origin", "main")
 
-		got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{
-			Dir: r.Dir, PR: 5, Bars: []landing.Bar{{ID: bar1, Status: done}},
+		got, err := mergecheck.Run(t.Context(), git.ExecRunner, mergecheck.Query{
+			Dir: r.Dir, PR: 5, Bars: []mergecheck.Bar{{ID: bar1, Status: done}},
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		if got.Verdict != landing.Done || got.Landing != s {
-			t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, landing.Done, s)
+		if got.Verdict != mergecheck.Done || got.Landing != s {
+			t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, mergecheck.Done, s)
 		}
 
 		if !got.Bars[0].Repoint {
@@ -614,11 +618,11 @@ func TestCheck(t *testing.T) {
 		y := r.Commit("y (#7)")
 		r.Git("push", "origin", "main")
 
-		_, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{
-			Dir: r.Dir, PR: 7, Bars: []landing.Bar{{ID: bar1, Status: done}},
+		_, err := mergecheck.Run(t.Context(), git.ExecRunner, mergecheck.Query{
+			Dir: r.Dir, PR: 7, Bars: []mergecheck.Bar{{ID: bar1, Status: done}},
 		})
 
-		var ambiguous *landing.AmbiguousPRError
+		var ambiguous *mergecheck.AmbiguousPRError
 		if !errors.As(err, &ambiguous) {
 			t.Fatalf("err = %v, want *AmbiguousPRError", err)
 		}
@@ -646,10 +650,10 @@ func TestCheck(t *testing.T) {
 		r.Git("push", "origin", "feat")
 		s := squash(r, "Worktree bit 31 (#5)", "* "+play+"\n\nbody one\n\n* "+queue+"\n\nbody two")
 
-		got := check(t, r.Dir, []landing.Bar{{ID: bar1, Status: done, Commit: b1}, {ID: bar2, Status: done, Commit: b2}})
+		got := check(t, r.Dir, []mergecheck.Bar{{ID: bar1, Status: done, Commit: b1}, {ID: bar2, Status: done, Commit: b2}})
 
-		if got.Verdict != landing.Done || got.Landing != s {
-			t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, landing.Done, s)
+		if got.Verdict != mergecheck.Done || got.Landing != s {
+			t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, mergecheck.Done, s)
 		}
 
 		assertSquashed(t, got, s, s)
@@ -663,7 +667,7 @@ func TestCheck(t *testing.T) {
 		r.Git("push", "origin", "feat")
 		s := squash(r, "fix(tui): render overlay (#6)", "")
 
-		assertSquashed(t, check(t, r.Dir, []landing.Bar{{ID: bar1, Status: done, Commit: c}}), s)
+		assertSquashed(t, check(t, r.Dir, []mergecheck.Bar{{ID: bar1, Status: done, Commit: c}}), s)
 	})
 
 	t.Run("the earliest squash after the bar wins", func(t *testing.T) {
@@ -677,7 +681,7 @@ func TestCheck(t *testing.T) {
 		r.Commit("chore: more")
 		squash(r, "Worktree bit 31 (#17)", "* "+play)
 
-		assertSquashed(t, check(t, r.Dir, []landing.Bar{{ID: bar1, Status: done, Commit: b1}}), first)
+		assertSquashed(t, check(t, r.Dir, []mergecheck.Bar{{ID: bar1, Status: done, Commit: b1}}), first)
 	})
 
 	t.Run("a track over two squashes lands at the newer", func(t *testing.T) {
@@ -693,14 +697,14 @@ func TestCheck(t *testing.T) {
 		r.Git("push", "origin", "feat")
 		six := squash(r, "feat(tui): stop view (#6)", "")
 
-		got := check(t, r.Dir, []landing.Bar{
+		got := check(t, r.Dir, []mergecheck.Bar{
 			{ID: bar1, Status: done, Commit: b1},
 			{ID: bar2, Status: done, Commit: b2},
 			{ID: "BIT-1.3", Status: done, Commit: b3},
 		})
 
-		if got.Verdict != landing.Done || got.Landing != six {
-			t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, landing.Done, six)
+		if got.Verdict != mergecheck.Done || got.Landing != six {
+			t.Errorf("Verdict, Landing = %q, %q, want %q, %q", got.Verdict, got.Landing, mergecheck.Done, six)
 		}
 
 		assertSquashed(t, got, five, five, six)
@@ -715,13 +719,13 @@ func TestCheck(t *testing.T) {
 		r.Git("push", "origin", "feat")
 		s := squash(r, "Tidy (#8)", "* "+tidy)
 
-		got := check(t, r.Dir, []landing.Bar{{ID: bar1, Status: done, Commit: t1}, {ID: bar2, Status: done, Commit: t2}})
+		got := check(t, r.Dir, []mergecheck.Bar{{ID: bar1, Status: done, Commit: t1}, {ID: bar2, Status: done, Commit: t2}})
 
-		if got.Verdict != landing.Partly || got.Bars[0].Landing != s {
-			t.Errorf("Verdict, Bars[0].Landing = %q, %q, want %q, %q", got.Verdict, got.Bars[0].Landing, landing.Partly, s)
+		if got.Verdict != mergecheck.Partly || got.Bars[0].Landing != s {
+			t.Errorf("Verdict, Bars[0].Landing = %q, %q, want %q, %q", got.Verdict, got.Bars[0].Landing, mergecheck.Partly, s)
 		}
 
-		if want := []landing.Class{landing.Squash, landing.Pushed}; !slices.Equal(classes(got), want) {
+		if want := []mergecheck.Class{mergecheck.Squash, mergecheck.Pushed}; !slices.Equal(classes(got), want) {
 			t.Errorf("classes = %q, want %q", classes(got), want)
 		}
 	})
@@ -735,7 +739,7 @@ func TestCheck(t *testing.T) {
 		r.Git("push", "origin", "feat")
 		s := squash(r, "Tidy (#8)", "* "+tidy+"\n\n* "+tidy)
 
-		assertSquashed(t, check(t, r.Dir, []landing.Bar{
+		assertSquashed(t, check(t, r.Dir, []mergecheck.Bar{
 			{ID: bar1, Status: done, Commit: t1}, {ID: bar2, Status: done, Commit: t2},
 		}), s, s)
 	})
@@ -752,7 +756,7 @@ func TestCheck(t *testing.T) {
 		r.Commit("chore: more")
 		nine := squash(r, "Tidy again (#9)", "* "+tidy)
 
-		assertSquashed(t, check(t, r.Dir, []landing.Bar{
+		assertSquashed(t, check(t, r.Dir, []mergecheck.Bar{
 			{ID: bar1, Status: done, Commit: t1}, {ID: bar2, Status: done, Commit: t2},
 		}), eight, nine)
 	})
@@ -765,8 +769,8 @@ func TestCheck(t *testing.T) {
 		r.Git("push", "origin", "feat")
 		squash(r, "Worktree bit 31 (#5)", "see "+play)
 
-		assertVerdict(t, r.Dir, []landing.Bar{{ID: bar1, Status: done, Commit: b1}},
-			landing.NotDone, "", []landing.Class{landing.Pushed})
+		assertVerdict(t, r.Dir, []mergecheck.Bar{{ID: bar1, Status: done, Commit: b1}},
+			mergecheck.NotDone, "", []mergecheck.Class{mergecheck.Pushed})
 	})
 
 	t.Run("a direct commit with a matching bullet isn't a squash", func(t *testing.T) {
@@ -779,8 +783,8 @@ func TestCheck(t *testing.T) {
 		r.Git("commit", "--allow-empty", "-m", "chore: notes", "-m", "* "+play)
 		r.Git("push", "origin", "main")
 
-		assertVerdict(t, r.Dir, []landing.Bar{{ID: bar1, Status: done, Commit: b1}},
-			landing.NotDone, "", []landing.Class{landing.Pushed})
+		assertVerdict(t, r.Dir, []mergecheck.Bar{{ID: bar1, Status: done, Commit: b1}},
+			mergecheck.NotDone, "", []mergecheck.Class{mergecheck.Pushed})
 	})
 }
 
@@ -799,10 +803,10 @@ func squash(r *gittest.Repo, subject, body string) string {
 	return r.Git("rev-parse", "HEAD")
 }
 
-func check(t *testing.T, dir string, bars []landing.Bar) landing.Report {
+func check(t *testing.T, dir string, bars []mergecheck.Bar) mergecheck.Report {
 	t.Helper()
 
-	got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: dir, Bars: bars})
+	got, err := mergecheck.Run(t.Context(), git.ExecRunner, mergecheck.Query{Dir: dir, Bars: bars})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -810,7 +814,7 @@ func check(t *testing.T, dir string, bars []landing.Bar) landing.Report {
 	return got
 }
 
-func assertSquashed(t *testing.T, got landing.Report, want ...string) {
+func assertSquashed(t *testing.T, got mergecheck.Report, want ...string) {
 	t.Helper()
 
 	landings := make([]string, 0, len(got.Bars))
@@ -818,8 +822,8 @@ func assertSquashed(t *testing.T, got landing.Report, want ...string) {
 	for i, bar := range got.Bars {
 		landings = append(landings, bar.Landing)
 
-		if bar.Class != landing.Squash || !bar.Repoint {
-			t.Errorf("Bars[%d] = %+v, want class %q, repoint", i, bar, landing.Squash)
+		if bar.Class != mergecheck.Squash || !bar.Repoint {
+			t.Errorf("Bars[%d] = %+v, want class %q, repoint", i, bar, mergecheck.Squash)
 		}
 	}
 
@@ -831,16 +835,16 @@ func assertSquashed(t *testing.T, got landing.Report, want ...string) {
 func assertPRNotOnTrunk(t *testing.T, dir string, pr int) {
 	t.Helper()
 
-	_, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{
-		Dir: dir, PR: pr, Bars: []landing.Bar{{ID: bar1, Status: done}},
+	_, err := mergecheck.Run(t.Context(), git.ExecRunner, mergecheck.Query{
+		Dir: dir, PR: pr, Bars: []mergecheck.Bar{{ID: bar1, Status: done}},
 	})
-	if !errors.Is(err, landing.ErrNotOnTrunk) {
-		t.Errorf("PR %d: err = %v, want %v", pr, err, landing.ErrNotOnTrunk)
+	if !errors.Is(err, mergecheck.ErrNotOnTrunk) {
+		t.Errorf("PR %d: err = %v, want %v", pr, err, mergecheck.ErrNotOnTrunk)
 	}
 }
 
-func classes(r landing.Report) []landing.Class {
-	out := make([]landing.Class, 0, len(r.Bars))
+func classes(r mergecheck.Report) []mergecheck.Class {
+	out := make([]mergecheck.Class, 0, len(r.Bars))
 	for _, b := range r.Bars {
 		out = append(out, b.Class)
 	}
@@ -849,11 +853,12 @@ func classes(r landing.Report) []landing.Class {
 }
 
 func assertVerdict(
-	t *testing.T, dir string, bars []landing.Bar, verdict landing.Verdict, landingSHA string, want []landing.Class,
+	t *testing.T, dir string, bars []mergecheck.Bar,
+	verdict mergecheck.Verdict, landingSHA string, want []mergecheck.Class,
 ) {
 	t.Helper()
 
-	got, err := landing.Check(t.Context(), git.ExecRunner, landing.Query{Dir: dir, Bars: bars})
+	got, err := mergecheck.Run(t.Context(), git.ExecRunner, mergecheck.Query{Dir: dir, Bars: bars})
 	if err != nil {
 		t.Fatal(err)
 	}

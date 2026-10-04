@@ -1,4 +1,4 @@
-package landing
+package mergecheck
 
 import (
 	"context"
@@ -87,7 +87,7 @@ var (
 	ErrNotOnTrunk = errors.New("not on trunk")
 )
 
-func Check(ctx context.Context, run git.Runner, q Query) (Report, error) {
+func Run(ctx context.Context, run git.Runner, q Query) (Report, error) {
 	if !git.IsRepo(ctx, run, q.Dir) {
 		return noGit(q), nil
 	}
