@@ -295,7 +295,6 @@ func TestAddCmd(t *testing.T) {
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
 				dir := initProject(t, testPrefix)
-				root := storeDir(t)
 
 				path, err := project.CanonicalPath(dir)
 				if err != nil {
@@ -305,9 +304,7 @@ func TestAddCmd(t *testing.T) {
 				createTask(t, "One", "")
 				createTask(t, "Two", "")
 
-				if _, err := runWithStdin(t, "y\n", removeCmdUse); err != nil {
-					t.Fatalf("bp remove returned error: %v", err)
-				}
+				markRemoved(t, testPrefix)
 
 				var calls [][]string
 
@@ -332,12 +329,6 @@ func TestAddCmd(t *testing.T) {
 				if p := loadProject(t, path); p.Removed {
 					t.Errorf("project %s Removed = true, want false", path)
 				}
-
-				if out := mustRun(t, "task", "list"); strings.Contains(out, "BIT-") {
-					t.Errorf("bp task list = %q, want no tracks", out)
-				}
-
-				assertExists(t, filepath.Join(root, "archive", "tasks", "BIT-1.json"))
 
 				if id := createTask(t, "Next", ""); id != "BIT-3" {
 					t.Errorf("created ID = %q, want %q", id, "BIT-3")
@@ -366,11 +357,7 @@ func TestAddCmd(t *testing.T) {
 			t.Fatalf("first bp add returned error: %v", err)
 		}
 
-		t.Chdir(old)
-
-		if _, err := runWithStdin(t, "y\n", removeCmdUse); err != nil {
-			t.Fatalf("bp remove returned error: %v", err)
-		}
+		markRemoved(t, testCode)
 
 		var calls [][]string
 

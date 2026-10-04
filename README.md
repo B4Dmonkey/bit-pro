@@ -68,7 +68,6 @@ without a prompt to answer.
 | Command | What it does |
 |---|---|
 | `bp add <path>` | Register a project under a code you type, setting bit up in Claude Code on first use |
-| `bp remove` | Archive this project's open work and remove it from the registry, after confirmation |
 | `bp list` | List the registered projects |
 | `bp migrate` | Copy this folder's v1 `.bit/` into the store and register it. Checks the files first, verifies the copy, and prints the cleanup step without running it |
 | `bp task read <id>` | Full content. `--body` prints just the markdown, for feeding back to a model |

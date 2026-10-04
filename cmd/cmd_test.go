@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/claude"
+	"github.com/B4Dmonkey/bit-pro/db"
 	"github.com/B4Dmonkey/bit-pro/db/orm"
 	"github.com/B4Dmonkey/bit-pro/project"
 	"github.com/B4Dmonkey/bit-pro/store"
@@ -149,4 +150,38 @@ func dataDir(t *testing.T) string {
 	}
 
 	return d
+}
+
+func setStatus(t *testing.T, s *task.Store, id, status string) {
+	t.Helper()
+
+	if _, err := s.Update(id, task.Patch{Status: &status}); err != nil {
+		t.Fatalf("Update(%s, status %s) returned error: %v", id, status, err)
+	}
+}
+
+func loadProject(t *testing.T, path string) project.Project {
+	t.Helper()
+
+	sqlDB, err := db.Open()
+	if err != nil {
+		t.Fatalf("db.Open() returned error: %v", err)
+	}
+
+	defer sqlDB.Close()
+
+	projects, err := project.Load(t.Context(), orm.New(sqlDB))
+	if err != nil {
+		t.Fatalf("project.Load() returned error: %v", err)
+	}
+
+	for _, p := range projects {
+		if p.Path == path {
+			return p
+		}
+	}
+
+	t.Fatalf("no project registered at %s", path)
+
+	return project.Project{}
 }
