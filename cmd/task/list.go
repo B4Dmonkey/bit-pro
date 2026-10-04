@@ -3,6 +3,7 @@ package task
 import (
 	"fmt"
 
+	"github.com/B4Dmonkey/bit-pro/project"
 	taskstore "github.com/B4Dmonkey/bit-pro/task"
 	"github.com/spf13/cobra"
 )
@@ -15,7 +16,7 @@ func newListCmd() *cobra.Command {
 		Short: "List all tasks",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			store, err := openStore(cmd)
+			store, err := project.OpenCurrent(cmd.Context())
 			if err != nil {
 				return err
 			}

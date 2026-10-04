@@ -3,6 +3,7 @@ package task
 import (
 	"fmt"
 
+	"github.com/B4Dmonkey/bit-pro/project"
 	"github.com/spf13/cobra"
 )
 
@@ -14,7 +15,7 @@ func newReadCmd() *cobra.Command {
 		Short: "Show a task's full content",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := openStore(cmd)
+			s, err := project.OpenCurrent(cmd.Context())
 			if err != nil {
 				return err
 			}

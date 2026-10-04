@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/B4Dmonkey/bit-pro/project"
 	"github.com/B4Dmonkey/bit-pro/tui"
 	"github.com/spf13/cobra"
 )
@@ -14,7 +15,7 @@ func newTUICmd() *cobra.Command {
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{quietAnnotation: quietEnabled},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			s, err := openStore(cmd)
+			s, err := project.OpenCurrent(cmd.Context())
 			if err != nil {
 				return err
 			}
