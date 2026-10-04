@@ -106,12 +106,6 @@ func createTask(t *testing.T, title, description string) string {
 	return createWith(t, task.CreateParams{Title: title, Body: description})
 }
 
-func createBar(t *testing.T, parent, title, description string) string {
-	t.Helper()
-
-	return createWith(t, task.CreateParams{Title: title, Body: description, Parent: parent})
-}
-
 func createWith(t *testing.T, p task.CreateParams) string {
 	t.Helper()
 
@@ -144,4 +138,15 @@ func runSplit(t *testing.T, args ...string) (string, string, error) {
 	err := execute(context.Background(), root)
 
 	return stdout.String(), stderr.String(), err
+}
+
+func dataDir(t *testing.T) string {
+	t.Helper()
+
+	d, err := store.Dir()
+	if err != nil {
+		t.Fatalf("store.Dir() returned error: %v", err)
+	}
+
+	return d
 }

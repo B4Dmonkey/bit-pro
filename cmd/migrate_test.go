@@ -235,8 +235,13 @@ func TestMigrateCmd(t *testing.T) {
 			}
 		}
 
-		if out := mustRun(t, "feedback", "add", notedTrack, "-d", "next"); !strings.HasSuffix(out, "BIT-19-003.md\n") {
-			t.Errorf("bp feedback add = %q, want a path ending in BIT-19-003.md", out)
+		path, err := projectStore(t).AddNote(notedTrack, "next", task.Commit{})
+		if err != nil {
+			t.Fatalf("AddNote(%s) error = %v", notedTrack, err)
+		}
+
+		if !strings.HasSuffix(path, "BIT-19-003.md") {
+			t.Errorf("AddNote path = %q, want a path ending in BIT-19-003.md", path)
 		}
 
 		if _, err := os.Stat(filepath.Join(d, testPrefix, "feedback")); !errors.Is(err, fs.ErrNotExist) {

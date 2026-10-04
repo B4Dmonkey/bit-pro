@@ -73,7 +73,6 @@ without a prompt to answer.
 | `bp migrate` | Copy this folder's v1 `.bit/` into the store and register it. Checks the files first, verifies the copy, and prints the cleanup step without running it |
 | `bp task read <id>` | Full content. `--body` prints just the markdown, for feeding back to a model |
 | `bp task list` | All tasks. `-p <track>` lists one plan, in step order |
-| `bp feedback add <track>` | Record a correction as a note in the shared feedback store |
 | `bp tui` | Terminal UI |
 
 Notes on behavior worth knowing:
