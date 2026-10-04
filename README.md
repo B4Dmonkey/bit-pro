@@ -46,11 +46,10 @@ claude mcp add -s user bit -- bp serve mcp
 cd your-project
 bp add .                                   # prompts for a project code, registers the folder
 bp task list
-bp task update PREFIX-1.1 -s doing
 bp tui                                     # the human view: board + list
 ```
 
-Tasks are created by Claude through the bit MCP tools (`task_create`).
+Tasks are created and updated by Claude through the bit MCP tools (`task_create`, `task_update`).
 
 A project that already has a v1 `.bit/` directory runs `bp migrate` instead of `bp add`.
 
@@ -75,9 +74,6 @@ without a prompt to answer.
 | `bp approve <id>` / `bp unapprove <id>` | Approve a task, or revoke its approval |
 | `bp task read <id>` | Full content. `--body` prints just the markdown, for feeding back to a model |
 | `bp task list` | All tasks. `-p <track>` lists one plan, in step order |
-| `bp task update <id>` | `-s` status, `-t` title, `-d` body, `--phase`/`--phase-label` |
-| `bp task move <bar>` | `--before`/`--after` a sibling — resequence without renaming |
-| `bp task delete <id>` | Soft-delete into the archive. `-y` skips confirm, `-f` overrides the guard |
 | `bp feedback add <track>` | Record a correction as a note in the shared feedback store |
 | `bp tui` | Terminal UI |
 

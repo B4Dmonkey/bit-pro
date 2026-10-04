@@ -18,9 +18,6 @@ func NewCmd() *cobra.Command {
 	}
 	taskCmd.AddCommand(newListCmd())
 	taskCmd.AddCommand(newReadCmd())
-	taskCmd.AddCommand(newUpdateCmd())
-	taskCmd.AddCommand(newMoveCmd())
-	taskCmd.AddCommand(newDeleteCmd())
 
 	return taskCmd
 }

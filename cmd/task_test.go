@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/project"
+	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/spf13/cobra"
 )
 
@@ -39,7 +40,7 @@ func TestTaskCmd(t *testing.T) {
 
 		slices.Sort(got)
 
-		want := []string{"delete", "list", "move", "read", "update"}
+		want := []string{"list", "read"}
 		if !slices.Equal(got, want) {
 			t.Errorf("bp task subcommands = %v, want %v", got, want)
 		}
@@ -50,7 +51,7 @@ func TestTaskCmd(t *testing.T) {
 
 		id := createTask(t, "Wired track", "Body.")
 
-		mustRun(t, "task", updateCmd, id, "-s", "done")
+		setStatus(t, projectStore(t), id, task.StatusDone)
 
 		if out := mustRun(t, "task", "read", id); !strings.Contains(out, "done") {
 			t.Errorf("bp task read %s = %q, want it to report the done status", id, out)

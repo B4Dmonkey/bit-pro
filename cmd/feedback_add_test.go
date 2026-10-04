@@ -11,6 +11,7 @@ import (
 
 	"github.com/B4Dmonkey/bit-pro/git/gittest"
 	"github.com/B4Dmonkey/bit-pro/store"
+	"github.com/B4Dmonkey/bit-pro/task"
 )
 
 const firstNote = "Happened at BIT-1.9.\n\n" +
@@ -144,8 +145,11 @@ func TestFeedbackAddCmd(t *testing.T) {
 	t.Run("accepts archived track", func(t *testing.T) {
 		initProject(t, "BIT")
 		createTask(t, "Ship the bit plugin", "## Why\n\nThe skills only exist in this repo.\n")
-		mustRun(t, "task", "update", "BIT-1", "-s", "done")
-		mustRun(t, "task", "delete", "BIT-1", "--yes")
+		setStatus(t, projectStore(t), "BIT-1", task.StatusDone)
+
+		if err := projectStore(t).Relocate("BIT-1", false); err != nil {
+			t.Fatalf("Relocate(BIT-1) error = %v", err)
+		}
 
 		out := mustRun(t, "feedback", "add", "BIT-1", "-d", firstNote)
 
@@ -166,7 +170,7 @@ func TestFeedbackAddCmd(t *testing.T) {
 	t.Run("accepts completed track", func(t *testing.T) {
 		initProject(t, "BIT")
 		createTask(t, "Ship the bit plugin", "## Why\n\nThe skills only exist in this repo.\n")
-		mustRun(t, "task", "update", "BIT-1", "-s", "done")
+		setStatus(t, projectStore(t), "BIT-1", task.StatusDone)
 
 		if err := projectStore(t).Complete("BIT-1"); err != nil {
 			t.Fatalf("Complete(BIT-1) error = %v", err)
@@ -193,7 +197,10 @@ func TestFeedbackAddCmd(t *testing.T) {
 		createTask(t, "Ship the bit plugin", "## Why\n\nThe skills only exist in this repo.\n")
 		mustRun(t, "feedback", "add", "BIT-1", "-d", firstNote)
 
-		mustRun(t, "task", "update", "BIT-1", "-d", "## Why\n\nA wholesale rewritten scope body.\n")
+		body := "## Why\n\nA wholesale rewritten scope body.\n"
+		if _, err := projectStore(t).Update("BIT-1", task.Patch{Body: &body}); err != nil {
+			t.Fatalf("Update(BIT-1) error = %v", err)
+		}
 
 		data, err := os.ReadFile(filepath.Join(dataDir(t), "feedback", "BIT-1-001.md"))
 		if err != nil {
@@ -210,8 +217,8 @@ func TestFeedbackAddCmd(t *testing.T) {
 		createTask(t, "Ship the bit plugin", "## Why\n\nThe skills only exist in this repo.\n")
 		createBar(t, "BIT-1", "A bar", "One step.")
 		mustRun(t, "feedback", "add", "BIT-1", "-d", firstNote)
-		mustRun(t, "task", "update", "BIT-1.1", "-s", "done")
-		mustRun(t, "task", "update", "BIT-1", "-s", "done")
+		setStatus(t, projectStore(t), "BIT-1.1", task.StatusDone)
+		setStatus(t, projectStore(t), "BIT-1", task.StatusDone)
 
 		if err := projectStore(t).Complete("BIT-1"); err != nil {
 			t.Fatalf("Complete(BIT-1) error = %v", err)
