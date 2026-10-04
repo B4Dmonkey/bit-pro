@@ -45,7 +45,7 @@ func newMigrateCmd(run claude.Runner) *cobra.Command {
 			fmt.Fprintf(cmd.OutOrStdout(), "migrated %s %s\n", res.Code, res.Path)
 			fmt.Fprintln(cmd.OutOrStdout(), cleanupStep(res))
 
-			return ensureGlobalWiring(cmd, run)
+			return setUpClaude(cmd, run)
 		},
 	}
 }

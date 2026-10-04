@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func ensureGlobalWiring(cmd *cobra.Command, run claude.Runner) error {
+func setUpClaude(cmd *cobra.Command, run claude.Runner) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return err

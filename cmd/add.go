@@ -70,7 +70,7 @@ func newAddCmd(run claude.Runner) *cobra.Command {
 
 			fmt.Fprintf(cmd.OutOrStdout(), "added %s %s\n", code, path)
 
-			return ensureGlobalWiring(cmd, run)
+			return setUpClaude(cmd, run)
 		},
 	}
 }
