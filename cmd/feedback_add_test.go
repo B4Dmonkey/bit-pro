@@ -167,7 +167,10 @@ func TestFeedbackAddCmd(t *testing.T) {
 		initProject(t, "BIT")
 		createTask(t, "Ship the bit plugin", "## Why\n\nThe skills only exist in this repo.\n")
 		mustRun(t, "task", "update", "BIT-1", "-s", "done")
-		mustRun(t, "task", "complete", "BIT-1")
+
+		if err := projectStore(t).Complete("BIT-1"); err != nil {
+			t.Fatalf("Complete(BIT-1) error = %v", err)
+		}
 
 		out := mustRun(t, "feedback", "add", "BIT-1", "-d", firstNote)
 
@@ -210,7 +213,9 @@ func TestFeedbackAddCmd(t *testing.T) {
 		mustRun(t, "task", "update", "BIT-1.1", "-s", "done")
 		mustRun(t, "task", "update", "BIT-1", "-s", "done")
 
-		mustRun(t, "task", "complete", "BIT-1")
+		if err := projectStore(t).Complete("BIT-1"); err != nil {
+			t.Fatalf("Complete(BIT-1) error = %v", err)
+		}
 
 		if _, err := os.Stat(filepath.Join(storeDir(t), "tasks", "BIT-1.json")); !errors.Is(err, fs.ErrNotExist) {
 			t.Errorf("stat track under tasks = %v, want fs.ErrNotExist", err)

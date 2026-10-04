@@ -21,7 +21,6 @@ func NewCmd() *cobra.Command {
 	taskCmd.AddCommand(newReadCmd())
 	taskCmd.AddCommand(newUpdateCmd())
 	taskCmd.AddCommand(newMoveCmd())
-	taskCmd.AddCommand(newCompleteCmd())
 	taskCmd.AddCommand(newDeleteCmd())
 
 	return taskCmd

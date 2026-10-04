@@ -78,7 +78,6 @@ without a prompt to answer.
 | `bp task list` | All tasks. `-p <track>` lists one plan, in step order |
 | `bp task update <id>` | `-s` status, `-t` title, `-d` body, `--phase`/`--phase-label` |
 | `bp task move <bar>` | `--before`/`--after` a sibling — resequence without renaming |
-| `bp task complete <id>` | File a track and its bars as completed, with no landing check (manual override) |
 | `bp task delete <id>` | Soft-delete into the archive. `-y` skips confirm, `-f` overrides the guard |
 | `bp feedback add <track>` | Record a correction as a note in the shared feedback store |
 | `bp tui` | Terminal UI |

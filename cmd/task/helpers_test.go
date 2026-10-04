@@ -2,6 +2,8 @@ package task_test
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -126,4 +128,24 @@ func approve(t *testing.T, id string) {
 func createTask(t *testing.T, title, description string) {
 	t.Helper()
 	mustRun(t, taskCmdUse, "create", title, "--description", description)
+}
+
+func writeRawTask(t *testing.T, path, id, title, status string) {
+	t.Helper()
+
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("os.MkdirAll(%s) error = %v", filepath.Dir(path), err)
+	}
+
+	bodyPath := strings.TrimSuffix(path, ".json") + ".md"
+	if err := os.WriteFile(bodyPath, []byte("Hand-written.\n"), 0o600); err != nil {
+		t.Fatalf("os.WriteFile(%s) error = %v", bodyPath, err)
+	}
+
+	record := `{"id": "` + id + `", "title": "` + title + `", "status": "` + status +
+		`", "approved": false, "phase": 0, "phase_label": "", "order": [], ` +
+		`"content": "` + filepath.Base(bodyPath) + `"}` + "\n"
+	if err := os.WriteFile(path, []byte(record), 0o600); err != nil {
+		t.Fatalf("os.WriteFile(%s) error = %v", path, err)
+	}
 }

@@ -39,7 +39,7 @@ func TestTaskCmd(t *testing.T) {
 
 		slices.Sort(got)
 
-		want := []string{"complete", "create", "delete", "list", "move", "read", "update"}
+		want := []string{"create", "delete", "list", "move", "read", "update"}
 		if !slices.Equal(got, want) {
 			t.Errorf("bp task subcommands = %v, want %v", got, want)
 		}
@@ -59,7 +59,9 @@ func TestTaskCmd(t *testing.T) {
 			t.Errorf("bp task read %s = %q, want it to report the done status", id, out)
 		}
 
-		mustRun(t, "task", "complete", id)
+		if err := projectStore(t).Complete(id); err != nil {
+			t.Fatalf("Complete(%s) error = %v", id, err)
+		}
 
 		if _, err := os.Stat(filepath.Join(storeDir(t), "completed", id+".json")); err != nil {
 			t.Errorf("os.Stat(completed/%s.json) error = %v, want the track filed as completed", id, err)
