@@ -670,7 +670,7 @@ func feedbackAddHandler(root string, run git.Runner) mcp.ToolHandlerFor[feedback
 			return nil, feedbackAddOutput{}, err
 		}
 
-		path, err := store.AddNote(in.Track, in.Body, sessionHead(ctx, run, dir))
+		path, err := store.AddNote(in.Track, in.Body, task.CommitAt(ctx, run, dir))
 		if err != nil {
 			return nil, feedbackAddOutput{}, fmt.Errorf("adding note for %s: %w", in.Track, err)
 		}
@@ -735,7 +735,7 @@ func retroWriteHandler(root string, run git.Runner) mcp.ToolHandlerFor[retroWrit
 			return nil, retroWriteOutput{}, err
 		}
 
-		name, err := store.WriteRetro(in.Name, in.Body, sessionHead(ctx, run, dir))
+		name, err := store.WriteRetro(in.Name, in.Body, task.CommitAt(ctx, run, dir))
 		if err != nil {
 			return nil, retroWriteOutput{}, fmt.Errorf("writing retro %s: %w", in.Name, err)
 		}
@@ -760,7 +760,7 @@ func researchWriteHandler(root string, run git.Runner) mcp.ToolHandlerFor[resear
 			return nil, researchWriteOutput{}, err
 		}
 
-		path, err := store.WriteResearch(in.Track, in.Topic, in.Body, sessionHead(ctx, run, dir))
+		path, err := store.WriteResearch(in.Track, in.Topic, in.Body, task.CommitAt(ctx, run, dir))
 		if err != nil {
 			return nil, researchWriteOutput{}, fmt.Errorf("writing research for %s: %w", in.Track, err)
 		}
@@ -854,4 +854,17 @@ func parentOf(id string) string {
 	}
 
 	return id[:i]
+}
+
+func sessionDir(root string) (string, error) {
+	if root != "" {
+		return root, nil
+	}
+
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("getting the working directory: %w", err)
+	}
+
+	return wd, nil
 }
