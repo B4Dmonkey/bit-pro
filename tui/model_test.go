@@ -57,13 +57,13 @@ func TestNew(t *testing.T) {
 		}
 	})
 
-	t.Run("defaults to board mode", func(t *testing.T) {
+	t.Run("defaults to list mode", func(t *testing.T) {
 		t.Parallel()
 
 		m := New([]*task.Task{{ID: ttid1}})
 
-		if m.mode != modeBoard {
-			t.Errorf("New() mode = %v, want modeBoard", m.mode)
+		if m.mode != modeList {
+			t.Errorf("New() mode = %v, want modeList", m.mode)
 		}
 	})
 
@@ -238,6 +238,7 @@ func TestUpdate(t *testing.T) {
 		})
 
 		mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 
 		mdl, _ = mdl.Update(reloadedMsg{tasks: []*task.Task{
@@ -277,8 +278,7 @@ func TestUpdate(t *testing.T) {
 
 		m := New(tasks)
 
-		toList, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
-		updated, _ := toList.(model).Update(tea.KeyPressMsg{Code: tea.KeyDown})
+		updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 
 		if got := updated.(model).Index(); got != 1 {
 			t.Errorf("after KeyDown, Index() = %d, want 1", got)
@@ -346,8 +346,7 @@ func TestUpdate(t *testing.T) {
 		m := New([]*task.Task{{ID: ttid1, Body: body}})
 
 		sized, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-		toList, _ := sized.(model).Update(tea.KeyPressMsg{Code: tea.KeyTab})
-		focused, _ := toList.(model).Update(tea.KeyPressMsg{Code: tea.KeyRight})
+		focused, _ := sized.(model).Update(tea.KeyPressMsg{Code: tea.KeyRight})
 		scrolled, _ := focused.(model).Update(tea.KeyPressMsg{Code: 'd', Mod: tea.ModCtrl})
 
 		got := scrolled.(model)
@@ -366,8 +365,7 @@ func TestUpdate(t *testing.T) {
 		})
 
 		sized, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-		toList, _ := sized.(model).Update(tea.KeyPressMsg{Code: tea.KeyTab})
-		focused, _ := toList.(model).Update(tea.KeyPressMsg{Code: tea.KeyRight})
+		focused, _ := sized.(model).Update(tea.KeyPressMsg{Code: tea.KeyRight})
 		scrolled, _ := focused.(model).Update(tea.KeyPressMsg{Code: 'd', Mod: tea.ModCtrl})
 
 		scrolledModel := scrolled.(model)
@@ -409,7 +407,6 @@ func TestUpdate(t *testing.T) {
 
 				mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 
-				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 				for _, k := range tt.keys {
 					mdl, _ = mdl.Update(tea.KeyPressMsg{Code: k})
 				}
@@ -426,9 +423,8 @@ func TestUpdate(t *testing.T) {
 
 		m := New([]*task.Task{{ID: ttid1}, {ID: ttid2}, {ID: ttid3}})
 		sized, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-		toList, _ := sized.(model).Update(tea.KeyPressMsg{Code: tea.KeyTab})
 
-		moved, _ := toList.(model).Update(tea.KeyPressMsg{Code: tea.KeyRight})
+		moved, _ := sized.(model).Update(tea.KeyPressMsg{Code: tea.KeyRight})
 
 		got := moved.(model)
 		if idx := got.Index(); idx != 0 {
@@ -465,7 +461,6 @@ func TestUpdate(t *testing.T) {
 
 				mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 
-				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 				for _, k := range tt.keys {
 					mdl, _ = mdl.Update(tea.KeyPressMsg{Code: k})
 				}
@@ -490,9 +485,9 @@ func TestUpdate(t *testing.T) {
 			presses int
 			want    viewMode
 		}{
-			{"default is board", 0, modeBoard},
-			{"one tab to list", 1, modeList},
-			{"two tabs back to board", 2, modeBoard},
+			{"default is list", 0, modeList},
+			{"one tab to board", 1, modeBoard},
+			{"two tabs back to list", 2, modeList},
 		}
 
 		for _, tt := range tests {
@@ -516,7 +511,6 @@ func TestUpdate(t *testing.T) {
 
 		var mdl tea.Model = New([]*task.Task{{ID: ttid1}})
 
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 		if got := mdl.(model).detailExpanded; !got {
@@ -529,7 +523,6 @@ func TestUpdate(t *testing.T) {
 
 		var mdl tea.Model = New([]*task.Task{{ID: ttid1}})
 
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
@@ -549,7 +542,6 @@ func TestUpdate(t *testing.T) {
 		})
 
 		mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyDown})
@@ -575,7 +567,6 @@ func TestUpdate(t *testing.T) {
 		})
 
 		mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
@@ -596,7 +587,6 @@ func TestUpdate(t *testing.T) {
 
 		var mdl tea.Model = New([]*task.Task{{ID: ttid2}, {ID: ttid1}})
 
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyRight})
@@ -610,8 +600,7 @@ func TestUpdate(t *testing.T) {
 		t.Parallel()
 
 		m := New([]*task.Task{{ID: ttid3}, {ID: ttid2}, {ID: ttid1}})
-		toList, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
-		expanded, _ := toList.(model).Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+		expanded, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 		em := expanded.(model)
 		em.Select(2)
 
@@ -640,8 +629,7 @@ func TestUpdate(t *testing.T) {
 				t.Parallel()
 
 				m := New([]*task.Task{{ID: ttid2}, {ID: ttid1}})
-				toList, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
-				expanded, _ := toList.(model).Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+				expanded, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 				em := expanded.(model)
 				em.Select(tt.startIdx)
 
@@ -660,7 +648,6 @@ func TestUpdate(t *testing.T) {
 		var mdl tea.Model = New([]*task.Task{{ID: ttid1}})
 
 		mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 100, Height: 24})
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 
 		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
@@ -688,7 +675,6 @@ func TestUpdate(t *testing.T) {
 				var mdl tea.Model = New([]*task.Task{{ID: ttid1}})
 
 				mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyRight})
 
 				_, cmd := mdl.Update(tt.key)
@@ -737,8 +723,7 @@ func TestUpdate(t *testing.T) {
 
 				return nil
 			})
-		mdl, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
-		_, _ = mdl.(model).Update(tea.KeyPressMsg{Code: ' '})
+		_, _ = m.Update(tea.KeyPressMsg{Code: ' '})
 
 		if len(called) != 1 {
 			t.Fatalf("approve called %d times, want 1", len(called))
@@ -851,6 +836,9 @@ func TestUpdate(t *testing.T) {
 					{ID: ttid1, Status: task.StatusTodo, Approved: true},
 					{ID: ttid3, Status: task.StatusDone},
 				})
+
+				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+
 				for _, k := range tt.keys {
 					mdl, _ = mdl.Update(tea.KeyPressMsg{Code: k})
 				}
@@ -893,6 +881,8 @@ func TestUpdate(t *testing.T) {
 				})
 
 				mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+
 				for _, k := range tt.keys {
 					mdl, _ = mdl.Update(tea.KeyPressMsg{Code: k})
 				}
@@ -925,6 +915,8 @@ func TestUpdate(t *testing.T) {
 				}})
 
 				mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+
 				if tt.enter {
 					mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 				}
@@ -956,6 +948,7 @@ func TestUpdate(t *testing.T) {
 				}})
 
 				mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 				mdl, cmd := mdl.Update(tt.key)
@@ -1031,6 +1024,7 @@ func TestUpdate(t *testing.T) {
 				})
 
 				mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 				mdl, cmd := mdl.Update(tt.key)
@@ -1060,6 +1054,7 @@ func TestUpdate(t *testing.T) {
 				}})
 
 				mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 				opened := mdl.(model)
@@ -1102,6 +1097,7 @@ func TestUpdate(t *testing.T) {
 				})
 
 				mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyUp})
 				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
@@ -1129,6 +1125,7 @@ func TestUpdate(t *testing.T) {
 		})
 
 		mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 		steps := []struct {
@@ -1166,6 +1163,7 @@ func TestUpdate(t *testing.T) {
 		})
 
 		mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
 		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
@@ -1194,6 +1192,7 @@ func TestUpdate(t *testing.T) {
 		var mdl tea.Model = New([]*task.Task{{ID: ttid1, Status: task.StatusDoing}})
 
 		mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
@@ -1549,7 +1548,6 @@ func TestView(t *testing.T) {
 				var mdl tea.Model = New(tasks)
 
 				mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 
 				view := mdl.(model).View().Content
 				if !strings.Contains(view, tt.want) {
@@ -1569,7 +1567,6 @@ func TestView(t *testing.T) {
 		var mdl tea.Model = New(nil)
 
 		mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 60, Height: 16})
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 
 		view := mdl.(model).View().Content
 		if strings.Contains(view, "List") {
@@ -1588,7 +1585,6 @@ func TestView(t *testing.T) {
 		var mdl tea.Model = New(tasks)
 
 		mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 60, Height: 16})
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 
 		view := mdl.(model).View().Content
 		if strings.Contains(view, "3 items") {
@@ -1602,7 +1598,6 @@ func TestView(t *testing.T) {
 		var mdl tea.Model = New(nil)
 
 		mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 60, Height: 16})
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 
 		view := mdl.(model).View().Content
 		if got := strings.Count(view, "No items"); got != 1 {
@@ -1617,9 +1612,8 @@ func TestView(t *testing.T) {
 		m := New([]*task.Task{{ID: ttid1, Body: body}})
 
 		updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-		withTab, _ := updated.(model).Update(tea.KeyPressMsg{Code: tea.KeyTab})
 
-		view := withTab.(model).View().Content
+		view := updated.(model).View().Content
 		if !strings.Contains(view, ttFocus) {
 			t.Errorf("View() missing help text %q", ttFocus)
 		}
@@ -1650,7 +1644,6 @@ func TestView(t *testing.T) {
 
 				mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 
-				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 				if tt.expand {
 					mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 				}
@@ -1672,6 +1665,7 @@ func TestView(t *testing.T) {
 
 		m := New([]*task.Task{{ID: ttid1, Status: task.StatusTodo, Approved: true, Title: "T", Body: "b"}})
 		mdl, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 		mdl, _ = mdl.(model).Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 		view := mdl.(model).View().Content
@@ -1700,6 +1694,7 @@ func TestView(t *testing.T) {
 		var mdl tea.Model = New(tasks)
 
 		mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 
 		view := mdl.(model).View().Content
 		for _, want := range []string{"To Do (4)", "Doing (1)", "Done (2)"} {
@@ -1733,7 +1728,7 @@ func TestView(t *testing.T) {
 				})
 
 				mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
-				if !tt.toBoard {
+				if tt.toBoard {
 					mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 				}
 
@@ -1774,6 +1769,8 @@ func TestView(t *testing.T) {
 				}})
 
 				mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+
 				if tt.enter {
 					mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 				}
