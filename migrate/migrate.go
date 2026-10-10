@@ -1,10 +1,12 @@
 package migrate
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -228,7 +230,12 @@ func renumber(src, code string) (renames, []Renumber, error) {
 
 	var out []Renumber
 
-	for id, group := range byID {
+	ids := slices.SortedFunc(maps.Keys(byID), func(a, b string) int {
+		return cmp.Or(trackNumber(code, a)-trackNumber(code, b), strings.Compare(a, b))
+	})
+
+	for _, id := range ids {
+		group := byID[id]
 		if len(group) < 2 {
 			continue
 		}
@@ -236,7 +243,8 @@ func renumber(src, code string) (renames, []Renumber, error) {
 		slices.SortStableFunc(group, keepFirst)
 
 		for _, moved := range group[1:] {
-			to := fmt.Sprintf("%s-%d", code, highest+1)
+			highest++
+			to := fmt.Sprintf("%s-%d", code, highest)
 
 			if ren[moved.place] == nil {
 				ren[moved.place] = map[string]string{}

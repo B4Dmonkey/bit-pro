@@ -35,6 +35,7 @@ const (
 	turnoutTitle  = "Turnout"
 	renumbered    = "BIT-3"
 	barTitle      = "Bar"
+	renameTitle   = "Rename jobs"
 )
 
 func TestMigrateCmd(t *testing.T) {
@@ -706,7 +707,7 @@ func TestMigrateCmd(t *testing.T) {
 				{ID: testOwnTrack2, Title: turnoutTitle, Status: task.StatusDone, Order: []string{turnoutBar}},
 				{ID: turnoutBar, Title: barTitle, Status: task.StatusDone},
 			},
-			filepath.Join(testArchiveDir, testTasksDir): {{ID: testOwnTrack2, Title: "Rename jobs", Status: task.StatusTodo}},
+			filepath.Join(testArchiveDir, testTasksDir): {{ID: testOwnTrack2, Title: renameTitle, Status: task.StatusTodo}},
 		}) {
 			files[name] = data
 		}
@@ -740,7 +741,7 @@ func TestMigrateCmd(t *testing.T) {
 			t.Fatalf("LoadFrom(Archived, BIT-3) returned error: %v", err)
 		}
 
-		if moved.ID != renumbered || moved.Title != "Rename jobs" {
+		if moved.ID != renumbered || moved.Title != renameTitle {
 			t.Errorf("archived BIT-3 = {%q, %q}, want {BIT-3, Rename jobs}", moved.ID, moved.Title)
 		}
 
@@ -792,6 +793,54 @@ func TestMigrateCmd(t *testing.T) {
 
 		if moved.Title != "Newer" {
 			t.Errorf("completed BIT-3 title = %q, want %q", moved.Title, "Newer")
+		}
+	})
+
+	t.Run("two collisions take successive numbers", func(t *testing.T) {
+		mcpSandbox(t)
+		gittest.Isolate(t)
+
+		dir := t.TempDir()
+		files := v1Fixture(t)
+
+		for name, data := range v1Files(t, map[string][]*task.Task{
+			testCompletedDir: {
+				{ID: testOwnTrack2, Title: turnoutTitle, Status: task.StatusDone},
+				{ID: renumbered, Title: "Hooks", Status: task.StatusDone},
+			},
+			filepath.Join(testArchiveDir, testTasksDir): {
+				{ID: testOwnTrack2, Title: renameTitle, Status: task.StatusTodo},
+				{ID: renumbered, Title: "Old hooks", Status: task.StatusTodo},
+			},
+		}) {
+			files[name] = data
+		}
+
+		writeV1Store(t, dir, files)
+		t.Chdir(dir)
+
+		out := mustRun(t, migrateCmdUse)
+
+		for _, want := range []string{
+			`BIT-2 → BIT-4 (collided with BIT-2 "Turnout")`,
+			`BIT-3 → BIT-5 (collided with BIT-3 "Hooks")`,
+		} {
+			if !strings.Contains(out, want) {
+				t.Errorf("bp migrate output = %q, want it to contain %q", out, want)
+			}
+		}
+
+		s := projectStore(t)
+
+		for id, title := range map[string]string{"BIT-4": renameTitle, "BIT-5": "Old hooks"} {
+			got, err := s.LoadFrom(task.Archived, id)
+			if err != nil {
+				t.Fatalf("LoadFrom(Archived, %s) returned error: %v", id, err)
+			}
+
+			if got.Title != title {
+				t.Errorf("archived %s title = %q, want %q", id, got.Title, title)
+			}
 		}
 	})
 
