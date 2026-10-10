@@ -114,13 +114,33 @@ func badTaskFiles(src string) ([]string, error) {
 				return nil, err
 			}
 
-			if !bytes.Equal(out, raw) {
+			if !roundTrips(raw, out) {
 				bad = append(bad, rel+": does not round-trip")
 			}
 		}
 	}
 
 	return bad, nil
+}
+
+func roundTrips(raw, out []byte) bool {
+	rawHead, rawBody := splitFrontmatter(raw)
+	outHead, outBody := splitFrontmatter(out)
+
+	return bytes.EqualFold(rawHead, outHead) && bytes.Equal(rawBody, outBody)
+}
+
+func splitFrontmatter(data []byte) (head, body []byte) {
+	closing := []byte("\n---\n")
+
+	idx := bytes.Index(data[len(closing)-1:], closing)
+	if idx == -1 {
+		return data, nil
+	}
+
+	end := len(closing) - 1 + idx + len(closing)
+
+	return data[:end], data[end:]
 }
 
 func unknownFiles(src string) ([]string, error) {

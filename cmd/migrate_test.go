@@ -31,6 +31,7 @@ const (
 	notedTrack    = "BIT-19"
 	activeTrack   = "BIT-44"
 	researchTrack = "BIT-49"
+	turnoutBar    = "BIT-2.1"
 )
 
 func TestMigrateCmd(t *testing.T) {
@@ -564,6 +565,36 @@ func TestMigrateCmd(t *testing.T) {
 		}
 	})
 
+	t.Run("migrates lowercase order entries", func(t *testing.T) {
+		mcpSandbox(t)
+		gittest.Isolate(t)
+
+		dir := t.TempDir()
+		files := v1Fixture(t)
+
+		bar, err := (&task.Task{ID: turnoutBar, Title: "Bar", Status: task.StatusDone}).Bytes()
+		if err != nil {
+			t.Fatalf("Bytes(BIT-2.1) returned error: %v", err)
+		}
+
+		files[filepath.Join(testCompletedDir, "BIT-2.md")] = lowercaseOrder(t,
+			&task.Task{ID: testOwnTrack2, Title: "Turnout", Status: task.StatusDone, Order: []string{turnoutBar}})
+		files[filepath.Join(testCompletedDir, "BIT-2.1.md")] = bar
+		writeV1Store(t, dir, files)
+		t.Chdir(dir)
+
+		mustRun(t, migrateCmdUse)
+
+		got, err := projectStore(t).LoadFrom(task.Completed, testOwnTrack2)
+		if err != nil {
+			t.Fatalf("LoadFrom(Completed, BIT-2) returned error: %v", err)
+		}
+
+		if !slices.Equal(got.Order, []string{turnoutBar}) {
+			t.Errorf("completed BIT-2 order = %v, want [BIT-2.1]", got.Order)
+		}
+	})
+
 	t.Run("refuses ids that are not normalised", func(t *testing.T) {
 		mcpSandbox(t)
 		gittest.Isolate(t)
@@ -994,6 +1025,22 @@ func v1Files(t *testing.T, places map[string][]*task.Task) map[string][]byte {
 	}
 
 	return files
+}
+
+func lowercaseOrder(t *testing.T, tk *task.Task) []byte {
+	t.Helper()
+
+	data, err := tk.Bytes()
+	if err != nil {
+		t.Fatalf("Bytes(%s) returned error: %v", tk.ID, err)
+	}
+
+	out := string(data)
+	for _, id := range tk.Order {
+		out = strings.Replace(out, "- "+id+"\n", "- "+strings.ToLower(id)+"\n", 1)
+	}
+
+	return []byte(out)
 }
 
 func v1Track() *task.Task {

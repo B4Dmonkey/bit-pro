@@ -127,6 +127,14 @@ func TestBadTaskFiles(t *testing.T) {
 			data: "---\ntitle: Good\nid: BIT-1\nstatus: todo\n---\nbody\n",
 			want: []string{"tasks/BIT-1.md: does not round-trip"},
 		},
+		{
+			name: "lowercase order entries",
+			data: "---\nid: BIT-1\ntitle: Good\nstatus: todo\norder:\n    - bit-1.1\n---\nbody\n",
+		},
+		{
+			name: "lowercase id",
+			data: "---\nid: bit-1\ntitle: Good\nstatus: todo\n---\nbody\n",
+		},
 	}
 
 	for _, tt := range tests {
