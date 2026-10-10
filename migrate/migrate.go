@@ -186,14 +186,35 @@ var places = []struct {
 	{filepath.Join("archive", "tasks"), task.Archived},
 }
 
-type renames map[task.Place]map[string]string
+type rename struct {
+	id    string
+	order []string
+}
+
+type renames map[task.Place]map[string]rename
+
+func (r renames) set(p task.Place, stem string, to rename) {
+	if r[p] == nil {
+		r[p] = map[string]rename{}
+	}
+
+	r[p][stem] = to
+}
+
+func (r rename) apply(t *task.Task) {
+	t.ID = r.id
+	if r.order != nil {
+		t.Order = r.order
+	}
+}
 
 var keepRank = map[task.Place]int{task.Completed: 0, task.Archived: 1, task.Active: 2}
 
-type sourceTrack struct {
+type sourceFile struct {
 	place  task.Place
 	stem   string
 	title  string
+	ids    rawIDs
 	traces bool
 }
 
@@ -202,26 +223,30 @@ type rawIDs struct {
 	Order []string `yaml:"order"`
 }
 
-func lowercaseTraces(stem string, raw []byte) (bool, error) {
+func readRawIDs(raw []byte) (rawIDs, error) {
 	head, _ := splitFrontmatter(raw)
 	content := head[len("---\n") : len(head)-len("---\n")]
 
 	var ids rawIDs
 	if err := yaml.Unmarshal(content, &ids); err != nil {
-		return false, err
+		return rawIDs{}, err
 	}
 
-	for _, id := range append([]string{stem, ids.ID}, ids.Order...) {
+	return ids, nil
+}
+
+func hasLowercase(ids ...string) bool {
+	for _, id := range ids {
 		if id != strings.ToUpper(id) {
-			return true, nil
+			return true
 		}
 	}
 
-	return false, nil
+	return false
 }
 
 func renumber(src, code string) (renames, []Renumber, error) {
-	byID, highest, err := sourceTracks(src, code)
+	tracks, bars, highest, err := sourceFiles(src, code)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -230,35 +255,55 @@ func renumber(src, code string) (renames, []Renumber, error) {
 
 	var out []Renumber
 
-	ids := slices.SortedFunc(maps.Keys(byID), func(a, b string) int {
+	ids := slices.SortedFunc(maps.Keys(tracks), func(a, b string) int {
 		return cmp.Or(trackNumber(code, a)-trackNumber(code, b), strings.Compare(a, b))
 	})
 
 	for _, id := range ids {
-		group := byID[id]
+		group := tracks[id]
 		if len(group) < 2 {
 			continue
 		}
 
 		slices.SortStableFunc(group, keepFirst)
+		kept := group[0]
 
 		for _, moved := range group[1:] {
 			highest++
 			to := fmt.Sprintf("%s-%d", code, highest)
-
-			if ren[moved.place] == nil {
-				ren[moved.place] = map[string]string{}
-			}
-
-			ren[moved.place][moved.stem] = to
-			out = append(out, Renumber{From: id, To: to, Kept: group[0].title})
+			ren.set(moved.place, moved.stem, rename{id: to, order: moveBars(ren, bars, moved, kept, to)})
+			out = append(out, Renumber{From: id, To: to, Kept: kept.title})
 		}
 	}
 
 	return ren, out, nil
 }
 
-func keepFirst(a, b sourceTrack) int {
+func moveBars(ren renames, bars []sourceFile, moved, kept sourceFile, to string) []string {
+	var order []string
+
+	for _, entry := range moved.ids.Order {
+		if slices.Contains(kept.ids.Order, entry) {
+			order = append(order, task.NormalizeID(entry))
+
+			continue
+		}
+
+		_, suffix, _ := strings.Cut(entry, ".")
+		newID := to + "." + suffix
+		order = append(order, newID)
+
+		for _, b := range bars {
+			if b.ids.ID == entry {
+				ren.set(b.place, b.stem, rename{id: newID})
+			}
+		}
+	}
+
+	return order
+}
+
+func keepFirst(a, b sourceFile) int {
 	if a.traces != b.traces {
 		if a.traces {
 			return -1
@@ -270,46 +315,62 @@ func keepFirst(a, b sourceTrack) int {
 	return keepRank[a.place] - keepRank[b.place]
 }
 
-func sourceTracks(src, code string) (map[string][]sourceTrack, int, error) {
-	byID := map[string][]sourceTrack{}
-	highest := 0
+func sourceFiles(src, code string) (tracks map[string][]sourceFile, bars []sourceFile, highest int, err error) {
+	tracks = map[string][]sourceFile{}
 
 	for _, pl := range places {
 		dir := filepath.Join(src, pl.dir)
 
 		stems, err := sourceStems(dir, ".md")
 		if err != nil {
-			return nil, 0, fmt.Errorf("listing %s: %w", dir, err)
+			return nil, nil, 0, fmt.Errorf("listing %s: %w", dir, err)
 		}
 
 		for _, stem := range stems {
-			path := filepath.Join(dir, stem+".md")
-
-			raw, err := os.ReadFile(path)
+			f, id, err := readSourceFile(filepath.Join(dir, stem+".md"), pl.place, stem)
 			if err != nil {
-				return nil, 0, fmt.Errorf("reading %s: %w", path, err)
+				return nil, nil, 0, err
 			}
 
-			t, err := task.Parse(raw)
-			if err != nil {
-				return nil, 0, fmt.Errorf("parsing %s: %w", path, err)
-			}
+			if strings.Contains(id, ".") {
+				bars = append(bars, f)
 
-			if strings.Contains(t.ID, ".") {
 				continue
 			}
 
-			traces, err := lowercaseTraces(stem, raw)
-			if err != nil {
-				return nil, 0, fmt.Errorf("parsing %s: %w", path, err)
-			}
-
-			highest = max(highest, trackNumber(code, t.ID))
-			byID[t.ID] = append(byID[t.ID], sourceTrack{place: pl.place, stem: stem, title: t.Title, traces: traces})
+			highest = max(highest, trackNumber(code, id))
+			tracks[id] = append(tracks[id], f)
 		}
 	}
 
-	return byID, highest, nil
+	return tracks, bars, highest, nil
+}
+
+func readSourceFile(path string, p task.Place, stem string) (sourceFile, string, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return sourceFile{}, "", fmt.Errorf("reading %s: %w", path, err)
+	}
+
+	t, err := task.Parse(raw)
+	if err != nil {
+		return sourceFile{}, "", fmt.Errorf("parsing %s: %w", path, err)
+	}
+
+	ids, err := readRawIDs(raw)
+	if err != nil {
+		return sourceFile{}, "", fmt.Errorf("parsing %s: %w", path, err)
+	}
+
+	f := sourceFile{
+		place:  p,
+		stem:   stem,
+		title:  t.Title,
+		ids:    ids,
+		traces: hasLowercase(append([]string{stem, ids.ID}, ids.Order...)...),
+	}
+
+	return f, t.ID, nil
 }
 
 func trackNumber(code, id string) int {
@@ -339,7 +400,7 @@ func copyAll(src string, s *task.Store, h git.Head, head task.Commit, ren rename
 	return copyRetro(filepath.Join(src, "retro"), s, head)
 }
 
-func copyTasks(dir string, s *task.Store, p task.Place, h git.Head, ren map[string]string) error {
+func copyTasks(dir string, s *task.Store, p task.Place, h git.Head, ren map[string]rename) error {
 	entries, err := os.ReadDir(dir)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil
@@ -366,8 +427,8 @@ func copyTasks(dir string, s *task.Store, p task.Place, h git.Head, ren map[stri
 			return fmt.Errorf("parsing %s: %w", path, err)
 		}
 
-		if id, ok := ren[strings.TrimSuffix(e.Name(), ".md")]; ok {
-			t.ID = id
+		if r, ok := ren[strings.TrimSuffix(e.Name(), ".md")]; ok {
+			r.apply(t)
 		}
 
 		t.Branch = h.Branch
@@ -529,14 +590,14 @@ func sourceStems(dir, suffix string) ([]string, error) {
 	return stems, nil
 }
 
-func normalizeStems(stems []string, ren map[string]string) (ids []string, rawOf map[string]string) {
+func normalizeStems(stems []string, ren map[string]rename) (ids []string, rawOf map[string]string) {
 	rawOf = make(map[string]string, len(stems))
 	ids = make([]string, 0, len(stems))
 
 	for _, stem := range stems {
-		id, ok := ren[stem]
-		if !ok {
-			id = task.NormalizeID(stem)
+		id := task.NormalizeID(stem)
+		if r, ok := ren[stem]; ok {
+			id = r.id
 		}
 
 		rawOf[id] = stem
@@ -565,7 +626,7 @@ func compareSets(rel string, want, got []string) (problems, both []string) {
 }
 
 func verifyTasks(
-	src, rel string, s *task.Store, p task.Place, code string, h git.Head, ren map[string]string,
+	src, rel string, s *task.Store, p task.Place, code string, h git.Head, ren map[string]rename,
 ) []string {
 	stems, err := sourceStems(filepath.Join(src, rel), ".md")
 	if err != nil {
@@ -599,6 +660,9 @@ func verifyTasks(
 		}
 
 		srcTask.ID = id
+		if r, ok := ren[rawOf[id]]; ok {
+			r.apply(srcTask)
+		}
 
 		copied, err := s.LoadFrom(p, id)
 		if err != nil {

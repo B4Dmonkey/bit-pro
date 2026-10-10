@@ -844,6 +844,65 @@ func TestMigrateCmd(t *testing.T) {
 		}
 	})
 
+	t.Run("a renumbered track takes its own bars", func(t *testing.T) {
+		mcpSandbox(t)
+		gittest.Isolate(t)
+
+		dir := t.TempDir()
+		files := v1Fixture(t)
+		archived := filepath.Join(testArchiveDir, testTasksDir)
+
+		for name, data := range v1Files(t, map[string][]*task.Task{
+			testCompletedDir: {{ID: turnoutBar, Title: barTitle, Status: task.StatusDone}},
+			archived: {
+				{ID: testOwnTrack2, Title: renameTitle, Status: task.StatusTodo, Order: []string{"BIT-2.5"}},
+				{ID: "BIT-2.5", Title: "Rename step", Status: task.StatusTodo},
+			},
+		}) {
+			files[name] = data
+		}
+
+		files[filepath.Join(testCompletedDir, "BIT-2.md")] = lowercaseOrder(t,
+			&task.Task{ID: testOwnTrack2, Title: turnoutTitle, Status: task.StatusDone, Order: []string{turnoutBar}})
+		writeV1Store(t, dir, files)
+		t.Chdir(dir)
+
+		mustRun(t, migrateCmdUse)
+
+		s := projectStore(t)
+
+		track, err := s.LoadFrom(task.Archived, renumbered)
+		if err != nil {
+			t.Fatalf("LoadFrom(Archived, BIT-3) returned error: %v", err)
+		}
+
+		if !slices.Equal(track.Order, []string{"BIT-3.5"}) {
+			t.Errorf("archived BIT-3 order = %v, want [BIT-3.5]", track.Order)
+		}
+
+		bar, err := s.LoadFrom(task.Archived, "BIT-3.5")
+		if err != nil {
+			t.Fatalf("LoadFrom(Archived, BIT-3.5) returned error: %v", err)
+		}
+
+		if bar.ID != "BIT-3.5" || bar.Title != "Rename step" {
+			t.Errorf("archived BIT-3.5 = {%q, %q}, want {BIT-3.5, Rename step}", bar.ID, bar.Title)
+		}
+
+		if _, err := s.LoadFrom(task.Archived, "BIT-2.5"); err == nil {
+			t.Errorf("LoadFrom(Archived, BIT-2.5) succeeded, want no archived BIT-2.5")
+		}
+
+		kept, err := s.LoadFrom(task.Completed, turnoutBar)
+		if err != nil {
+			t.Fatalf("LoadFrom(Completed, BIT-2.1) returned error: %v", err)
+		}
+
+		if kept.ID != turnoutBar || kept.Title != barTitle {
+			t.Errorf("completed BIT-2.1 = {%q, %q}, want {BIT-2.1, Bar}", kept.ID, kept.Title)
+		}
+	})
+
 	t.Run("refuses a code another project holds", func(t *testing.T) {
 		mcpSandbox(t)
 		gittest.Isolate(t)
