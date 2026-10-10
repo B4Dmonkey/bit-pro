@@ -127,6 +127,14 @@ func TestBadTaskFiles(t *testing.T) {
 			data: "---\ntitle: Good\nid: BIT-1\nstatus: todo\n---\nbody\n",
 			want: []string{"tasks/BIT-1.md: does not round-trip"},
 		},
+		{
+			name: "lowercase order entries",
+			data: "---\nid: BIT-1\ntitle: Good\nstatus: todo\norder:\n    - bit-1.1\n---\nbody\n",
+		},
+		{
+			name: "lowercase id",
+			data: "---\nid: bit-1\ntitle: Good\nstatus: todo\n---\nbody\n",
+		},
 	}
 
 	for _, tt := range tests {
@@ -149,67 +157,6 @@ func TestBadTaskFiles(t *testing.T) {
 
 			if !slices.Equal(got, tt.want) {
 				t.Errorf("badTaskFiles() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-const upperPrefix = "BIT"
-
-func TestBadIDs(t *testing.T) {
-	tests := []struct {
-		name   string
-		prefix string
-		files  []string
-		want   []string
-	}{
-		{
-			name:   "lowercase prefix",
-			prefix: "bit",
-			want:   []string{"config.toml: bit"},
-		},
-		{
-			name:   "lowercase feedback track",
-			prefix: upperPrefix,
-			files:  []string{"feedback/bit-1-001.md"},
-			want:   []string{"feedback/bit-1-001.md: bit-1"},
-		},
-		{
-			name:   "lowercase research dir",
-			prefix: upperPrefix,
-			files:  []string{"research/bit-1/index.md"},
-			want:   []string{"research/bit-1: bit-1"},
-		},
-		{
-			name:   "uppercase store",
-			prefix: upperPrefix,
-			files: []string{
-				"tasks/BIT-1.md",
-				"completed/BIT-2.md",
-				"archive/tasks/BIT-3.md",
-				"feedback/BIT-1-001.md",
-				"research/BIT-1/index.md",
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			src := t.TempDir()
-
-			for _, f := range tt.files {
-				path := filepath.Join(src, filepath.FromSlash(f))
-				if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-					t.Fatalf("os.MkdirAll(%q) returned error: %v", filepath.Dir(path), err)
-				}
-
-				if err := os.WriteFile(path, []byte("x\n"), 0o600); err != nil {
-					t.Fatalf("os.WriteFile(%q) returned error: %v", path, err)
-				}
-			}
-
-			if got := badIDs(src, tt.prefix); !slices.Equal(got, tt.want) {
-				t.Errorf("badIDs() = %v, want %v", got, tt.want)
 			}
 		})
 	}
