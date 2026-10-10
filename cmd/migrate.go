@@ -43,6 +43,11 @@ func newMigrateCmd(run claude.Runner) *cobra.Command {
 			}
 
 			fmt.Fprintf(cmd.OutOrStdout(), "migrated %s %s\n", res.Code, res.Path)
+
+			for _, r := range res.Renumbered {
+				fmt.Fprintf(cmd.OutOrStdout(), "%s → %s (collided with %s %q)\n", r.From, r.To, r.From, r.Kept)
+			}
+
 			fmt.Fprintln(cmd.OutOrStdout(), cleanupStep(res))
 
 			return setUpClaude(cmd, run)

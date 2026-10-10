@@ -98,6 +98,10 @@ func TestMigrateCmd(t *testing.T) {
 			t.Errorf("BIT-1.1 = %+v, want %+v", bar, wantBar)
 		}
 
+		if strings.Contains(out, "→") {
+			t.Errorf("bp migrate output = %q, want no renumber lines", out)
+		}
+
 		if after := hashV1Store(t, dir, files); !slices.Equal(after, before) {
 			t.Errorf("source hashes changed: before %x, after %x", before, after)
 		}
@@ -709,7 +713,11 @@ func TestMigrateCmd(t *testing.T) {
 		writeV1Store(t, dir, files)
 		t.Chdir(dir)
 
-		mustRun(t, migrateCmdUse)
+		out := mustRun(t, migrateCmdUse)
+
+		if want := `BIT-2 → BIT-3 (collided with BIT-2 "Turnout")`; !strings.Contains(out, want) {
+			t.Errorf("bp migrate output = %q, want it to contain %q", out, want)
+		}
 
 		s := projectStore(t)
 
