@@ -15,6 +15,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/spf13/pathologize"
+	"gopkg.in/yaml.v3"
 
 	"github.com/B4Dmonkey/bit-pro/db/orm"
 	"github.com/B4Dmonkey/bit-pro/git"
@@ -188,43 +189,39 @@ type renames map[task.Place]map[string]string
 var keepRank = map[task.Place]int{task.Completed: 0, task.Archived: 1, task.Active: 2}
 
 type sourceTrack struct {
-	place task.Place
-	stem  string
-	title string
+	place  task.Place
+	stem   string
+	title  string
+	traces bool
+}
+
+type rawIDs struct {
+	ID    string   `yaml:"id"`
+	Order []string `yaml:"order"`
+}
+
+func lowercaseTraces(stem string, raw []byte) (bool, error) {
+	head, _ := splitFrontmatter(raw)
+	content := head[len("---\n") : len(head)-len("---\n")]
+
+	var ids rawIDs
+	if err := yaml.Unmarshal(content, &ids); err != nil {
+		return false, err
+	}
+
+	for _, id := range append([]string{stem, ids.ID}, ids.Order...) {
+		if id != strings.ToUpper(id) {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 func renumber(src, code string) (renames, []Renumber, error) {
-	byID := map[string][]sourceTrack{}
-	highest := 0
-
-	for _, pl := range places {
-		dir := filepath.Join(src, pl.dir)
-
-		stems, err := sourceStems(dir, ".md")
-		if err != nil {
-			return nil, nil, fmt.Errorf("listing %s: %w", dir, err)
-		}
-
-		for _, stem := range stems {
-			path := filepath.Join(dir, stem+".md")
-
-			raw, err := os.ReadFile(path)
-			if err != nil {
-				return nil, nil, fmt.Errorf("reading %s: %w", path, err)
-			}
-
-			t, err := task.Parse(raw)
-			if err != nil {
-				return nil, nil, fmt.Errorf("parsing %s: %w", path, err)
-			}
-
-			if strings.Contains(t.ID, ".") {
-				continue
-			}
-
-			highest = max(highest, trackNumber(code, t.ID))
-			byID[t.ID] = append(byID[t.ID], sourceTrack{place: pl.place, stem: stem, title: t.Title})
-		}
+	byID, highest, err := sourceTracks(src, code)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	ren := renames{}
@@ -236,9 +233,7 @@ func renumber(src, code string) (renames, []Renumber, error) {
 			continue
 		}
 
-		slices.SortStableFunc(group, func(a, b sourceTrack) int {
-			return keepRank[a.place] - keepRank[b.place]
-		})
+		slices.SortStableFunc(group, keepFirst)
 
 		for _, moved := range group[1:] {
 			to := fmt.Sprintf("%s-%d", code, highest+1)
@@ -253,6 +248,60 @@ func renumber(src, code string) (renames, []Renumber, error) {
 	}
 
 	return ren, out, nil
+}
+
+func keepFirst(a, b sourceTrack) int {
+	if a.traces != b.traces {
+		if a.traces {
+			return -1
+		}
+
+		return 1
+	}
+
+	return keepRank[a.place] - keepRank[b.place]
+}
+
+func sourceTracks(src, code string) (map[string][]sourceTrack, int, error) {
+	byID := map[string][]sourceTrack{}
+	highest := 0
+
+	for _, pl := range places {
+		dir := filepath.Join(src, pl.dir)
+
+		stems, err := sourceStems(dir, ".md")
+		if err != nil {
+			return nil, 0, fmt.Errorf("listing %s: %w", dir, err)
+		}
+
+		for _, stem := range stems {
+			path := filepath.Join(dir, stem+".md")
+
+			raw, err := os.ReadFile(path)
+			if err != nil {
+				return nil, 0, fmt.Errorf("reading %s: %w", path, err)
+			}
+
+			t, err := task.Parse(raw)
+			if err != nil {
+				return nil, 0, fmt.Errorf("parsing %s: %w", path, err)
+			}
+
+			if strings.Contains(t.ID, ".") {
+				continue
+			}
+
+			traces, err := lowercaseTraces(stem, raw)
+			if err != nil {
+				return nil, 0, fmt.Errorf("parsing %s: %w", path, err)
+			}
+
+			highest = max(highest, trackNumber(code, t.ID))
+			byID[t.ID] = append(byID[t.ID], sourceTrack{place: pl.place, stem: stem, title: t.Title, traces: traces})
+		}
+	}
+
+	return byID, highest, nil
 }
 
 func trackNumber(code, id string) int {

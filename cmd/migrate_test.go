@@ -34,6 +34,7 @@ const (
 	turnoutBar    = "BIT-2.1"
 	turnoutTitle  = "Turnout"
 	renumbered    = "BIT-3"
+	barTitle      = "Bar"
 )
 
 func TestMigrateCmd(t *testing.T) {
@@ -578,7 +579,7 @@ func TestMigrateCmd(t *testing.T) {
 		dir := t.TempDir()
 		files := v1Fixture(t)
 
-		bar, err := (&task.Task{ID: turnoutBar, Title: "Bar", Status: task.StatusDone}).Bytes()
+		bar, err := (&task.Task{ID: turnoutBar, Title: barTitle, Status: task.StatusDone}).Bytes()
 		if err != nil {
 			t.Fatalf("Bytes(BIT-2.1) returned error: %v", err)
 		}
@@ -703,7 +704,7 @@ func TestMigrateCmd(t *testing.T) {
 		for name, data := range v1Files(t, map[string][]*task.Task{
 			testCompletedDir: {
 				{ID: testOwnTrack2, Title: turnoutTitle, Status: task.StatusDone, Order: []string{turnoutBar}},
-				{ID: turnoutBar, Title: "Bar", Status: task.StatusDone},
+				{ID: turnoutBar, Title: barTitle, Status: task.StatusDone},
 			},
 			filepath.Join(testArchiveDir, testTasksDir): {{ID: testOwnTrack2, Title: "Rename jobs", Status: task.StatusTodo}},
 		}) {
@@ -745,6 +746,52 @@ func TestMigrateCmd(t *testing.T) {
 
 		if _, err := s.LoadFrom(task.Archived, testOwnTrack2); err == nil {
 			t.Errorf("LoadFrom(Archived, BIT-2) succeeded, want no archived BIT-2")
+		}
+	})
+
+	t.Run("lowercase traces keep the number", func(t *testing.T) {
+		mcpSandbox(t)
+		gittest.Isolate(t)
+
+		dir := t.TempDir()
+		files := v1Fixture(t)
+
+		for name, data := range v1Files(t, map[string][]*task.Task{
+			testCompletedDir: {{ID: testOwnTrack2, Title: "Newer", Status: task.StatusDone}},
+			testTasksDir:     {{ID: turnoutBar, Title: barTitle, Status: task.StatusTodo}},
+		}) {
+			files[name] = data
+		}
+
+		files[filepath.Join(testTasksDir, "BIT-2.md")] = lowercaseOrder(t,
+			&task.Task{ID: testOwnTrack2, Title: "Older", Status: task.StatusDoing, Order: []string{turnoutBar}})
+		writeV1Store(t, dir, files)
+		t.Chdir(dir)
+
+		out := mustRun(t, migrateCmdUse)
+
+		if want := `BIT-2 → BIT-3 (collided with BIT-2 "Older")`; !strings.Contains(out, want) {
+			t.Errorf("bp migrate output = %q, want it to contain %q", out, want)
+		}
+
+		s := projectStore(t)
+
+		kept, err := s.Load(testOwnTrack2)
+		if err != nil {
+			t.Fatalf("Load(BIT-2) returned error: %v", err)
+		}
+
+		if kept.Title != "Older" {
+			t.Errorf("active BIT-2 title = %q, want %q", kept.Title, "Older")
+		}
+
+		moved, err := s.LoadFrom(task.Completed, renumbered)
+		if err != nil {
+			t.Fatalf("LoadFrom(Completed, BIT-3) returned error: %v", err)
+		}
+
+		if moved.Title != "Newer" {
+			t.Errorf("completed BIT-3 title = %q, want %q", moved.Title, "Newer")
 		}
 	})
 
