@@ -1,13 +1,13 @@
 ---
 name: bit_plan
-description: Create or refine an implementation plan for a large task — bug fix, refactor, or new feature. Use when the user says "make a plan", "let's plan this out", "let's revise the plan", names a scope track to plan, or describes a change that is too large to implement in one session. Also triggers on casual phrasing like "let's think through this" or "how should we approach X" when the scope is clearly multi-step. This skill authors and refines the plan only — one bar (child task) per step under the scope's track in `.bit/`, through the `mcp__bit__*` tools. When the user wants to frame the high-level WHY and delivery order first, use bit_scope; when they want to carry out an existing plan ("implement the plan", "continue our implementation", "do the next step"), use bit_do instead. Produces contradiction-driven step bars (each one red-green cycle and one commit) tagged with the verse they serve, TDD-first checklists, and an explicit split between what Claude verifies and what the user verifies. If the scope marks a verse `(spike)` — work whose deliverable is an answer to an open unknown — this skill plans every spike first and then either stops there or proposes splitting the scope, depending on whether the remaining verses depend on the answer.
+description: Create or refine an implementation plan for a large task — bug fix, refactor, or new feature. Use when the user says "make a plan", "let's plan this out", "let's revise the plan", names a scope track to plan, or describes a change that is too large to implement in one session. Also triggers on casual phrasing like "let's think through this" or "how should we approach X" when the scope is clearly multi-step. This skill authors and refines the plan only — one bar (child task) per step under the scope's track, through the `mcp__bit__*` tools. When the user wants to frame the high-level WHY and delivery order first, use bit_scope; when they want to carry out an existing plan ("implement the plan", "continue our implementation", "do the next step"), use bit_do instead. Produces contradiction-driven step bars (each one red-green cycle and one commit) tagged with the verse they serve, TDD-first checklists, and an explicit split between what Claude verifies and what the user verifies. If the scope marks a verse `(spike)` — work whose deliverable is an answer to an open unknown — this skill plans every spike first and then either stops there or proposes splitting the scope, depending on whether the remaining verses depend on the answer.
 ---
 
 # Implementation Plan Creator
 
-You create and refine implementation plans. A plan is a set of **bars** (child tasks) under a scope's **track** in `.bit/`, authored through the `mcp__bit__*` tools — one bar per step, detailed enough to work from autonomously across sessions, minimal enough not to waste tokens.
+You create and refine implementation plans. A plan is a set of **bars** (child tasks) under a scope's **track** in the store, authored through the `mcp__bit__*` tools — one bar per step, detailed enough to work from autonomously across sessions, minimal enough not to waste tokens.
 
-Five tools cover everything this skill does: `mcp__bit__task_read` to read the scope from its track body, `mcp__bit__task_list` to walk the bars already under a track, `mcp__bit__task_create` to mint a bar, `mcp__bit__task_update` to reword one, and `mcp__bit__task_move` to reorder one. Never hand-edit `.bit/tasks/*.md` — that rule is the one the whole tool surface exists to enforce.
+Five tools cover everything this skill does: `mcp__bit__task_read` to read the scope from its track body, `mcp__bit__task_list` to walk the bars already under a track, `mcp__bit__task_create` to mint a bar, `mcp__bit__task_update` to reword one, and `mcp__bit__task_move` to reorder one. The `mcp__bit__*` tools are the only way in — that rule is the one the whole tool surface exists to enforce.
 
 ## Two modes
 
@@ -301,7 +301,7 @@ check the task runner, README, or an already-correct bar elsewhere in the same t
 invocation convention exists yet for this new capability, that's a scope Decision, not something
 to guess in the plan — hand back to bit_scope.
 
-**Claude never commits.** The plan includes a suggested commit message per step, but committing is always the user's action.
+**Claude commits through bit_commit, and only after the operator says yes.** Each bar ends with a `## Commit` section holding its suggested message. bit_commit reads it, asks, commits, and records the hash on the bar.
 
 ---
 
@@ -358,7 +358,7 @@ see Gathering context. Name the actual mechanism, not just that one is needed.]
 ## User verifies
 - [ ] [concrete manual check — do X, observe Y; omit on a pure-plumbing bar. A verse's integration/feel check goes on its *last* bar. Never a decision-in-disguise ("reads naturally", "is acceptable") — that's a scope Decision, hand it back.]
 
-## Commit (user)
+## Commit
 `feat(scope): short description`
 ```
 
@@ -395,7 +395,7 @@ Same frame, different middle: the TDD cycle is replaced by the question and how 
 ## Report back
 - [ ] Take the answer to bit_scope: the unknown becomes a Decision, and Verses N–M get revised against it before they're planned.
 
-## Commit (user)
+## Commit
 `<type>(scope): short description`
 ```
 

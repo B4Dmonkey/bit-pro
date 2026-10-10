@@ -3,7 +3,7 @@ package task
 import (
 	"fmt"
 
-	"github.com/B4Dmonkey/bit-pro/bitdir"
+	"github.com/B4Dmonkey/bit-pro/project"
 	taskstore "github.com/B4Dmonkey/bit-pro/task"
 	"github.com/spf13/cobra"
 )
@@ -16,11 +16,13 @@ func newListCmd() *cobra.Command {
 		Short: "List all tasks",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			store := taskstore.New(bitdir.Current())
+			store, err := project.OpenCurrent(cmd.Context())
+			if err != nil {
+				return err
+			}
 
 			var tasks []*taskstore.Task
 
-			var err error
 			if parent == "" {
 				tasks, err = store.List()
 			} else {

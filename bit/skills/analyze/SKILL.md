@@ -1,6 +1,6 @@
 ---
 name: bit_analyze
-description: Do the deep codebase research a track needs before it is scoped or re-scoped, and leave the findings as research notes under `.bit/research/<track>/` through the `mcp__bit__research_*` tools. Use whenever the user says "analyze", "/bit:analyze BIT-N", "research this track", "deep dive before scoping", "dig into the code for this", "validate the scope's assumptions", or when bit:ruler dispatches a research pass with open questions. It fans out explorer subagents across the code areas the track's verses touch, checks the assumptions the scope rests on, confirms or corrects each "Touches" pointer, and surfaces unknowns that light research missed. It writes one note per topic plus an `index` topic that summarizes the findings and links to the others. It does not edit the track body, write the scope, or plan bars. Shaping the scope is bit_scope's job, and it reads these notes afterward. Reach for this, not bit_scope, when the work needs evidence from the code before anyone decides its shape.
+description: Do the deep codebase research a track needs before it is scoped or re-scoped, and leave the findings as research notes through the `mcp__bit__research_*` tools. Use whenever the user says "analyze", "/bit:analyze BIT-N", "research this track", "deep dive before scoping", "dig into the code for this", "validate the scope's assumptions", or when bit:ruler dispatches a research pass with open questions. It fans out explorer subagents across the code areas the track's verses touch, checks the assumptions the scope rests on, confirms or corrects each "Touches" pointer, and surfaces unknowns that light research missed. It writes one note per topic plus an `index` topic that summarizes the findings and links to the others. It does not edit the track body, write the scope, or plan bars. Shaping the scope is bit_scope's job, and it reads these notes afterward. Reach for this, not bit_scope, when the work needs evidence from the code before anyone decides its shape.
 ---
 
 # Track Analysis
@@ -14,7 +14,7 @@ Three tools cover everything this skill does:
 - `mcp__bit__research_read` with only `track` lists the topic names that already exist. With `topic`, it returns that topic's body.
 - `mcp__bit__research_write` writes one topic. Writing a topic that exists replaces it.
 
-Research lives under `.bit/research/<track>/`, but you never read or edit those files directly. The tools are the only way in, which keeps a stray write from landing in the wrong track or outside it.
+Research lives in the store, and the `mcp__bit__research_*` tools are the only way in, which keeps a stray write from landing in the wrong track or outside it.
 
 ## Input
 
@@ -61,5 +61,5 @@ Tell the caller, in a few lines, what changed: assumptions confirmed, assumption
 
 - **Edit the track body.** No Decisions, no Risks, no verse changes. The scope belongs to bit_scope, which reads your notes and cites them. If a finding means the scope is wrong, say so in the report and let bit_scope change it.
 - **Plan bars or write code.** Research informs those steps. It doesn't do them.
-- **Read or write `.bit/research/` directly.** The `mcp__bit__research_*` tools are the only way in.
+- **Read or write research any other way.** The `mcp__bit__research_*` tools are the only way in.
 - **Keep history.** Rewriting a topic replaces it, and there's no delete. The notes are a scratchpad, so the current version is the only one that matters.

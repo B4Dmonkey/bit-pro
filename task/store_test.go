@@ -1,259 +1,341 @@
 package task
 
 import (
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
-func TestStorePath_ContainsUntrustedID(t *testing.T) {
-	t.Parallel()
+var (
+	tclock1 = time.Date(2026, 10, 2, 14, 3, 0, 500, time.FixedZone("EDT", -4*3600))
+	tclock2 = tclock1.Add(time.Hour)
+)
 
-	tests := []struct {
-		name string
-		id   string
-		want string
-	}{
-		{name: "plain id", id: tid1, want: ".bit/tasks/BIT-1.md"},
-		{name: "traversal cannot escape the tasks dir", id: "../../README", want: ".bit/tasks/README.md"},
-		{name: "deep traversal cannot escape", id: "../../../../etc/passwd", want: ".bit/tasks/ETC/PASSWD.md"},
-		{name: "absolute path cannot escape", id: "/etc/passwd", want: ".bit/tasks/ETC/PASSWD.md"},
-		{name: "illegal characters are stripped", id: "a:b*c", want: ".bit/tasks/ABC.md"},
+const (
+	tstamp1 = "2026-10-02T18:03:00Z"
+	tstamp2 = "2026-10-02T19:03:00Z"
+)
+
+func fixedClock(at *time.Time) func() time.Time {
+	return func() time.Time { return *at }
+}
+
+func readRecord(t *testing.T, root, id string) map[string]any {
+	t.Helper()
+
+	raw, err := os.ReadFile(filepath.Join(root, "tasks", id+".json"))
+	if err != nil {
+		t.Fatalf("reading record %s: %v", id, err)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
+	var got map[string]any
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatalf("unmarshaling record %s: %v", id, err)
+	}
 
-			got := New(".bit").Path(tt.id)
-			if got != tt.want {
-				t.Errorf("Path(%q) = %q, want %q", tt.id, got, tt.want)
+	return got
+}
+
+func assertStamps(t *testing.T, rec map[string]any, created, updated string) {
+	t.Helper()
+
+	if rec["created_at"] != created {
+		t.Errorf("created_at = %v, want %s", rec["created_at"], created)
+	}
+
+	if rec["updated_at"] != updated {
+		t.Errorf("updated_at = %v, want %s", rec["updated_at"], updated)
+	}
+}
+
+func TestStorePath(t *testing.T) {
+	t.Parallel()
+
+	t.Run("contains untrusted id", func(t *testing.T) {
+		t.Parallel()
+
+		tests := []struct {
+			name string
+			id   string
+			want string
+		}{
+			{name: "plain id", id: tid1, want: ".bit/tasks/BIT-1.json"},
+			{name: "traversal cannot escape the tasks dir", id: "../../README", want: ".bit/tasks/README.json"},
+			{name: "deep traversal cannot escape", id: "../../../../etc/passwd", want: ".bit/tasks/ETC/PASSWD.json"},
+			{name: "absolute path cannot escape", id: "/etc/passwd", want: ".bit/tasks/ETC/PASSWD.json"},
+			{name: "illegal characters are stripped", id: "a:b*c", want: ".bit/tasks/ABC.json"},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+
+				got := New(".bit").Path(tt.id)
+				if got != tt.want {
+					t.Errorf("Path(%q) = %q, want %q", tt.id, got, tt.want)
+				}
+
+				if !strings.HasPrefix(got, ".bit/tasks/") {
+					t.Errorf("Path(%q) = %q, escaped the tasks directory", tt.id, got)
+				}
+			})
+		}
+	})
+}
+
+func TestStoreRelocate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("moves file out of list", func(t *testing.T) {
+		t.Parallel()
+
+		s := New(t.TempDir())
+		if err := s.Save(&Task{ID: tid1, Status: StatusDone}); err != nil {
+			t.Fatalf("seeding BIT-1: %v", err)
+		}
+
+		if err := s.Relocate(tid1, false); err != nil {
+			t.Fatalf("Relocate() returned error: %v", err)
+		}
+
+		tasks, err := s.List()
+		if err != nil {
+			t.Fatalf("List() returned error: %v", err)
+		}
+
+		if slices.ContainsFunc(tasks, func(t *Task) bool { return t.ID == tid1 }) {
+			t.Errorf("List() still contains BIT-1 after relocate")
+		}
+
+		for _, name := range []string{"BIT-1.json", "BIT-1.md"} {
+			if _, err := os.Stat(filepath.Join(s.archiveTasksDir(), name)); err != nil {
+				t.Errorf("archived %s: os.Stat error = %v, want the file to exist", name, err)
 			}
 
-			if !strings.HasPrefix(got, ".bit/tasks/") {
-				t.Errorf("Path(%q) = %q, escaped the tasks directory", tt.id, got)
+			if _, err := os.Stat(filepath.Join(s.tasksDir(), name)); !errors.Is(err, fs.ErrNotExist) {
+				t.Errorf("tasks %s: os.Stat error = %v, want fs.ErrNotExist", name, err)
 			}
-		})
-	}
-}
-
-func TestStoreRelocate_MovesFileOutOfList(t *testing.T) {
-	t.Parallel()
-
-	s := New(t.TempDir())
-	if err := s.Save(&Task{ID: tid1, Status: StatusDone}); err != nil {
-		t.Fatalf("seeding BIT-1: %v", err)
-	}
-
-	if err := s.Relocate(tid1, false); err != nil {
-		t.Fatalf("Relocate() returned error: %v", err)
-	}
-
-	tasks, err := s.List()
-	if err != nil {
-		t.Fatalf("List() returned error: %v", err)
-	}
-
-	if slices.ContainsFunc(tasks, func(t *Task) bool { return t.ID == tid1 }) {
-		t.Errorf("List() still contains BIT-1 after relocate")
-	}
-
-	if _, err := os.Stat(s.archivePath(tid1)); err != nil {
-		t.Errorf("archived file: os.Stat error = %v, want the file to exist", err)
-	}
-
-	if _, err := os.Stat(s.Path(tid1)); !errors.Is(err, fs.ErrNotExist) {
-		t.Errorf("tasks file: os.Stat error = %v, want fs.ErrNotExist", err)
-	}
-}
-
-func TestStoreRelocate_CascadesToBars(t *testing.T) {
-	t.Parallel()
-
-	s := New(t.TempDir())
-	for _, id := range []string{tid1, tid1_1, tid1_2} {
-		if err := s.Save(&Task{ID: id, Status: StatusDone}); err != nil {
-			t.Fatalf("seeding %s: %v", id, err)
 		}
-	}
+	})
 
-	if err := s.Relocate(tid1, false); err != nil {
-		t.Fatalf("Relocate() returned error: %v", err)
-	}
+	t.Run("cascades to bars", func(t *testing.T) {
+		t.Parallel()
 
-	tasks, err := s.List()
-	if err != nil {
-		t.Fatalf("List() returned error: %v", err)
-	}
-
-	if len(tasks) != 0 {
-		t.Errorf("List() = %v, want no tasks after cascade", tasks)
-	}
-
-	for _, id := range []string{tid1, tid1_1, tid1_2} {
-		if _, err := os.Stat(s.archivePath(id)); err != nil {
-			t.Errorf("archived %s: os.Stat error = %v, want the file to exist", id, err)
+		s := New(t.TempDir())
+		for _, id := range []string{tid1, tid1_1, tid1_2} {
+			if err := s.Save(&Task{ID: id, Status: StatusDone}); err != nil {
+				t.Fatalf("seeding %s: %v", id, err)
+			}
 		}
 
-		if _, err := os.Stat(s.Path(id)); !errors.Is(err, fs.ErrNotExist) {
-			t.Errorf("tasks %s: os.Stat error = %v, want fs.ErrNotExist", id, err)
-		}
-	}
-}
-
-func TestStoreRelocate_RefusesWithUnfinishedBars(t *testing.T) {
-	t.Parallel()
-
-	s := New(t.TempDir())
-	for _, seed := range []struct{ id, status string }{
-		{tid1, StatusDone},
-		{tid1_1, StatusDone},
-		{tid1_2, StatusTodo},
-	} {
-		if err := s.Save(&Task{ID: seed.id, Status: seed.status}); err != nil {
-			t.Fatalf("seeding %s: %v", seed.id, err)
-		}
-	}
-
-	err := s.Relocate(tid1, false)
-
-	var unfinished *UnfinishedBarsError
-	if !errors.As(err, &unfinished) {
-		t.Fatalf("Relocate() error = %v, want *UnfinishedBarsError", err)
-	}
-
-	if !slices.Contains(unfinished.Bars, tid1_2) {
-		t.Errorf("UnfinishedBarsError.Bars = %v, want it to contain BIT-1.2", unfinished.Bars)
-	}
-
-	for _, id := range []string{tid1, tid1_1, tid1_2} {
-		if _, err := os.Stat(s.Path(id)); err != nil {
-			t.Errorf("tasks %s: os.Stat error = %v, want the file to remain", id, err)
+		if err := s.Relocate(tid1, false); err != nil {
+			t.Fatalf("Relocate() returned error: %v", err)
 		}
 
-		if _, err := os.Stat(s.archivePath(id)); !errors.Is(err, fs.ErrNotExist) {
-			t.Errorf("archive %s: os.Stat error = %v, want fs.ErrNotExist", id, err)
-		}
-	}
-}
-
-func TestStoreRelocate_ForceOverridesGuard(t *testing.T) {
-	t.Parallel()
-
-	s := New(t.TempDir())
-	for _, seed := range []struct{ id, status string }{
-		{tid1, StatusDone},
-		{tid1_1, StatusDone},
-		{tid1_2, StatusTodo},
-	} {
-		if err := s.Save(&Task{ID: seed.id, Status: seed.status}); err != nil {
-			t.Fatalf("seeding %s: %v", seed.id, err)
-		}
-	}
-
-	if err := s.Relocate(tid1, true); err != nil {
-		t.Fatalf("Relocate() returned error: %v", err)
-	}
-
-	for _, id := range []string{tid1, tid1_1, tid1_2} {
-		if _, err := os.Stat(s.archivePath(id)); err != nil {
-			t.Errorf("archived %s: os.Stat error = %v, want the file to exist", id, err)
+		tasks, err := s.List()
+		if err != nil {
+			t.Fatalf("List() returned error: %v", err)
 		}
 
-		if _, err := os.Stat(s.Path(id)); !errors.Is(err, fs.ErrNotExist) {
-			t.Errorf("tasks %s: os.Stat error = %v, want fs.ErrNotExist", id, err)
+		if len(tasks) != 0 {
+			t.Errorf("List() = %v, want no tasks after cascade", tasks)
 		}
-	}
-}
 
-func TestStoreRelocate_ContainsUntrustedID(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name string
-		id   string
-		want string
-	}{
-		{name: "plain id", id: tid1, want: ".bit/archive/tasks/BIT-1.md"},
-		{name: "traversal cannot escape the archive dir", id: "../../README", want: ".bit/archive/tasks/README.md"},
-		{name: "absolute path cannot escape", id: "/etc/passwd", want: ".bit/archive/tasks/ETC/PASSWD.md"},
-		{name: "illegal characters are stripped", id: "a:b*c", want: ".bit/archive/tasks/ABC.md"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			got := New(".bit").archivePath(tt.id)
-			if got != tt.want {
-				t.Errorf("archivePath(%q) = %q, want %q", tt.id, got, tt.want)
+		for _, id := range []string{tid1, tid1_1, tid1_2} {
+			if _, err := os.Stat(s.archivePath(id)); err != nil {
+				t.Errorf("archived %s: os.Stat error = %v, want the file to exist", id, err)
 			}
 
-			if !strings.HasPrefix(got, ".bit/archive/tasks/") {
-				t.Errorf("archivePath(%q) = %q, escaped the archive directory", tt.id, got)
+			if _, err := os.Stat(s.Path(id)); !errors.Is(err, fs.ErrNotExist) {
+				t.Errorf("tasks %s: os.Stat error = %v, want fs.ErrNotExist", id, err)
 			}
-		})
-	}
+		}
+	})
+
+	t.Run("refuses with unfinished bars", func(t *testing.T) {
+		t.Parallel()
+
+		s := New(t.TempDir())
+		for _, seed := range []struct{ id, status string }{
+			{tid1, StatusDone},
+			{tid1_1, StatusDone},
+			{tid1_2, StatusTodo},
+		} {
+			if err := s.Save(&Task{ID: seed.id, Status: seed.status}); err != nil {
+				t.Fatalf("seeding %s: %v", seed.id, err)
+			}
+		}
+
+		err := s.Relocate(tid1, false)
+
+		var unfinished *UnfinishedBarsError
+		if !errors.As(err, &unfinished) {
+			t.Fatalf("Relocate() error = %v, want *UnfinishedBarsError", err)
+		}
+
+		if !slices.Contains(unfinished.Bars, tid1_2) {
+			t.Errorf("UnfinishedBarsError.Bars = %v, want it to contain BIT-1.2", unfinished.Bars)
+		}
+
+		for _, id := range []string{tid1, tid1_1, tid1_2} {
+			if _, err := os.Stat(s.Path(id)); err != nil {
+				t.Errorf("tasks %s: os.Stat error = %v, want the file to remain", id, err)
+			}
+
+			if _, err := os.Stat(s.archivePath(id)); !errors.Is(err, fs.ErrNotExist) {
+				t.Errorf("archive %s: os.Stat error = %v, want fs.ErrNotExist", id, err)
+			}
+		}
+	})
+
+	t.Run("force overrides guard", func(t *testing.T) {
+		t.Parallel()
+
+		s := New(t.TempDir())
+		for _, seed := range []struct{ id, status string }{
+			{tid1, StatusDone},
+			{tid1_1, StatusDone},
+			{tid1_2, StatusTodo},
+		} {
+			if err := s.Save(&Task{ID: seed.id, Status: seed.status}); err != nil {
+				t.Fatalf("seeding %s: %v", seed.id, err)
+			}
+		}
+
+		if err := s.Relocate(tid1, true); err != nil {
+			t.Fatalf("Relocate() returned error: %v", err)
+		}
+
+		for _, id := range []string{tid1, tid1_1, tid1_2} {
+			if _, err := os.Stat(s.archivePath(id)); err != nil {
+				t.Errorf("archived %s: os.Stat error = %v, want the file to exist", id, err)
+			}
+
+			if _, err := os.Stat(s.Path(id)); !errors.Is(err, fs.ErrNotExist) {
+				t.Errorf("tasks %s: os.Stat error = %v, want fs.ErrNotExist", id, err)
+			}
+		}
+	})
+
+	t.Run("contains untrusted id", func(t *testing.T) {
+		t.Parallel()
+
+		tests := []struct {
+			name string
+			id   string
+			want string
+		}{
+			{name: "plain id", id: tid1, want: ".bit/archive/tasks/BIT-1.json"},
+			{name: "traversal cannot escape the archive dir", id: "../../README", want: ".bit/archive/tasks/README.json"},
+			{name: "absolute path cannot escape", id: "/etc/passwd", want: ".bit/archive/tasks/ETC/PASSWD.json"},
+			{name: "illegal characters are stripped", id: "a:b*c", want: ".bit/archive/tasks/ABC.json"},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+
+				got := New(".bit").archivePath(tt.id)
+				if got != tt.want {
+					t.Errorf("archivePath(%q) = %q, want %q", tt.id, got, tt.want)
+				}
+
+				if !strings.HasPrefix(got, ".bit/archive/tasks/") {
+					t.Errorf("archivePath(%q) = %q, escaped the archive directory", tt.id, got)
+				}
+			})
+		}
+	})
+
+	t.Run("drops bar from parent order", func(t *testing.T) {
+		t.Parallel()
+
+		s := New(t.TempDir())
+		if err := s.Save(&Task{ID: tid1, Status: StatusDone, Order: []string{tid1_1, tid1_2, tid1_3}}); err != nil {
+			t.Fatalf("seeding BIT-1: %v", err)
+		}
+
+		for _, id := range []string{tid1_1, tid1_2, tid1_3} {
+			if err := s.Save(&Task{ID: id, Status: StatusDone}); err != nil {
+				t.Fatalf("seeding %s: %v", id, err)
+			}
+		}
+
+		if err := s.Relocate(tid1_2, false); err != nil {
+			t.Fatalf("Relocate() returned error: %v", err)
+		}
+
+		got, err := s.Load(tid1)
+		if err != nil {
+			t.Fatalf("loading BIT-1: %v", err)
+		}
+
+		if want := []string{tid1_1, tid1_3}; !slices.Equal(got.Order, want) {
+			t.Errorf("Order = %v, want %v", got.Order, want)
+		}
+	})
+
+	t.Run("leaves legacy order unmaterialized", func(t *testing.T) {
+		t.Parallel()
+
+		s := New(t.TempDir())
+		if err := s.Save(&Task{ID: tid1, Status: StatusDone, Order: nil}); err != nil {
+			t.Fatalf("seeding BIT-1: %v", err)
+		}
+
+		for _, id := range []string{tid1_1, tid1_2} {
+			if err := s.Save(&Task{ID: id, Status: StatusDone}); err != nil {
+				t.Fatalf("seeding %s: %v", id, err)
+			}
+		}
+
+		if err := s.Relocate(tid1_1, false); err != nil {
+			t.Fatalf("Relocate() returned error: %v", err)
+		}
+
+		got, err := s.Load(tid1)
+		if err != nil {
+			t.Fatalf("loading BIT-1: %v", err)
+		}
+
+		if len(got.Order) != 0 {
+			t.Errorf("Order = %v, want empty", got.Order)
+		}
+	})
 }
 
-func TestStoreRelocate_DropsBarFromParentOrder(t *testing.T) {
+func TestStoreComplete(t *testing.T) {
 	t.Parallel()
 
-	s := New(t.TempDir())
-	if err := s.Save(&Task{ID: tid1, Status: StatusDone, Order: []string{tid1_1, tid1_2, tid1_3}}); err != nil {
-		t.Fatalf("seeding BIT-1: %v", err)
-	}
+	t.Run("moves both files", func(t *testing.T) {
+		t.Parallel()
 
-	for _, id := range []string{tid1_1, tid1_2, tid1_3} {
-		if err := s.Save(&Task{ID: id, Status: StatusDone}); err != nil {
-			t.Fatalf("seeding %s: %v", id, err)
+		s := New(t.TempDir())
+		if err := s.Save(&Task{ID: tid1, Status: StatusDone}); err != nil {
+			t.Fatalf("seeding BIT-1: %v", err)
 		}
-	}
 
-	if err := s.Relocate(tid1_2, false); err != nil {
-		t.Fatalf("Relocate() returned error: %v", err)
-	}
-
-	got, err := s.Load(tid1)
-	if err != nil {
-		t.Fatalf("loading BIT-1: %v", err)
-	}
-
-	if want := []string{tid1_1, tid1_3}; !slices.Equal(got.Order, want) {
-		t.Errorf("Order = %v, want %v", got.Order, want)
-	}
-}
-
-func TestStoreRelocate_LeavesLegacyOrderUnmaterialized(t *testing.T) {
-	t.Parallel()
-
-	s := New(t.TempDir())
-	if err := s.Save(&Task{ID: tid1, Status: StatusDone, Order: nil}); err != nil {
-		t.Fatalf("seeding BIT-1: %v", err)
-	}
-
-	for _, id := range []string{tid1_1, tid1_2} {
-		if err := s.Save(&Task{ID: id, Status: StatusDone}); err != nil {
-			t.Fatalf("seeding %s: %v", id, err)
+		if err := s.Complete(tid1); err != nil {
+			t.Fatalf("Complete() returned error: %v", err)
 		}
-	}
 
-	if err := s.Relocate(tid1_1, false); err != nil {
-		t.Fatalf("Relocate() returned error: %v", err)
-	}
+		for _, name := range []string{"BIT-1.json", "BIT-1.md"} {
+			if _, err := os.Stat(filepath.Join(s.completedDir(), name)); err != nil {
+				t.Errorf("completed %s: os.Stat error = %v, want the file to exist", name, err)
+			}
 
-	got, err := s.Load(tid1)
-	if err != nil {
-		t.Fatalf("loading BIT-1: %v", err)
-	}
-
-	if len(got.Order) != 0 {
-		t.Errorf("Order = %v, want empty", got.Order)
-	}
+			if _, err := os.Stat(filepath.Join(s.tasksDir(), name)); !errors.Is(err, fs.ErrNotExist) {
+				t.Errorf("tasks %s: os.Stat error = %v, want fs.ErrNotExist", name, err)
+			}
+		}
+	})
 }
 
 func TestStoreNextID(t *testing.T) {
@@ -293,404 +375,526 @@ func TestStoreNextID(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("reserves archived ids", func(t *testing.T) {
+		t.Parallel()
+
+		s := New(t.TempDir())
+		if err := s.Save(&Task{ID: tid1, Title: tseed, Status: StatusTodo}); err != nil {
+			t.Fatalf("seeding BIT-1: %v", err)
+		}
+
+		if err := s.Save(&Task{ID: tid2, Title: tseed, Status: StatusDone}); err != nil {
+			t.Fatalf("seeding BIT-2: %v", err)
+		}
+
+		if err := s.Relocate(tid2, false); err != nil {
+			t.Fatalf("Relocate(BIT-2): %v", err)
+		}
+
+		got, err := s.NextID(tprefix)
+		if err != nil {
+			t.Fatalf("NextID() returned error: %v", err)
+		}
+
+		if got != tid3 {
+			t.Errorf("NextID() = %q, want %q", got, tid3)
+		}
+	})
+
+	t.Run("reserves completed ids", func(t *testing.T) {
+		t.Parallel()
+
+		s := New(t.TempDir())
+		if err := s.Save(&Task{ID: tid1, Title: tseed, Status: StatusTodo}); err != nil {
+			t.Fatalf("seeding BIT-1: %v", err)
+		}
+
+		if err := s.Save(&Task{ID: tid2, Title: tseed, Status: StatusDone}); err != nil {
+			t.Fatalf("seeding BIT-2: %v", err)
+		}
+
+		if err := s.Complete(tid2); err != nil {
+			t.Fatalf("Complete(BIT-2): %v", err)
+		}
+
+		got, err := s.NextID(tprefix)
+		if err != nil {
+			t.Fatalf("NextID() returned error: %v", err)
+		}
+
+		if got != tid3 {
+			t.Errorf("NextID() = %q, want %q", got, tid3)
+		}
+	})
 }
 
-func TestStoreNextChildID_ErrorsWhenParentMissing(t *testing.T) {
+func TestStoreNextChildID(t *testing.T) {
 	t.Parallel()
 
-	_, err := New(t.TempDir()).NextChildID("BIT-99")
+	t.Run("errors when parent missing", func(t *testing.T) {
+		t.Parallel()
 
-	if !errors.Is(err, fs.ErrNotExist) {
-		t.Fatalf("NextChildID() error = %v, want an error wrapping fs.ErrNotExist", err)
-	}
+		_, err := New(t.TempDir()).NextChildID("BIT-99")
 
-	if !strings.Contains(err.Error(), "BIT-99") {
-		t.Errorf("NextChildID() error = %q, want it to name the parent ID", err)
-	}
+		if !errors.Is(err, fs.ErrNotExist) {
+			t.Fatalf("NextChildID() error = %v, want an error wrapping fs.ErrNotExist", err)
+		}
+
+		if !strings.Contains(err.Error(), "BIT-99") {
+			t.Errorf("NextChildID() error = %q, want it to name the parent ID", err)
+		}
+	})
+
+	t.Run("mints when parent exists", func(t *testing.T) {
+		t.Parallel()
+
+		s := New(t.TempDir())
+		if err := s.Save(&Task{ID: tid1, Title: tseed, Status: StatusTodo}); err != nil {
+			t.Fatalf("seeding BIT-1: %v", err)
+		}
+
+		got, err := s.NextChildID(tid1)
+		if err != nil {
+			t.Fatalf("NextChildID() returned error: %v", err)
+		}
+
+		if got != tid1_1 {
+			t.Errorf("NextChildID() = %q, want %q", got, tid1_1)
+		}
+	})
+
+	t.Run("reserves archived children", func(t *testing.T) {
+		t.Parallel()
+
+		s := New(t.TempDir())
+		if err := s.Save(&Task{ID: tid1, Title: tseed, Status: StatusTodo}); err != nil {
+			t.Fatalf("seeding BIT-1: %v", err)
+		}
+
+		if err := s.Save(&Task{ID: tid1_1, Title: tseed, Status: StatusDone}); err != nil {
+			t.Fatalf("seeding BIT-1.1: %v", err)
+		}
+
+		if err := s.Relocate(tid1_1, false); err != nil {
+			t.Fatalf("Relocate(BIT-1.1): %v", err)
+		}
+
+		got, err := s.NextChildID(tid1)
+		if err != nil {
+			t.Fatalf("NextChildID() returned error: %v", err)
+		}
+
+		if got != tid1_2 {
+			t.Errorf("NextChildID() = %q, want %q", got, tid1_2)
+		}
+	})
+
+	t.Run("reserves completed children", func(t *testing.T) {
+		t.Parallel()
+
+		s := New(t.TempDir())
+		if err := s.Save(&Task{ID: tid1, Title: tseed, Status: StatusTodo}); err != nil {
+			t.Fatalf("seeding BIT-1: %v", err)
+		}
+
+		if err := s.Save(&Task{ID: tid1_1, Title: tseed, Status: StatusDone}); err != nil {
+			t.Fatalf("seeding BIT-1.1: %v", err)
+		}
+
+		if err := s.Complete(tid1_1); err != nil {
+			t.Fatalf("Complete(BIT-1.1): %v", err)
+		}
+
+		got, err := s.NextChildID(tid1)
+		if err != nil {
+			t.Fatalf("NextChildID() returned error: %v", err)
+		}
+
+		if got != tid1_2 {
+			t.Errorf("NextChildID() = %q, want %q", got, tid1_2)
+		}
+	})
 }
 
-func TestStoreNextChildID_MintsWhenParentExists(t *testing.T) {
+func TestStoreSave(t *testing.T) {
 	t.Parallel()
 
-	s := New(t.TempDir())
-	if err := s.Save(&Task{ID: tid1, Title: tseed, Status: StatusTodo}); err != nil {
-		t.Fatalf("seeding BIT-1: %v", err)
-	}
+	t.Run("writes a json record beside the body", func(t *testing.T) {
+		t.Parallel()
 
-	got, err := s.NextChildID(tid1)
-	if err != nil {
-		t.Fatalf("NextChildID() returned error: %v", err)
-	}
+		root := t.TempDir()
+		s := NewProject(root, tprefix)
+		s.now = func() time.Time { return tclock1 }
+		body := "## Why\n\n- [ ] a checkbox\n"
 
-	if got != tid1_1 {
-		t.Errorf("NextChildID() = %q, want %q", got, tid1_1)
-	}
+		if err := s.Save(&Task{ID: "BIT-7", Title: "Ship it", Status: StatusTodo, Body: body}); err != nil {
+			t.Fatalf("Save() returned error: %v", err)
+		}
+
+		gotBody, err := os.ReadFile(filepath.Join(root, "tasks", "BIT-7.md"))
+		if err != nil {
+			t.Fatalf("reading body: %v", err)
+		}
+
+		if string(gotBody) != body {
+			t.Errorf("body = %q, want %q", gotBody, body)
+		}
+
+		raw, err := os.ReadFile(filepath.Join(root, "tasks", "BIT-7.json"))
+		if err != nil {
+			t.Fatalf("reading record: %v", err)
+		}
+
+		var got map[string]any
+		if err := json.Unmarshal(raw, &got); err != nil {
+			t.Fatalf("unmarshaling record: %v", err)
+		}
+
+		want := map[string]any{
+			"id":          "BIT-7",
+			"title":       "Ship it",
+			"status":      StatusTodo,
+			"approved":    false,
+			"phase":       float64(0),
+			"phase_label": "",
+			"order":       []any{},
+			"content":     "BIT-7.md",
+			"project":     tprefix,
+			"created_at":  tstamp1,
+			"updated_at":  tstamp1,
+			"branch":      "",
+			"commit":      "",
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("record = %v, want %v", got, want)
+		}
+
+		if !strings.Contains(string(raw), `"order": []`) {
+			t.Errorf("record = %s, want order written as []", raw)
+		}
+
+		if !strings.HasSuffix(string(raw), "}\n") {
+			t.Errorf("record = %q, want a trailing newline", raw)
+		}
+	})
+
+	t.Run("stamps project and timestamps", func(t *testing.T) {
+		t.Parallel()
+
+		root := t.TempDir()
+		s := NewProject(root, tprefix)
+		s.now = func() time.Time { return tclock1 }
+
+		created, err := s.Create(CreateParams{Title: "T"})
+		if err != nil {
+			t.Fatalf("Create() returned error: %v", err)
+		}
+
+		rec := readRecord(t, root, created.ID)
+
+		if rec["project"] != tprefix {
+			t.Errorf("project = %v, want %s", rec["project"], tprefix)
+		}
+
+		assertStamps(t, rec, tstamp1, tstamp1)
+	})
 }
 
-func TestStoreNextID_ReservesArchivedIDs(t *testing.T) {
+func TestStoreLoad(t *testing.T) {
 	t.Parallel()
 
-	s := New(t.TempDir())
-	if err := s.Save(&Task{ID: tid1, Title: tseed, Status: StatusTodo}); err != nil {
-		t.Fatalf("seeding BIT-1: %v", err)
-	}
+	t.Run("round trips a saved task", func(t *testing.T) {
+		t.Parallel()
 
-	if err := s.Save(&Task{ID: tid2, Title: tseed, Status: StatusDone}); err != nil {
-		t.Fatalf("seeding BIT-2: %v", err)
-	}
+		s := New(t.TempDir())
+		want := Task{
+			ID:         tid1,
+			Title:      "Title",
+			Status:     StatusDoing,
+			Approved:   true,
+			Phase:      2,
+			PhaseLabel: "records",
+			Order:      []string{tid1_2, tid1_1},
+			Body:       "Body.\n\nMore body.\n",
+		}
 
-	if err := s.Relocate(tid2, false); err != nil {
-		t.Fatalf("Relocate(BIT-2): %v", err)
-	}
+		if err := s.Save(&want); err != nil {
+			t.Fatalf("Save() returned error: %v", err)
+		}
 
-	got, err := s.NextID(tprefix)
-	if err != nil {
-		t.Fatalf("NextID() returned error: %v", err)
-	}
+		got, err := s.Load(tid1)
+		if err != nil {
+			t.Fatalf("Load() returned error: %v", err)
+		}
 
-	if got != tid3 {
-		t.Errorf("NextID() = %q, want %q", got, tid3)
-	}
+		if !reflect.DeepEqual(*got, want) {
+			t.Errorf("Load() = %+v, want %+v", *got, want)
+		}
+	})
+
+	t.Run("errors on unknown id", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := New(t.TempDir()).Load("BIT-99")
+
+		if !errors.Is(err, fs.ErrNotExist) {
+			t.Fatalf("Load() error = %v, want an error wrapping fs.ErrNotExist", err)
+		}
+
+		if !strings.Contains(err.Error(), "BIT-99") {
+			t.Errorf("Load() error = %q, want it to name the task ID", err)
+		}
+	})
 }
 
-func TestStoreNextChildID_ReservesArchivedChildren(t *testing.T) {
+func TestStoreList(t *testing.T) {
 	t.Parallel()
 
-	s := New(t.TempDir())
-	if err := s.Save(&Task{ID: tid1, Title: tseed, Status: StatusTodo}); err != nil {
-		t.Fatalf("seeding BIT-1: %v", err)
-	}
+	t.Run("empty when no tasks dir", func(t *testing.T) {
+		t.Parallel()
 
-	if err := s.Save(&Task{ID: tid1_1, Title: tseed, Status: StatusDone}); err != nil {
-		t.Fatalf("seeding BIT-1.1: %v", err)
-	}
+		tasks, err := New(t.TempDir()).List()
+		if err != nil {
+			t.Fatalf("List() returned error: %v", err)
+		}
 
-	if err := s.Relocate(tid1_1, false); err != nil {
-		t.Fatalf("Relocate(BIT-1.1): %v", err)
-	}
+		if len(tasks) != 0 {
+			t.Errorf("List() = %v, want no tasks", tasks)
+		}
+	})
 
-	got, err := s.NextChildID(tid1)
-	if err != nil {
-		t.Fatalf("NextChildID() returned error: %v", err)
-	}
+	t.Run("ignores a stray body", func(t *testing.T) {
+		t.Parallel()
 
-	if got != tid1_2 {
-		t.Errorf("NextChildID() = %q, want %q", got, tid1_2)
-	}
-}
+		s := New(t.TempDir())
+		if err := s.Save(&Task{ID: tid1, Title: tseed, Status: StatusTodo}); err != nil {
+			t.Fatalf("seeding BIT-1: %v", err)
+		}
 
-func TestStoreNextID_ReservesCompletedIDs(t *testing.T) {
-	t.Parallel()
+		if err := os.WriteFile(filepath.Join(s.tasksDir(), "BIT-9.md"), []byte("orphan\n"), fileMode); err != nil {
+			t.Fatalf("writing stray body: %v", err)
+		}
 
-	s := New(t.TempDir())
-	if err := s.Save(&Task{ID: tid1, Title: tseed, Status: StatusTodo}); err != nil {
-		t.Fatalf("seeding BIT-1: %v", err)
-	}
+		tasks, err := s.List()
+		if err != nil {
+			t.Fatalf("List() returned error: %v", err)
+		}
 
-	if err := s.Save(&Task{ID: tid2, Title: tseed, Status: StatusDone}); err != nil {
-		t.Fatalf("seeding BIT-2: %v", err)
-	}
+		if len(tasks) != 1 {
+			t.Errorf("List() = %v, want 1 task", tasks)
+		}
 
-	if err := s.Complete(tid2); err != nil {
-		t.Fatalf("Complete(BIT-2): %v", err)
-	}
+		got, err := s.NextID(tprefix)
+		if err != nil {
+			t.Fatalf("NextID() returned error: %v", err)
+		}
 
-	got, err := s.NextID(tprefix)
-	if err != nil {
-		t.Fatalf("NextID() returned error: %v", err)
-	}
+		if got != tid2 {
+			t.Errorf("NextID() = %q, want %q", got, tid2)
+		}
+	})
 
-	if got != tid3 {
-		t.Errorf("NextID() = %q, want %q", got, tid3)
-	}
-}
+	t.Run("orders bars by explicit order", func(t *testing.T) {
+		t.Parallel()
 
-func TestStoreNextChildID_ReservesCompletedChildren(t *testing.T) {
-	t.Parallel()
+		tests := []struct {
+			name  string
+			order []string
+			want  []string
+		}{
+			{
+				name:  "explicit order overrides id sequence",
+				order: []string{tid1_2, tid1_1},
+				want:  []string{tid1, tid1_2, tid1_1},
+			},
+			{
+				name:  "no order falls back to id sequence",
+				order: nil,
+				want:  []string{tid1, tid1_1, tid1_2},
+			},
+		}
 
-	s := New(t.TempDir())
-	if err := s.Save(&Task{ID: tid1, Title: tseed, Status: StatusTodo}); err != nil {
-		t.Fatalf("seeding BIT-1: %v", err)
-	}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
 
-	if err := s.Save(&Task{ID: tid1_1, Title: tseed, Status: StatusDone}); err != nil {
-		t.Fatalf("seeding BIT-1.1: %v", err)
-	}
-
-	if err := s.Complete(tid1_1); err != nil {
-		t.Fatalf("Complete(BIT-1.1): %v", err)
-	}
-
-	got, err := s.NextChildID(tid1)
-	if err != nil {
-		t.Fatalf("NextChildID() returned error: %v", err)
-	}
-
-	if got != tid1_2 {
-		t.Errorf("NextChildID() = %q, want %q", got, tid1_2)
-	}
-}
-
-func TestStoreSaveLoad_RoundTrips(t *testing.T) {
-	t.Parallel()
-
-	s := New(t.TempDir())
-	want := Task{ID: tid1, Title: "Title", Status: StatusTodo, Body: "Body.\n"}
-
-	if err := s.Save(&want); err != nil {
-		t.Fatalf("Save() returned error: %v", err)
-	}
-
-	got, err := s.Load(tid1)
-	if err != nil {
-		t.Fatalf("Load() returned error: %v", err)
-	}
-
-	if !reflect.DeepEqual(*got, want) {
-		t.Errorf("Load() = %+v, want %+v", *got, want)
-	}
-}
-
-func TestStoreLoad_ErrorsOnUnknownID(t *testing.T) {
-	t.Parallel()
-
-	_, err := New(t.TempDir()).Load("BIT-99")
-
-	if !errors.Is(err, fs.ErrNotExist) {
-		t.Fatalf("Load() error = %v, want an error wrapping fs.ErrNotExist", err)
-	}
-
-	if !strings.Contains(err.Error(), "BIT-99") {
-		t.Errorf("Load() error = %q, want it to name the task ID", err)
-	}
-}
-
-func TestStoreList_EmptyWhenNoTasksDir(t *testing.T) {
-	t.Parallel()
-
-	tasks, err := New(t.TempDir()).List()
-	if err != nil {
-		t.Fatalf("List() returned error: %v", err)
-	}
-
-	if len(tasks) != 0 {
-		t.Errorf("List() = %v, want no tasks", tasks)
-	}
-}
-
-func TestStoreList_OrdersBarsByExplicitOrder(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name  string
-		order []string
-		want  []string
-	}{
-		{
-			name:  "explicit order overrides id sequence",
-			order: []string{tid1_2, tid1_1},
-			want:  []string{tid1, tid1_2, tid1_1},
-		},
-		{
-			name:  "no order falls back to id sequence",
-			order: nil,
-			want:  []string{tid1, tid1_1, tid1_2},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			s := New(t.TempDir())
-			if err := s.Save(&Task{ID: tid1, Title: ttrack, Status: StatusTodo, Order: tt.order}); err != nil {
-				t.Fatalf("seeding BIT-1: %v", err)
-			}
-
-			for _, id := range []string{tid1_1, tid1_2} {
-				if err := s.Save(&Task{ID: id, Title: tbar, Status: StatusTodo}); err != nil {
-					t.Fatalf("seeding %s: %v", id, err)
+				s := New(t.TempDir())
+				if err := s.Save(&Task{ID: tid1, Title: ttrack, Status: StatusTodo, Order: tt.order}); err != nil {
+					t.Fatalf("seeding BIT-1: %v", err)
 				}
-			}
 
-			tasks, err := s.List()
-			if err != nil {
-				t.Fatalf("List() returned error: %v", err)
-			}
+				for _, id := range []string{tid1_1, tid1_2} {
+					if err := s.Save(&Task{ID: id, Title: tbar, Status: StatusTodo}); err != nil {
+						t.Fatalf("seeding %s: %v", id, err)
+					}
+				}
 
-			got := make([]string, len(tasks))
-			for i, task := range tasks {
-				got[i] = task.ID
-			}
+				tasks, err := s.List()
+				if err != nil {
+					t.Fatalf("List() returned error: %v", err)
+				}
 
-			if !slices.Equal(got, tt.want) {
-				t.Errorf("List() order = %v, want %v", got, tt.want)
-			}
-		})
-	}
+				got := make([]string, len(tasks))
+				for i, task := range tasks {
+					got[i] = task.ID
+				}
+
+				if !slices.Equal(got, tt.want) {
+					t.Errorf("List() order = %v, want %v", got, tt.want)
+				}
+			})
+		}
+	})
 }
 
-func TestStoreMove_Resequences(t *testing.T) {
+func TestStoreMove(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name          string
-		order         []string
-		id            string
-		before, after string
-		want          []string
-	}{
-		{
-			name:   "materializes then moves to front",
-			order:  nil,
-			id:     tid1_3,
-			before: tid1_1,
-			want:   []string{tid1_3, tid1_1, tid1_2},
-		},
-		{
-			name:  "splices an existing order to the back",
-			order: []string{tid1_1, tid1_2, tid1_3},
-			id:    tid1_1,
-			after: tid1_3,
-			want:  []string{tid1_2, tid1_3, tid1_1},
-		},
-	}
+	t.Run("resequences", func(t *testing.T) {
+		t.Parallel()
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
+		tests := []struct {
+			name          string
+			order         []string
+			id            string
+			before, after string
+			want          []string
+		}{
+			{
+				name:   "materializes then moves to front",
+				order:  nil,
+				id:     tid1_3,
+				before: tid1_1,
+				want:   []string{tid1_3, tid1_1, tid1_2},
+			},
+			{
+				name:  "splices an existing order to the back",
+				order: []string{tid1_1, tid1_2, tid1_3},
+				id:    tid1_1,
+				after: tid1_3,
+				want:  []string{tid1_2, tid1_3, tid1_1},
+			},
+		}
 
-			s := New(t.TempDir())
-			if err := s.Save(&Task{ID: tid1, Title: ttrack, Status: StatusTodo, Order: tt.order}); err != nil {
-				t.Fatalf("seeding BIT-1: %v", err)
-			}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
 
-			for _, id := range []string{tid1_1, tid1_2, tid1_3} {
-				if err := s.Save(&Task{ID: id, Title: tbar, Status: StatusTodo}); err != nil {
-					t.Fatalf("seeding %s: %v", id, err)
+				s := New(t.TempDir())
+				if err := s.Save(&Task{ID: tid1, Title: ttrack, Status: StatusTodo, Order: tt.order}); err != nil {
+					t.Fatalf("seeding BIT-1: %v", err)
 				}
-			}
 
-			if err := s.Move(tt.id, tt.before, tt.after); err != nil {
-				t.Fatalf("Move() returned error: %v", err)
-			}
-
-			got, err := s.Load(tid1)
-			if err != nil {
-				t.Fatalf("loading BIT-1: %v", err)
-			}
-
-			if !slices.Equal(got.Order, tt.want) {
-				t.Errorf("Order = %v, want %v", got.Order, tt.want)
-			}
-		})
-	}
-}
-
-func TestStoreMove_Rejects(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name         string
-		id           string
-		anchor       string
-		wantNotExist bool
-	}{
-		{name: "anchor under a different track", id: tid1_1, anchor: tid2_1},
-		{name: "unknown bar", id: tid1_9, anchor: tid1_1, wantNotExist: true},
-		{name: "unknown anchor", id: tid1_1, anchor: tid1_9, wantNotExist: true},
-		{name: "moving a bar relative to itself", id: tid1_1, anchor: tid1_1},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			s := New(t.TempDir())
-			for _, id := range []string{tid1, tid2} {
-				if err := s.Save(&Task{ID: id, Title: ttrack, Status: StatusTodo}); err != nil {
-					t.Fatalf("seeding %s: %v", id, err)
+				for _, id := range []string{tid1_1, tid1_2, tid1_3} {
+					if err := s.Save(&Task{ID: id, Title: tbar, Status: StatusTodo}); err != nil {
+						t.Fatalf("seeding %s: %v", id, err)
+					}
 				}
-			}
 
-			for _, id := range []string{tid1_1, tid1_2, tid2_1} {
-				if err := s.Save(&Task{ID: id, Title: tbar, Status: StatusTodo}); err != nil {
-					t.Fatalf("seeding %s: %v", id, err)
+				if err := s.Move(tt.id, tt.before, tt.after); err != nil {
+					t.Fatalf("Move() returned error: %v", err)
 				}
-			}
 
-			err := s.Move(tt.id, "", tt.anchor)
-			if err == nil {
-				t.Fatalf("Move(%q, %q) returned nil error, want non-nil", tt.id, tt.anchor)
-			}
-
-			if tt.wantNotExist && !errors.Is(err, fs.ErrNotExist) {
-				t.Errorf("Move(%q, %q) error = %v, want it to wrap fs.ErrNotExist", tt.id, tt.anchor, err)
-			}
-		})
-	}
-}
-
-func TestStoreMove_RejectsAnchorPair(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name          string
-		before, after string
-	}{
-		{name: "both anchors", before: tid1_1, after: tid1_1},
-		{name: "neither anchor"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			seed := []string{tid1_1, tid1_2}
-
-			s := New(t.TempDir())
-			if err := s.Save(&Task{ID: tid1, Title: ttrack, Status: StatusTodo, Order: seed}); err != nil {
-				t.Fatalf("seeding %s: %v", tid1, err)
-			}
-
-			for _, id := range seed {
-				if err := s.Save(&Task{ID: id, Title: tbar, Status: StatusTodo}); err != nil {
-					t.Fatalf("seeding %s: %v", id, err)
+				got, err := s.Load(tid1)
+				if err != nil {
+					t.Fatalf("loading BIT-1: %v", err)
 				}
-			}
 
-			if err := s.Move(tid1_2, tt.before, tt.after); err == nil {
-				t.Fatalf("Move(%q, %q, %q) returned nil error, want non-nil", tid1_2, tt.before, tt.after)
-			}
+				if !slices.Equal(got.Order, tt.want) {
+					t.Errorf("Order = %v, want %v", got.Order, tt.want)
+				}
+			})
+		}
+	})
 
-			got, err := s.Load(tid1)
-			if err != nil {
-				t.Fatalf("loading %s: %v", tid1, err)
-			}
+	t.Run("rejects", func(t *testing.T) {
+		t.Parallel()
 
-			if !slices.Equal(got.Order, seed) {
-				t.Errorf("Order = %v, want %v unchanged", got.Order, seed)
-			}
-		})
-	}
-}
+		tests := []struct {
+			name         string
+			id           string
+			anchor       string
+			wantNotExist bool
+		}{
+			{name: "anchor under a different track", id: tid1_1, anchor: tid2_1},
+			{name: "unknown bar", id: tid1_9, anchor: tid1_1, wantNotExist: true},
+			{name: "unknown anchor", id: tid1_1, anchor: tid1_9, wantNotExist: true},
+			{name: "moving a bar relative to itself", id: tid1_1, anchor: tid1_1},
+		}
 
-func TestStoreConfig_RoundTrips(t *testing.T) {
-	t.Parallel()
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
 
-	s := New(t.TempDir())
-	if err := s.SaveConfig(&Config{Prefix: tprefix}); err != nil {
-		t.Fatalf("SaveConfig() returned error: %v", err)
-	}
+				s := New(t.TempDir())
+				for _, id := range []string{tid1, tid2} {
+					if err := s.Save(&Task{ID: id, Title: ttrack, Status: StatusTodo}); err != nil {
+						t.Fatalf("seeding %s: %v", id, err)
+					}
+				}
 
-	got, err := s.Config()
-	if err != nil {
-		t.Fatalf("Config() returned error: %v", err)
-	}
+				for _, id := range []string{tid1_1, tid1_2, tid2_1} {
+					if err := s.Save(&Task{ID: id, Title: tbar, Status: StatusTodo}); err != nil {
+						t.Fatalf("seeding %s: %v", id, err)
+					}
+				}
 
-	if got.Prefix != tprefix {
-		t.Errorf("Config().Prefix = %q, want %q", got.Prefix, tprefix)
-	}
+				err := s.Move(tt.id, "", tt.anchor)
+				if err == nil {
+					t.Fatalf("Move(%q, %q) returned nil error, want non-nil", tt.id, tt.anchor)
+				}
+
+				if tt.wantNotExist && !errors.Is(err, fs.ErrNotExist) {
+					t.Errorf("Move(%q, %q) error = %v, want it to wrap fs.ErrNotExist", tt.id, tt.anchor, err)
+				}
+			})
+		}
+	})
+
+	t.Run("rejects anchor pair", func(t *testing.T) {
+		t.Parallel()
+
+		tests := []struct {
+			name          string
+			before, after string
+		}{
+			{name: "both anchors", before: tid1_1, after: tid1_1},
+			{name: "neither anchor"},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+
+				seed := []string{tid1_1, tid1_2}
+
+				s := New(t.TempDir())
+				if err := s.Save(&Task{ID: tid1, Title: ttrack, Status: StatusTodo, Order: seed}); err != nil {
+					t.Fatalf("seeding %s: %v", tid1, err)
+				}
+
+				for _, id := range seed {
+					if err := s.Save(&Task{ID: id, Title: tbar, Status: StatusTodo}); err != nil {
+						t.Fatalf("seeding %s: %v", id, err)
+					}
+				}
+
+				if err := s.Move(tid1_2, tt.before, tt.after); err == nil {
+					t.Fatalf("Move(%q, %q, %q) returned nil error, want non-nil", tid1_2, tt.before, tt.after)
+				}
+
+				got, err := s.Load(tid1)
+				if err != nil {
+					t.Fatalf("loading %s: %v", tid1, err)
+				}
+
+				if !slices.Equal(got.Order, seed) {
+					t.Errorf("Order = %v, want %v unchanged", got.Order, seed)
+				}
+			})
+		}
+	})
 }
 
 func TestCompareIDs(t *testing.T) {
@@ -725,14 +929,6 @@ func TestCompareIDs(t *testing.T) {
 				t.Errorf("compareIDs(%q, %q) = %d, want 0", tt.a, tt.b, got)
 			}
 		})
-	}
-}
-
-func TestStoreConfig_ErrorsWhenAbsent(t *testing.T) {
-	t.Parallel()
-
-	if _, err := New(t.TempDir()).Config(); !errors.Is(err, fs.ErrNotExist) {
-		t.Fatalf("Config() error = %v, want an error wrapping fs.ErrNotExist", err)
 	}
 }
 
@@ -780,10 +976,7 @@ func TestStoreCreate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			s := New(t.TempDir())
-			if err := s.SaveConfig(&Config{Prefix: tprefix}); err != nil {
-				t.Fatalf("SaveConfig() returned error: %v", err)
-			}
+			s := NewProject(t.TempDir(), tprefix)
 
 			for _, seed := range tt.seed {
 				if err := s.Save(seed); err != nil {
@@ -818,18 +1011,126 @@ func TestStoreCreate(t *testing.T) {
 			}
 		})
 	}
-}
 
-func TestStoreCreate_RejectsUnknownParent(t *testing.T) {
-	t.Parallel()
+	t.Run("mints from the project code", func(t *testing.T) {
+		t.Parallel()
 
-	s := New(t.TempDir())
+		tests := []struct {
+			name    string
+			code    string
+			creates int
+			want    string
+		}{
+			{name: "first track", code: "EX", creates: 1, want: "EX-1"},
+			{name: "second track in the same store", code: "EX", creates: 2, want: "EX-2"},
+			{name: "another code", code: "ZZ", creates: 1, want: "ZZ-1"},
+		}
 
-	_, err := s.Create(CreateParams{Title: tbar, Parent: tid1_9})
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
 
-	if !errors.Is(err, fs.ErrNotExist) {
-		t.Fatalf("Create() error = %v, want an error wrapping fs.ErrNotExist", err)
-	}
+				root := t.TempDir()
+				s := NewProject(root, tt.code)
+
+				var got *Task
+
+				for range tt.creates {
+					var err error
+
+					got, err = s.Create(CreateParams{Title: ttrack})
+					if err != nil {
+						t.Fatalf("Create() returned error: %v", err)
+					}
+				}
+
+				if got.ID != tt.want {
+					t.Errorf("Create() ID = %q, want %q", got.ID, tt.want)
+				}
+			})
+		}
+	})
+
+	t.Run("bumps the parent track updated at and keeps its created at", func(t *testing.T) {
+		t.Parallel()
+
+		root := t.TempDir()
+		s := NewProject(root, tprefix)
+		at := tclock1
+		s.now = fixedClock(&at)
+
+		for _, seed := range []*Task{
+			{ID: tid1, Title: tseed, Status: StatusTodo, Order: []string{tid1_1}},
+			{ID: tid1_1, Title: tbar, Status: StatusTodo},
+		} {
+			if err := s.Save(seed); err != nil {
+				t.Fatalf("seeding %s: %v", seed.ID, err)
+			}
+		}
+
+		at = tclock2
+
+		if _, err := s.Create(CreateParams{Title: tbar, Parent: tid1}); err != nil {
+			t.Fatalf("Create() returned error: %v", err)
+		}
+
+		assertStamps(t, readRecord(t, root, tid1), tstamp1, tstamp2)
+	})
+
+	t.Run("writes git fields as given", func(t *testing.T) {
+		t.Parallel()
+
+		tests := []struct {
+			name       string
+			params     CreateParams
+			wantBranch string
+			wantCommit string
+		}{
+			{name: "no git fields", params: CreateParams{Title: "T"}},
+			{
+				name:       "branch and commit",
+				params:     CreateParams{Title: "T", Branch: "v2", Commit: tsha},
+				wantBranch: "v2",
+				wantCommit: tsha,
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+
+				root := t.TempDir()
+				s := NewProject(root, tprefix)
+
+				created, err := s.Create(tt.params)
+				if err != nil {
+					t.Fatalf("Create() returned error: %v", err)
+				}
+
+				rec := readRecord(t, root, created.ID)
+
+				if rec["branch"] != tt.wantBranch {
+					t.Errorf("branch = %v, want %q", rec["branch"], tt.wantBranch)
+				}
+
+				if rec["commit"] != tt.wantCommit {
+					t.Errorf("commit = %v, want %q", rec["commit"], tt.wantCommit)
+				}
+			})
+		}
+	})
+
+	t.Run("rejects unknown parent", func(t *testing.T) {
+		t.Parallel()
+
+		s := New(t.TempDir())
+
+		_, err := s.Create(CreateParams{Title: tbar, Parent: tid1_9})
+
+		if !errors.Is(err, fs.ErrNotExist) {
+			t.Fatalf("Create() error = %v, want an error wrapping fs.ErrNotExist", err)
+		}
+	})
 }
 
 func assertCreated(t *testing.T, what string, got *Task, want CreateParams, wantID string) {
@@ -860,142 +1161,235 @@ func assertCreated(t *testing.T, what string, got *Task, want CreateParams, want
 	}
 }
 
-func TestStoreUpdate_AppliesOnlySetFields(t *testing.T) {
+func TestStoreUpdate(t *testing.T) {
 	t.Parallel()
 
-	const (
-		oldTitle = "Old title"
-		oldLabel = "Old label"
-		oldBody  = "Old body."
-	)
+	t.Run("applies only set fields", func(t *testing.T) {
+		t.Parallel()
 
-	seed := Task{
-		ID:         tid1,
-		Title:      oldTitle,
-		Status:     StatusTodo,
-		Phase:      3,
-		PhaseLabel: oldLabel,
-		Body:       oldBody,
-	}
+		const (
+			oldTitle = "Old title"
+			oldLabel = "Old label"
+			oldBody  = "Old body."
+		)
 
-	tests := []struct {
-		name  string
-		patch Patch
-		want  Task
-	}{
-		{
-			name:  "an empty patch changes nothing",
-			patch: Patch{},
-			want:  seed,
-		},
-		{
-			name:  "a set title is written",
-			patch: Patch{Title: ptr("New title")},
-			want:  Task{ID: tid1, Title: "New title", Status: StatusTodo, Phase: 3, PhaseLabel: oldLabel, Body: oldBody},
-		},
-		{
-			name:  "body and status are written together",
-			patch: Patch{Body: ptr("New body."), Status: ptr(StatusDoing)},
-			want:  Task{ID: tid1, Title: oldTitle, Status: StatusDoing, Phase: 3, PhaseLabel: oldLabel, Body: "New body."},
-		},
-		{
-			name:  "an explicitly empty title is written",
-			patch: Patch{Title: ptr("")},
-			want:  Task{ID: tid1, Title: "", Status: StatusTodo, Phase: 3, PhaseLabel: oldLabel, Body: oldBody},
-		},
-		{
-			name:  "a zero phase and empty label are written",
-			patch: Patch{Phase: ptr(0), PhaseLabel: ptr("")},
-			want:  Task{ID: tid1, Title: oldTitle, Status: StatusTodo, Phase: 0, PhaseLabel: "", Body: oldBody},
-		},
-	}
+		seed := Task{
+			ID:         tid1,
+			Title:      oldTitle,
+			Status:     StatusTodo,
+			Phase:      3,
+			PhaseLabel: oldLabel,
+			Body:       oldBody,
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
+		tests := []struct {
+			name  string
+			patch Patch
+			want  Task
+		}{
+			{
+				name:  "an empty patch changes nothing",
+				patch: Patch{},
+				want:  seed,
+			},
+			{
+				name:  "a set title is written",
+				patch: Patch{Title: ptr("New title")},
+				want:  Task{ID: tid1, Title: "New title", Status: StatusTodo, Phase: 3, PhaseLabel: oldLabel, Body: oldBody},
+			},
+			{
+				name:  "body and status are written together",
+				patch: Patch{Body: ptr("New body."), Status: ptr(StatusDoing)},
+				want:  Task{ID: tid1, Title: oldTitle, Status: StatusDoing, Phase: 3, PhaseLabel: oldLabel, Body: "New body."},
+			},
+			{
+				name:  "an explicitly empty title is written",
+				patch: Patch{Title: ptr("")},
+				want:  Task{ID: tid1, Title: "", Status: StatusTodo, Phase: 3, PhaseLabel: oldLabel, Body: oldBody},
+			},
+			{
+				name:  "a zero phase and empty label are written",
+				patch: Patch{Phase: ptr(0), PhaseLabel: ptr("")},
+				want:  Task{ID: tid1, Title: oldTitle, Status: StatusTodo, Phase: 0, PhaseLabel: "", Body: oldBody},
+			},
+		}
 
-			s := New(t.TempDir())
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
 
-			s0 := seed
-			if err := s.Save(&s0); err != nil {
-				t.Fatalf("seeding %s: %v", seed.ID, err)
-			}
+				s := New(t.TempDir())
+				s.now = func() time.Time { return tclock1 }
 
-			got, err := s.Update(tid1, tt.patch)
-			if err != nil {
-				t.Fatalf("Update() returned error: %v", err)
-			}
+				want := tt.want
+				want.CreatedAt = tclock1.UTC().Truncate(time.Second)
+				want.UpdatedAt = want.CreatedAt
 
-			loaded, err := s.Load(tid1)
-			if err != nil {
-				t.Fatalf("loading %s: %v", tid1, err)
-			}
+				s0 := seed
+				if err := s.Save(&s0); err != nil {
+					t.Fatalf("seeding %s: %v", seed.ID, err)
+				}
 
-			if !reflect.DeepEqual(*got, tt.want) {
-				t.Errorf("Update() = %+v, want %+v", *got, tt.want)
-			}
+				got, err := s.Update(tid1, tt.patch)
+				if err != nil {
+					t.Fatalf("Update() returned error: %v", err)
+				}
 
-			if !reflect.DeepEqual(*loaded, tt.want) {
-				t.Errorf("Load() = %+v, want %+v", *loaded, tt.want)
-			}
-		})
-	}
-}
+				loaded, err := s.Load(tid1)
+				if err != nil {
+					t.Fatalf("loading %s: %v", tid1, err)
+				}
 
-func TestStoreUpdate_ApprovalRevocation(t *testing.T) {
-	t.Parallel()
+				if !reflect.DeepEqual(*got, want) {
+					t.Errorf("Update() = %+v, want %+v", *got, want)
+				}
 
-	tests := []struct {
-		name         string
-		approved     bool
-		patch        Patch
-		wantApproved bool
-	}{
-		{name: "a title change revokes", approved: true, patch: Patch{Title: ptr("x")}},
-		{name: "a body change revokes", approved: true, patch: Patch{Body: ptr("x")}},
-		{name: "a phase change revokes", approved: true, patch: Patch{Phase: ptr(2)}},
-		{name: "a phase-label change revokes", approved: true, patch: Patch{PhaseLabel: ptr("x")}},
-		{name: "sending a task back to todo revokes", approved: true, patch: Patch{Status: ptr(StatusTodo)}},
-		{
-			name:         "a forward status move keeps approval",
-			approved:     true,
-			patch:        Patch{Status: ptr(StatusDone)},
-			wantApproved: true,
-		},
-		{name: "an empty patch keeps approval", approved: true, patch: Patch{}, wantApproved: true},
-		{name: "an unapproved task stays unapproved", approved: false, patch: Patch{Title: ptr("x")}},
-	}
+				if !reflect.DeepEqual(*loaded, want) {
+					t.Errorf("Load() = %+v, want %+v", *loaded, want)
+				}
+			})
+		}
+	})
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
+	t.Run("keeps created at and bumps updated at", func(t *testing.T) {
+		t.Parallel()
 
-			s := New(t.TempDir())
-			if err := s.Save(&Task{ID: tid1, Title: "T", Status: StatusDoing, Approved: tt.approved}); err != nil {
-				t.Fatalf("seeding %s: %v", tid1, err)
-			}
+		root := t.TempDir()
+		s := NewProject(root, tprefix)
+		at := tclock1
+		s.now = fixedClock(&at)
 
-			got, err := s.Update(tid1, tt.patch)
-			if err != nil {
-				t.Fatalf("Update() returned error: %v", err)
-			}
+		if err := s.Save(&Task{ID: tid1, Title: "T", Status: StatusTodo}); err != nil {
+			t.Fatalf("seeding %s: %v", tid1, err)
+		}
 
-			loaded, err := s.Load(tid1)
-			if err != nil {
-				t.Fatalf("loading %s: %v", tid1, err)
-			}
+		at = tclock2
 
-			if got.Approved != tt.wantApproved {
-				t.Errorf("Update() Approved = %v, want %v", got.Approved, tt.wantApproved)
-			}
+		if _, err := s.Update(tid1, Patch{Body: ptr("b")}); err != nil {
+			t.Fatalf("Update() returned error: %v", err)
+		}
 
-			if loaded.Approved != tt.wantApproved {
-				t.Errorf("Load() Approved = %v, want %v", loaded.Approved, tt.wantApproved)
-			}
-		})
-	}
+		assertStamps(t, readRecord(t, root, tid1), tstamp1, tstamp2)
+	})
+
+	t.Run("sets commit without revoking approval", func(t *testing.T) {
+		t.Parallel()
+
+		s := New(t.TempDir())
+		if err := s.Save(&Task{ID: tid1_1, Title: "T", Status: StatusDone, Approved: true, Body: "b"}); err != nil {
+			t.Fatalf("seeding %s: %v", tid1_1, err)
+		}
+
+		sha := tsha
+
+		if _, err := s.Update(tid1_1, Patch{Commit: &sha}); err != nil {
+			t.Fatalf("Update() returned error: %v", err)
+		}
+
+		loaded, err := s.Load(tid1_1)
+		if err != nil {
+			t.Fatalf("loading %s: %v", tid1_1, err)
+		}
+
+		if loaded.Commit != sha {
+			t.Errorf("Commit = %q, want %q", loaded.Commit, sha)
+		}
+
+		if !loaded.Approved {
+			t.Error("Approved = false, want true")
+		}
+
+		if loaded.Title != "T" || loaded.Body != "b" {
+			t.Errorf("Title, Body = %q, %q, want %q, %q", loaded.Title, loaded.Body, "T", "b")
+		}
+	})
+
+	t.Run("approval revocation", func(t *testing.T) {
+		t.Parallel()
+
+		tests := []struct {
+			name         string
+			approved     bool
+			patch        Patch
+			wantApproved bool
+		}{
+			{name: "a title change revokes", approved: true, patch: Patch{Title: ptr("x")}},
+			{name: "a body change revokes", approved: true, patch: Patch{Body: ptr("x")}},
+			{name: "a phase change revokes", approved: true, patch: Patch{Phase: ptr(2)}},
+			{name: "a phase-label change revokes", approved: true, patch: Patch{PhaseLabel: ptr("x")}},
+			{name: "sending a task back to todo revokes", approved: true, patch: Patch{Status: ptr(StatusTodo)}},
+			{
+				name:         "a forward status move keeps approval",
+				approved:     true,
+				patch:        Patch{Status: ptr(StatusDone)},
+				wantApproved: true,
+			},
+			{name: "an empty patch keeps approval", approved: true, patch: Patch{}, wantApproved: true},
+			{
+				name:         "a branch change keeps approval",
+				approved:     true,
+				patch:        Patch{Branch: ptr("v2")},
+				wantApproved: true,
+			},
+			{name: "an unapproved task stays unapproved", approved: false, patch: Patch{Title: ptr("x")}},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+
+				s := New(t.TempDir())
+				if err := s.Save(&Task{ID: tid1, Title: "T", Status: StatusDoing, Approved: tt.approved}); err != nil {
+					t.Fatalf("seeding %s: %v", tid1, err)
+				}
+
+				got, err := s.Update(tid1, tt.patch)
+				if err != nil {
+					t.Fatalf("Update() returned error: %v", err)
+				}
+
+				loaded, err := s.Load(tid1)
+				if err != nil {
+					t.Fatalf("loading %s: %v", tid1, err)
+				}
+
+				if got.Approved != tt.wantApproved {
+					t.Errorf("Update() Approved = %v, want %v", got.Approved, tt.wantApproved)
+				}
+
+				if loaded.Approved != tt.wantApproved {
+					t.Errorf("Load() Approved = %v, want %v", loaded.Approved, tt.wantApproved)
+				}
+			})
+		}
+	})
 }
 
 func ptr[T any](v T) *T {
 	return &v
+}
+
+func TestStoreSetApproved(t *testing.T) {
+	t.Parallel()
+
+	t.Run("keeps created at and bumps updated at", func(t *testing.T) {
+		t.Parallel()
+
+		root := t.TempDir()
+		s := NewProject(root, tprefix)
+		at := tclock1
+		s.now = fixedClock(&at)
+
+		if err := s.Save(&Task{ID: tid1, Title: "T", Status: StatusTodo}); err != nil {
+			t.Fatalf("seeding %s: %v", tid1, err)
+		}
+
+		at = tclock2
+
+		if err := s.SetApproved(tid1, true); err != nil {
+			t.Fatalf("SetApproved() returned error: %v", err)
+		}
+
+		assertStamps(t, readRecord(t, root, tid1), tstamp1, tstamp2)
+	})
 }

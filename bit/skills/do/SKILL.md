@@ -1,20 +1,20 @@
 ---
 name: bit_do
-description: Execute an existing implementation plan one step at a time, stopping after each step for the user to verify before continuing. Use whenever the user says "implement the plan", "continue our implementation", "let's build the next step", "do the next step", "pick up where we left off", or otherwise wants to carry out — not write or revise — a markdown bit_plan. This is the execution counterpart to bit_plan and bit_scope — bit_scope frames the WHY and delivery order in a track, bit_plan authors the detailed steps as bars under it, bit_do carries them out. It finds the track in `.bit/`, reads the track body and its bars through the `mcp__bit__*` tools, tracks each bar's checklist as tasks, runs the automated checks, moves each bar's status (`doing` → `done`) and rolls the track up (checking off completed verses and setting the track's status), and hands off to the user for verification and commit between bars. When every bar is done it stops short of marking the track done on its own — the user's explicit sign-off is what flips the track to `done` and files it (and its bars) under `.bit/completed/`, out of the active list. This project is a Go codebase — bit_do applies the project's Go skills (go, cobra-viper, wails, fileflow-pathologize, go-spec-reviewer, go-release) while implementing so code stays idiomatic. Trigger this — not bit_plan — when a plan already exists and the user wants to start or resume building it.
+description: Execute an existing implementation plan one step at a time, stopping after each step for the user to verify before continuing. Use whenever the user says "implement the plan", "continue our implementation", "let's build the next step", "do the next step", "pick up where we left off", or otherwise wants to carry out — not write or revise — a markdown bit_plan. This is the execution counterpart to bit_plan and bit_scope — bit_scope frames the WHY and delivery order in a track, bit_plan authors the detailed steps as bars under it, bit_do carries them out. It finds the track with `mcp__bit__task_read`, reads the track body and its bars through the `mcp__bit__*` tools, tracks each bar's checklist as tasks, runs the automated checks, moves each bar's status (`doing` → `done`) and rolls the track up (checking off completed verses and setting the track's status), and commits each verified bar through bit_commit, which asks the operator first, before handing off between bars. When every bar is done it stops; the operator pushes (or merges) and runs `/bit:complete`, which records where the track landed and files it. This project is a Go codebase — bit_do applies the project's Go skills (go, cobra-viper, wails, fileflow-pathologize, go-spec-reviewer, go-release) while implementing so code stays idiomatic. Trigger this — not bit_plan — when a plan already exists and the user wants to start or resume building it.
 ---
 
 # Plan Implementer
 
-You execute implementation work that bit_scope and bit_plan produced. It lives in one **track** in `.bit/`, driven through the `mcp__bit__*` tools:
+You execute implementation work that bit_scope and bit_plan produced. It lives in one **track** in the store, driven through the `mcp__bit__*` tools:
 
 - **the bars** (child tasks under the track, from bit_plan) — the executable detail: each bar is one step — one red-green cycle with a scope, an implementation checklist, "Claude verifies" checks, "User verifies" checks, and a suggested commit. This is what you carry out, one bar at a time.
 - **the track body** (from bit_scope) — the high-level overview and the WHY, with the coarse **verses** the bars roll up into. You read it for context and keep its verse checklist in sync; you execute against the bars.
 
 A note on vocabulary, because it's easy to trip on: the **track** carries coarse **verses** (usable value slices) in its body; its **bars** are the fine-grained steps (one commit each, tagged to the verse they serve via the bar's `phase` field — the field keeps the name `phase`, the scope's slice is a verse). You execute one *bar* at a time; a *verse* is done when all its bars are.
 
-Four tools cover everything this skill does: `mcp__bit__task_read` to read a track's scope body or a bar's detail, `mcp__bit__task_list` to walk a track's bars, `mcp__bit__task_update` to move a status or write a rolled-up track body, and `mcp__bit__task_complete` to file a signed-off track. Never hand-edit `.bit/tasks/*.md` — that rule is the one the whole tool surface exists to enforce.
+Three tools cover everything this skill does: `mcp__bit__task_read` to read a track's scope body or a bar's detail, `mcp__bit__task_list` to walk a track's bars, and `mcp__bit__task_update` to move a status or write a rolled-up track body. The `mcp__bit__*` tools are the only way in — that rule is the one the whole tool surface exists to enforce.
 
-Your job is to carry out **one bar, then stop**. The plan was deliberately broken into bars that are each independently verifiable and committable. Verification is the user's call, and so is the commit. Pushing ahead into a second bar blurs what is being verified and what is going into a single commit — which is exactly what the stepped structure exists to prevent.
+Your job is to carry out **one bar, then stop**. The plan was deliberately broken into bars that are each independently verifiable and committable. Verification is the user's call, and no commit happens without their yes, through bit_commit. Pushing ahead into a second bar blurs what is being verified and what is going into a single commit — which is exactly what the stepped structure exists to prevent.
 
 ---
 
@@ -32,7 +32,7 @@ Briefly restate: the bar's ID and name, the verse it serves, its scope files, an
 
 **Approval gate:** Before moving forward, check whether the bar is approved. Every task `mcp__bit__task_list` and `mcp__bit__task_read` return carries an `approved` boolean. If it's `false`, stop and tell the user:
 
-> "BIT-X.N is not approved — approve it first with `bp approve BIT-X.N`, or in the TUI."
+> "BIT-X.N is not approved — approve it first in the TUI (`bp tui`)."
 
 Don't mark the bar `doing` or touch any code until the gate is cleared. A bar whose approval was revoked by an edit is just as blocked as one that was never approved — `approved` is either `true` or it isn't. Note that there is no approve tool: approval is the operator's act, so clearing the gate is something only they can do.
 
@@ -40,7 +40,7 @@ Don't mark the bar `doing` or touch any code until the gate is cleared. A bar wh
 
 Move the bar to `doing` (`mcp__bit__task_update` with `status` set to `doing`) and roll the track up: if the track isn't already `doing`, set it the same way. Now the board reflects that this step is active.
 
-Then put each implementation-checklist item from the bar into your harness's session task list (the TaskCreate tool, if your harness has one), one task per item. Mark them in-progress and completed as you work. This keeps the bar's sub-tasks visible to the user and stops you from dropping or merging them. Only load the *current* bar's items — not the whole track. (This is harness bookkeeping, separate from the bars tracked in `.bit/` — skip it if no such tool is available.)
+Then put each implementation-checklist item from the bar into your harness's session task list (the TaskCreate tool, if your harness has one), one task per item. Mark them in-progress and completed as you work. This keeps the bar's sub-tasks visible to the user and stops you from dropping or merging them. Only load the *current* bar's items — not the whole track. (This is harness bookkeeping, separate from the bars tracked in the store — skip it if no such tool is available.)
 
 ### 3. Implement the bar
 
@@ -70,13 +70,13 @@ If an automated check fails, fix it within this bar's scope and re-run before st
 
 How you close out depends on whether the bar has anything left for a *human* to judge — that's exactly what its **User verifies** items are.
 
-**If the bar has User verifies items**, those are real judgment calls the automated checks can't settle — does the API feel right, is this safe to ship, does the output make sense for real data. Present them as a checklist for the user to work through, state the bar's suggested commit message (don't wait to be asked — it's part of what "done" means, not a follow-up question), then stop and hand control back. Leave the bar `doing`; it isn't done until the user has looked. When they confirm, run the **Verified good** close-out below.
+**If the bar has User verifies items**, those are real judgment calls the automated checks can't settle — does the API feel right, is this safe to ship, does the output make sense for real data. Present them as a checklist for the user to work through, show the commit message bit_commit will use (don't wait to be asked — it's part of what "done" means, not a follow-up question), then stop and hand control back. Leave the bar `doing`; it isn't done until the user has looked. When they confirm, run the **Verified good** close-out below, which commits.
 
-**If the bar has no User verifies items**, there's nothing for a human to judge — the passing "Claude verifies" checks *are* the verification, and waiting for a "looks good" that carries no new information just burns a round-trip. So run the **Verified good** close-out now, inline: mark the bar `done`, roll the track up, state the commit message, and prompt the compaction point. This is optimistic, not unsupervised — the user still reads the diff when they commit. If they spot a problem, they say so and you **unwind**: set the bar back to `doing` (`mcp__bit__task_update` with `status` set to `doing`), reverse any verse checkoff you made, and treat it as **Not as expected**. The call returns `approved`, and on this path it comes back `true` — walking a bar back to `doing` isn't a change to what was reviewed, so the bar stays approved and can resume without a second blessing. The done state is cheap to undo, and marking it now keeps the `.bit/tasks/*.md` status change in the tree for the *same* commit as the code, instead of lagging into the next bar's.
+**If the bar has no User verifies items**, there's nothing for a human to judge — the passing "Claude verifies" checks *are* the verification, and waiting for a "looks good" that carries no new information just burns a round-trip. So run the **Verified good** close-out now, inline: commit through bit_commit, roll the track up, and prompt the compaction point. This is optimistic, not unsupervised — bit_commit shows the files and the message, and nothing is committed until the operator says yes. If they spot a problem later, they say so and you **unwind**: the commit stays. Set the bar back to `doing` (`mcp__bit__task_update` with `status` set to `doing`), reverse any verse checkoff you made, and treat it as **Not as expected**. The call returns `approved`, and on this path it comes back `true` — walking a bar back to `doing` isn't a change to what was reviewed, so the bar stays approved and can resume without a second blessing. The fix lands as a follow-up commit through bit_commit, which overwrites the bar's `commit` and reuses its subject.
 
-Either way, two lines hold firm: do **not** commit, and do **not** start the next bar. Both are the user's call.
+Either way, two lines hold firm: never commit except through bit_commit, and do **not** start the next bar. The next bar is the user's call.
 
-The user often follows up with small cleanup on the step you just implemented — a tweak, a rename, "actually make this a table test," fixing something the checks didn't catch. Handle those in place, without treating them as a new step. But every such reply still ends with the commit message (refined if the change affects what it should say), the same way the original close-out did. The point is that the user never has to ask for it — it should be the last thing they see once the step's code is in a state they could commit, however many small back-and-forths it took to get there.
+The user often follows up with small cleanup on the step you just implemented — a tweak, a rename, "actually make this a table test," fixing something the checks didn't catch. Handle those in place, without treating them as a new step. If the bar is already committed, every such reply ends by offering a follow-up commit through bit_commit. If it isn't committed yet, the reply ends with the message bit_commit will use (refined if the change affects what it should say). The point is that the user never has to ask for it — it should be the last thing they see once the step's code is in a state they could commit, however many small back-and-forths it took to get there.
 
 When one of those follow-ups was a *correction* — the tweak fixed something the plan should have settled and didn't — add one line offering to record it: "want me to capture that as a feedback note?" Yes or no, and `/bit:feedback` writes it. Never write the note unasked; the user is the judge of what counts as feedback, and the offer only saves them having to remember it exists.
 
@@ -88,26 +88,21 @@ When one of those follow-ups was a *correction* — the tweak fixed something th
 
 This is the close-out procedure step 5 points to — run it inline for a bar with no **User verifies** items, or once the user confirms a bar that had them.
 
-1. **Mark the bar done.** `mcp__bit__task_update` with `status` set to `done`. The status field is the resume marker: a fresh session continues at the first bar that isn't `done`, with no doc to parse. (You don't need to tick the checklist boxes inside the bar body — the status field supersedes them.)
+1. **Commit through bit_commit.** It asks the operator, commits, and records `commit`, `branch` and `done` on the bar in one `task_update`. If the commit is declined, or a hook failure is unresolved, the bar stays `doing`: stop here, with no rollup. With nothing to commit, or no repo, bit_commit marks the bar `done` after the operator's OK. The status field is the resume marker: a fresh session continues at the first bar that isn't `done`, with no doc to parse.
 2. **Roll the track up.** This is skill logic run through the tools (nothing cascades for you):
    - Re-list the bars: `mcp__bit__task_list` with `parent` set to the track ID.
    - **Verse checkoff:** if this bar was the *last* one tagged to its verse — every bar with that `phase` is now `done` — check off that verse in the track body: find its `- [ ] Verse N` line and change `[ ]` to `[x]` (bit_scope keeps the checkbox and `Verse N` on the same line, so it's a one-line toggle). Read the body, edit that line, write it back.
-   - **Track status:** none started (all `todo`) → `todo`; anything else → `doing`. Note what's deliberately *absent*: even when every bar is now `done`, you do **not** set the track `done` here. A finished-looking track stays `doing` until the human signs it off — that sign-off, not the rollup, is what marks it done and files it under `.bit/completed/`. See **Track sign-off** below.
+   - **Track status:** none started (all `todo`) → `todo`; anything else → `doing`. Note what's deliberately *absent*: even when every bar is now `done`, you do **not** set the track `done` here. A finished-looking track stays `doing` until `/bit:complete` runs after the push. See **Track sign-off** below.
    - Apply both in one call so the track moves once: `mcp__bit__task_update` on the track — pass `body` only if the verse checkoff changed it, `status` only if the status changed, since an omitted field is left unchanged. **If neither changed, there's nothing to roll up — skip the call.** (This is the common mid-verse case: finishing a bar when its verse isn't complete yet and the track is already `doing`.)
 
    Keeping the track's verse checklist and status current lets a reader see delivered value at a glance from one `mcp__bit__task_read` on the track — and the track and its bars never disagree about what's done.
-3. **Suggest the commit.** Offer the bar's commit message (refined if the work diverged from it). The user commits — you never run the commit yourself. The `.bit/tasks/*.md` changes from steps 1–2 are part of the working tree, so they go into the same commit as the code — mention that.
-4. **Compaction point.** Tell the user this is a clean place to `/compact`, since the bar is done, verified, and committed. You can't run `/compact` yourself — it's a user command — so prompt them, then continue when they say so. If this was the **last** bar — the rollup shows every bar `done` — there's no next bar to continue to; point them at **Track sign-off** instead.
+3. **Compaction point.** Tell the user this is a clean place to `/compact`, since the bar is done, verified, and committed. You can't run `/compact` yourself — it's a user command — so prompt them, then continue when they say so. If this was the **last** bar — the rollup shows every bar `done` — there's no next bar to continue to; point them at **Track sign-off** instead.
 
 ### Track sign-off
 
-Marking a track `done` is the human's call, not a rollup side effect — so it lives here, apart from the per-bar close-out, and it's what files the finished work into `.bit/completed/`, out of the active list. The reasoning is that "all bars done" and "this track is truly finished" aren't the same claim: the last bar's checks passing doesn't mean the whole slice of work holds together, and only a person looking at the committed result can say it does. Auto-flipping the track to `done` would make that judgment for them and move the work into `completed/` before they'd looked.
+A track is completed once its work has landed, not when its last bar is done. So when you close out a bar and the rollup shows **every** bar is now `done`, finish that bar's own close-out as normal (verified, committed), then tell the operator the track is ready. The next step is theirs: push (or merge) the work, then run `/bit:complete <track>`, which checks that it landed, records the landing commit and files the track as completed.
 
-So when you close out a bar and the rollup shows **every** bar is now `done`, don't set the track `done` yourself. Finish that last bar's own close-out as normal (verified, commit suggested), then tell the user the whole track is ready: every verse has landed, and a final check of the committed work is the last thing between here and done. Then stop — the sign-off is a fresh cycle, and it's theirs to give.
-
-When the user signs off, hand off to **bit_complete** (`/bit:complete <track>`). It marks every bar and the track `done`, files them under `.bit/completed/` with `mcp__bit__task_complete`, and confirms the track left the active list. Don't redo those steps here. Flipping the status without filing is exactly the half-finished sign-off that skill exists to prevent.
-
-If the user isn't ready — wants more testing, or spots something — the track just stays `doing`. Nothing is lost, and you pick the sign-off back up whenever they're satisfied.
+The track stays `doing` until then. Don't set it `done` and don't file it yourself. If the operator isn't ready — wants more testing, or spots something — nothing changes, and `/bit:complete` waits until they are.
 
 ### Not as expected
 
@@ -119,15 +114,16 @@ Don't thrash or silently retry the same approach. Figure out which of three prob
 
 Cases 1 and 2 are plan gaps by definition — the plan was silent, or wrong, about something the work turned out to require. So before control leaves for bit_scope or bit_plan, offer to record it in one line, answered yes or no; `/bit:feedback` writes the note. The timing is the whole point: the hand-back is what overwrites the broken plan, so this is the last moment the evidence of what went wrong still exists.
 
-In all cases, leave the bar **not `done`** so it stays the next bar to resume. Its `doing` status is fine and accurate — work started, not verified. If you'd already auto-marked it `done` (the no-User-verifies path) and the user then flagged a problem, set it back to `doing` and reverse any verse checkoff you made — that's the unwind step 5 mentions.
+In all cases, leave the bar **not `done`** so it stays the next bar to resume. Its `doing` status is fine and accurate — work started, not verified. If you'd already auto-marked it `done` (the no-User-verifies path) and the user then flagged a problem, set it back to `doing` and reverse any verse checkoff you made — that's the unwind step 5 mentions. A committed bar keeps its commit, and its fix is a follow-up commit through bit_commit.
 
 ---
 
 ## What this skill does not do
 
 - **Author or redesign the scope or plan** — that's bit_scope and bit_plan. If there are no bars yet, or the bars or the track's shape need rethinking, switch to the right authoring skill.
-- **Commit** — always the user's action; you suggest the message.
+- **Commit on its own.** Every commit goes through bit_commit, which asks first. A declined commit leaves the bar `doing`.
+- **Push.** bit_do never pushes. bot-dev does, after a permitted commit.
 - **Run multiple bars unattended** — one bar per cycle, every time.
-- **Declare a track done on its own** — finishing the last bar makes the track *ready*; the human's sign-off is what marks it `done` and files it under `.bit/completed/`.
-- **Hand-edit `.bit/tasks/*.md`** — every status move and body change goes through the tools.
+- **Declare a track done on its own** — finishing the last bar makes the track *ready*; the operator then pushes and runs `/bit:complete`, which marks it `done` and files it as completed.
+- **Go around the tools** — the `mcp__bit__*` tools are the only way in; every status move and body change goes through them.
 - **Compact on its own** — the user runs `/compact`; you mark the boundary.

@@ -2,9 +2,7 @@ package cmd
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,7 +10,7 @@ import (
 	"github.com/B4Dmonkey/bit-pro/claude"
 	"github.com/B4Dmonkey/bit-pro/db"
 	"github.com/B4Dmonkey/bit-pro/db/orm"
-	"github.com/B4Dmonkey/bit-pro/task"
+	"github.com/B4Dmonkey/bit-pro/project"
 	"github.com/spf13/cobra"
 )
 
@@ -24,9 +22,9 @@ func newAddCmd(run claude.Runner) *cobra.Command {
 		Short: "Enroll a project in the registry",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			abs, err := filepath.Abs(args[0])
+			path, err := project.CanonicalPath(args[0])
 			if err != nil {
-				return fmt.Errorf("resolving %s: %w", args[0], err)
+				return err
 			}
 
 			sqlDB, err := db.Open()
@@ -37,66 +35,69 @@ func newAddCmd(run claude.Runner) *cobra.Command {
 
 			queries := orm.New(sqlDB)
 
-			enrolled, err := queries.ProjectExists(cmd.Context(), abs)
-			if err != nil {
-				return fmt.Errorf("looking up %s: %w", abs, err)
-			}
-
-			if enrolled {
-				fmt.Fprintln(cmd.OutOrStdout(), "already added")
-				return nil
-			}
-
-			var existing string
-			if cfg, err := task.New(filepath.Join(abs, ".bit")).Config(); err == nil {
-				existing = cfg.Prefix
-			}
-
-			code, err := readProjectCode(cmd, existing)
+			projects, err := project.Load(cmd.Context(), queries)
 			if err != nil {
 				return err
 			}
 
-			if code == "" {
-				return errors.New("project code cannot be empty")
+			if p, ok := project.ByPath(projects, path); ok {
+				return addExisting(cmd, queries, p)
 			}
 
-			code = task.NormalizeID(code)
-
-			if _, err := os.Stat(filepath.Join(abs, ".bit")); errors.Is(err, fs.ErrNotExist) {
-				if err := writeClaudeWiring(cmd, run, abs); err != nil {
-					return err
-				}
+			if _, err := os.Stat(filepath.Join(path, ".bit")); err == nil {
+				return fmt.Errorf("%s: %w", path, project.ErrNeedsMigrate)
 			}
 
-			params := orm.CreateProjectParams{Path: abs, Code: code}
+			typed, err := readProjectCode(cmd)
+			if err != nil {
+				return err
+			}
+
+			code, err := project.ValidateCode(typed)
+			if err != nil {
+				return err
+			}
+
+			if p, ok := project.ByCode(projects, code); ok && p.Removed {
+				return fmt.Errorf("%s at %s: %w; run `bp add` there to revive it, or pick another code",
+					p.Code, p.Path, project.ErrCodeRemoved)
+			}
+
+			params := orm.CreateProjectParams{Path: path, Code: code}
 			if err := queries.CreateProject(cmd.Context(), params); err != nil {
-				return fmt.Errorf("registering %s: %w", abs, err)
+				return fmt.Errorf("registering %s: %w", path, err)
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "added %s %s\n", code, abs)
+			fmt.Fprintf(cmd.OutOrStdout(), "added %s %s\n", code, path)
 
-			return nil
+			return setUpClaude(cmd, run)
 		},
 	}
 }
 
-func readProjectCode(cmd *cobra.Command, existing string) (string, error) {
-	if existing != "" {
-		fmt.Fprintf(cmd.OutOrStdout(), "Project code (%s): ", existing)
-	} else {
-		fmt.Fprint(cmd.OutOrStdout(), "Project code: ")
+func addExisting(cmd *cobra.Command, queries *orm.Queries, p project.Project) error {
+	if !p.Removed {
+		fmt.Fprintln(cmd.OutOrStdout(), "already added")
+		return nil
 	}
+
+	params := orm.SetProjectRemovedParams{Removed: 0, ID: p.ID}
+	if err := queries.SetProjectRemoved(cmd.Context(), params); err != nil {
+		return fmt.Errorf("reviving %s: %w", p.Path, err)
+	}
+
+	fmt.Fprintf(cmd.OutOrStdout(), "revived %s %s\n", p.Code, p.Path)
+
+	return nil
+}
+
+func readProjectCode(cmd *cobra.Command) (string, error) {
+	fmt.Fprint(cmd.OutOrStdout(), "Project code: ")
 
 	line, err := bufio.NewReader(cmd.InOrStdin()).ReadString('\n')
 	if err != nil && line == "" {
 		return "", fmt.Errorf("reading project code: %w", err)
 	}
 
-	code := strings.TrimSpace(line)
-	if code == "" {
-		code = existing
-	}
-
-	return code, nil
+	return strings.TrimSpace(line), nil
 }

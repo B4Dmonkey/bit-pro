@@ -8,6 +8,11 @@ import (
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/claude"
+	"github.com/B4Dmonkey/bit-pro/db"
+	"github.com/B4Dmonkey/bit-pro/db/orm"
+	"github.com/B4Dmonkey/bit-pro/project"
+	"github.com/B4Dmonkey/bit-pro/store"
+	"github.com/B4Dmonkey/bit-pro/task"
 )
 
 func run(t *testing.T, args ...string) (string, error) {
@@ -53,32 +58,64 @@ func mustRun(t *testing.T, args ...string) string {
 func initProject(t *testing.T, prefix string) string {
 	t.Helper()
 
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", "")
+
 	dir := t.TempDir()
 	t.Chdir(dir)
-	mustRun(t, "init", "--prefix", prefix)
+
+	path, err := project.CanonicalPath(dir)
+	if err != nil {
+		t.Fatalf("CanonicalPath(%q) returned error: %v", dir, err)
+	}
+
+	seedProject(t, orm.CreateProjectParams{Path: path, Code: prefix})
 
 	return dir
 }
 
-func mcpRegisterCall() []string {
-	return []string{claudeBin, serveMCPCmdUse, addCmdUse, "bit", "--", "bp", serveCmdUse, serveMCPCmdUse}
-}
-
-func mcpLookupCall() []string {
-	return []string{claudeBin, serveMCPCmdUse, "get", "bit"}
-}
-
-func pluginSyncCalls() [][]string {
-	return [][]string{
-		{claudeBin, "plugin", "marketplace", updateCmd, "bit-pro"},
-		{claudeBin, "plugin", updateCmd, "bit@bit-pro", "--scope", "project"},
-		mcpLookupCall(),
-	}
-}
-
-func createTask(t *testing.T, title, description string) {
+func projectStore(t *testing.T) *task.Store {
 	t.Helper()
-	mustRun(t, "task", "create", title, "--description", description)
+
+	s, err := project.OpenStore(t.Context(), ".")
+	if err != nil {
+		t.Fatalf("project.OpenStore(.) returned error: %v", err)
+	}
+
+	return s
+}
+
+func storeDir(t *testing.T) string {
+	t.Helper()
+
+	p, err := project.Find(t.Context(), ".")
+	if err != nil {
+		t.Fatalf("project.Find(.) returned error: %v", err)
+	}
+
+	dir, err := store.ProjectDir(p.Code)
+	if err != nil {
+		t.Fatalf("store.ProjectDir(%q) returned error: %v", p.Code, err)
+	}
+
+	return dir
+}
+
+func createTask(t *testing.T, title, description string) string {
+	t.Helper()
+
+	return createWith(t, task.CreateParams{Title: title, Body: description})
+}
+
+func createWith(t *testing.T, p task.CreateParams) string {
+	t.Helper()
+
+	created, err := projectStore(t).Create(p)
+	if err != nil {
+		t.Fatalf("Create(%+v) returned error: %v", p, err)
+	}
+
+	return created.ID
 }
 
 func TestMain(m *testing.M) {
@@ -102,4 +139,49 @@ func runSplit(t *testing.T, args ...string) (string, string, error) {
 	err := execute(context.Background(), root)
 
 	return stdout.String(), stderr.String(), err
+}
+
+func dataDir(t *testing.T) string {
+	t.Helper()
+
+	d, err := store.Dir()
+	if err != nil {
+		t.Fatalf("store.Dir() returned error: %v", err)
+	}
+
+	return d
+}
+
+func setStatus(t *testing.T, s *task.Store, id, status string) {
+	t.Helper()
+
+	if _, err := s.Update(id, task.Patch{Status: &status}); err != nil {
+		t.Fatalf("Update(%s, status %s) returned error: %v", id, status, err)
+	}
+}
+
+func loadProject(t *testing.T, path string) project.Project {
+	t.Helper()
+
+	sqlDB, err := db.Open()
+	if err != nil {
+		t.Fatalf("db.Open() returned error: %v", err)
+	}
+
+	defer sqlDB.Close()
+
+	projects, err := project.Load(t.Context(), orm.New(sqlDB))
+	if err != nil {
+		t.Fatalf("project.Load() returned error: %v", err)
+	}
+
+	for _, p := range projects {
+		if p.Path == path {
+			return p
+		}
+	}
+
+	t.Fatalf("no project registered at %s", path)
+
+	return project.Project{}
 }

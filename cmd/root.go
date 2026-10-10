@@ -9,7 +9,6 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/B4Dmonkey/bit-pro/bitdir"
 	"github.com/B4Dmonkey/bit-pro/claude"
 	taskcmd "github.com/B4Dmonkey/bit-pro/cmd/task"
 	"github.com/spf13/cobra"
@@ -23,12 +22,10 @@ var pluginState = func() (installed, latest string, ok bool) {
 		return "", "", false
 	}
 
-	return claude.PluginState(home, bitdir.Root())
+	return claude.PluginState(home)
 }
 
 var refreshMarketplace = claude.RefreshMarketplace
-
-const claudeDir = ".claude"
 
 const (
 	quietAnnotation = "bit.quiet"
@@ -115,7 +112,7 @@ func parseVersion(v string) ([3]int, bool) {
 }
 
 func notice(installed, latest string) string {
-	const format = "bp: bit plugin %s → %s available — run: claude plugin update bit@bit-pro --scope project"
+	const format = "bp: bit plugin %s → %s available — run: claude plugin update bit@bit-pro --scope user"
 
 	return fmt.Sprintf(format, installed, latest)
 }
@@ -131,21 +128,13 @@ func newRootCmd(run claude.Runner) *cobra.Command {
 		Version:       version,
 		SilenceUsage:  true,
 		SilenceErrors: true,
-		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
-			bitdir.Resolve()
-
-			return nil
-		},
 	}
 	rootCmd.AddCommand(newAddCmd(run))
-	rootCmd.AddCommand(newApproveCmd())
-	rootCmd.AddCommand(newFeedbackCmd())
-	rootCmd.AddCommand(newInitCmd(run))
 	rootCmd.AddCommand(newListCmd())
+	rootCmd.AddCommand(newMigrateCmd(run))
 	rootCmd.AddCommand(newServeCmd())
 	rootCmd.AddCommand(taskcmd.NewCmd())
 	rootCmd.AddCommand(newTUICmd())
-	rootCmd.AddCommand(newUnapproveCmd())
 
 	return rootCmd
 }

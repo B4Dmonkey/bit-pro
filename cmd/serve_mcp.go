@@ -6,7 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/B4Dmonkey/bit-pro/bitdir"
+	"github.com/B4Dmonkey/bit-pro/git"
+	"github.com/B4Dmonkey/bit-pro/mergecheck"
+	"github.com/B4Dmonkey/bit-pro/project"
 	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -21,10 +23,16 @@ const (
 	taskUpdateTool    = "task_update"
 	taskMoveTool      = "task_move"
 	feedbackAddTool   = "feedback_add"
+	feedbackListTool  = "feedback_list"
+	feedbackReadTool  = "feedback_read"
 	taskCompleteTool  = "task_complete"
 	taskDeleteTool    = "task_delete"
+	taskLandingTool   = "task_landing"
 	researchWriteTool = "research_write"
 	researchReadTool  = "research_read"
+	retroWriteTool    = "retro_write"
+	retroListTool     = "retro_list"
+	retroReadTool     = "retro_read"
 
 	statusProperty = "status"
 )
@@ -33,8 +41,8 @@ const taskReadDescription = `Read one task by ID, returning its fields and its b
 
 A track is a top-level task — one whole scope — and its ID has no dot, as in BIT-7. A bar is a
 child of a track — one plan step — and its ID is dotted, as in BIT-7.3. The result carries body
-alongside id, title, status, approved, phase, phase_label and parent, so reading a task's prose and
-reading its summary are the same call rather than two.`
+alongside id, title, status, approved, phase, phase_label, parent, commit and branch, so reading a
+task's prose and reading its summary are the same call rather than two.`
 
 const taskListDescription = `List tasks as structured fields, in the order bp prints them.
 
@@ -60,7 +68,9 @@ already blessed — revocation fires on the field being sent, not on its value d
 rewrite of an approved task comes back with approved false even if the text is unchanged.
 Writing status todo revokes approval too, because a task pulled back for rework has to be
 re-reviewed before it runs again, while a forward move to doing or done keeps approval, being the
-act of doing work that was already approved.
+act of doing work that was already approved. Sending commit or branch keeps approval too: they
+record the full SHA and the branch a bar's approved work was committed as, not what was reviewed.
+An empty branch is written as empty, which is how a commit on a detached HEAD is recorded.
 
 Status does not cascade to the parent: setting a bar's status leaves its track untouched, so a
 caller that wants the track to reflect its bars sets the track's status in a separate call. The
@@ -73,7 +83,9 @@ relative to — a sibling being another bar under the same track. A bar's ID is 
 moving it keeps every existing reference to it — a commit message, a feedback note, a plan
 citation — valid.`
 
-const taskCompleteDescription = `File a signed-off track and its bars under .bit/completed/.
+const taskCompleteDescription = `File a track and its bars as completed, and when commit and branch are given, write
+them on the track first, as its landing commit and the trunk it landed on — the values task_landing
+reports.
 
 A track is a top-level task — one whole scope — and its ID has no dot, as in BIT-7. Completing one
 relocates the track and every bar under it out of the active list, so a finished cycle stops
@@ -81,7 +93,16 @@ showing up in task_list. It refuses a track that still has an unfinished bar and
 override — set every bar's status to done first. The ID stays reserved rather than being freed, so
 older commit messages and feedback notes that reference it remain valid.`
 
-const taskDeleteDescription = `Remove a task from the active list by relocating it to .bit/archive/tasks/.
+const taskLandingDescription = `Report where a track's bars landed on trunk, and whether the track as a whole landed.
+
+A track is a top-level task — one whole scope — and its ID has no dot, as in BIT-7. Trunk is
+origin/main, else main. The result names the trunk and branch, a verdict for the track, the
+track's landing commit, and for each bar its status, commit, class and landing commit. The check is
+read-only: it never fetches and never writes, so a commit that hasn't been fetched or pushed reads
+as not landed. commit is the operator's answer when git can't place the work or it isn't on trunk.
+pr is the same answer as a PR number, found by its " (#N)" subject on trunk; commit wins over it.`
+
+const taskDeleteDescription = `Remove a task from the active list by moving it to the archive.
 
 The task file is relocated rather than destroyed, so it stays recoverable on disk, and its ID stays
 reserved rather than being freed — a commit message or feedback note that cites it remains valid,
@@ -97,16 +118,47 @@ happened at in its own prose, because replanning renumbers bars and would orphan
 one. The write is create-only: each note lands in a new file, so adding one can never damage a
 note already recorded. A completed or archived track is accepted as readily as an active one.`
 
+const feedbackListDescription = `List the IDs of the current project's feedback notes, optionally for one track.
+
+Notes from every project share one folder, but this lists only the current project's notes: a note
+from another project is never listed. A track is a top-level task, whose ID has no dot, as in BIT-7.
+Set track to list only that track's notes; omit it to list every note of the project. IDs come
+ordered by track, then by note number, and a project with no notes lists none.`
+
+const feedbackReadDescription = `Read one feedback note of the current project and return its body.
+
+Pass the note ID that feedback_list returns. Notes from every project share one folder, but this
+reads only the current project's notes: a note from another project is refused.`
+
+const retroWriteDescription = `Write one retro proposals record for the current project and return its stored name.
+
+Proposals from every project share one folder, so the server prefixes the project code to the name
+unless the name already starts with it, as in BIT-album-proposals. Writing a name that already
+exists replaces its body. The result is the stored name.`
+
+const retroListDescription = `List every project's proposals, each with its project.
+
+Proposals from every project share one folder, and this lists them all rather than only the
+current project's, so learn sees every proposal and retro can avoid re-proposing a pattern. Each
+entry carries the stored name and the code of the project that wrote it, ordered by name.`
+
+const retroReadDescription = `Read one proposals record by the name retro_list shows, from any project.
+
+Proposals from every project share one folder, and this reads any of every project's proposals
+rather than only the current project's, so learn can open a proposal another project wrote. Pass the
+name exactly as retro_list shows it. The result carries the stored name, the code of the project
+that wrote it, and the body.`
+
 const researchWriteDescription = `Write one topic of a track's research and return its path.
 
-Research is an agent scratchpad kept per track under .bit/research/<track>/, one file per topic. A
+Research is an agent scratchpad kept per track in the store, one record per topic. A
 track is a top-level task, whose ID has no dot, as in BIT-7. Writing a topic that already exists
 replaces it. The topic named index is the conventional summary of findings with links to the other
 topics, and readers open it first.`
 
 const researchReadDescription = `Read a track's research: list its topic names, or return one topic's body.
 
-Research is an agent scratchpad kept per track under .bit/research/<track>/, one file per topic. A
+Research is an agent scratchpad kept per track in the store, one record per topic. A
 track is a top-level task, whose ID has no dot, as in BIT-7. Without a topic, this lists the
 track's topic names, so an agent sees what exists before loading any; a track with no research yet
 lists none. With a topic, it returns that topic's body. By convention, read the index topic first:
@@ -129,6 +181,8 @@ type taskSummary struct {
 	Phase      int    `json:"phase"`
 	PhaseLabel string `json:"phase_label"`
 	Parent     string `json:"parent"`
+	Commit     string `json:"commit"`
+	Branch     string `json:"branch"`
 }
 
 type taskListOutput struct {
@@ -155,10 +209,20 @@ type taskUpdateInput struct {
 	Status     *string `json:"status,omitempty"`
 	Phase      *int    `json:"phase,omitempty"`
 	PhaseLabel *string `json:"phase_label,omitempty"`
+	Commit     *string `json:"commit,omitempty"`
+	Branch     *string `json:"branch,omitempty"`
 }
 
 type taskCompleteInput struct {
-	ID string `json:"id"`
+	ID     string `json:"id"`
+	Commit string `json:"commit,omitempty"`
+	Branch string `json:"branch,omitempty"`
+}
+
+type taskLandingInput struct {
+	ID     string `json:"id"`
+	Commit string `json:"commit,omitempty"`
+	PR     int    `json:"pr,omitempty"`
 }
 
 type taskDeleteInput struct {
@@ -173,6 +237,47 @@ type feedbackAddInput struct {
 
 type feedbackAddOutput struct {
 	Path string `json:"path"`
+}
+
+type feedbackListInput struct {
+	Track string `json:"track,omitempty"`
+}
+
+type feedbackListOutput struct {
+	Notes []string `json:"notes"`
+}
+
+type feedbackReadInput struct {
+	ID string `json:"id"`
+}
+
+type feedbackReadOutput struct {
+	Body string `json:"body"`
+}
+
+type retroWriteInput struct {
+	Name string `json:"name"`
+	Body string `json:"body"`
+}
+
+type retroWriteOutput struct {
+	Name string `json:"name"`
+}
+
+type retroListInput struct{}
+
+type retroListOutput struct {
+	Proposals []task.Proposal `json:"proposals"`
+}
+
+type retroReadInput struct {
+	Name string `json:"name"`
+}
+
+type retroReadOutput struct {
+	Name    string `json:"name"`
+	Project string `json:"project"`
+	Body    string `json:"body"`
 }
 
 type researchWriteInput struct {
@@ -218,6 +323,8 @@ type taskReadOutput struct {
 	Phase      int    `json:"phase"`
 	PhaseLabel string `json:"phase_label"`
 	Parent     string `json:"parent"`
+	Commit     string `json:"commit"`
+	Branch     string `json:"branch"`
 	Body       string `json:"body"`
 }
 
@@ -230,12 +337,12 @@ func newServeMCPCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			root := os.Getenv("CLAUDE_PROJECT_DIR")
 
-			return runMCPServer(cmd.Context(), root, &mcp.StdioTransport{})
+			return runMCPServer(cmd.Context(), root, git.ExecRunner, &mcp.StdioTransport{})
 		},
 	}
 }
 
-func runMCPServer(ctx context.Context, root string, transport mcp.Transport) error {
+func runMCPServer(ctx context.Context, root string, run git.Runner, transport mcp.Transport) error {
 	s := mcp.NewServer(&mcp.Implementation{Name: "bp", Version: "1"}, nil)
 	mcp.AddTool(s, &mcp.Tool{Name: taskReadTool, Description: taskReadDescription}, taskReadHandler(root))
 	mcp.AddTool(s, &mcp.Tool{Name: taskListTool, Description: taskListDescription}, taskListHandler(root))
@@ -253,11 +360,16 @@ func runMCPServer(ctx context.Context, root string, transport mcp.Transport) err
 	}, taskUpdateHandler(root))
 
 	mcp.AddTool(s, &mcp.Tool{Name: taskMoveTool, Description: taskMoveDescription}, taskMoveHandler(root))
-	mcp.AddTool(s, &mcp.Tool{Name: feedbackAddTool, Description: feedbackAddDescription}, feedbackAddHandler(root))
+	mcp.AddTool(s, &mcp.Tool{Name: feedbackAddTool, Description: feedbackAddDescription}, feedbackAddHandler(root, run))
+	mcp.AddTool(s, &mcp.Tool{Name: feedbackListTool, Description: feedbackListDescription}, feedbackListHandler(root))
+	mcp.AddTool(s, &mcp.Tool{Name: feedbackReadTool, Description: feedbackReadDescription}, feedbackReadHandler(root))
+	mcp.AddTool(s, &mcp.Tool{Name: retroWriteTool, Description: retroWriteDescription}, retroWriteHandler(root, run))
+	mcp.AddTool(s, &mcp.Tool{Name: retroListTool, Description: retroListDescription}, retroListHandler(root))
+	mcp.AddTool(s, &mcp.Tool{Name: retroReadTool, Description: retroReadDescription}, retroReadHandler(root))
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        researchWriteTool,
 		Description: researchWriteDescription,
-	}, researchWriteHandler(root))
+	}, researchWriteHandler(root, run))
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        researchReadTool,
 		Description: researchReadDescription,
@@ -270,6 +382,10 @@ func runMCPServer(ctx context.Context, root string, transport mcp.Transport) err
 		Name:        taskDeleteTool,
 		Description: taskDeleteDescription,
 	}, taskDeleteHandler(root))
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        taskLandingTool,
+		Description: taskLandingDescription,
+	}, taskLandingHandler(root, run))
 
 	return s.Run(ctx, transport)
 }
@@ -287,11 +403,14 @@ func taskUpdateSchema() (*jsonschema.Schema, error) {
 
 func taskReadHandler(root string) mcp.ToolHandlerFor[taskReadInput, taskReadOutput] {
 	return func(
-		_ context.Context,
+		ctx context.Context,
 		_ *mcp.CallToolRequest,
 		in taskReadInput,
 	) (*mcp.CallToolResult, taskReadOutput, error) {
-		store := task.New(bitdir.ForRoot(root))
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, taskReadOutput{}, err
+		}
 
 		t, err := store.Load(in.ID)
 		if err != nil {
@@ -306,6 +425,8 @@ func taskReadHandler(root string) mcp.ToolHandlerFor[taskReadInput, taskReadOutp
 			Phase:      t.Phase,
 			PhaseLabel: t.PhaseLabel,
 			Parent:     parentOf(t.ID),
+			Commit:     t.Commit,
+			Branch:     t.Branch,
 			Body:       t.Body,
 		}, nil
 	}
@@ -313,16 +434,16 @@ func taskReadHandler(root string) mcp.ToolHandlerFor[taskReadInput, taskReadOutp
 
 func taskListHandler(root string) mcp.ToolHandlerFor[taskListInput, taskListOutput] {
 	return func(
-		_ context.Context,
+		ctx context.Context,
 		_ *mcp.CallToolRequest,
 		in taskListInput,
 	) (*mcp.CallToolResult, taskListOutput, error) {
-		store := task.New(bitdir.ForRoot(root))
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, taskListOutput{}, err
+		}
 
-		var (
-			tasks []*task.Task
-			err   error
-		)
+		var tasks []*task.Task
 
 		if in.Parent == "" {
 			tasks, err = store.List()
@@ -344,6 +465,8 @@ func taskListHandler(root string) mcp.ToolHandlerFor[taskListInput, taskListOutp
 				Phase:      t.Phase,
 				PhaseLabel: t.PhaseLabel,
 				Parent:     parentOf(t.ID),
+				Commit:     t.Commit,
+				Branch:     t.Branch,
 			})
 		}
 
@@ -353,11 +476,14 @@ func taskListHandler(root string) mcp.ToolHandlerFor[taskListInput, taskListOutp
 
 func taskCreateHandler(root string) mcp.ToolHandlerFor[taskCreateInput, taskCreateOutput] {
 	return func(
-		_ context.Context,
+		ctx context.Context,
 		_ *mcp.CallToolRequest,
 		in taskCreateInput,
 	) (*mcp.CallToolResult, taskCreateOutput, error) {
-		store := task.New(bitdir.ForRoot(root))
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, taskCreateOutput{}, err
+		}
 
 		t, err := store.Create(task.CreateParams{
 			Title:      in.Title,
@@ -377,11 +503,14 @@ func taskCreateHandler(root string) mcp.ToolHandlerFor[taskCreateInput, taskCrea
 
 func taskUpdateHandler(root string) mcp.ToolHandlerFor[taskUpdateInput, taskUpdateOutput] {
 	return func(
-		_ context.Context,
+		ctx context.Context,
 		_ *mcp.CallToolRequest,
 		in taskUpdateInput,
 	) (*mcp.CallToolResult, taskUpdateOutput, error) {
-		store := task.New(bitdir.ForRoot(root))
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, taskUpdateOutput{}, err
+		}
 
 		t, err := store.Update(in.ID, task.Patch{
 			Title:      in.Title,
@@ -389,6 +518,8 @@ func taskUpdateHandler(root string) mcp.ToolHandlerFor[taskUpdateInput, taskUpda
 			Status:     in.Status,
 			Phase:      in.Phase,
 			PhaseLabel: in.PhaseLabel,
+			Commit:     in.Commit,
+			Branch:     in.Branch,
 		})
 		if err != nil {
 			return nil, taskUpdateOutput{}, fmt.Errorf("updating task %s: %w", in.ID, err)
@@ -400,11 +531,14 @@ func taskUpdateHandler(root string) mcp.ToolHandlerFor[taskUpdateInput, taskUpda
 
 func taskMoveHandler(root string) mcp.ToolHandlerFor[taskMoveInput, emptyOutput] {
 	return func(
-		_ context.Context,
+		ctx context.Context,
 		_ *mcp.CallToolRequest,
 		in taskMoveInput,
 	) (*mcp.CallToolResult, emptyOutput, error) {
-		store := task.New(bitdir.ForRoot(root))
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, emptyOutput{}, err
+		}
 
 		if err := store.Move(in.Bar, in.Before, in.After); err != nil {
 			return nil, emptyOutput{}, fmt.Errorf("moving bar %s: %w", in.Bar, err)
@@ -416,11 +550,20 @@ func taskMoveHandler(root string) mcp.ToolHandlerFor[taskMoveInput, emptyOutput]
 
 func taskCompleteHandler(root string) mcp.ToolHandlerFor[taskCompleteInput, emptyOutput] {
 	return func(
-		_ context.Context,
+		ctx context.Context,
 		_ *mcp.CallToolRequest,
 		in taskCompleteInput,
 	) (*mcp.CallToolResult, emptyOutput, error) {
-		store := task.New(bitdir.ForRoot(root))
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, emptyOutput{}, err
+		}
+
+		if in.Commit != "" || in.Branch != "" {
+			if _, err := store.Update(in.ID, landingPatch(in.Commit, in.Branch)); err != nil {
+				return nil, emptyOutput{}, fmt.Errorf("recording landing on task %s: %w", in.ID, err)
+			}
+		}
 
 		if err := store.Complete(in.ID); err != nil {
 			return nil, emptyOutput{}, fmt.Errorf("completing task %s: %w", in.ID, err)
@@ -430,13 +573,78 @@ func taskCompleteHandler(root string) mcp.ToolHandlerFor[taskCompleteInput, empt
 	}
 }
 
+func landingPatch(commit, branch string) task.Patch {
+	var p task.Patch
+	if commit != "" {
+		p.Commit = &commit
+	}
+
+	if branch != "" {
+		p.Branch = &branch
+	}
+
+	return p
+}
+
+func taskLandingHandler(root string, run git.Runner) mcp.ToolHandlerFor[taskLandingInput, mergecheck.Report] {
+	return func(
+		ctx context.Context,
+		_ *mcp.CallToolRequest,
+		in taskLandingInput,
+	) (*mcp.CallToolResult, mergecheck.Report, error) {
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, mergecheck.Report{}, err
+		}
+
+		report, err := checkLanding(ctx, store, root, run, in)
+		if err != nil {
+			return nil, mergecheck.Report{}, fmt.Errorf("checking landing of %s: %w", in.ID, err)
+		}
+
+		return nil, report, nil
+	}
+}
+
+func checkLanding(
+	ctx context.Context,
+	store *task.Store,
+	root string,
+	run git.Runner,
+	in taskLandingInput,
+) (mergecheck.Report, error) {
+	if _, err := store.Load(in.ID); err != nil {
+		return mergecheck.Report{}, err
+	}
+
+	children, err := store.Children(in.ID)
+	if err != nil {
+		return mergecheck.Report{}, err
+	}
+
+	bars := make([]mergecheck.Bar, 0, len(children))
+	for _, c := range children {
+		bars = append(bars, mergecheck.Bar{ID: c.ID, Status: c.Status, Commit: c.Commit})
+	}
+
+	dir, err := sessionDir(root)
+	if err != nil {
+		return mergecheck.Report{}, err
+	}
+
+	return mergecheck.Run(ctx, run, mergecheck.Query{Dir: dir, Bars: bars, Commit: in.Commit, PR: in.PR})
+}
+
 func taskDeleteHandler(root string) mcp.ToolHandlerFor[taskDeleteInput, emptyOutput] {
 	return func(
-		_ context.Context,
+		ctx context.Context,
 		_ *mcp.CallToolRequest,
 		in taskDeleteInput,
 	) (*mcp.CallToolResult, emptyOutput, error) {
-		store := task.New(bitdir.ForRoot(root))
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, emptyOutput{}, err
+		}
 
 		if err := store.Relocate(in.ID, in.Force); err != nil {
 			return nil, emptyOutput{}, fmt.Errorf("deleting task %s: %w", in.ID, err)
@@ -446,15 +654,23 @@ func taskDeleteHandler(root string) mcp.ToolHandlerFor[taskDeleteInput, emptyOut
 	}
 }
 
-func feedbackAddHandler(root string) mcp.ToolHandlerFor[feedbackAddInput, feedbackAddOutput] {
+func feedbackAddHandler(root string, run git.Runner) mcp.ToolHandlerFor[feedbackAddInput, feedbackAddOutput] {
 	return func(
-		_ context.Context,
+		ctx context.Context,
 		_ *mcp.CallToolRequest,
 		in feedbackAddInput,
 	) (*mcp.CallToolResult, feedbackAddOutput, error) {
-		store := task.New(bitdir.ForRoot(root))
+		dir, err := sessionDir(root)
+		if err != nil {
+			return nil, feedbackAddOutput{}, err
+		}
 
-		path, err := store.AddNote(in.Track, in.Body)
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, feedbackAddOutput{}, err
+		}
+
+		path, err := store.AddNote(in.Track, in.Body, task.CommitAt(ctx, run, dir))
 		if err != nil {
 			return nil, feedbackAddOutput{}, fmt.Errorf("adding note for %s: %w", in.Track, err)
 		}
@@ -463,15 +679,88 @@ func feedbackAddHandler(root string) mcp.ToolHandlerFor[feedbackAddInput, feedba
 	}
 }
 
-func researchWriteHandler(root string) mcp.ToolHandlerFor[researchWriteInput, researchWriteOutput] {
+func feedbackListHandler(root string) mcp.ToolHandlerFor[feedbackListInput, feedbackListOutput] {
 	return func(
-		_ context.Context,
+		ctx context.Context,
+		_ *mcp.CallToolRequest,
+		in feedbackListInput,
+	) (*mcp.CallToolResult, feedbackListOutput, error) {
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, feedbackListOutput{}, err
+		}
+
+		notes, err := store.ListNotes(in.Track)
+		if err != nil {
+			return nil, feedbackListOutput{}, fmt.Errorf("listing notes: %w", err)
+		}
+
+		return nil, feedbackListOutput{Notes: notes}, nil
+	}
+}
+
+func feedbackReadHandler(root string) mcp.ToolHandlerFor[feedbackReadInput, feedbackReadOutput] {
+	return func(
+		ctx context.Context,
+		_ *mcp.CallToolRequest,
+		in feedbackReadInput,
+	) (*mcp.CallToolResult, feedbackReadOutput, error) {
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, feedbackReadOutput{}, err
+		}
+
+		body, err := store.ReadNote(in.ID)
+		if err != nil {
+			return nil, feedbackReadOutput{}, fmt.Errorf("reading note: %w", err)
+		}
+
+		return nil, feedbackReadOutput{Body: body}, nil
+	}
+}
+
+func retroWriteHandler(root string, run git.Runner) mcp.ToolHandlerFor[retroWriteInput, retroWriteOutput] {
+	return func(
+		ctx context.Context,
+		_ *mcp.CallToolRequest,
+		in retroWriteInput,
+	) (*mcp.CallToolResult, retroWriteOutput, error) {
+		dir, err := sessionDir(root)
+		if err != nil {
+			return nil, retroWriteOutput{}, err
+		}
+
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, retroWriteOutput{}, err
+		}
+
+		name, err := store.WriteRetro(in.Name, in.Body, task.CommitAt(ctx, run, dir))
+		if err != nil {
+			return nil, retroWriteOutput{}, fmt.Errorf("writing retro %s: %w", in.Name, err)
+		}
+
+		return nil, retroWriteOutput{Name: name}, nil
+	}
+}
+
+func researchWriteHandler(root string, run git.Runner) mcp.ToolHandlerFor[researchWriteInput, researchWriteOutput] {
+	return func(
+		ctx context.Context,
 		_ *mcp.CallToolRequest,
 		in researchWriteInput,
 	) (*mcp.CallToolResult, researchWriteOutput, error) {
-		store := task.New(bitdir.ForRoot(root))
+		dir, err := sessionDir(root)
+		if err != nil {
+			return nil, researchWriteOutput{}, err
+		}
 
-		path, err := store.WriteResearch(in.Track, in.Topic, in.Body)
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, researchWriteOutput{}, err
+		}
+
+		path, err := store.WriteResearch(in.Track, in.Topic, in.Body, task.CommitAt(ctx, run, dir))
 		if err != nil {
 			return nil, researchWriteOutput{}, fmt.Errorf("writing research for %s: %w", in.Track, err)
 		}
@@ -482,11 +771,14 @@ func researchWriteHandler(root string) mcp.ToolHandlerFor[researchWriteInput, re
 
 func researchReadHandler(root string) mcp.ToolHandlerFor[researchReadInput, researchReadOutput] {
 	return func(
-		_ context.Context,
+		ctx context.Context,
 		_ *mcp.CallToolRequest,
 		in researchReadInput,
 	) (*mcp.CallToolResult, researchReadOutput, error) {
-		store := task.New(bitdir.ForRoot(root))
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, researchReadOutput{}, err
+		}
 
 		if in.Topic == "" {
 			topics, err := store.ResearchTopics(in.Track)
@@ -506,6 +798,55 @@ func researchReadHandler(root string) mcp.ToolHandlerFor[researchReadInput, rese
 	}
 }
 
+func retroListHandler(root string) mcp.ToolHandlerFor[retroListInput, retroListOutput] {
+	return func(
+		ctx context.Context,
+		_ *mcp.CallToolRequest,
+		_ retroListInput,
+	) (*mcp.CallToolResult, retroListOutput, error) {
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, retroListOutput{}, err
+		}
+
+		proposals, err := store.ListRetro()
+		if err != nil {
+			return nil, retroListOutput{}, fmt.Errorf("listing proposals: %w", err)
+		}
+
+		return nil, retroListOutput{Proposals: proposals}, nil
+	}
+}
+
+func retroReadHandler(root string) mcp.ToolHandlerFor[retroReadInput, retroReadOutput] {
+	return func(
+		ctx context.Context,
+		_ *mcp.CallToolRequest,
+		in retroReadInput,
+	) (*mcp.CallToolResult, retroReadOutput, error) {
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, retroReadOutput{}, err
+		}
+
+		proposal, body, err := store.ReadRetro(in.Name)
+		if err != nil {
+			return nil, retroReadOutput{}, fmt.Errorf("reading proposal: %w", err)
+		}
+
+		return nil, retroReadOutput{Name: proposal.Name, Project: proposal.Project, Body: body}, nil
+	}
+}
+
+func mcpStore(ctx context.Context, root string) (*task.Store, error) {
+	dir, err := sessionDir(root)
+	if err != nil {
+		return nil, err
+	}
+
+	return project.OpenStore(ctx, dir)
+}
+
 func parentOf(id string) string {
 	i := strings.LastIndex(id, ".")
 	if i == -1 {
@@ -513,4 +854,17 @@ func parentOf(id string) string {
 	}
 
 	return id[:i]
+}
+
+func sessionDir(root string) (string, error) {
+	if root != "" {
+		return root, nil
+	}
+
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("getting the working directory: %w", err)
+	}
+
+	return wd, nil
 }

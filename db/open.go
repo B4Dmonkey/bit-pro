@@ -22,7 +22,7 @@ func Open() (*sql.DB, error) {
 		return nil, err
 	}
 
-	path := filepath.Join(dir, "bit.db")
+	path := filepath.Join(dir, "main.db")
 
 	mate := dbmate.New(&url.URL{Scheme: "sqlite", Path: path})
 	mate.FS = migrationsFS

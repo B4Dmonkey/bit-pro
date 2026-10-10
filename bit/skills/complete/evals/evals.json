@@ -3,20 +3,68 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "all bars on BIT-7 are done and committed, mark it as done",
-      "expected_output": "Track BIT-7 set to done with verses checked off, filed via task_complete, absent from task_list; commit suggested, not run.",
+      "prompt": "BIT-7 is pushed to main, complete it",
+      "expected_output": "task_landing is called on BIT-7 and reports done. The track is set to done with its verses checked off, task_complete is passed commit = the landing commit and branch = main, and the track is absent from task_list. No commit is suggested.",
       "files": []
     },
     {
       "id": 2,
       "prompt": "we're done with bit-7, close it out",
-      "expected_output": "BIT-7 has one todo bar and one doing bar. Both flipped to done without asking, the track is marked done and filed, and the report names the never-started bar.",
+      "expected_output": "BIT-7 has one todo bar and the rest landed. task_landing reports partly with that bar unfinished, so the skill names the todo bar and asks whether to complete anyway. The bar is set to done and the track filed only after a yes; nothing changes before it.",
       "files": []
     },
     {
       "id": 3,
       "prompt": "mark BIT-7 and BIT-9 done",
       "expected_output": "Both tracks completed and filed; a failure on one (e.g. nonexistent ID) is reported without abandoning the other.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "complete BIT-8",
+      "expected_output": "BIT-8's bars are committed but not pushed. task_landing does not report done, so the skill says BIT-8 hasn't landed yet: fetch or pull, push, and run /bit:complete BIT-8 again. Nothing is filed.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "complete BIT-9",
+      "expected_output": "BIT-9 has one bar on origin/main and one only on origin/feat. task_landing reports partly, and the check-in names the second bar as pushed but not merged and asks whether to complete anyway. Nothing is filed without a yes.",
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "close out BIT-10",
+      "expected_output": "The repo has an origin remote, so trunk is origin/main, and every BIT-10 bar is only on a local branch. task_landing reports not_done. The skill says BIT-10 hasn't landed: push and retry, then offers to keep it open or archive it. task_delete runs only after the operator picks archive.",
+      "files": []
+    },
+    {
+      "id": 7,
+      "prompt": "complete ACME-3",
+      "expected_output": "The project folder isn't in git. task_landing reports no_git, so the skill says there's no landing commit to record and asks to confirm. After a yes, task_complete is called with the id and no commit or branch.",
+      "files": []
+    },
+    {
+      "id": 8,
+      "prompt": "complete BIT-11",
+      "expected_output": "The repo is a shallow clone, so task_landing reports shallow. The skill says to run git fetch --unshallow and then /bit:complete BIT-11 again. Nothing is filed.",
+      "files": []
+    },
+    {
+      "id": 9,
+      "prompt": "complete BIT-12",
+      "expected_output": "BIT-12's bars have no recorded hashes, so task_landing reports cant_tell. The skill says git can't place the work and asks to fetch and retry or give a PR number or a commit. The operator answers #5. task_landing is called again with pr: 5, each bar gets task_update with commit set to its landing before task_complete, and the track is filed with that commit.",
+      "files": []
+    },
+    {
+      "id": 10,
+      "prompt": "complete BIT-13",
+      "expected_output": "BIT-13's bars are pushed only to origin/feat, and feat was rebase-merged onto origin/main, so task_landing reports not_done. The skill says BIT-13 hasn't landed and offers fetch and retry, keep or archive, and a PR number or a commit. The operator answers with the rebased tip's SHA. task_landing is called again with that commit, each bar gets task_update with commit set to its landing before task_complete, and the track is filed with that commit. Nothing is archived.",
+      "files": []
+    },
+    {
+      "id": 11,
+      "prompt": "BIT-31 is merged, complete it",
+      "expected_output": "BIT-31's bars 1-3 landed on origin/main in one GitHub squash that lists their subjects, and bar 4 in a later single-commit squash. task_landing reports done with each bar classed squash and repoint true. Each bar gets task_update with commit set to its own squash (bars 1-3 the first, bar 4 the later one) before task_complete, the track is filed with commit = the later squash, and the report names the squash-landed bars with their squash commits. Nothing is asked.",
       "files": []
     }
   ]

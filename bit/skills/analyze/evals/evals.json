@@ -11,7 +11,7 @@
         "Writes at least one non-index topic with mcp__bit__research_write",
         "Writes the index topic after every other topic",
         "The index links to each topic it summarizes",
-        "Never calls mcp__bit__task_update on the track and never reads or writes .bit/research/ directly",
+        "Never calls mcp__bit__task_update on the track and writes research only through mcp__bit__research_write",
         "Topic notes cite concrete file paths and a verdict (confirmed, corrected, or still unknown)"
       ]
     },

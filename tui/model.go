@@ -129,7 +129,7 @@ func New(tasks []*task.Task) model {
 		boardCols:     boardCols,
 		activeCol:     activeCol,
 		loaded:        tasks,
-		mode:          modeBoard,
+		mode:          modeList,
 	}
 }
 

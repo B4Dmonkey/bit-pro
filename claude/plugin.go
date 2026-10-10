@@ -7,7 +7,13 @@ import (
 	"path/filepath"
 )
 
-func InstalledVersion(home, projectRoot string) (string, bool) {
+const (
+	pluginKey       = "bit@bit-pro"
+	marketplaceName = "bit-pro"
+	userScope       = "user"
+)
+
+func InstalledVersion(home string) (string, bool) {
 	data, err := os.ReadFile(filepath.Join(home, ".claude", "plugins", "installed_plugins.json"))
 	if err != nil {
 		return "", false
@@ -15,17 +21,16 @@ func InstalledVersion(home, projectRoot string) (string, bool) {
 
 	var record struct {
 		Plugins map[string][]struct {
-			ProjectPath string `json:"projectPath"`
-			Version     string `json:"version"`
+			Scope   string `json:"scope"`
+			Version string `json:"version"`
 		} `json:"plugins"`
 	}
 	if err := json.Unmarshal(data, &record); err != nil {
 		return "", false
 	}
 
-	want := filepath.Clean(projectRoot)
 	for _, install := range record.Plugins[pluginKey] {
-		if install.ProjectPath != "" && filepath.Clean(install.ProjectPath) == want {
+		if install.Scope == userScope {
 			return install.Version, true
 		}
 	}
@@ -56,8 +61,8 @@ func LatestVersion(home string) (string, bool) {
 	return manifest.Version, true
 }
 
-func PluginState(home, projectRoot string) (installed, latest string, ok bool) {
-	installed, ok = InstalledVersion(home, projectRoot)
+func PluginState(home string) (installed, latest string, ok bool) {
+	installed, ok = InstalledVersion(home)
 	if !ok {
 		return "", "", false
 	}

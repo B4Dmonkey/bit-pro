@@ -1,13 +1,13 @@
 ---
 name: bit_retro
-description: Reads across a project's `.bit/feedback/*.md` notes — the evidence bit_feedback records — to diagnose what the bit_scope/bit_plan/bit_do/bit_check/bit_feedback process itself failed to settle, and turns any recurring, pipeline-level pattern into a portable, client-agnostic proposal that bit_learn can act on. Use this whenever the user says "bit_retro", "retro", "retrospective", "how did this cycle go", "what went wrong", or after a bit_check (or several bit_feedback notes) and wants to close the loop — also reach for it when a track, or the whole project, has accumulated feedback notes worth reading together, even if the user just says "let's look back at this" or "what should we learn from this." This is the mechanism that makes the pipeline self-improving, and it's deliberately safe to run inside a client or otherwise confidential project — every proposal it writes is already generalized before it's written, and applying it is a separate skill (bit_learn) that runs somewhere else entirely.
+description: Reads across the current project's feedback notes — the evidence bit_feedback records, listed and read through `mcp__bit__feedback_list` and `mcp__bit__feedback_read` — to diagnose what the bit_scope/bit_plan/bit_do/bit_check/bit_feedback process itself failed to settle, and turns any recurring, pipeline-level pattern into a portable, client-agnostic proposal that bit_learn can act on. Use this whenever the user says "bit_retro", "retro", "retrospective", "how did this cycle go", "what went wrong", or after a bit_check (or several bit_feedback notes) and wants to close the loop — also reach for it when a track, or the whole project, has accumulated feedback notes worth reading together, even if the user just says "let's look back at this" or "what should we learn from this." This is the mechanism that makes the pipeline self-improving, and it's deliberately safe to run inside a client or otherwise confidential project — it only ever reads this project's own notes, and every proposal it writes is already generalized before it's written. Proposals go to the shared store, where bit_learn reads them.
 ---
 
 # Pipeline Retrospective
 
 bit_feedback records evidence, one note at a time, on purpose without judgment — its own words: "no cause, no category, no lesson learned... reading across notes is a separate cycle." This skill is that separate cycle. You read every note that bears on the question at hand, find what actually recurs, and decide whether it's a lesson about *this project* (already handled, nothing to carry forward) or a lesson about the *bit-\* pipeline itself* — something worth fixing so every project that uses it benefits.
 
-You produce one artifact: a proposals file, written only after the user has walked through and accepted each proposal with you. Nothing here edits a skill, changes the CLI, or leaves this project on its own — that's a second skill, bit_learn, and it runs somewhere else (see *Handoff* at the end).
+You produce one artifact: a proposals record, written only after the user has walked through and accepted each proposal with you. Nothing here edits a skill or changes the CLI — that's a second skill, bit_learn, which picks the proposals up from the shared store.
 
 ---
 
@@ -15,7 +15,7 @@ You produce one artifact: a proposals file, written only after the user has walk
 
 This often runs after `/compact`, sometimes long after the cycle it's reviewing. Don't invent a narrative. Reconstruct from durable signals:
 
-- `.bit/feedback/*.md` — the notes themselves, see below.
+- The notes themselves: listed by `mcp__bit__feedback_list` (this project's only) and read by `mcp__bit__feedback_read`, see below.
 - The track and bar bodies: `mcp__bit__task_read`, whose `body` field *is* the prose.
 - `git log --oneline` for what actually shipped.
 - The user, for anything the documents don't answer — they remember the experience, you remember the artifacts.
@@ -24,9 +24,9 @@ If you're not sure something happened the way you're about to say it did, say so
 
 ## Finding the evidence
 
-Pull track and bar context with `mcp__bit__task_list` and `mcp__bit__task_read`. Note the asymmetry up front: you *read* through the tool surface, but you do not *write* through it here — this skill's own output (below) is a plain file you write directly, because the surface carries no retro tool. That asymmetry doesn't have to be taken on faith anymore: the tool list is enumerable, so a tool that doesn't exist is visibly absent rather than something you have to be warned about.
+Pull track and bar context with `mcp__bit__task_list` and `mcp__bit__task_read`. You write through the tool surface too: this skill's own output (below) is a record stored with `mcp__bit__retro_write`.
 
-Feedback notes have no tool of their own either — they're plain files. List `.bit/feedback/*.md` directly and read each one. A note's own prose names its track and cites its bar, so no separate lookup is required to place it; cross-reference the track with `mcp__bit__task_read` only when you need to check a note's claim against the track's *current* Decisions or Verses (a track may have been rescoped since the note was written).
+List the feedback notes with `mcp__bit__feedback_list` (pass `track` to narrow it to one track), then read each one with `mcp__bit__feedback_read` on its ID. A note's own prose names its track and cites its bar, so no separate lookup is required to place it; cross-reference the track with `mcp__bit__task_read` only when you need to check a note's claim against the track's *current* Decisions or Verses (a track may have been rescoped since the note was written).
 
 Scope the review before diving in: one track, several, or the whole project ("the whole album"). If the user didn't say and more than one track has notes, list what you found and ask — don't guess which ones matter.
 
@@ -61,7 +61,7 @@ If you're not sure a mechanism does what you think it does, say so in the propos
 
 ## Writing proposals
 
-Only after the user has seen and accepted a proposal does it go in the file — this mirrors the old retro's accept/reject habit, and for the same reason: a proposal that goes to another project unreviewed is a proposal nobody vetted for confidentiality. Walk through candidates conversationally first.
+Only after the user has seen and accepted a proposal does it go in the record — this mirrors the old retro's accept/reject habit, and for the same reason: a proposal that goes to another project unreviewed is a proposal nobody vetted for confidentiality. Walk through candidates conversationally first. `mcp__bit__retro_write` replaces a record by name, so once the walk-through is done, write the accepted proposals together in one call; a later call has to resend the whole body.
 
 A proposal that only names a category ("verify citations," "check the mocks") isn't finished — it tells bit_learn *that* something should change without saying what to actually do about it, which just moves the vagueness downstream instead of resolving it. Two fields carry the weight here, and neither is optional:
 
@@ -73,7 +73,7 @@ A proposal that only names a category ("verify citations," "check the mocks") is
 
 - **Concrete change** is the literal instruction, written exactly as it would land — a drop-in paragraph or checklist item for the specific section of the specific skill it belongs in (name the section, not just the skill), or the specific behavior a hook/CLI feature needs to implement. Not "bit_plan should verify citations" — "add to bit_plan's References guidance: before citing a third-party library's file:line, read the actually-installed source in this repo's module cache, not general docs or recalled API shape." It should follow directly from the *last* link of the root cause chain, not from the symptom.
 
-Each accepted proposal, in `.bit/retro/<track-or-album>-proposals.md`:
+Each accepted proposal goes in one record, written with `mcp__bit__retro_write` under the name `<track-or-album>-proposals`. The server prefixes the project code, so the stored name is `<CODE>-<track-or-album>-proposals`. Each proposal in the record's body:
 
 ```markdown
 ## Proposal: <short, generic title>
@@ -99,7 +99,7 @@ text either.>
 
 If a pattern can't be stated that way without losing what makes it true, that's usually a sign it isn't actually pipeline-level (back to the filter above) — don't force an abstraction that guts the point just to have an entry. And if the chain won't bottom out at an actual mechanism — only at "the model should have been more careful" — that's a sign this isn't a process gap at all, and forcing a **Concrete change** onto it will just produce a rule nothing can enforce; say so and leave it as an open question instead.
 
-Report the file's path back to the user when you're done — that's the handle they carry elsewhere.
+Report the stored name `mcp__bit__retro_write` returns back to the user when you're done — bit_learn finds the record by that name with `mcp__bit__retro_list`.
 
 ---
 
@@ -107,7 +107,7 @@ Report the file's path back to the user when you're done — that's the handle t
 
 A first retro on a project with a real backlog of notes is high-signal. Repeat passes risk diminishing returns:
 
-- **Check for existing proposals first.** Don't re-surface a pattern already written to a `.bit/retro/*-proposals.md` file, accepted or rejected — if rejected, the user already made that call.
+- **Check for existing proposals first.** List the stored records with `mcp__bit__retro_list` and read the relevant ones with `mcp__bit__retro_read`. Don't re-surface a pattern already written to one, accepted or rejected — if rejected, the user already made that call.
 - **It's fine to come back empty.** "Nothing here recurs, and what recurred before is already covered" is a complete retro. Don't manufacture a pattern to justify the pass.
 - **Raise the bar each time.** The second and third retro on the same project should need more evidence to justify a new proposal than the first one did.
 
@@ -120,7 +120,6 @@ Be specific — cite the actual note IDs, the actual quoted text, the actual pat
 ## What this skill does not do
 
 - **Edit a skill, the CLI, or anything else in bit-pro** — that's bit_learn, and it runs in bit-pro itself, not here.
-- **Move the proposals file anywhere** — carrying it from this project to wherever bit_learn runs is the user's own action, deliberately manual; this skill has no opinion on how.
 - **Write feedback notes** — that's bit_feedback; this skill only reads what's already been written.
 - **Assert a mechanism it isn't sure exists** — an unverified hook event, field, or CLI flag doesn't belong in a proposal; an honest "unclear" does.
 - **Restate individual notes as if that were the finding** — the finding is the pattern across them, or that there isn't one.

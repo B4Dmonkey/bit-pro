@@ -1,14 +1,17 @@
 package task
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/spf13/pathologize"
 )
@@ -17,25 +20,44 @@ const (
 	tasksSubdir     = "tasks"
 	completedSubdir = "completed"
 	archiveSubdir   = "archive"
-	configFileName  = "config.toml"
 	dirMode         = 0o755
 	fileMode        = 0o644
 )
 
 type Store struct {
-	root string
+	root, code, data string
+	now              func() time.Time
 }
 
 func New(root string) *Store {
-	return &Store{root: root}
+	return NewProject(root, "")
+}
+
+func NewProject(root, code string) *Store {
+	return &Store{root: root, code: code, now: time.Now}
+}
+
+func (s *Store) WithDataRoot(dir string) *Store {
+	s.data = dir
+
+	return s
 }
 
 func (s *Store) tasksDir() string {
 	return filepath.Join(s.root, tasksSubdir)
 }
 
+const (
+	recordExt = ".json"
+	bodyExt   = ".md"
+)
+
 func (s *Store) Path(id string) string {
-	return pathologize.Join(s.tasksDir(), NormalizeID(id)+".md")
+	return pathologize.Join(s.tasksDir(), NormalizeID(id)+recordExt)
+}
+
+func bodyPath(dir, id string) string {
+	return pathologize.Join(dir, NormalizeID(id)+bodyExt)
 }
 
 func (s *Store) archiveTasksDir() string {
@@ -43,7 +65,7 @@ func (s *Store) archiveTasksDir() string {
 }
 
 func (s *Store) archivePath(id string) string {
-	return pathologize.Join(s.archiveTasksDir(), NormalizeID(id)+".md")
+	return pathologize.Join(s.archiveTasksDir(), NormalizeID(id)+recordExt)
 }
 
 func (s *Store) completedDir() string {
@@ -51,7 +73,7 @@ func (s *Store) completedDir() string {
 }
 
 func (s *Store) completedPath(id string) string {
-	return pathologize.Join(s.completedDir(), NormalizeID(id)+".md")
+	return pathologize.Join(s.completedDir(), NormalizeID(id)+recordExt)
 }
 
 func (s *Store) relocateInto(dir, id string) error {
@@ -59,7 +81,11 @@ func (s *Store) relocateInto(dir, id string) error {
 		return fmt.Errorf("creating %s: %w", dir, err)
 	}
 
-	if err := os.Rename(s.Path(id), pathologize.Join(dir, NormalizeID(id)+".md")); err != nil {
+	if err := os.Rename(bodyPath(s.tasksDir(), id), bodyPath(dir, id)); err != nil {
+		return fmt.Errorf("relocating task %s body: %w", id, err)
+	}
+
+	if err := os.Rename(s.Path(id), pathologize.Join(dir, NormalizeID(id)+recordExt)); err != nil {
 		return fmt.Errorf("relocating task %s: %w", id, err)
 	}
 
@@ -162,25 +188,107 @@ func (s *Store) removeFromOrder(parent, id string) error {
 }
 
 func (s *Store) Load(id string) (*Task, error) {
-	data, err := os.ReadFile(s.Path(id))
+	return s.LoadFrom(Active, id)
+}
+
+func (s *Store) LoadFrom(p Place, id string) (*Task, error) {
+	t, err := s.loadRecord(pathologize.Join(s.placeDir(p), NormalizeID(id)+recordExt))
 	if err != nil {
 		return nil, fmt.Errorf("loading task %s: %w", id, err)
 	}
 
-	return Parse(data)
+	return t, nil
+}
+
+func (s *Store) IDs(p Place) ([]string, error) {
+	entries, err := os.ReadDir(s.placeDir(p))
+	if errors.Is(err, fs.ErrNotExist) {
+		return []string{}, nil
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("listing %s: %w", s.placeDir(p), err)
+	}
+
+	ids := []string{}
+
+	for _, e := range entries {
+		if e.Type().IsRegular() && strings.HasSuffix(e.Name(), recordExt) {
+			ids = append(ids, strings.TrimSuffix(e.Name(), recordExt))
+		}
+	}
+
+	return ids, nil
+}
+
+func (s *Store) loadRecord(path string) (*Task, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var rec taskRecord
+	if err := json.Unmarshal(data, &rec); err != nil {
+		return nil, fmt.Errorf("parsing %s: %w", path, err)
+	}
+
+	body, err := os.ReadFile(pathologize.Join(filepath.Dir(path), rec.Content))
+	if err != nil {
+		return nil, fmt.Errorf("reading body of %s: %w", path, err)
+	}
+
+	return rec.task(string(body)), nil
+}
+
+type Place int
+
+const (
+	Active Place = iota
+	Completed
+	Archived
+)
+
+func (s *Store) placeDir(p Place) string {
+	switch p {
+	case Completed:
+		return s.completedDir()
+	case Archived:
+		return s.archiveTasksDir()
+	default:
+		return s.tasksDir()
+	}
 }
 
 func (s *Store) Save(t *Task) error {
-	data, err := t.Bytes()
+	return s.SaveTo(Active, t)
+}
+
+func (s *Store) SaveTo(p Place, t *Task) error {
+	t.Project = s.code
+
+	ts := s.now().UTC().Truncate(time.Second)
+	if t.CreatedAt.IsZero() {
+		t.CreatedAt = ts
+	}
+
+	t.UpdatedAt = ts
+
+	dir := s.placeDir(p)
+
+	data, err := newRecord(t, filepath.Base(bodyPath(dir, t.ID))).bytes()
 	if err != nil {
 		return err
 	}
 
-	if err := os.MkdirAll(s.tasksDir(), dirMode); err != nil {
-		return fmt.Errorf("creating %s: %w", s.tasksDir(), err)
+	if err := os.MkdirAll(dir, dirMode); err != nil {
+		return fmt.Errorf("creating %s: %w", dir, err)
 	}
 
-	if err := os.WriteFile(s.Path(t.ID), data, fileMode); err != nil {
+	if err := os.WriteFile(bodyPath(dir, t.ID), []byte(t.Body), fileMode); err != nil {
+		return fmt.Errorf("writing task %s body: %w", t.ID, err)
+	}
+
+	if err := os.WriteFile(pathologize.Join(dir, NormalizeID(t.ID)+recordExt), data, fileMode); err != nil {
 		return fmt.Errorf("writing task %s: %w", t.ID, err)
 	}
 
@@ -197,6 +305,8 @@ type CreateParams struct {
 	After      string
 	Phase      int
 	PhaseLabel string
+	Branch     string
+	Commit     string
 }
 
 // Create mints the next ID for p, writes the task, and maintains the parent's
@@ -211,14 +321,7 @@ func (s *Store) Create(p CreateParams) (*Task, error) {
 	if p.Parent != "" {
 		id, err = s.NextChildID(p.Parent)
 	} else {
-		var cfg *Config
-
-		cfg, err = s.Config()
-		if err != nil {
-			return nil, err
-		}
-
-		id, err = s.NextID(cfg.Prefix)
+		id, err = s.NextID(s.code)
 	}
 
 	if err != nil {
@@ -238,6 +341,8 @@ func (s *Store) Create(p CreateParams) (*Task, error) {
 		Phase:      p.Phase,
 		PhaseLabel: p.PhaseLabel,
 		Body:       p.Body,
+		Branch:     p.Branch,
+		Commit:     p.Commit,
 	}
 
 	if err := s.Save(t); err != nil {
@@ -263,6 +368,8 @@ type Patch struct {
 	Status     *string
 	Phase      *int
 	PhaseLabel *string
+	Branch     *string
+	Commit     *string
 }
 
 // Update applies p to the task and saves it, returning the updated task.
@@ -275,25 +382,13 @@ func (s *Store) Update(id string, p Patch) (*Task, error) {
 		return nil, err
 	}
 
-	if p.Title != nil {
-		t.Title = *p.Title
-	}
-
-	if p.Body != nil {
-		t.Body = *p.Body
-	}
-
-	if p.Status != nil {
-		t.Status = *p.Status
-	}
-
-	if p.Phase != nil {
-		t.Phase = *p.Phase
-	}
-
-	if p.PhaseLabel != nil {
-		t.PhaseLabel = *p.PhaseLabel
-	}
+	setIfSent(&t.Title, p.Title)
+	setIfSent(&t.Body, p.Body)
+	setIfSent(&t.Status, p.Status)
+	setIfSent(&t.Phase, p.Phase)
+	setIfSent(&t.PhaseLabel, p.PhaseLabel)
+	setIfSent(&t.Branch, p.Branch)
+	setIfSent(&t.Commit, p.Commit)
 
 	contentChanged := p.Title != nil || p.Body != nil || p.Phase != nil || p.PhaseLabel != nil
 	sentBack := p.Status != nil && *p.Status == StatusTodo
@@ -307,6 +402,12 @@ func (s *Store) Update(id string, p Patch) (*Task, error) {
 	}
 
 	return t, nil
+}
+
+func setIfSent[T any](dst, sent *T) {
+	if sent != nil {
+		*dst = *sent
+	}
 }
 
 func (s *Store) SetApproved(id string, approved bool) error {
@@ -440,21 +541,16 @@ func (s *Store) materializeOrder(parent string) ([]string, error) {
 }
 
 func (s *Store) List() ([]*Task, error) {
-	matches, err := filepath.Glob(filepath.Join(s.tasksDir(), "*.md"))
+	matches, err := filepath.Glob(filepath.Join(s.tasksDir(), "*"+recordExt))
 	if err != nil {
 		return nil, fmt.Errorf("scanning %s for tasks: %w", s.tasksDir(), err)
 	}
 
 	tasks := make([]*Task, 0, len(matches))
 	for _, path := range matches {
-		data, err := os.ReadFile(path)
+		t, err := s.loadRecord(path)
 		if err != nil {
 			return nil, fmt.Errorf("reading %s: %w", path, err)
-		}
-
-		t, err := Parse(data)
-		if err != nil {
-			return nil, fmt.Errorf("parsing %s: %w", path, err)
 		}
 
 		tasks = append(tasks, t)
@@ -583,8 +679,8 @@ func (s *Store) NextChildID(parent string) (string, error) {
 		return "", fmt.Errorf("parent %s does not exist: %w", parent, err)
 	}
 
-	glob := parent + ".*.md"
-	re := regexp.MustCompile(`^` + regexp.QuoteMeta(parent) + `\.(\d+)\.md$`)
+	glob := parent + ".*" + recordExt
+	re := regexp.MustCompile(`^` + regexp.QuoteMeta(parent) + `\.(\d+)` + regexp.QuoteMeta(recordExt) + `$`)
 
 	highest, err := s.highestReserved(glob, re, "child IDs")
 	if err != nil {
@@ -595,8 +691,8 @@ func (s *Store) NextChildID(parent string) (string, error) {
 }
 
 func (s *Store) NextID(prefix string) (string, error) {
-	glob := prefix + "-*.md"
-	re := regexp.MustCompile(`^` + regexp.QuoteMeta(prefix) + `-(\d+)\.md$`)
+	glob := prefix + "-*" + recordExt
+	re := regexp.MustCompile(`^` + regexp.QuoteMeta(prefix) + `-(\d+)` + regexp.QuoteMeta(recordExt) + `$`)
 
 	highest, err := s.highestReserved(glob, re, "task IDs")
 	if err != nil {

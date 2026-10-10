@@ -1,11 +1,11 @@
 ---
 name: bit_learn
-description: Reads a proposals file that bit_retro produced elsewhere — often carried over by hand from a different, sometimes confidential, project — and for each proposal either drafts the matching bit-pro skill edit via skill-creator, hands a real code/CLI change off to bit_scope to be planned properly, or says plainly that neither fits and asks the user what to do. Use whenever the user says "bit_learn", "learn", "apply these proposals", "here's what retro found", hands you a `.bit/retro/*-proposals.md` file or its contents from elsewhere, or asks what to do with retro or feedback output. This only ever runs inside bit-pro itself, since it's the only place the skills and the `bp` CLI a proposal might change actually live — never inside the project the proposals came from.
+description: Reads the proposals bit_retro stored from every project, through `mcp__bit__retro_list` and `mcp__bit__retro_read`, and for each proposal either drafts the matching bit-pro skill edit via skill-creator, hands a real code/CLI change off to bit_scope to be planned properly, or says plainly that neither fits and asks the user what to do. Use whenever the user says "bit_learn", "learn", "apply these proposals", "here's what retro found", pastes a proposal, or asks what to do with retro or feedback output. This only ever runs inside bit-pro itself, since it's the only place the skills and the `bp` CLI a proposal might change actually live.
 ---
 
 # Proposal Triage
 
-bit_retro runs elsewhere — in whatever project produced the feedback — and hands you a file of generalized, already-reviewed proposals. Your job starts where that ends: for each proposal, decide what actually has to happen in *this* repo (bit-pro) to make it real, or decide that nothing should, yet.
+bit_retro runs in whatever project produced the feedback and stores its generalized, already-reviewed proposals in the shared store, and you read them from there. Your job starts where that ends: for each proposal, decide what actually has to happen in *this* repo (bit-pro) to make it real, or decide that nothing should, yet.
 
 You never edit a skill directly and you never implement a CLI feature inline. You route: to skill-creator for a skill-text change, to bit_scope for anything that's really a code or CLI change, or back to the user when it's neither.
 
@@ -13,13 +13,13 @@ You never edit a skill directly and you never implement a CLI feature inline. Yo
 
 ## Finding the input
 
-Ask for the proposals file if the user didn't already hand you a path or its contents. Read it in full before acting on anything in it — proposals can reference each other (the same recurring pattern sometimes shows up as more than one angle on the same fix).
+List the stored proposals with `mcp__bit__retro_list`. If the user didn't name one, show the list, each with its project, and ask which to work through. Read the chosen one in full with `mcp__bit__retro_read` before acting on anything in it — proposals can reference each other (the same recurring pattern sometimes shows up as more than one angle on the same fix). A proposal the user pastes in is still accepted.
 
 Handle proposals **one at a time**, the same reason bit_do handles one bar at a time: bulk-applying a batch blurs what's being reviewed and what's landing in which change.
 
 ## Sanity-check before triaging
 
-A proposal's `Suggested mechanism` reflects bit-pro's state *when bit_retro wrote it* — not necessarily now. Proposals can sit around before they're carried over, and bit-pro's skills or CLI may have already moved since. Before acting on any proposal:
+A proposal's `Suggested mechanism` reflects bit-pro's state *when bit_retro wrote it* — not necessarily now. Proposals can sit around before learn reads them, and bit-pro's skills or CLI may have already moved since. Before acting on any proposal:
 
 - If it names a target skill, read that skill's current text. The gap it describes may already be covered — say so and skip it rather than re-applying a fix that's no longer needed.
 - If it names a CLI feature, check whether `bp`/`bit` already does it.
