@@ -137,7 +137,7 @@ func readSource(src string, ps []project.Project) (string, error) {
 		return "", err
 	}
 
-	return code, checkKnown(src, cfg.Prefix)
+	return code, checkKnown(src)
 }
 
 func claimed(ps []project.Project, code string) error {

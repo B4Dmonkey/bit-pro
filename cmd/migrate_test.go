@@ -659,6 +659,34 @@ func TestMigrateCmd(t *testing.T) {
 		}
 	})
 
+	t.Run("migrates a lowercase research dir and prefix", func(t *testing.T) {
+		mcpSandbox(t)
+		gittest.Isolate(t)
+
+		dir := t.TempDir()
+		files := v1Fixture(t)
+		body := "## Findings\n"
+		files["config.toml"] = []byte("prefix = \"bit\"\n")
+		files[filepath.Join(testResearchDir, "bit-1", "index.md")] = []byte(body)
+		writeV1Store(t, dir, files)
+		t.Chdir(dir)
+
+		mustRun(t, migrateCmdUse)
+
+		if projects := listProjects(t); len(projects) != 1 || projects[0].Code != testPrefix {
+			t.Fatalf("ListProjects() = %v, want one with code %s", projects, testPrefix)
+		}
+
+		got, err := projectStore(t).ReadResearch(testOwnTrack, testIndexTopic)
+		if err != nil {
+			t.Fatalf("ReadResearch(BIT-1, index) returned error: %v", err)
+		}
+
+		if got != body {
+			t.Errorf("BIT-1 index body = %q, want %q", got, body)
+		}
+	})
+
 	t.Run("refuses a code another project holds", func(t *testing.T) {
 		mcpSandbox(t)
 		gittest.Isolate(t)
