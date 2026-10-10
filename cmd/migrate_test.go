@@ -636,6 +636,29 @@ func TestMigrateCmd(t *testing.T) {
 		}
 	})
 
+	t.Run("migrates lowercase feedback note names", func(t *testing.T) {
+		mcpSandbox(t)
+		gittest.Isolate(t)
+
+		dir := t.TempDir()
+		files := v1Fixture(t)
+		body := "## What happened\n\nLower.\n"
+		files[filepath.Join("feedback", "bit-1-001.md")] = []byte(body)
+		writeV1Store(t, dir, files)
+		t.Chdir(dir)
+
+		mustRun(t, migrateCmdUse)
+
+		got, err := projectStore(t).ReadNote("BIT-1-001")
+		if err != nil {
+			t.Fatalf("ReadNote(BIT-1-001) returned error: %v", err)
+		}
+
+		if got != body {
+			t.Errorf("BIT-1-001 body = %q, want %q", got, body)
+		}
+	})
+
 	t.Run("refuses a code another project holds", func(t *testing.T) {
 		mcpSandbox(t)
 		gittest.Isolate(t)

@@ -368,6 +368,19 @@ func sourceStems(dir, suffix string) ([]string, error) {
 	return stems, nil
 }
 
+func normalizeStems(stems []string) (ids []string, rawOf map[string]string) {
+	rawOf = make(map[string]string, len(stems))
+	ids = make([]string, 0, len(stems))
+
+	for _, stem := range stems {
+		id := task.NormalizeID(stem)
+		rawOf[id] = stem
+		ids = append(ids, id)
+	}
+
+	return ids, rawOf
+}
+
 func compareSets(rel string, want, got []string) (problems, both []string) {
 	for _, w := range want {
 		if slices.Contains(got, w) {
@@ -392,14 +405,7 @@ func verifyTasks(src, rel string, s *task.Store, p task.Place, code string, h gi
 		return []string{rel + ": " + err.Error()}
 	}
 
-	rawOf := make(map[string]string, len(stems))
-	want := make([]string, 0, len(stems))
-
-	for _, stem := range stems {
-		id := task.NormalizeID(stem)
-		rawOf[id] = stem
-		want = append(want, id)
-	}
+	want, rawOf := normalizeStems(stems)
 
 	got, err := s.IDs(p)
 	if err != nil {
@@ -500,7 +506,7 @@ func verifyBodies(src, rel string, stems []string, read func(stem string) (strin
 func verifyNotes(src string, s *task.Store) []string {
 	const rel = "feedback"
 
-	want, err := sourceStems(filepath.Join(src, rel), ".md")
+	stems, err := sourceStems(filepath.Join(src, rel), ".md")
 	if err != nil {
 		return []string{rel + ": " + err.Error()}
 	}
@@ -510,9 +516,16 @@ func verifyNotes(src string, s *task.Store) []string {
 		return []string{rel + ": " + err.Error()}
 	}
 
+	want, rawOf := normalizeStems(stems)
+
 	problems, both := compareSets(rel, want, got)
 
-	return append(problems, verifyBodies(src, rel, both, s.ReadNote)...)
+	raw := make([]string, 0, len(both))
+	for _, id := range both {
+		raw = append(raw, rawOf[id])
+	}
+
+	return append(problems, verifyBodies(src, rel, raw, s.ReadNote)...)
 }
 
 func verifyResearch(src string, s *task.Store) []string {

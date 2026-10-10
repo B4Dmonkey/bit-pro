@@ -177,12 +177,6 @@ func TestBadIDs(t *testing.T) {
 			want:   []string{"config.toml: bit"},
 		},
 		{
-			name:   "lowercase feedback track",
-			prefix: upperPrefix,
-			files:  []string{"feedback/bit-1-001.md"},
-			want:   []string{"feedback/bit-1-001.md: bit-1"},
-		},
-		{
 			name:   "lowercase research dir",
 			prefix: upperPrefix,
 			files:  []string{"research/bit-1/index.md"},
