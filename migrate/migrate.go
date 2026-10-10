@@ -387,9 +387,18 @@ func compareSets(rel string, want, got []string) (problems, both []string) {
 }
 
 func verifyTasks(src, rel string, s *task.Store, p task.Place, code string, h git.Head) []string {
-	want, err := sourceStems(filepath.Join(src, rel), ".md")
+	stems, err := sourceStems(filepath.Join(src, rel), ".md")
 	if err != nil {
 		return []string{rel + ": " + err.Error()}
+	}
+
+	rawOf := make(map[string]string, len(stems))
+	want := make([]string, 0, len(stems))
+
+	for _, stem := range stems {
+		id := task.NormalizeID(stem)
+		rawOf[id] = stem
+		want = append(want, id)
 	}
 
 	got, err := s.IDs(p)
@@ -400,7 +409,7 @@ func verifyTasks(src, rel string, s *task.Store, p task.Place, code string, h gi
 	problems, both := compareSets(rel, want, got)
 
 	for _, id := range both {
-		name := filepath.Join(rel, id+".md")
+		name := filepath.Join(rel, rawOf[id]+".md")
 
 		raw, err := os.ReadFile(filepath.Join(src, name))
 		if err != nil {

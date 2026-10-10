@@ -192,9 +192,6 @@ func TestBadIDs(t *testing.T) {
 			name:   "uppercase store",
 			prefix: upperPrefix,
 			files: []string{
-				"tasks/BIT-1.md",
-				"completed/BIT-2.md",
-				"archive/tasks/BIT-3.md",
 				"feedback/BIT-1-001.md",
 				"research/BIT-1/index.md",
 			},

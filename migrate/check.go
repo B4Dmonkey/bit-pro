@@ -60,14 +60,6 @@ func badIDs(src, rawPrefix string) []string {
 
 	check("config.toml", rawPrefix)
 
-	for _, pl := range places {
-		paths, _ := filepath.Glob(filepath.Join(src, pl.dir, "*.md"))
-		for _, p := range paths {
-			name := filepath.Base(p)
-			check(path.Join(filepath.ToSlash(pl.dir), name), strings.TrimSuffix(name, ".md"))
-		}
-	}
-
 	notes, _ := filepath.Glob(filepath.Join(src, "feedback", "*.md"))
 	for _, p := range notes {
 		name := filepath.Base(p)
