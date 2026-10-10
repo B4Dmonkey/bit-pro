@@ -32,6 +32,8 @@ const (
 	activeTrack   = "BIT-44"
 	researchTrack = "BIT-49"
 	turnoutBar    = "BIT-2.1"
+	turnoutTitle  = "Turnout"
+	renumbered    = "BIT-3"
 )
 
 func TestMigrateCmd(t *testing.T) {
@@ -578,7 +580,7 @@ func TestMigrateCmd(t *testing.T) {
 		}
 
 		files[filepath.Join(testCompletedDir, "BIT-2.md")] = lowercaseOrder(t,
-			&task.Task{ID: testOwnTrack2, Title: "Turnout", Status: task.StatusDone, Order: []string{turnoutBar}})
+			&task.Task{ID: testOwnTrack2, Title: turnoutTitle, Status: task.StatusDone, Order: []string{turnoutBar}})
 		files[filepath.Join(testCompletedDir, "BIT-2.1.md")] = bar
 		writeV1Store(t, dir, files)
 		t.Chdir(dir)
@@ -684,6 +686,57 @@ func TestMigrateCmd(t *testing.T) {
 
 		if got != body {
 			t.Errorf("BIT-1 index body = %q, want %q", got, body)
+		}
+	})
+
+	t.Run("renumbers a colliding track", func(t *testing.T) {
+		mcpSandbox(t)
+		gittest.Isolate(t)
+
+		dir := t.TempDir()
+		files := v1Fixture(t)
+
+		for name, data := range v1Files(t, map[string][]*task.Task{
+			testCompletedDir: {
+				{ID: testOwnTrack2, Title: turnoutTitle, Status: task.StatusDone, Order: []string{turnoutBar}},
+				{ID: turnoutBar, Title: "Bar", Status: task.StatusDone},
+			},
+			filepath.Join(testArchiveDir, testTasksDir): {{ID: testOwnTrack2, Title: "Rename jobs", Status: task.StatusTodo}},
+		}) {
+			files[name] = data
+		}
+
+		writeV1Store(t, dir, files)
+		t.Chdir(dir)
+
+		mustRun(t, migrateCmdUse)
+
+		s := projectStore(t)
+
+		kept, err := s.LoadFrom(task.Completed, testOwnTrack2)
+		if err != nil {
+			t.Fatalf("LoadFrom(Completed, BIT-2) returned error: %v", err)
+		}
+
+		if kept.Title != turnoutTitle {
+			t.Errorf("completed BIT-2 title = %q, want %q", kept.Title, turnoutTitle)
+		}
+
+		if _, err := s.LoadFrom(task.Completed, turnoutBar); err != nil {
+			t.Errorf("LoadFrom(Completed, BIT-2.1) returned error: %v", err)
+		}
+
+		moved, err := s.LoadFrom(task.Archived, renumbered)
+		if err != nil {
+			t.Fatalf("LoadFrom(Archived, BIT-3) returned error: %v", err)
+		}
+
+		if moved.ID != renumbered || moved.Title != "Rename jobs" {
+			t.Errorf("archived BIT-3 = {%q, %q}, want {BIT-3, Rename jobs}", moved.ID, moved.Title)
+		}
+
+		if _, err := s.LoadFrom(task.Archived, testOwnTrack2); err == nil {
+			t.Errorf("LoadFrom(Archived, BIT-2) succeeded, want no archived BIT-2")
 		}
 	})
 

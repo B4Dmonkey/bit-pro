@@ -33,6 +33,11 @@ type Result struct {
 	Code, Path string
 	Already    bool
 	Tracked    bool
+	Renumbered []Renumber
+}
+
+type Renumber struct {
+	From, To, Kept string
 }
 
 var ErrCodeTaken = errors.New("code belongs to another project")
@@ -60,38 +65,12 @@ func Run(ctx context.Context, q *orm.Queries, opts Options) (Result, error) {
 		return Result{}, err
 	}
 
-	data, err := store.Dir()
+	ren, renumbered, err := renumber(src, code)
 	if err != nil {
 		return Result{}, err
 	}
 
-	stage, err := os.MkdirTemp(data, ".migrate-")
-	if err != nil {
-		return Result{}, fmt.Errorf("creating a staging dir in %s: %w", data, err)
-	}
-	defer os.RemoveAll(stage)
-
-	staged := filepath.Join(stage, code)
-	if err := os.MkdirAll(staged, dirMode); err != nil {
-		return Result{}, fmt.Errorf("creating %s: %w", staged, err)
-	}
-
-	s := task.NewProject(staged, code).WithDataRoot(stage)
-
-	if err := copyAll(src, s, h, head); err != nil {
-		return Result{}, err
-	}
-
-	if problems := verify(src, s, code, h); len(problems) > 0 {
-		return Result{}, fmt.Errorf("%w:\n  %s", ErrVerify, strings.Join(problems, "\n  "))
-	}
-
-	root, err := store.ProjectDir(code)
-	if err != nil {
-		return Result{}, err
-	}
-
-	if err := commit(stage, data, staged, root); err != nil {
+	if err := land(src, code, h, head, ren); err != nil {
 		return Result{}, err
 	}
 
@@ -99,7 +78,47 @@ func Run(ctx context.Context, q *orm.Queries, opts Options) (Result, error) {
 		return Result{}, fmt.Errorf("registering %s: %w", path, err)
 	}
 
-	return Result{Code: code, Path: path, Tracked: git.Tracks(ctx, opts.Git, filepath.Dir(src), ".bit")}, nil
+	return Result{
+		Code:       code,
+		Path:       path,
+		Tracked:    git.Tracks(ctx, opts.Git, filepath.Dir(src), ".bit"),
+		Renumbered: renumbered,
+	}, nil
+}
+
+func land(src, code string, h git.Head, head task.Commit, ren renames) error {
+	data, err := store.Dir()
+	if err != nil {
+		return err
+	}
+
+	stage, err := os.MkdirTemp(data, ".migrate-")
+	if err != nil {
+		return fmt.Errorf("creating a staging dir in %s: %w", data, err)
+	}
+	defer os.RemoveAll(stage)
+
+	staged := filepath.Join(stage, code)
+	if err := os.MkdirAll(staged, dirMode); err != nil {
+		return fmt.Errorf("creating %s: %w", staged, err)
+	}
+
+	s := task.NewProject(staged, code).WithDataRoot(stage)
+
+	if err := copyAll(src, s, h, head, ren); err != nil {
+		return err
+	}
+
+	if problems := verify(src, s, code, h, ren); len(problems) > 0 {
+		return fmt.Errorf("%w:\n  %s", ErrVerify, strings.Join(problems, "\n  "))
+	}
+
+	root, err := store.ProjectDir(code)
+	if err != nil {
+		return err
+	}
+
+	return commit(stage, data, staged, root)
 }
 
 func already(ctx context.Context, q *orm.Queries, path string) ([]project.Project, Result, error) {
@@ -164,9 +183,90 @@ var places = []struct {
 	{filepath.Join("archive", "tasks"), task.Archived},
 }
 
-func copyAll(src string, s *task.Store, h git.Head, head task.Commit) error {
+type renames map[task.Place]map[string]string
+
+var keepRank = map[task.Place]int{task.Completed: 0, task.Archived: 1, task.Active: 2}
+
+type sourceTrack struct {
+	place task.Place
+	stem  string
+	title string
+}
+
+func renumber(src, code string) (renames, []Renumber, error) {
+	byID := map[string][]sourceTrack{}
+	highest := 0
+
 	for _, pl := range places {
-		if err := copyTasks(filepath.Join(src, pl.dir), s, pl.place, h); err != nil {
+		dir := filepath.Join(src, pl.dir)
+
+		stems, err := sourceStems(dir, ".md")
+		if err != nil {
+			return nil, nil, fmt.Errorf("listing %s: %w", dir, err)
+		}
+
+		for _, stem := range stems {
+			path := filepath.Join(dir, stem+".md")
+
+			raw, err := os.ReadFile(path)
+			if err != nil {
+				return nil, nil, fmt.Errorf("reading %s: %w", path, err)
+			}
+
+			t, err := task.Parse(raw)
+			if err != nil {
+				return nil, nil, fmt.Errorf("parsing %s: %w", path, err)
+			}
+
+			if strings.Contains(t.ID, ".") {
+				continue
+			}
+
+			highest = max(highest, trackNumber(code, t.ID))
+			byID[t.ID] = append(byID[t.ID], sourceTrack{place: pl.place, stem: stem, title: t.Title})
+		}
+	}
+
+	ren := renames{}
+
+	var out []Renumber
+
+	for id, group := range byID {
+		if len(group) < 2 {
+			continue
+		}
+
+		slices.SortStableFunc(group, func(a, b sourceTrack) int {
+			return keepRank[a.place] - keepRank[b.place]
+		})
+
+		for _, moved := range group[1:] {
+			to := fmt.Sprintf("%s-%d", code, highest+1)
+
+			if ren[moved.place] == nil {
+				ren[moved.place] = map[string]string{}
+			}
+
+			ren[moved.place][moved.stem] = to
+			out = append(out, Renumber{From: id, To: to, Kept: group[0].title})
+		}
+	}
+
+	return ren, out, nil
+}
+
+func trackNumber(code, id string) int {
+	n, err := strconv.Atoi(strings.TrimPrefix(id, code+"-"))
+	if err != nil {
+		return 0
+	}
+
+	return n
+}
+
+func copyAll(src string, s *task.Store, h git.Head, head task.Commit, ren renames) error {
+	for _, pl := range places {
+		if err := copyTasks(filepath.Join(src, pl.dir), s, pl.place, h, ren[pl.place]); err != nil {
 			return err
 		}
 	}
@@ -182,7 +282,7 @@ func copyAll(src string, s *task.Store, h git.Head, head task.Commit) error {
 	return copyRetro(filepath.Join(src, "retro"), s, head)
 }
 
-func copyTasks(dir string, s *task.Store, p task.Place, h git.Head) error {
+func copyTasks(dir string, s *task.Store, p task.Place, h git.Head, ren map[string]string) error {
 	entries, err := os.ReadDir(dir)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil
@@ -207,6 +307,10 @@ func copyTasks(dir string, s *task.Store, p task.Place, h git.Head) error {
 		t, err := task.Parse(raw)
 		if err != nil {
 			return fmt.Errorf("parsing %s: %w", path, err)
+		}
+
+		if id, ok := ren[strings.TrimSuffix(e.Name(), ".md")]; ok {
+			t.ID = id
 		}
 
 		t.Branch = h.Branch
@@ -334,11 +438,11 @@ func copyRetro(dir string, s *task.Store, head task.Commit) error {
 
 var ErrVerify = errors.New("migrated copy doesn't match the source")
 
-func verify(src string, s *task.Store, code string, h git.Head) []string {
+func verify(src string, s *task.Store, code string, h git.Head, ren renames) []string {
 	var problems []string
 
 	for _, pl := range places {
-		problems = append(problems, verifyTasks(src, pl.dir, s, pl.place, code, h)...)
+		problems = append(problems, verifyTasks(src, pl.dir, s, pl.place, code, h, ren[pl.place])...)
 	}
 
 	problems = append(problems, verifyNotes(src, s)...)
@@ -368,12 +472,16 @@ func sourceStems(dir, suffix string) ([]string, error) {
 	return stems, nil
 }
 
-func normalizeStems(stems []string) (ids []string, rawOf map[string]string) {
+func normalizeStems(stems []string, ren map[string]string) (ids []string, rawOf map[string]string) {
 	rawOf = make(map[string]string, len(stems))
 	ids = make([]string, 0, len(stems))
 
 	for _, stem := range stems {
-		id := task.NormalizeID(stem)
+		id, ok := ren[stem]
+		if !ok {
+			id = task.NormalizeID(stem)
+		}
+
 		rawOf[id] = stem
 		ids = append(ids, id)
 	}
@@ -399,13 +507,15 @@ func compareSets(rel string, want, got []string) (problems, both []string) {
 	return problems, both
 }
 
-func verifyTasks(src, rel string, s *task.Store, p task.Place, code string, h git.Head) []string {
+func verifyTasks(
+	src, rel string, s *task.Store, p task.Place, code string, h git.Head, ren map[string]string,
+) []string {
 	stems, err := sourceStems(filepath.Join(src, rel), ".md")
 	if err != nil {
 		return []string{rel + ": " + err.Error()}
 	}
 
-	want, rawOf := normalizeStems(stems)
+	want, rawOf := normalizeStems(stems, ren)
 
 	got, err := s.IDs(p)
 	if err != nil {
@@ -430,6 +540,8 @@ func verifyTasks(src, rel string, s *task.Store, p task.Place, code string, h gi
 
 			continue
 		}
+
+		srcTask.ID = id
 
 		copied, err := s.LoadFrom(p, id)
 		if err != nil {
@@ -516,7 +628,7 @@ func verifyNotes(src string, s *task.Store) []string {
 		return []string{rel + ": " + err.Error()}
 	}
 
-	want, rawOf := normalizeStems(stems)
+	want, rawOf := normalizeStems(stems, nil)
 
 	problems, both := compareSets(rel, want, got)
 
