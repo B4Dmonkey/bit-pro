@@ -56,36 +56,6 @@ func TestNew(t *testing.T) {
 			t.Error("New() left the list's built-in help on, want it disabled")
 		}
 	})
-
-	t.Run("defaults to list mode", func(t *testing.T) {
-		t.Parallel()
-
-		m := New([]*task.Task{{ID: ttid1}})
-
-		if m.mode != modeList {
-			t.Errorf("New() mode = %v, want modeList", m.mode)
-		}
-	})
-
-	t.Run("lands on doings top bar", func(t *testing.T) {
-		t.Parallel()
-
-		tasks := []*task.Task{
-			{ID: ttid2, Status: task.StatusTodo},
-			{ID: ttid1, Status: task.StatusDoing},
-			{ID: "BIT-1.1", Status: task.StatusDoing},
-		}
-
-		m := New(tasks)
-
-		if m.activeCol != 1 {
-			t.Errorf("New() activeCol = %d, want 1 (Doing)", m.activeCol)
-		}
-
-		if got := m.boardSelected(); got == nil || got.ID != "BIT-1.1" {
-			t.Errorf("New() boardSelected() = %v, want BIT-1.1", got)
-		}
-	})
 }
 
 func TestUpdate(t *testing.T) {
@@ -109,23 +79,6 @@ func TestUpdate(t *testing.T) {
 
 		if got := items[1].(item).t.ID; got != ttid2 {
 			t.Errorf("items[1].ID = %q, want %q", got, ttid2)
-		}
-	})
-
-	t.Run("reloaded msg rebuilds board", func(t *testing.T) {
-		t.Parallel()
-
-		var mdl tea.Model = New([]*task.Task{{ID: ttid1, Status: task.StatusTodo, Approved: true}})
-
-		mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-
-		mdl, _ = mdl.Update(reloadedMsg{tasks: []*task.Task{
-			{ID: ttid1, Status: task.StatusTodo, Approved: true},
-			{ID: ttid2, Status: task.StatusTodo, Approved: true},
-		}})
-
-		if got := len(mdl.(model).boardCols[0].Items()); got != 2 {
-			t.Fatalf("after reloadedMsg, To Do column has %d items, want 2", got)
 		}
 	})
 
@@ -225,45 +178,6 @@ func TestUpdate(t *testing.T) {
 
 		if sel.ID != ttid4 {
 			t.Errorf("after reload dropping the selected task, selected().ID = %q, want %q", sel.ID, ttid4)
-		}
-	})
-
-	t.Run("reload preserves board selection", func(t *testing.T) {
-		t.Parallel()
-
-		var mdl tea.Model = New([]*task.Task{
-			{ID: ttid1, Status: task.StatusTodo},
-			{ID: ttid2, Status: task.StatusDoing},
-			{ID: ttid3, Status: task.StatusDoing},
-		})
-
-		mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyDown})
-
-		mdl, _ = mdl.Update(reloadedMsg{tasks: []*task.Task{
-			{ID: ttid1, Status: task.StatusTodo},
-			{ID: ttid2, Status: task.StatusDoing},
-			{ID: ttid3, Status: task.StatusDoing},
-			{ID: ttid4, Status: task.StatusTodo},
-		}})
-		got := mdl.(model)
-
-		if got.activeCol != 1 {
-			t.Errorf("after reload, activeCol = %d, want 1", got.activeCol)
-		}
-
-		if got.mode != modeBoard {
-			t.Errorf("after reload, mode = %v, want modeBoard", got.mode)
-		}
-
-		sel := got.boardSelected()
-		if sel == nil {
-			t.Fatalf("after reload, boardSelected() = nil, want a valid card")
-		}
-
-		if sel.ID != ttid3 {
-			t.Errorf("after reload, boardSelected().ID = %q, want %q", sel.ID, ttid3)
 		}
 	})
 
@@ -477,35 +391,6 @@ func TestUpdate(t *testing.T) {
 		}
 	})
 
-	t.Run("tab toggles mode", func(t *testing.T) {
-		t.Parallel()
-
-		tests := []struct {
-			name    string
-			presses int
-			want    viewMode
-		}{
-			{"default is list", 0, modeList},
-			{"one tab to board", 1, modeBoard},
-			{"two tabs back to list", 2, modeList},
-		}
-
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				t.Parallel()
-
-				var mdl tea.Model = New([]*task.Task{{ID: ttid1}})
-				for range tt.presses {
-					mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
-				}
-
-				if got := mdl.(model).mode; got != tt.want {
-					t.Errorf("after %d tab(s), mode = %v, want %v", tt.presses, got, tt.want)
-				}
-			})
-		}
-	})
-
 	t.Run("quits from detail", func(t *testing.T) {
 		t.Parallel()
 
@@ -588,34 +473,6 @@ func TestUpdate(t *testing.T) {
 		}
 	})
 
-	t.Run("space toggles approval in board mode", func(t *testing.T) {
-		t.Parallel()
-
-		var called []struct {
-			id       string
-			approved bool
-		}
-
-		m := New([]*task.Task{{ID: ttid1, Status: task.StatusDoing, Approved: false}}).
-			WithApprove(func(id string, a bool) error {
-				called = append(called, struct {
-					id       string
-					approved bool
-				}{id, a})
-
-				return nil
-			})
-		_, _ = m.Update(tea.KeyPressMsg{Code: ' '})
-
-		if len(called) != 1 {
-			t.Fatalf("approve called %d times, want 1", len(called))
-		}
-
-		if called[0].id != ttid1 {
-			t.Errorf("approve id = %q, want %q", called[0].id, ttid1)
-		}
-	})
-
 	t.Run("space on approved item sends unapproved", func(t *testing.T) {
 		t.Parallel()
 
@@ -659,88 +516,6 @@ func TestUpdate(t *testing.T) {
 
 		if got.selected().ID != ttid1 {
 			t.Errorf("selected().ID = %q after space noop, want %q", got.selected().ID, ttid1)
-		}
-	})
-
-	t.Run("board active column", func(t *testing.T) {
-		t.Parallel()
-
-		tests := []struct {
-			name string
-			keys []rune
-			want int
-		}{
-			{"default first column", nil, 0},
-			{"right advances", []rune{tea.KeyRight}, 1},
-			{"right twice", []rune{tea.KeyRight, tea.KeyRight}, 2},
-			{"right clamps at last", []rune{tea.KeyRight, tea.KeyRight, tea.KeyRight}, 2},
-			{"left retreats from last", []rune{tea.KeyRight, tea.KeyRight, tea.KeyLeft}, 1},
-			{"left clamps at first", []rune{tea.KeyLeft, tea.KeyLeft, tea.KeyLeft}, 0},
-		}
-
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				t.Parallel()
-
-				var mdl tea.Model = New([]*task.Task{
-					{ID: ttid1, Status: task.StatusTodo, Approved: true},
-					{ID: ttid3, Status: task.StatusDone},
-				})
-
-				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
-
-				for _, k := range tt.keys {
-					mdl, _ = mdl.Update(tea.KeyPressMsg{Code: k})
-				}
-
-				if got := mdl.(model).activeCol; got != tt.want {
-					t.Errorf("activeCol = %d, want %d", got, tt.want)
-				}
-			})
-		}
-	})
-
-	t.Run("board card selection", func(t *testing.T) {
-		t.Parallel()
-
-		tests := []struct {
-			name    string
-			keys    []rune
-			wantCol int
-			wantIdx int
-		}{
-			{"empty column stays at zero", []rune{tea.KeyDown}, 0, 0},
-			{"down advances in active column", []rune{tea.KeyRight, tea.KeyRight, tea.KeyDown}, 2, 1},
-			{"down clamps at last card", []rune{tea.KeyRight, tea.KeyRight, tea.KeyDown, tea.KeyDown, tea.KeyDown}, 2, 2},
-			{
-				"selection survives column round trip",
-				[]rune{tea.KeyRight, tea.KeyRight, tea.KeyDown, tea.KeyLeft, tea.KeyLeft, tea.KeyRight, tea.KeyRight},
-				2, 1,
-			},
-		}
-
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				t.Parallel()
-
-				var mdl tea.Model = New([]*task.Task{
-					{ID: ttid1, Status: task.StatusDoing},
-					{ID: ttid2, Status: task.StatusDone},
-					{ID: ttid3, Status: task.StatusDone},
-					{ID: ttid4, Status: task.StatusDone},
-				})
-
-				mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
-				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
-
-				for _, k := range tt.keys {
-					mdl, _ = mdl.Update(tea.KeyPressMsg{Code: k})
-				}
-
-				if got := mdl.(model).boardCols[tt.wantCol].Index(); got != tt.wantIdx {
-					t.Errorf("boardCols[%d].Index() = %d, want %d", tt.wantCol, got, tt.wantIdx)
-				}
-			})
 		}
 	})
 
@@ -970,44 +745,6 @@ func TestUpdate(t *testing.T) {
 		}
 	})
 
-	t.Run("modal pages across columns", func(t *testing.T) {
-		t.Parallel()
-
-		var mdl tea.Model = New([]*task.Task{
-			{ID: ttid2, Status: task.StatusTodo, Approved: true},
-			{ID: ttid1, Status: task.StatusDoing},
-			{ID: ttid1_1, Status: task.StatusDoing},
-		})
-
-		mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-
-		steps := []struct {
-			key     tea.KeyPressMsg
-			wantID  string
-			wantCol int
-		}{
-			{tea.KeyPressMsg{Code: tea.KeyLeft}, ttid1, 1},
-			{tea.KeyPressMsg{Code: tea.KeyLeft}, ttid2, 0},
-			{tea.KeyPressMsg{Code: tea.KeyRight}, ttid1, 1},
-			{tea.KeyPressMsg{Code: tea.KeyRight}, ttid1_1, 1},
-		}
-
-		for _, s := range steps {
-			mdl, _ = mdl.Update(s.key)
-
-			got := mdl.(model)
-			if id := got.boardSelected().ID; id != s.wantID {
-				t.Fatalf("boardSelected().ID = %q, want %q", id, s.wantID)
-			}
-
-			if got.activeCol != s.wantCol {
-				t.Fatalf("activeCol = %d, want %d", got.activeCol, s.wantCol)
-			}
-		}
-	})
-
 	t.Run("modal paging clamps at ends", func(t *testing.T) {
 		t.Parallel()
 
@@ -1066,37 +803,6 @@ func TestUpdate(t *testing.T) {
 
 		if got := mdl.(model).modalOpen; got {
 			t.Errorf("modalOpen = %v, want false", got)
-		}
-	})
-
-	t.Run("board quits", func(t *testing.T) {
-		t.Parallel()
-
-		tests := []struct {
-			name string
-			key  tea.KeyPressMsg
-		}{
-			{"q", tea.KeyPressMsg{Code: 'q', Text: "q"}},
-			{keyEsc, tea.KeyPressMsg{Code: tea.KeyEsc}},
-			{"ctrl+c", tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}},
-		}
-
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				t.Parallel()
-
-				var mdl tea.Model = New([]*task.Task{{ID: ttid1, Status: task.StatusTodo}})
-
-				_, cmd := mdl.Update(tt.key)
-
-				if cmd == nil {
-					t.Fatalf("%s in board mode: cmd = nil, want a quit cmd", tt.name)
-				}
-
-				if _, ok := cmd().(tea.QuitMsg); !ok {
-					t.Errorf("%s in board mode: cmd() = %T, want tea.QuitMsg", tt.name, cmd())
-				}
-			})
 		}
 	})
 }
@@ -1461,76 +1167,6 @@ func TestView(t *testing.T) {
 
 		if !strings.Contains(view, "\x1b[32m") {
 			t.Errorf("modal view = %q, want green border SGR \\x1b[32m", view)
-		}
-	})
-
-	t.Run("board column counts", func(t *testing.T) {
-		t.Parallel()
-
-		tasks := []*task.Task{
-			{ID: ttid1, Status: task.StatusTodo, Approved: true},
-			{ID: ttid2, Status: task.StatusTodo, Approved: true},
-			{ID: ttid3, Status: task.StatusTodo, Approved: true},
-			{ID: ttid4, Status: task.StatusTodo, Approved: true},
-			{ID: ttid5, Status: task.StatusDoing},
-			{ID: "BIT-6", Status: task.StatusDone},
-			{ID: "BIT-7", Status: task.StatusDone},
-		}
-
-		var mdl tea.Model = New(tasks)
-
-		mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
-
-		view := mdl.(model).View().Content
-		for _, want := range []string{"To Do (4)", "Doing (1)", "Done (2)"} {
-			if !strings.Contains(view, want) {
-				t.Errorf("board View() missing %q", want)
-			}
-		}
-	})
-
-	t.Run("board help", func(t *testing.T) {
-		t.Parallel()
-
-		tests := []struct {
-			name     string
-			toBoard  bool
-			contains []string
-			absent   []string
-		}{
-			{"list mode shows focus", false, []string{ttFocus}, []string{"column"}},
-			{"board mode shows column and card", true, []string{"column", "card"}, []string{ttFocus}},
-		}
-
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				t.Parallel()
-
-				var mdl tea.Model = New([]*task.Task{
-					{ID: ttid1, Status: task.StatusTodo},
-					{ID: ttid2, Status: task.StatusDoing},
-					{ID: ttid3, Status: task.StatusDone},
-				})
-
-				mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
-				if tt.toBoard {
-					mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
-				}
-
-				view := mdl.(model).View().Content
-				for _, want := range tt.contains {
-					if !strings.Contains(view, want) {
-						t.Errorf("View() missing %q", want)
-					}
-				}
-
-				for _, notWant := range tt.absent {
-					if strings.Contains(view, notWant) {
-						t.Errorf("View() contains %q, want absent", notWant)
-					}
-				}
-			})
 		}
 	})
 

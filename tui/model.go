@@ -18,13 +18,6 @@ import (
 	"github.com/B4Dmonkey/bit-pro/task"
 )
 
-type viewMode int
-
-const (
-	modeList viewMode = iota
-	modeBoard
-)
-
 type item struct {
 	t *task.Task
 }
@@ -70,10 +63,6 @@ type model struct {
 	modalViewport viewport.Model
 	help          help.Model
 	keys          keyMap
-	boardKeys     boardKeyMap
-	mode          viewMode
-	boardCols     [3]list.Model
-	activeCol     int
 	detailWidth   int
 	listWidth     int
 	winWidth      int
@@ -107,15 +96,6 @@ func New(tasks []*task.Task) model {
 
 	vp := viewport.New()
 	mvp := viewport.New()
-	cols := groupByStatus(tasks)
-
-	var boardCols [3]list.Model
-	for i, cards := range cols {
-		boardCols[i] = newColumnList(cards)
-	}
-
-	activeCol := defaultColumn(cols)
-	boardCols[activeCol].Select(firstBarIndex(boardCols[activeCol].Items()))
 
 	return model{
 		Model:         l,
@@ -123,12 +103,8 @@ func New(tasks []*task.Task) model {
 		modalViewport: mvp,
 		help:          help.New(),
 		keys:          newKeyMap(),
-		boardKeys:     newBoardKeyMap(),
 		style:         style,
-		boardCols:     boardCols,
-		activeCol:     activeCol,
 		loaded:        tasks,
-		mode:          modeList,
 	}
 }
 
@@ -210,25 +186,6 @@ func (m *model) setTasks(tasks []*task.Task) {
 		m.Select(target)
 	}
 
-	var prevBoardID string
-
-	if t := m.boardSelected(); t != nil {
-		prevBoardID = t.ID
-	}
-
-	for i, cards := range groupByStatus(tasks) {
-		m.boardCols[i] = newColumnList(cards)
-	}
-
-	if prevBoardID != "" {
-		for i, it := range m.boardCols[m.activeCol].Items() {
-			if bi, ok := it.(item); ok && bi.t.ID == prevBoardID {
-				m.boardCols[m.activeCol].Select(i)
-				break
-			}
-		}
-	}
-
 	if m.modalOpen {
 		m.refreshModal()
 	}
@@ -262,20 +219,6 @@ func (m model) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.layout()
 
 		return m, nil
-	}
-
-	if msg.Code == tea.KeyTab {
-		if m.mode == modeList {
-			m.mode = modeBoard
-		} else {
-			m.mode = modeList
-		}
-
-		return m, nil
-	}
-
-	if m.mode == modeBoard {
-		return m.updateBoard(msg)
 	}
 
 	return m.handleListKey(msg)
@@ -408,16 +351,8 @@ func (m *model) refreshDetail() {
 	m.viewport.GotoTop()
 }
 
-func (m model) modalTask() *task.Task {
-	if m.mode == modeBoard {
-		return m.boardSelected()
-	}
-
-	return m.selected()
-}
-
 func (m *model) refreshModal() {
-	t := m.modalTask()
+	t := m.selected()
 	if t == nil {
 		m.modalViewport.SetContent("")
 		return
@@ -439,10 +374,6 @@ func (m *model) refreshModal() {
 }
 
 func (m model) helpKeys() help.KeyMap {
-	if m.mode == modeBoard {
-		return m.boardKeys
-	}
-
 	if m.modalOpen {
 		k := m.keys
 		k.focus.SetHelp("←/→", "page")
@@ -469,11 +400,6 @@ func (m *model) layout() {
 	m.SetSize(max(listW-2, 0), max(paneHeight-2, 0))
 	m.viewport.SetWidth(max(detailW-2, 0))
 	m.viewport.SetHeight(max(paneHeight-2, 0))
-
-	colW := m.winWidth / len(boardColumns)
-	for i := range m.boardCols {
-		m.boardCols[i].SetSize(max(colW-2, 0), max(paneHeight-2, 0))
-	}
 }
 
 func (m model) View() tea.View {
@@ -484,24 +410,13 @@ func (m model) View() tea.View {
 }
 
 func (m model) content() string {
-	var canvas string
+	listTitle := fmt.Sprintf("Tasks (%d/%d)", doneCount(m.Items()), len(m.Items()))
+	listPane := titledBorder(m.Model.View(), listTitle, max(m.listWidth-2, 0), max(m.height-2, 0), !m.detailFocused)
+	detailPane := titledBorder(m.viewport.View(), "Details", max(m.detailWidth-2, 0), max(m.height-2, 0), m.detailFocused)
+	canvas := lipgloss.JoinHorizontal(lipgloss.Top, listPane, detailPane)
 
-	if m.mode == modeBoard {
-		b := boardView(m)
-		if m.modalOpen {
-			b = modalView(m, b)
-		}
-
-		canvas = b
-	} else {
-		listTitle := fmt.Sprintf("Tasks (%d/%d)", doneCount(m.Items()), len(m.Items()))
-		listPane := titledBorder(m.Model.View(), listTitle, max(m.listWidth-2, 0), max(m.height-2, 0), !m.detailFocused)
-		detailPane := titledBorder(m.viewport.View(), "Details", max(m.detailWidth-2, 0), max(m.height-2, 0), m.detailFocused)
-		canvas = lipgloss.JoinHorizontal(lipgloss.Top, listPane, detailPane)
-
-		if m.modalOpen {
-			canvas = modalView(m, canvas)
-		}
+	if m.modalOpen {
+		canvas = modalView(m, canvas)
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Left, canvas, m.help.View(m.helpKeys()))

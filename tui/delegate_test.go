@@ -53,20 +53,6 @@ func TestDelegate(t *testing.T) {
 		}
 	})
 
-	t.Run("selected board card inverted", func(t *testing.T) {
-		t.Parallel()
-
-		l := list.New([]list.Item{item{t: &task.Task{ID: ttid1, Title: "Card"}}}, delegate{board: true}, 40, 4)
-
-		var buf bytes.Buffer
-		delegate{board: true}.Render(&buf, l, 0, l.Items()[0])
-
-		got := buf.String()
-		if !strings.Contains(got, "\x1b[7;32m") {
-			t.Errorf("selected board card = %q, want reverse-green SGR \\x1b[7;32m", got)
-		}
-	})
-
 	t.Run("selected list row not inverted", func(t *testing.T) {
 		t.Parallel()
 
@@ -133,28 +119,6 @@ func TestDelegate(t *testing.T) {
 
 		if strings.Contains(got, "✓") {
 			t.Errorf("doing row = %q, should not have ✓ marker", got)
-		}
-	})
-
-	t.Run("board card has no in progress marker", func(t *testing.T) {
-		t.Parallel()
-
-		l := list.New(
-			[]list.Item{item{t: &task.Task{ID: ttid1, Title: "Card", Status: task.StatusDoing}}},
-			delegate{board: true}, 40, 4,
-		)
-
-		var buf bytes.Buffer
-
-		delegate{board: true}.Render(&buf, l, 0, l.Items()[0])
-
-		got := buf.String()
-		if strings.Contains(got, "→") {
-			t.Errorf("board card = %q, should not have → marker", got)
-		}
-
-		if !strings.Contains(got, ttid1) {
-			t.Errorf("board card = %q, want card text BIT-1", got)
 		}
 	})
 

@@ -11,32 +11,25 @@ import (
 )
 
 var (
-	trackStyle         = lipgloss.NewStyle().Bold(true)
-	barStyle           = lipgloss.NewStyle()
-	verseStyle         = lipgloss.NewStyle().Faint(true).Italic(true)
-	selectedStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Bold(true)
-	selectedBoardStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Reverse(true)
+	trackStyle    = lipgloss.NewStyle().Bold(true)
+	barStyle      = lipgloss.NewStyle()
+	verseStyle    = lipgloss.NewStyle().Faint(true).Italic(true)
+	selectedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Bold(true)
 )
 
-type delegate struct {
-	board bool
-}
+type delegate struct{}
 
 func (delegate) Height() int                         { return 1 }
 func (delegate) Spacing() int                        { return 0 }
 func (delegate) Update(tea.Msg, *list.Model) tea.Cmd { return nil }
 
-func (d delegate) resolveStyle(main lipgloss.Style, t *task.Task, selected bool) lipgloss.Style {
+func (delegate) resolveStyle(main lipgloss.Style, t *task.Task, selected bool) lipgloss.Style {
 	if !selected {
 		if !t.Approved {
 			return main.Foreground(lipgloss.Color("3"))
 		}
 
 		return main
-	}
-
-	if d.board {
-		return selectedBoardStyle
 	}
 
 	main = main.Bold(true)
@@ -77,9 +70,7 @@ func (d delegate) Render(w io.Writer, m list.Model, index int, listItem list.Ite
 	case task.StatusDone:
 		mark = "✓ "
 	case task.StatusDoing:
-		if !d.board {
-			mark = "→ "
-		}
+		mark = "→ "
 	}
 
 	row := cursor + mark + main.Render(indent+t.ID+"  "+t.Title)
