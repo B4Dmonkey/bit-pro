@@ -1,6 +1,7 @@
 package task
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/B4Dmonkey/bit-pro/project"
@@ -16,19 +17,7 @@ func newListCmd() *cobra.Command {
 		Short: "List all tasks",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			store, err := project.OpenCurrent(cmd.Context())
-			if err != nil {
-				return err
-			}
-
-			var tasks []*taskstore.Task
-
-			if parent == "" {
-				tasks, err = store.List()
-			} else {
-				tasks, err = store.Children(parent)
-			}
-
+			tasks, err := listTasks(cmd.Context(), parent)
 			if err != nil {
 				return err
 			}
@@ -55,4 +44,22 @@ func newListCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&parent, "parent", "p", "", "list only this task's direct bars")
 
 	return cmd
+}
+
+func listTasks(ctx context.Context, parent string) ([]*taskstore.Task, error) {
+	if parent == "" {
+		stores, err := project.OpenAll(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		return stores.List()
+	}
+
+	store, err := project.OpenCurrent(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return store.Children(parent)
 }

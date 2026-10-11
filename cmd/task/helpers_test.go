@@ -143,3 +143,21 @@ func createWith(t *testing.T, p task.CreateParams) string {
 
 	return created.ID
 }
+
+func addProject(t *testing.T, code string) *task.Store {
+	t.Helper()
+
+	path, err := project.CanonicalPath(t.TempDir())
+	if err != nil {
+		t.Fatalf("CanonicalPath returned error: %v", err)
+	}
+
+	seedProject(t, orm.CreateProjectParams{Path: path, Code: code})
+
+	s, err := project.StoreFor(project.Project{Code: code})
+	if err != nil {
+		t.Fatalf("project.StoreFor(%q) returned error: %v", code, err)
+	}
+
+	return s
+}

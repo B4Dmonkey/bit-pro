@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/B4Dmonkey/bit-pro/project"
 	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/spf13/cobra"
 )
@@ -146,31 +145,4 @@ func TestTaskCmd(t *testing.T) {
 			t.Errorf("output = %q, want output to contain BIT-1 from the outermost checkout's project", out)
 		}
 	})
-
-	unregistered := []struct {
-		name   string
-		bitDir bool
-		want   error
-	}{
-		{name: "unregistered folder says run bp add", want: project.ErrNotRegistered},
-		{name: "unregistered folder with bit says run bp migrate", bitDir: true, want: project.ErrNeedsMigrate},
-	}
-
-	for _, tt := range unregistered {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("HOME", t.TempDir())
-			t.Setenv("XDG_DATA_HOME", "")
-			t.Chdir(t.TempDir())
-
-			if tt.bitDir {
-				if err := os.Mkdir(".bit", 0o755); err != nil {
-					t.Fatalf("os.Mkdir(.bit) returned error: %v", err)
-				}
-			}
-
-			if _, err := run(t, "task", "list"); !errors.Is(err, tt.want) {
-				t.Errorf("bp task list error = %v, want %v", err, tt.want)
-			}
-		})
-	}
 }
