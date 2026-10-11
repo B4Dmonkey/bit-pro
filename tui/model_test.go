@@ -846,6 +846,19 @@ func TestUpdate(t *testing.T) {
 					}
 				},
 			},
+			{
+				"right pages to next row",
+				tea.KeyPressMsg{Code: tea.KeyRight},
+				func(t *testing.T, mdl tea.Model, _ tea.Cmd, _ int) {
+					if got := mdl.(model).selected().ID; got != ttid2 {
+						t.Errorf("selected().ID = %q, want %q", got, ttid2)
+					}
+
+					if !mdl.(model).modalOpen {
+						t.Errorf("modalOpen = false, want true")
+					}
+				},
+			},
 		}
 
 		for _, tt := range tests {
@@ -915,15 +928,18 @@ func TestUpdate(t *testing.T) {
 		}
 	})
 
-	t.Run("modal pages within column", func(t *testing.T) {
+	t.Run("modal pages list rows", func(t *testing.T) {
 		t.Parallel()
 
 		tests := []struct {
-			name string
-			key  tea.KeyPressMsg
+			name   string
+			key    tea.KeyPressMsg
+			wantID string
 		}{
-			{"right", tea.KeyPressMsg{Code: tea.KeyRight}},
-			{"l", tea.KeyPressMsg{Code: 'l', Text: "l"}},
+			{"right", tea.KeyPressMsg{Code: tea.KeyRight}, ttid1_1},
+			{"l", tea.KeyPressMsg{Code: 'l', Text: "l"}, ttid1_1},
+			{"left", tea.KeyPressMsg{Code: tea.KeyLeft}, ttid2},
+			{"h", tea.KeyPressMsg{Code: 'h', Text: "h"}, ttid2},
 		}
 
 		for _, tt := range tests {
@@ -931,20 +947,20 @@ func TestUpdate(t *testing.T) {
 				t.Parallel()
 
 				var mdl tea.Model = New([]*task.Task{
+					{ID: ttid2, Status: task.StatusTodo},
 					{ID: ttid1, Status: task.StatusDoing},
 					{ID: ttid1_1, Status: task.StatusDoing},
 				})
 
 				mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
-				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyUp})
+				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 				mdl, _ = mdl.Update(tt.key)
 
 				opened := mdl.(model)
-				if got := opened.boardSelected().ID; got != ttid1_1 {
-					t.Errorf("boardSelected().ID = %q, want %q", got, ttid1_1)
+				if got := opened.selected().ID; got != tt.wantID {
+					t.Errorf("selected().ID = %q, want %q", got, tt.wantID)
 				}
 
 				if !opened.modalOpen {
@@ -996,32 +1012,25 @@ func TestUpdate(t *testing.T) {
 		t.Parallel()
 
 		var mdl tea.Model = New([]*task.Task{
-			{ID: ttid2, Status: task.StatusTodo, Approved: true},
+			{ID: ttid2, Status: task.StatusTodo},
 			{ID: ttid1, Status: task.StatusDoing},
 			{ID: ttid1_1, Status: task.StatusDoing},
 		})
 
 		mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
 		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
-		if got := mdl.(model).boardSelected().ID; got != ttid2 {
-			t.Fatalf("boardSelected().ID = %q, want %q (clamp at start)", got, ttid2)
+		if got := mdl.(model).selected().ID; got != ttid2 {
+			t.Fatalf("selected().ID = %q, want %q (clamp at start)", got, ttid2)
 		}
 
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyRight})
-
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyRight})
-
-		if got := mdl.(model).boardSelected().ID; got != ttid1_1 {
-			t.Fatalf("boardSelected().ID = %q, want %q", got, ttid1_1)
+		for range 3 {
+			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyRight})
 		}
 
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyRight})
-		if got := mdl.(model).boardSelected().ID; got != ttid1_1 {
-			t.Fatalf("boardSelected().ID = %q, want %q (clamp at end)", got, ttid1_1)
+		if got := mdl.(model).selected().ID; got != ttid1_1 {
+			t.Fatalf("selected().ID = %q, want %q (clamp at end)", got, ttid1_1)
 		}
 	})
 
@@ -1031,29 +1040,19 @@ func TestUpdate(t *testing.T) {
 		var mdl tea.Model = New([]*task.Task{{ID: ttid1, Status: task.StatusDoing}})
 
 		mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+		for _, key := range []tea.KeyPressMsg{{Code: tea.KeyLeft}, {Code: tea.KeyRight}} {
+			mdl, _ = mdl.Update(key)
 
-		got := mdl.(model)
-		if got.boardSelected().ID != ttid1 {
-			t.Errorf("boardSelected().ID = %q, want %q", got.boardSelected().ID, ttid1)
-		}
+			got := mdl.(model)
+			if got.selected().ID != ttid1 {
+				t.Errorf("selected().ID = %q, want %q", got.selected().ID, ttid1)
+			}
 
-		if !got.modalOpen {
-			t.Errorf("modalOpen = false, want true")
-		}
-
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyRight})
-
-		got = mdl.(model)
-		if got.boardSelected().ID != ttid1 {
-			t.Errorf("boardSelected().ID = %q, want %q", got.boardSelected().ID, ttid1)
-		}
-
-		if !got.modalOpen {
-			t.Errorf("modalOpen = false, want true")
+			if !got.modalOpen {
+				t.Errorf("modalOpen = false, want true")
+			}
 		}
 	})
 
@@ -1388,11 +1387,12 @@ func TestView(t *testing.T) {
 
 		tests := []struct {
 			name    string
-			expand  bool
+			open    bool
 			want    string
 			notWant string
 		}{
 			{"collapsed", false, ttFocus, "page"},
+			{"modal open", true, "page", ttFocus},
 		}
 
 		for _, tt := range tests {
@@ -1403,7 +1403,7 @@ func TestView(t *testing.T) {
 
 				mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 
-				if tt.expand {
+				if tt.open {
 					mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 				}
 
@@ -1416,6 +1416,34 @@ func TestView(t *testing.T) {
 					t.Errorf("View() contains help text %q, want it absent", tt.notWant)
 				}
 			})
+		}
+	})
+
+	t.Run("modal follows paged row", func(t *testing.T) {
+		t.Parallel()
+
+		var mdl tea.Model = New([]*task.Task{
+			{ID: ttid1, Title: "One", Body: "ONETOKEN"},
+			{ID: ttid2, Title: "Two", Body: "TWOTOKEN"},
+		})
+
+		mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+
+		if view := mdl.(model).View().Content; !strings.Contains(view, "BIT-2 — Two") {
+			t.Errorf("View() = %q, missing modal title %q", view, "BIT-2 — Two")
+		}
+
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: 'q', Text: "q"})
+
+		closed := mdl.(model)
+		if view := closed.View().Content; !strings.Contains(view, "TWOTOKEN") {
+			t.Errorf("View() = %q, missing detail body %q", view, "TWOTOKEN")
+		}
+
+		if closed.modalOpen {
+			t.Errorf("modalOpen = true, want false")
 		}
 	})
 

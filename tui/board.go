@@ -134,6 +134,14 @@ func firstBarIndex(items []list.Item) int {
 }
 
 func (m *model) pageModal(delta int) {
+	if m.mode != modeBoard {
+		m.Select(min(max(m.Index()+delta, 0), len(m.Items())-1))
+		m.refreshDetail()
+		m.refreshModal()
+
+		return
+	}
+
 	order := flattenBoard(m.boardCols)
 	if len(order) == 0 {
 		return

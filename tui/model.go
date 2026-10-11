@@ -443,6 +443,13 @@ func (m model) helpKeys() help.KeyMap {
 		return m.boardKeys
 	}
 
+	if m.modalOpen {
+		k := m.keys
+		k.focus.SetHelp("←/→", "page")
+
+		return k
+	}
+
 	return m.keys
 }
 
