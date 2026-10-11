@@ -6,11 +6,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const tuiCmdUse = "tui"
+const uiCmdUse = "ui"
 
-func newTUICmd() *cobra.Command {
+func newUICmd() *cobra.Command {
 	return &cobra.Command{
-		Use:         tuiCmdUse,
+		Use:         uiCmdUse,
 		Short:       "Browse tasks in a terminal UI",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{quietAnnotation: quietEnabled},

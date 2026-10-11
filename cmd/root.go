@@ -134,7 +134,7 @@ func newRootCmd(run claude.Runner) *cobra.Command {
 	rootCmd.AddCommand(newMigrateCmd(run))
 	rootCmd.AddCommand(newServeCmd())
 	rootCmd.AddCommand(taskcmd.NewCmd())
-	rootCmd.AddCommand(newTUICmd())
+	rootCmd.AddCommand(newUICmd())
 
 	return rootCmd
 }
