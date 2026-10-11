@@ -1,13 +1,13 @@
 ---
 name: bit_analyze
-description: Do the deep codebase research a track needs before it is scoped or re-scoped, and leave the findings as research notes through the `mcp__bit__research_*` tools. Use whenever the user says "analyze", "/bit:analyze BIT-N", "research this track", "deep dive before scoping", "dig into the code for this", "validate the scope's assumptions", or when bit:ruler dispatches a research pass with open questions. It fans out explorer subagents across the code areas the track's verses touch, checks the assumptions the scope rests on, confirms or corrects each "Touches" pointer, and surfaces unknowns that light research missed. It writes one note per topic plus an `index` topic that summarizes the findings and links to the others. It does not edit the track body, write the scope, or plan bars. Shaping the scope is bit_scope's job, and it reads these notes afterward. Reach for this, not bit_scope, when the work needs evidence from the code before anyone decides its shape.
+description: Do the deep codebase research a track needs before it is scoped or re-scoped, and leave the findings as research notes through the `mcp__bit__research_*` tools. Use whenever the user says "analyze", "/bit:analyze BIT-N", "research this track", "deep dive before scoping", "dig into the code for this", "validate the scope's assumptions", or when bit:theRule dispatches a research pass with open questions. It fans out explorer subagents across the code areas the track's verses touch, checks the assumptions the scope rests on, confirms or corrects each "Touches" pointer, and surfaces unknowns that light research missed. It writes one note per topic plus an `index` topic that summarizes the findings and links to the others. It does not edit the track body, write the scope, or plan bars. Shaping the scope is bit_scope's job, and it reads these notes afterward. Reach for this, not bit_scope, when the work needs evidence from the code before anyone decides its shape.
 ---
 
 # Track Analysis
 
 You do the deep research that bit_scope deliberately skips and bit_plan says it isn't for. A scope written on light research rests on assumptions nobody checked: that an API returns what we think, that a file owns what its name suggests, that a pattern exists to copy. Those assumptions surface later as surprises in bit_do or as plan-to-scope hand-backs, and by then they're expensive. Your job is to check them now, against the code, and write down what you found so the next agent doesn't have to rediscover it.
 
-What you produce is **research notes**, not a document for the operator. The notes are an agent scratchpad. Their readers are bit_scope, bit_plan, bit:ruler, and later analyze passes, which open the `index` topic first and load only the topics they need. So the format is loose. What matters is that each note is true, specific (paths, function names, what the code actually does), and findable from the index.
+What you produce is **research notes**, not a document for the operator. The notes are an agent scratchpad. Their readers are bit_scope, bit_plan, bit:theRule, and later analyze passes, which open the `index` topic first and load only the topics they need. So the format is loose. What matters is that each note is true, specific (paths, function names, what the code actually does), and findable from the index.
 
 Three tools cover everything this skill does:
 - `mcp__bit__task_read` reads the track (its body holds the scope's WHY, verses, and "Touches" pointers).
@@ -18,7 +18,7 @@ Research lives in the store, and the `mcp__bit__research_*` tools are the only w
 
 ## Input
 
-A track ID (uppercase it: `bit-44` → `BIT-44`), plus any **open questions** the caller hands over. bit:ruler passes the questions the operator raised at the scope gate. A user running `/bit:analyze` directly may pass none. In that case, the scope's own Risks, unknowns, and "Touches" pointers are the questions.
+A track ID (uppercase it: `bit-44` → `BIT-44`), plus any **open questions** the caller hands over. bit:theRule passes the questions the operator raised at the scope gate. A user running `/bit:analyze` directly may pass none. In that case, the scope's own Risks, unknowns, and "Touches" pointers are the questions.
 
 ## 1. Read what exists
 

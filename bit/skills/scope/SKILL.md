@@ -109,7 +109,7 @@ What you must never do is **dissolve an open question into a verse's prose** —
 
 A track may already have **research notes** — deep findings bit_analyze wrote through `mcp__bit__research_write`, with an `index` topic that summarizes them and links the rest. When they exist, they are better evidence than anything light research would turn up, and the scope should stand on them rather than redo them.
 
-So whenever the track already exists — a Refine, or a Create where bit:ruler minted a stub track before analyzing — call `mcp__bit__research_read` with only the track first. It returns the topic names; an empty result means there is no research yet.
+So whenever the track already exists — a Refine, or a Create where bit:theRule minted a stub track before analyzing — call `mcp__bit__research_read` with only the track first. It returns the topic names; an empty result means there is no research yet.
 
 - **Topics exist:** read `index`, then open only the topics a verse, a risk, or a decision actually needs. Draft from what they say, and **cite the topic by name instead of pasting its findings** — "`Touches: task/research.go` (see research topic `store`)", "Decided: reject path-like IDs — evidence in topic `mcp-research-tools`". The notes hold the evidence so the track body doesn't have to; copying them in is exactly what makes a scope long. An unknown the research already answered goes straight into Decisions; one it left open stays in Risks & unknowns with the topic named.
 - **No topics:** carry on exactly as below — the light-research path is unchanged.

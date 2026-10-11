@@ -100,7 +100,7 @@ Notes on behavior worth knowing:
 - `bit:learn` — turn a proposal into a skill or CLI change
 
 It also ships three agents: `bot` (a general session agent that knows the task tools),
-`bot-dev` (runs one bar through `bit:do` and lands it), and `ruler` (takes new work through
+`theCreator` (runs one bar through `bit:do` and lands it), and `theRule` (takes new work through
 analyze, scope and plan to an approved plan).
 
 Skills release independently of the binary — edit one, `/reload-plugins`, done. No rebuild.

@@ -122,7 +122,7 @@ In all cases, leave the bar **not `done`** so it stays the next bar to resume. I
 
 - **Author or redesign the scope or plan** — that's bit_scope and bit_plan. If there are no bars yet, or the bars or the track's shape need rethinking, switch to the right authoring skill.
 - **Commit on its own.** Every commit goes through bit_commit, which asks first. A declined commit leaves the bar `doing`.
-- **Push.** bit_do never pushes. bot-dev does, after a permitted commit.
+- **Push.** bit_do never pushes. theCreator does, after a permitted commit.
 - **Run multiple bars unattended** — one bar per cycle, every time.
 - **Declare a track done on its own** — finishing the last bar makes the track *ready*; the operator then pushes and runs `/bit:complete`, which marks it `done` and files it as completed.
 - **Go around the tools** — the `mcp__bit__*` tools are the only way in; every status move and body change goes through them.
