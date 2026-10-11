@@ -66,27 +66,26 @@ func (k keyMap) FullHelp() [][]key.Binding {
 
 type model struct {
 	list.Model
-	viewport       viewport.Model
-	modalViewport  viewport.Model
-	help           help.Model
-	keys           keyMap
-	boardKeys      boardKeyMap
-	mode           viewMode
-	boardCols      [3]list.Model
-	activeCol      int
-	detailWidth    int
-	listWidth      int
-	winWidth       int
-	winHeight      int
-	height         int
-	style          string
-	renderer       *glamour.TermRenderer
-	reload         func() ([]*task.Task, error)
-	approve        func(id string, approved bool) error
-	loaded         []*task.Task
-	detailFocused  bool
-	modalOpen      bool
-	detailExpanded bool
+	viewport      viewport.Model
+	modalViewport viewport.Model
+	help          help.Model
+	keys          keyMap
+	boardKeys     boardKeyMap
+	mode          viewMode
+	boardCols     [3]list.Model
+	activeCol     int
+	detailWidth   int
+	listWidth     int
+	winWidth      int
+	winHeight     int
+	height        int
+	style         string
+	renderer      *glamour.TermRenderer
+	reload        func() ([]*task.Task, error)
+	approve       func(id string, approved bool) error
+	loaded        []*task.Task
+	detailFocused bool
+	modalOpen     bool
 }
 
 func New(tasks []*task.Task) model {
@@ -254,8 +253,8 @@ func (m model) handleReloaded(msg reloadedMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	if m.mode == modeBoard && m.modalOpen {
-		return m.updateBoard(msg)
+	if m.modalOpen {
+		return m.updateModal(msg)
 	}
 
 	if key.Matches(msg, m.keys.help) {
@@ -307,33 +306,20 @@ func (m model) handleListKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "q", keyEsc, keyCtrlC:
 		return m, tea.Quit
 	case keyRight, "l":
-		if m.detailExpanded {
-			m.Select(min(m.Index()+1, len(m.Items())-1))
-			m.refreshDetail()
-
-			return m, nil
-		}
-
 		m.detailFocused = true
 
 		return m, nil
 	case keyLeft, "h":
-		if m.detailExpanded {
-			m.Select(max(m.Index()-1, 0))
-			m.refreshDetail()
-
-			return m, nil
-		}
-
 		m.detailFocused = false
 
 		return m, nil
 	}
 
 	if msg.Code == tea.KeyEnter {
-		m.detailExpanded = !m.detailExpanded
-		m.detailFocused = m.detailExpanded
-		m.relayout()
+		if m.selected() != nil {
+			m.modalOpen = true
+			m.refreshModal()
+		}
 
 		return m, nil
 	}
@@ -422,8 +408,16 @@ func (m *model) refreshDetail() {
 	m.viewport.GotoTop()
 }
 
+func (m model) modalTask() *task.Task {
+	if m.mode == modeBoard {
+		return m.boardSelected()
+	}
+
+	return m.selected()
+}
+
 func (m *model) refreshModal() {
-	t := m.boardSelected()
+	t := m.modalTask()
 	if t == nil {
 		m.modalViewport.SetContent("")
 		return
@@ -449,13 +443,6 @@ func (m model) helpKeys() help.KeyMap {
 		return m.boardKeys
 	}
 
-	if m.detailExpanded {
-		k := m.keys
-		k.focus.SetHelp("←/→", "page")
-
-		return k
-	}
-
 	return m.keys
 }
 
@@ -466,13 +453,7 @@ func (m *model) relayout() {
 }
 
 func (m *model) layout() {
-	var listW, detailW int
-
-	if m.detailExpanded {
-		listW, detailW = splitWidthExpanded(m.winWidth)
-	} else {
-		listW, detailW = splitWidth(m.winWidth)
-	}
+	listW, detailW := splitWidth(m.winWidth)
 
 	m.help.SetWidth(m.winWidth)
 	helpHeight := lipgloss.Height(m.help.View(m.helpKeys()))
@@ -510,6 +491,10 @@ func (m model) content() string {
 		listPane := titledBorder(m.Model.View(), listTitle, max(m.listWidth-2, 0), max(m.height-2, 0), !m.detailFocused)
 		detailPane := titledBorder(m.viewport.View(), "Details", max(m.detailWidth-2, 0), max(m.height-2, 0), m.detailFocused)
 		canvas = lipgloss.JoinHorizontal(lipgloss.Top, listPane, detailPane)
+
+		if m.modalOpen {
+			canvas = modalView(m, canvas)
+		}
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Left, canvas, m.help.View(m.helpKeys()))
@@ -565,13 +550,6 @@ func titledBorder(content, title string, width, height int, active bool) string 
 
 func splitWidth(total int) (listW, detailW int) {
 	listW = total * 40 / 100
-	detailW = max(total-listW-1, 0)
-
-	return listW, detailW
-}
-
-func splitWidthExpanded(total int) (listW, detailW int) {
-	listW = total * 10 / 100
 	detailW = max(total-listW-1, 0)
 
 	return listW, detailW

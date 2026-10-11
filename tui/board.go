@@ -162,7 +162,7 @@ func (m model) boardSelected() *task.Task {
 	return it.t
 }
 
-func (m model) updateModalBoard(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+func (m model) updateModal(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "q", keyEsc:
 		m.modalOpen = false
@@ -199,10 +199,6 @@ func (m model) handleBoardApprove() (tea.Model, tea.Cmd) {
 }
 
 func (m model) updateBoard(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	if m.modalOpen {
-		return m.updateModalBoard(msg)
-	}
-
 	if msg.Code == tea.KeyEnter {
 		if m.boardSelected() != nil {
 			m.modalOpen = true
@@ -246,7 +242,7 @@ func modalInner(winWidth, winHeight int) (innerW, innerH int) {
 }
 
 func modalView(m model, board string) string {
-	t := m.boardSelected()
+	t := m.modalTask()
 	if t == nil {
 		return board
 	}

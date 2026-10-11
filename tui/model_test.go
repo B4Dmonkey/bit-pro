@@ -506,156 +506,6 @@ func TestUpdate(t *testing.T) {
 		}
 	})
 
-	t.Run("enter expands detail", func(t *testing.T) {
-		t.Parallel()
-
-		var mdl tea.Model = New([]*task.Task{{ID: ttid1}})
-
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-
-		if got := mdl.(model).detailExpanded; !got {
-			t.Errorf("detailExpanded = %v, want true after Enter in list mode", got)
-		}
-	})
-
-	t.Run("enter toggles detail back and forth", func(t *testing.T) {
-		t.Parallel()
-
-		var mdl tea.Model = New([]*task.Task{{ID: ttid1}})
-
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-
-		if got := mdl.(model).detailExpanded; got {
-			t.Errorf("detailExpanded = %v, want false after a second Enter", got)
-		}
-	})
-
-	t.Run("enter focuses detail for scrolling", func(t *testing.T) {
-		t.Parallel()
-
-		body := strings.Repeat("line\n", 500)
-
-		var mdl tea.Model = New([]*task.Task{
-			{ID: ttid2, Body: body},
-			{ID: ttid1, Body: body},
-		})
-
-		mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyDown})
-
-		got := mdl.(model)
-		if off := got.viewport.YOffset(); off == 0 {
-			t.Errorf("viewport.YOffset = %d, want > 0 — down should scroll the expanded body", off)
-		}
-
-		if idx := got.Index(); idx != 0 {
-			t.Errorf("Index() = %d, want 0 — down should not move the list selection while expanded", idx)
-		}
-	})
-
-	t.Run("enter again returns focus to list", func(t *testing.T) {
-		t.Parallel()
-
-		body := strings.Repeat("line\n", 500)
-
-		var mdl tea.Model = New([]*task.Task{
-			{ID: ttid2, Body: body},
-			{ID: ttid1, Body: body},
-		})
-
-		mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyDown})
-
-		got := mdl.(model)
-		if idx := got.Index(); idx != 1 {
-			t.Errorf("Index() = %d, want 1 — down should move the list selection once collapsed", idx)
-		}
-
-		if off := got.viewport.YOffset(); off != 0 {
-			t.Errorf("viewport.YOffset = %d, want 0 — down should not scroll the body once collapsed", off)
-		}
-	})
-
-	t.Run("pages list when expanded", func(t *testing.T) {
-		t.Parallel()
-
-		var mdl tea.Model = New([]*task.Task{{ID: ttid2}, {ID: ttid1}})
-
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyRight})
-
-		if got := mdl.(model).Index(); got != 1 {
-			t.Errorf("Index() = %d, want 1 after right while expanded", got)
-		}
-	})
-
-	t.Run("pages list left when expanded", func(t *testing.T) {
-		t.Parallel()
-
-		m := New([]*task.Task{{ID: ttid3}, {ID: ttid2}, {ID: ttid1}})
-		expanded, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-		em := expanded.(model)
-		em.Select(2)
-
-		mdl, _ := em.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
-
-		if got := mdl.(model).Index(); got != 1 {
-			t.Errorf("Index() = %d, want 1 after left while expanded", got)
-		}
-	})
-
-	t.Run("paging clamps at list ends", func(t *testing.T) {
-		t.Parallel()
-
-		tests := []struct {
-			name      string
-			startIdx  int
-			key       tea.KeyPressMsg
-			wantIndex int
-		}{
-			{"left at first item stays", 0, tea.KeyPressMsg{Code: tea.KeyLeft}, 0},
-			{"right at last item stays", 1, tea.KeyPressMsg{Code: tea.KeyRight}, 1},
-		}
-
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				t.Parallel()
-
-				m := New([]*task.Task{{ID: ttid2}, {ID: ttid1}})
-				expanded, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-				em := expanded.(model)
-				em.Select(tt.startIdx)
-
-				mdl, _ := em.Update(tt.key)
-
-				if got := mdl.(model).Index(); got != tt.wantIndex {
-					t.Errorf("Index() = %d, want %d", got, tt.wantIndex)
-				}
-			})
-		}
-	})
-
-	t.Run("enter relayouts pane widths", func(t *testing.T) {
-		t.Parallel()
-
-		var mdl tea.Model = New([]*task.Task{{ID: ttid1}})
-
-		mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 100, Height: 24})
-
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-
-		if lw := mdl.(model).listWidth; lw != 10 {
-			t.Errorf("listWidth = %d, want 10 (splitWidthExpanded) after Enter alone, without another resize", lw)
-		}
-	})
-
 	t.Run("quits from detail", func(t *testing.T) {
 		t.Parallel()
 
@@ -894,7 +744,7 @@ func TestUpdate(t *testing.T) {
 		}
 	})
 
-	t.Run("board enter opens modal", func(t *testing.T) {
+	t.Run("enter opens modal", func(t *testing.T) {
 		t.Parallel()
 
 		tests := []struct {
@@ -911,11 +761,10 @@ func TestUpdate(t *testing.T) {
 				t.Parallel()
 
 				var mdl tea.Model = New([]*task.Task{{
-					ID: ttid1, Status: task.StatusTodo, Approved: true, Body: ttBody,
+					ID: ttid1, Status: task.StatusTodo, Body: ttBody,
 				}})
 
 				mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 
 				if tt.enter {
 					mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -948,7 +797,6 @@ func TestUpdate(t *testing.T) {
 				}})
 
 				mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 				mdl, cmd := mdl.Update(tt.key)
@@ -970,12 +818,12 @@ func TestUpdate(t *testing.T) {
 		tests := []struct {
 			name  string
 			key   tea.KeyPressMsg
-			check func(t *testing.T, mdl tea.Model, cmd tea.Cmd)
+			check func(t *testing.T, mdl tea.Model, cmd tea.Cmd, approves int)
 		}{
 			{
 				"ctrl+c quits",
 				tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl},
-				func(t *testing.T, mdl tea.Model, cmd tea.Cmd) {
+				func(t *testing.T, _ tea.Model, cmd tea.Cmd, _ int) {
 					if cmd == nil {
 						t.Fatalf("cmd = nil, want quit")
 					}
@@ -986,24 +834,11 @@ func TestUpdate(t *testing.T) {
 				},
 			},
 			{
-				"right pages to next task instead of switching column the old way",
-				tea.KeyPressMsg{Code: tea.KeyRight},
-				func(t *testing.T, mdl tea.Model, _ tea.Cmd) {
-					if got := mdl.(model).boardSelected().ID; got != ttid3 {
-						t.Errorf("boardSelected().ID = %q, want %q", got, ttid3)
-					}
-
-					if !mdl.(model).modalOpen {
-						t.Errorf("modalOpen = false, want true")
-					}
-				},
-			},
-			{
-				"tab swallowed",
-				tea.KeyPressMsg{Code: tea.KeyTab},
-				func(t *testing.T, mdl tea.Model, _ tea.Cmd) {
-					if got := mdl.(model).mode; got != modeBoard {
-						t.Errorf("mode = %v, want modeBoard", got)
+				"space swallowed",
+				tea.KeyPressMsg{Code: ' '},
+				func(t *testing.T, mdl tea.Model, _ tea.Cmd, approves int) {
+					if approves != 0 {
+						t.Errorf("approve called %d times, want 0", approves)
 					}
 
 					if !mdl.(model).modalOpen {
@@ -1017,19 +852,24 @@ func TestUpdate(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				t.Parallel()
 
+				approves := 0
+
 				var mdl tea.Model = New([]*task.Task{
 					{ID: ttid1, Status: task.StatusTodo, Body: ttBody},
 					{ID: ttid2, Status: task.StatusDoing, Body: ttBody},
 					{ID: ttid3, Status: task.StatusDone, Body: ttBody},
+				}).WithApprove(func(string, bool) error {
+					approves++
+
+					return nil
 				})
 
 				mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 				mdl, cmd := mdl.Update(tt.key)
 
-				tt.check(t, mdl, cmd)
+				tt.check(t, mdl, cmd, approves)
 			})
 		}
 	})
@@ -1054,7 +894,6 @@ func TestUpdate(t *testing.T) {
 				}})
 
 				mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 				opened := mdl.(model)
@@ -1218,7 +1057,7 @@ func TestUpdate(t *testing.T) {
 		}
 	})
 
-	t.Run("board enter empty column noop", func(t *testing.T) {
+	t.Run("enter on empty list noop", func(t *testing.T) {
 		t.Parallel()
 
 		var mdl tea.Model = New(nil)
@@ -1423,85 +1262,6 @@ func TestSplitWidth(t *testing.T) {
 	})
 }
 
-func TestSplitWidthExpanded(t *testing.T) {
-	t.Parallel()
-
-	t.Run("typical terminal", func(t *testing.T) {
-		t.Parallel()
-
-		listW, detailW := splitWidthExpanded(100)
-
-		if listW != 10 {
-			t.Errorf("splitWidthExpanded(100) listW = %d, want 10", listW)
-		}
-
-		if detailW != 89 {
-			t.Errorf("splitWidthExpanded(100) detailW = %d, want 89", detailW)
-		}
-	})
-
-	t.Run("scales with width", func(t *testing.T) {
-		t.Parallel()
-
-		listW, detailW := splitWidthExpanded(200)
-
-		if listW != 20 {
-			t.Errorf("splitWidthExpanded(200) listW = %d, want 20", listW)
-		}
-
-		if detailW != 179 {
-			t.Errorf("splitWidthExpanded(200) detailW = %d, want 179", detailW)
-		}
-	})
-
-	t.Run("detail wider than list", func(t *testing.T) {
-		t.Parallel()
-
-		listW, detailW := splitWidthExpanded(120)
-
-		if detailW <= listW {
-			t.Errorf("splitWidthExpanded(120) detailW = %d, listW = %d, want detailW > listW", detailW, listW)
-		}
-	})
-
-	t.Run("zero and one width", func(t *testing.T) {
-		t.Parallel()
-
-		for _, total := range []int{0, 1} {
-			listW, detailW := splitWidthExpanded(total)
-
-			if listW < 0 {
-				t.Errorf("splitWidthExpanded(%d) listW = %d, want >= 0", total, listW)
-			}
-
-			if detailW < 0 {
-				t.Errorf("splitWidthExpanded(%d) detailW = %d, want >= 0", total, detailW)
-			}
-
-			if listW+detailW > total {
-				t.Errorf("splitWidthExpanded(%d) listW+detailW = %d, want <= %d", total, listW+detailW, total)
-			}
-		}
-	})
-}
-
-func TestLayout(t *testing.T) {
-	t.Parallel()
-
-	t.Run("expanded uses wider split", func(t *testing.T) {
-		t.Parallel()
-
-		m := New([]*task.Task{{ID: ttid1}})
-		m.detailExpanded = true
-
-		updated, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 24})
-
-		if lw := updated.(model).listWidth; lw != 10 {
-			t.Errorf("listWidth = %d, want 10 (splitWidthExpanded, not splitWidth)", lw)
-		}
-	})
-}
-
 func TestView(t *testing.T) {
 	t.Parallel()
 
@@ -1633,7 +1393,6 @@ func TestView(t *testing.T) {
 			notWant string
 		}{
 			{"collapsed", false, ttFocus, "page"},
-			{"expanded", true, "page", ttFocus},
 		}
 
 		for _, tt := range tests {
@@ -1665,7 +1424,6 @@ func TestView(t *testing.T) {
 
 		m := New([]*task.Task{{ID: ttid1, Status: task.StatusTodo, Approved: true, Title: "T", Body: "b"}})
 		mdl, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 		mdl, _ = mdl.(model).Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 		view := mdl.(model).View().Content
@@ -1756,8 +1514,8 @@ func TestView(t *testing.T) {
 			enter bool
 			want  bool
 		}{
-			{"closed hides body", false, false},
-			{"open shows body", true, true},
+			{"closed hides modal title", false, false},
+			{"open shows modal title", true, true},
 		}
 
 		for _, tt := range tests {
@@ -1769,14 +1527,13 @@ func TestView(t *testing.T) {
 				}})
 
 				mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-				mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 
 				if tt.enter {
 					mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 				}
 
-				if got := strings.Contains(mdl.(model).View().Content, "MODALBODYTOKEN"); got != tt.want {
-					t.Errorf("View contains body token = %v, want %v", got, tt.want)
+				if got := strings.Contains(mdl.(model).View().Content, "BIT-1 — T"); got != tt.want {
+					t.Errorf("View contains modal title = %v, want %v", got, tt.want)
 				}
 			})
 		}
