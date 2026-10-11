@@ -32,7 +32,7 @@ Briefly restate: the bar's ID and name, the verse it serves, its scope files, an
 
 **Approval gate:** Before moving forward, check whether the bar is approved. Every task `mcp__bit__task_list` and `mcp__bit__task_read` return carries an `approved` boolean. If it's `false`, stop and tell the user:
 
-> "BIT-X.N is not approved — approve it first in the TUI (`bp tui`)."
+> "BIT-X.N is not approved — approve it first in the TUI (`bp ui`)."
 
 Don't mark the bar `doing` or touch any code until the gate is cleared. A bar whose approval was revoked by an edit is just as blocked as one that was never approved — `approved` is either `true` or it isn't. Note that there is no approve tool: approval is the operator's act, so clearing the gate is something only they can do.
 

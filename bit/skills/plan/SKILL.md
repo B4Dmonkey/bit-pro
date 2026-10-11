@@ -241,7 +241,7 @@ After the TDD cycle in each step, there are two kinds of additional check.
 human *does* in the running system and *observes* a specific result. There's an action and a
 pass/fail.
 
-- "In `bp tui`, press `→`, then confirm `q`/`esc`/`ctrl+c` each quit and `ctrl+d` still scrolls."
+- "In `bp ui`, press `→`, then confirm `q`/`esc`/`ctrl+c` each quit and `ctrl+d` still scrolls."
 - "`git status`: these files are added; the only diffs to `.claude/` are X."
 - "Run `bp task list` against the real records — the 13 bars under BIT-2 stay in one column, nothing wraps."
 

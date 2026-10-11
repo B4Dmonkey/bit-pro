@@ -13,7 +13,7 @@ LLM is doing the work, that's the wrong interface. The agent wants plain text, d
 CLI commands, and task state on the local disk — not behind an API token.
 
 So: task bodies are plain markdown in a local store, the CLI and the `mcp__bit__*` tools are
-the primary interface, and `bp tui` is the human's window onto the same store. The TUI never becomes a second source of truth.
+the primary interface, and `bp ui` is the human's window onto the same store. The TUI never becomes a second source of truth.
 
 ## Install
 
@@ -46,7 +46,7 @@ claude mcp add -s user bit -- bp serve mcp
 cd your-project
 bp add .                                   # prompts for a project code, registers the folder
 bp task list
-bp tui                                     # the human view: board + list
+bp ui                                      # the human view: board + list
 ```
 
 Tasks are created and updated by Claude through the bit MCP tools (`task_create`, `task_update`).
@@ -72,7 +72,7 @@ without a prompt to answer.
 | `bp migrate` | Copy this folder's v1 `.bit/` into the store and register it. Checks the files first, verifies the copy, and prints the cleanup step without running it |
 | `bp task read <id>` | Full content. `--body` prints just the markdown, for feeding back to a model |
 | `bp task list` | All tasks. `-p <track>` lists one plan, in step order |
-| `bp tui` | Terminal UI |
+| `bp ui` | Terminal UI |
 
 Notes on behavior worth knowing:
 
@@ -138,7 +138,7 @@ The `mcp__bit__*` tools and `bp` are the only way in. Bars additionally carry
 the next number counts past the highest found across `tasks/`, `completed/`, and
 `archive/tasks/`.
 
-This project tracks its own work in the bit store — browse it with `bp task list` or `bp tui`.
+This project tracks its own work in the bit store — browse it with `bp task list` or `bp ui`.
 
 ## Roadmap
 
