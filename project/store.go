@@ -63,6 +63,10 @@ func OpenAll(ctx context.Context) (*Stores, error) {
 
 	s := &Stores{codes: make([]string, 0, len(projects)), stores: make(map[string]*task.Store, len(projects))}
 	for _, p := range projects {
+		if p.Removed {
+			continue
+		}
+
 		ts, err := StoreFor(p)
 		if err != nil {
 			return nil, err

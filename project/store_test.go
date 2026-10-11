@@ -92,6 +92,46 @@ func TestStoresList(t *testing.T) {
 			t.Errorf("List() IDs = %v, want %v", got, want)
 		}
 	})
+	t.Run("hides removed projects", func(t *testing.T) {
+		isolateData(t)
+		registerCodes(t, testCode, outerCode)
+
+		createTask(t, storeFor(t, testCode), task.CreateParams{Title: "kept"})
+		createTask(t, storeFor(t, outerCode), task.CreateParams{Title: "removed"})
+
+		sqlDB, err := db.Open()
+		if err != nil {
+			t.Fatalf("db.Open() returned error: %v", err)
+		}
+
+		t.Cleanup(func() { sqlDB.Close() })
+
+		q := orm.New(sqlDB)
+
+		projects, err := q.ListProjects(t.Context())
+		if err != nil {
+			t.Fatalf("ListProjects() returned error: %v", err)
+		}
+
+		i := slices.IndexFunc(projects, func(p orm.Project) bool { return p.Code == outerCode })
+		if i < 0 {
+			t.Fatalf("ListProjects() has no %s project", outerCode)
+		}
+
+		if err := q.SetProjectRemoved(t.Context(), orm.SetProjectRemovedParams{Removed: 1, ID: projects[i].ID}); err != nil {
+			t.Fatalf("SetProjectRemoved() returned error: %v", err)
+		}
+
+		stores, err := OpenAll(t.Context())
+		if err != nil {
+			t.Fatalf("OpenAll() returned error: %v", err)
+		}
+
+		want := []string{"BIT-1"}
+		if got := listIDs(t, stores); !slices.Equal(got, want) {
+			t.Errorf("List() IDs = %v, want %v", got, want)
+		}
+	})
 	t.Run("empty registry lists nothing", func(t *testing.T) {
 		isolateData(t)
 
