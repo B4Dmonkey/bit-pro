@@ -46,7 +46,7 @@ claude mcp add -s user bit -- bp serve mcp
 cd your-project
 bp add .                                   # prompts for a project code, registers the folder
 bp task list
-bp ui                                      # the human view: board + list
+bp ui                                      # the human view: task list + details
 ```
 
 Tasks are created and updated by Claude through the bit MCP tools (`task_create`, `task_update`).
@@ -107,19 +107,17 @@ Skills release independently of the binary — edit one, `/reload-plugins`, done
 
 ## TUI
 
-Opens on the kanban board, focused on the top of the Doing column.
-
-| Key | Board | List |
-|---|---|---|
-| `←`/`→`, `h`/`l` | change column | move focus (page tasks when expanded) |
-| `↑`/`↓`, `j`/`k` | move card | move selection / scroll |
-| `enter` | open a scrollable modal | expand the detail pane and focus it |
-| `tab` | switch view | switch view |
-| `?` / `q` | help / quit | help / quit |
+| Key | Action |
+|---|---|
+| `←`/`→`, `h`/`l` | move focus between list and details (page tasks when the modal is open) |
+| `↑`/`↓`, `j`/`k` | move selection / scroll |
+| `enter` | open the selected task in a scrollable modal |
+| `space` | toggle approval |
+| `q` / `esc` | close the modal, or quit from the list |
+| `?` | help |
 
 It re-reads the project's store on a timer and refreshes only when something changed, so an agent's
-edits in another terminal appear without a restart — selection, column, view mode, and open
-modal all survive. Colors come from your terminal's ANSI palette, so it matches your theme.
+edits in another terminal appear without a restart — selection and an open modal survive. Colors come from your terminal's ANSI palette, so it matches your theme.
 
 ## Storage
 
@@ -147,7 +145,7 @@ The bit store is the live tracker; this is the summary.
 **Up next:**
 
 - **Mark a task approved / refined** — a reviewed scope looks identical to a just-drafted one,
-  so "what's ready to work on?" isn't answerable from the board. Needs a model decision first:
+  so "what's ready to work on?" isn't answerable from the list. Needs a model decision first:
   new frontmatter field, another status, or a flag — and how it coexists with `todo`/`doing`/`done`.
 
 **Backlog — needs definition before scoping:**
@@ -167,9 +165,6 @@ The bit store is the live tracker; this is the summary.
 - **Whether an index is needed.** No index today, which keeps the files honest. But the TUI
   re-reads the directory on a timer, so the cost is now continuous — at what task count does
   that get felt, and is the answer an index, an mtime check, or a longer interval?
-- **Are the board columns fixed?** Hardcoded to To Do / Doing / Done. A project wanting
-  `blocked` or `review` has nowhere to say so. Open: whether statuses become project config,
-  and what that does to the skills, which assume the three by name.
 - **Filtering dimensions.** No tags, assignee, or dates in a task record — "filter by tag" is a
   data-model decision before it's a UI one.
 - **How much workflow belongs in the CLI.** Rollup, sign-off, and archiving triggers live in
