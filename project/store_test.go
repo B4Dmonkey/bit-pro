@@ -1,12 +1,20 @@
 package project
 
 import (
+	"errors"
+	"io/fs"
 	"slices"
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/db"
 	"github.com/B4Dmonkey/bit-pro/db/orm"
 	"github.com/B4Dmonkey/bit-pro/task"
+)
+
+const (
+	acmeTrack = "ACME-1"
+	acmeBar   = "ACME-1.1"
+	bitSecond = "BIT-2"
 )
 
 func isolateData(t *testing.T) {
@@ -80,14 +88,14 @@ func TestStoresList(t *testing.T) {
 
 		acme := storeFor(t, outerCode)
 		createTask(t, acme, task.CreateParams{Title: "track"})
-		createTask(t, acme, task.CreateParams{Title: "bar", Parent: "ACME-1"})
+		createTask(t, acme, task.CreateParams{Title: "bar", Parent: acmeTrack})
 
 		stores, err := OpenAll(t.Context())
 		if err != nil {
 			t.Fatalf("OpenAll() returned error: %v", err)
 		}
 
-		want := []string{"ACME-1", "ACME-1.1", "BIT-2", "BIT-1"}
+		want := []string{acmeTrack, acmeBar, bitSecond, "BIT-1"}
 		if got := listIDs(t, stores); !slices.Equal(got, want) {
 			t.Errorf("List() IDs = %v, want %v", got, want)
 		}
@@ -144,4 +152,61 @@ func TestStoresList(t *testing.T) {
 			t.Errorf("List() IDs = %v, want none", got)
 		}
 	})
+}
+
+func TestStoresFor(t *testing.T) {
+	isolateData(t)
+	registerCodes(t, testCode, outerCode)
+
+	bit := storeFor(t, testCode)
+	createTask(t, bit, task.CreateParams{Title: "first"})
+	createTask(t, bit, task.CreateParams{Title: "second"})
+
+	acme := storeFor(t, outerCode)
+	createTask(t, acme, task.CreateParams{Title: "track"})
+	createTask(t, acme, task.CreateParams{Title: "bar", Parent: acmeTrack})
+
+	stores, err := OpenAll(t.Context())
+	if err != nil {
+		t.Fatalf("OpenAll() returned error: %v", err)
+	}
+
+	tests := []struct {
+		name        string
+		id          string
+		wantID      string
+		wantProject string
+		wantErr     error
+	}{
+		{name: "track in first project", id: bitSecond, wantID: bitSecond, wantProject: testCode},
+		{name: "bar in second project", id: acmeBar, wantID: acmeBar, wantProject: outerCode},
+		{name: "lowercase id", id: "acme-1", wantID: acmeTrack, wantProject: outerCode},
+		{name: "unknown code", id: "FOO-1", wantErr: fs.ErrNotExist},
+		{name: "no code prefix", id: "../../README", wantErr: fs.ErrNotExist},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s, err := stores.For(tt.id)
+			if tt.wantErr != nil {
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("For(%q) error = %v, want %v", tt.id, err, tt.wantErr)
+				}
+
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("For(%q) returned error: %v", tt.id, err)
+			}
+
+			got, err := s.Load(tt.id)
+			if err != nil {
+				t.Fatalf("Load(%q) returned error: %v", tt.id, err)
+			}
+
+			if got.ID != tt.wantID || got.Project != tt.wantProject {
+				t.Errorf("Load(%q) = %s in %s, want %s in %s", tt.id, got.ID, got.Project, tt.wantID, tt.wantProject)
+			}
+		})
+	}
 }

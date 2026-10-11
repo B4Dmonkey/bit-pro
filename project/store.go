@@ -3,8 +3,10 @@ package project
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"os"
 	"slices"
+	"strings"
 
 	"github.com/B4Dmonkey/bit-pro/db"
 	"github.com/B4Dmonkey/bit-pro/db/orm"
@@ -94,4 +96,15 @@ func (s *Stores) List() ([]*task.Task, error) {
 	}
 
 	return all, nil
+}
+
+func (s *Stores) For(id string) (*task.Store, error) {
+	code, _, _ := strings.Cut(task.NormalizeID(id), "-")
+
+	ts, ok := s.stores[code]
+	if !ok {
+		return nil, fmt.Errorf("task %s: %w", id, fs.ErrNotExist)
+	}
+
+	return ts, nil
 }
