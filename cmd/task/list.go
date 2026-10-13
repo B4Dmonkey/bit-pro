@@ -47,16 +47,16 @@ func newListCmd() *cobra.Command {
 }
 
 func listTasks(ctx context.Context, parent string) ([]*taskstore.Task, error) {
-	if parent == "" {
-		stores, err := project.OpenAll(ctx)
-		if err != nil {
-			return nil, err
-		}
+	stores, err := project.OpenAll(ctx)
+	if err != nil {
+		return nil, err
+	}
 
+	if parent == "" {
 		return stores.List()
 	}
 
-	store, err := project.OpenCurrent(ctx)
+	store, err := stores.For(parent)
 	if err != nil {
 		return nil, err
 	}

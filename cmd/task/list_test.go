@@ -190,6 +190,39 @@ func TestTaskListCmd(t *testing.T) {
 		}
 	})
 
+	t.Run("parent in another project", func(t *testing.T) {
+		t.Setenv("HOME", t.TempDir())
+		t.Setenv("XDG_DATA_HOME", "")
+		t.Chdir(t.TempDir())
+
+		if _, err := addProject(t, "BIT").Create(task.CreateParams{Title: "Bit one"}); err != nil {
+			t.Fatalf("Create(Bit one) returned error: %v", err)
+		}
+
+		acme := addProject(t, "ACME")
+		if _, err := acme.Create(task.CreateParams{Title: "Acme one"}); err != nil {
+			t.Fatalf("Create(Acme one) returned error: %v", err)
+		}
+
+		for _, title := range []string{"Acme bar one", "Acme bar two"} {
+			if _, err := acme.Create(task.CreateParams{Title: title, Parent: "ACME-1"}); err != nil {
+				t.Fatalf("Create(%q) returned error: %v", title, err)
+			}
+		}
+
+		out := mustRun(t, "task", "list", "-p", "ACME-1")
+
+		var ids []string
+		for line := range strings.SplitSeq(strings.TrimRight(out, "\n"), "\n") {
+			ids = append(ids, strings.Split(line, "\t")[0])
+		}
+
+		want := []string{"ACME-1.1", "ACME-1.2"}
+		if !slices.Equal(ids, want) {
+			t.Errorf("IDs = %v, want %v", ids, want)
+		}
+	})
+
 	t.Run("unapproved shows empty field", func(t *testing.T) {
 		initProject(t, "BIT")
 		createTask(t, "Track", "...")
