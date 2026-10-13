@@ -1164,6 +1164,43 @@ func TestView(t *testing.T) {
 		}
 	})
 
+	t.Run("track chevron follows expansion", func(t *testing.T) {
+		t.Parallel()
+
+		tests := []struct {
+			name    string
+			tab     bool
+			want    string
+			notWant string
+		}{
+			{"collapsed", false, ttChevronRight, ttChevronDown},
+			{"expanded", true, ttChevronDown, ttChevronRight},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+
+				var mdl tea.Model = New([]*task.Task{{ID: ttid1}, {ID: ttid1_1}, {ID: ttid2}})
+
+				mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+
+				if tt.tab {
+					mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+				}
+
+				view := mdl.(model).View().Content
+				if got := strings.Count(view, tt.want); got != 1 {
+					t.Errorf("View() has %d %q, want exactly 1", got, tt.want)
+				}
+
+				if strings.Contains(view, tt.notWant) {
+					t.Errorf("View() contains %q, want it absent", tt.notWant)
+				}
+			})
+		}
+	})
+
 	t.Run("list hides title heading", func(t *testing.T) {
 		t.Parallel()
 

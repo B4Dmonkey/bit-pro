@@ -19,7 +19,9 @@ import (
 )
 
 type item struct {
-	t *task.Task
+	t        *task.Task
+	hasBars  bool
+	expanded bool
 }
 
 type reloadedMsg struct {
@@ -82,10 +84,11 @@ func visibleItems(tasks []*task.Task, expanded map[string]bool) []list.Item {
 	items := make([]list.Item, 0, len(tasks))
 	open := false
 
-	for _, t := range tasks {
+	for i, t := range tasks {
 		if !isBar(t.ID) {
 			open = expanded[t.ID]
-			items = append(items, item{t: t})
+			hasBars := i+1 < len(tasks) && isBar(tasks[i+1].ID)
+			items = append(items, item{t: t, hasBars: hasBars, expanded: open})
 
 			continue
 		}

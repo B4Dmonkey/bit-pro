@@ -18,4 +18,7 @@ const (
 	ttTrack  = "Track"
 	ttBar    = "Bar"
 	ttBodyHi = "# Hi"
+
+	ttChevronRight = "\uf054"
+	ttChevronDown  = "\uf078"
 )
