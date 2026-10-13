@@ -70,9 +70,9 @@ without a prompt to answer.
 | `bp add <path>` | Register a project under a code you type, setting bit up in Claude Code on first use |
 | `bp list` | List the registered projects |
 | `bp migrate` | Copy this folder's v1 `.bit/` into the store and register it. Checks the files first, verifies the copy, and prints the cleanup step without running it |
-| `bp task read <id>` | Full content. `--body` prints just the markdown, for feeding back to a model |
-| `bp task list` | All tasks. `-p <track>` lists one plan, in step order |
-| `bp ui` | Terminal UI |
+| `bp task read <id>` | Full content, from any directory; the ID's code picks the project. `--body` prints just the markdown, for feeding back to a model |
+| `bp task list` | All tasks across every registered project. `-p <track>` lists one plan, in step order |
+| `bp ui` | Terminal UI, every registered project |
 
 Notes on behavior worth knowing:
 
