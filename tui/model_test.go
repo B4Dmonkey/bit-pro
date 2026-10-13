@@ -858,6 +858,62 @@ func TestUpdate(t *testing.T) {
 		}
 	})
 
+	t.Run("tab again collapses track", func(t *testing.T) {
+		t.Parallel()
+
+		var mdl tea.Model = New([]*task.Task{{ID: ttid1}, {ID: ttid1_1}, {ID: ttid1_2}, {ID: ttid2}})
+
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+
+		got := mdl.(model)
+		want := []string{ttid1, ttid2}
+
+		if ids := itemIDs(got); !slices.Equal(ids, want) {
+			t.Errorf("after two tabs, items = %v, want %v", ids, want)
+		}
+
+		if id := got.selected().ID; id != ttid1 {
+			t.Errorf("selected().ID = %q, want %q", id, ttid1)
+		}
+	})
+
+	t.Run("tab on bar row noop", func(t *testing.T) {
+		t.Parallel()
+
+		var mdl tea.Model = New([]*task.Task{{ID: ttid1}, {ID: ttid1_1}, {ID: ttid1_2}, {ID: ttid2}})
+
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+
+		got := mdl.(model)
+		want := []string{ttid1, ttid1_1, ttid1_2, ttid2}
+
+		if ids := itemIDs(got); !slices.Equal(ids, want) {
+			t.Errorf("after tab on bar, items = %v, want %v", ids, want)
+		}
+
+		if id := got.selected().ID; id != ttid1_1 {
+			t.Errorf("selected().ID = %q, want %q", id, ttid1_1)
+		}
+	})
+
+	t.Run("tab ignored with detail focused", func(t *testing.T) {
+		t.Parallel()
+
+		var mdl tea.Model = New([]*task.Task{{ID: ttid1}, {ID: ttid1_1}, {ID: ttid1_2}, {ID: ttid2}})
+
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+
+		want := []string{ttid1, ttid2}
+
+		if ids := itemIDs(mdl.(model)); !slices.Equal(ids, want) {
+			t.Errorf("after tab with detail focused, items = %v, want %v", ids, want)
+		}
+	})
+
 	t.Run("enter on empty list noop", func(t *testing.T) {
 		t.Parallel()
 

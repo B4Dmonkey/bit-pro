@@ -292,7 +292,7 @@ func (m model) handleListKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	if msg.Code == tea.KeyTab {
 		if t := m.selected(); t != nil {
-			m.expanded[t.ID] = true
+			m.expanded[t.ID] = !m.expanded[t.ID]
 			m.SetItems(visibleItems(m.loaded, m.expanded))
 			m.refreshDetail()
 		}
