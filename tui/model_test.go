@@ -1034,6 +1034,23 @@ func TestView(t *testing.T) {
 		}
 	})
 
+	t.Run("title counts hidden tasks", func(t *testing.T) {
+		t.Parallel()
+
+		var mdl tea.Model = New([]*task.Task{
+			{ID: ttid1},
+			{ID: ttid1_1, Status: task.StatusDone},
+			{ID: ttid1_2, Status: task.StatusDone},
+			{ID: ttid2},
+		})
+
+		mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+
+		if view := mdl.(model).View().Content; !strings.Contains(view, "Tasks (2/4)") {
+			t.Errorf("View() missing %q", "Tasks (2/4)")
+		}
+	})
+
 	t.Run("list hides title heading", func(t *testing.T) {
 		t.Parallel()
 

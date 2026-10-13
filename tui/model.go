@@ -417,7 +417,7 @@ func (m model) View() tea.View {
 }
 
 func (m model) content() string {
-	listTitle := fmt.Sprintf("Tasks (%d/%d)", doneCount(m.Items()), len(m.Items()))
+	listTitle := fmt.Sprintf("Tasks (%d/%d)", doneCount(m.loaded), len(m.loaded))
 	listPane := titledBorder(m.Model.View(), listTitle, max(m.listWidth-2, 0), max(m.height-2, 0), !m.detailFocused)
 	detailPane := titledBorder(m.viewport.View(), "Details", max(m.detailWidth-2, 0), max(m.height-2, 0), m.detailFocused)
 	canvas := lipgloss.JoinHorizontal(lipgloss.Top, listPane, detailPane)
@@ -429,16 +429,11 @@ func (m model) content() string {
 	return lipgloss.JoinVertical(lipgloss.Left, canvas, m.help.View(m.helpKeys()))
 }
 
-func doneCount(items []list.Item) int {
+func doneCount(tasks []*task.Task) int {
 	n := 0
 
-	for _, listItem := range items {
-		it, ok := listItem.(item)
-		if !ok {
-			continue
-		}
-
-		if it.t.Status == task.StatusDone {
+	for _, t := range tasks {
+		if t.Status == task.StatusDone {
 			n++
 		}
 	}
