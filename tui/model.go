@@ -173,18 +173,15 @@ func (m *model) setTasks(tasks []*task.Task) {
 		prevID = t.ID
 	}
 
-	items := make([]list.Item, len(tasks))
-	for i, t := range tasks {
-		items[i] = item{t: t}
-	}
+	items := visibleItems(tasks)
 
 	m.SetItems(items)
 
-	if prevID != "" && len(tasks) > 0 {
-		target := min(prevIndex, len(tasks)-1)
+	if prevID != "" && len(items) > 0 {
+		target := min(prevIndex, len(items)-1)
 
-		for i, t := range tasks {
-			if t.ID == prevID {
+		for i, it := range items {
+			if it.(item).t.ID == prevID {
 				target = i
 				break
 			}

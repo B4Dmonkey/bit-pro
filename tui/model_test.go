@@ -71,6 +71,20 @@ func TestUpdate(t *testing.T) {
 		}
 	})
 
+	t.Run("reload shows only tracks", func(t *testing.T) {
+		t.Parallel()
+
+		m := New([]*task.Task{{ID: ttid1}})
+
+		updated, _ := m.Update(reloadedMsg{tasks: []*task.Task{{ID: ttid1}, {ID: ttid1_1}, {ID: ttid2}}})
+
+		want := []string{ttid1, ttid2}
+
+		if got := itemIDs(updated.(model)); !slices.Equal(got, want) {
+			t.Errorf("after reload, items = %v, want %v", got, want)
+		}
+	})
+
 	t.Run("tick triggers reload", func(t *testing.T) {
 		t.Parallel()
 
@@ -131,6 +145,8 @@ func TestUpdate(t *testing.T) {
 		t.Parallel()
 
 		m := New([]*task.Task{{ID: ttid2}, {ID: ttid2_1}, {ID: ttid1}})
+		sized, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+		m = sized.(model)
 		m.Select(1)
 
 		updated, _ := m.Update(reloadedMsg{tasks: []*task.Task{
@@ -138,6 +154,7 @@ func TestUpdate(t *testing.T) {
 			{ID: ttid2},
 			{ID: ttid2_1},
 			{ID: ttid1},
+			{ID: ttid4},
 		}})
 
 		if got := updated.(model).selected().ID; got != ttid1 {
