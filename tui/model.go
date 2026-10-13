@@ -75,13 +75,22 @@ type model struct {
 	loaded        []*task.Task
 	detailFocused bool
 	modalOpen     bool
+	expanded      map[string]bool
 }
 
-func visibleItems(tasks []*task.Task) []list.Item {
+func visibleItems(tasks []*task.Task, expanded map[string]bool) []list.Item {
 	items := make([]list.Item, 0, len(tasks))
+	open := false
 
 	for _, t := range tasks {
 		if !isBar(t.ID) {
+			open = expanded[t.ID]
+			items = append(items, item{t: t})
+
+			continue
+		}
+
+		if open {
 			items = append(items, item{t: t})
 		}
 	}
@@ -90,7 +99,8 @@ func visibleItems(tasks []*task.Task) []list.Item {
 }
 
 func New(tasks []*task.Task) model {
-	l := list.New(visibleItems(tasks), delegate{}, 0, 0)
+	expanded := map[string]bool{}
+	l := list.New(visibleItems(tasks, expanded), delegate{}, 0, 0)
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
 	l.SetShowTitle(false)
@@ -112,6 +122,7 @@ func New(tasks []*task.Task) model {
 		keys:          newKeyMap(),
 		style:         style,
 		loaded:        tasks,
+		expanded:      expanded,
 	}
 }
 
@@ -173,7 +184,7 @@ func (m *model) setTasks(tasks []*task.Task) {
 		prevID = t.ID
 	}
 
-	items := visibleItems(tasks)
+	items := visibleItems(tasks, m.expanded)
 
 	m.SetItems(items)
 
@@ -277,6 +288,16 @@ func (m model) handleListKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	if m.detailFocused {
 		return m.handleDetailFocusedKey(msg)
+	}
+
+	if msg.Code == tea.KeyTab {
+		if t := m.selected(); t != nil {
+			m.expanded[t.ID] = true
+			m.SetItems(visibleItems(m.loaded, m.expanded))
+			m.refreshDetail()
+		}
+
+		return m, nil
 	}
 
 	prev := m.Index()

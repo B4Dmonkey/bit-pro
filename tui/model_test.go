@@ -818,6 +818,46 @@ func TestUpdate(t *testing.T) {
 		}
 	})
 
+	t.Run("tab expands track", func(t *testing.T) {
+		t.Parallel()
+
+		var mdl tea.Model = New([]*task.Task{{ID: ttid1}, {ID: ttid1_1}, {ID: ttid1_2}, {ID: ttid2}, {ID: ttid2_1}})
+
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+
+		got := mdl.(model)
+		want := []string{ttid1, ttid1_1, ttid1_2, ttid2}
+
+		if ids := itemIDs(got); !slices.Equal(ids, want) {
+			t.Errorf("after tab, items = %v, want %v", ids, want)
+		}
+
+		if id := got.selected().ID; id != ttid1 {
+			t.Errorf("selected().ID = %q, want %q", id, ttid1)
+		}
+	})
+
+	t.Run("reload keeps expanded tracks", func(t *testing.T) {
+		t.Parallel()
+
+		var mdl tea.Model = New([]*task.Task{{ID: ttid1}, {ID: ttid1_1}, {ID: ttid1_2}, {ID: ttid2}, {ID: ttid2_1}})
+
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+		mdl, _ = mdl.Update(reloadedMsg{tasks: []*task.Task{
+			{ID: ttid1},
+			{ID: ttid1_1, Title: ttBar},
+			{ID: ttid1_2},
+			{ID: ttid2},
+			{ID: ttid2_1},
+		}})
+
+		want := []string{ttid1, ttid1_1, ttid1_2, ttid2}
+
+		if ids := itemIDs(mdl.(model)); !slices.Equal(ids, want) {
+			t.Errorf("after reload, items = %v, want %v", ids, want)
+		}
+	})
+
 	t.Run("enter on empty list noop", func(t *testing.T) {
 		t.Parallel()
 
