@@ -108,7 +108,7 @@ func unknownFiles(src string) ([]string, error) {
 			return err
 		}
 
-		if !d.Type().IsRegular() {
+		if !d.Type().IsRegular() || d.Name() == ".DS_Store" {
 			return nil
 		}
 
