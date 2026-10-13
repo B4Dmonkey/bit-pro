@@ -1,6 +1,6 @@
 ---
 name: bit_commit
-description: Commit one bar's work after asking the operator, then record the commit's full hash and branch on the bar and mark it `done`. Use whenever the user says "commit this bar", "commit BIT-N.M", or `/bit:commit`, and whenever bit_do's or bot-dev's close-out reaches the commit. It reads the commit message from the bar's `## Commit` section, stages only the files the bar touched, shows the files, the diff stat and the message, and commits only on an explicit yes. A declined commit leaves the bar `doing` with nothing recorded. It only commits — it doesn't push, roll the track up, or start the next bar.
+description: Commit one bar's work after asking the operator, then record the commit's full hash and branch on the bar and mark it `done`. Use whenever the user says "commit this bar", "commit BIT-N.M", or `/bit:commit`, and whenever bit_do's or theCreator's close-out reaches the commit. It reads the commit message from the bar's `## Commit` section, stages only the files the bar touched, shows the files, the diff stat and the message, and commits only on an explicit yes. A declined commit leaves the bar `doing` with nothing recorded. It only commits — it doesn't push, roll the track up, or start the next bar.
 ---
 
 # Bar Commit
@@ -33,11 +33,11 @@ Every bar write goes through `mcp__bit__task_read` and `mcp__bit__task_update`.
 
 10. **Record.** Run one `mcp__bit__task_update {id, commit: "<sha>", branch: "<branch>", status: "done"}`. It returns `approved: true`, because git fields and a forward status move keep approval. A follow-up commit overwrites `commit` the same way.
 
-11. **Report.** Give the short SHA, the branch and the subject line. Then hand back to the caller: bit_do rolls the track up, and bot-dev pushes.
+11. **Report.** Give the short SHA, the branch and the subject line. Then hand back to the caller: bit_do rolls the track up, and theCreator pushes.
 
 ## What this skill does not do
 
-- Push. bot-dev pushes after a permitted commit; bit_do doesn't push.
+- Push. theCreator pushes after a permitted commit; bit_do doesn't push.
 - Roll the track up, or mark a track `done`.
 - Pass `--no-verify` or `--allow-empty`.
 - Amend a commit. A fix after the bar was committed is a new commit.

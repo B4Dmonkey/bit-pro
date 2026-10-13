@@ -15,7 +15,12 @@ func newReadCmd() *cobra.Command {
 		Short: "Show a task's full content",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := project.OpenCurrent(cmd.Context())
+			stores, err := project.OpenAll(cmd.Context())
+			if err != nil {
+				return err
+			}
+
+			s, err := stores.For(args[0])
 			if err != nil {
 				return err
 			}

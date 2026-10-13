@@ -252,7 +252,7 @@ The full surface as of 2026-08-22, split by who actually runs it.
 
 | | commands | fate |
 | --- | --- | --- |
-| **Operator-only** | `tui`, `approve`, `unapprove`, `init`, `add`, `list` | stay CLI; **never** become MCP tools |
+| **Operator-only** | `ui`, `approve`, `unapprove`, `init`, `add`, `list` | stay CLI; **never** become MCP tools |
 | **Claude-only** | `task read`, `task list`, `task create`, `task update`, `task move`, `feedback add` | become tools, then delete from the CLI (step 7) |
 | **Retired** | `instructions` | deleted in step 5 along with `assets/bit-cli.md`; the domain it taught rides the tool descriptions |
 | **Both** | `task complete`, `task delete` | become tools **and** stay CLI — one task-package implementation, two callers |
@@ -301,7 +301,7 @@ Notes on the map:
 
 - **The surface is 15 top-level commands and 7 `task` subcommands.** Top level: `add`,
   `approve`, `unapprove`, `completion`, `feedback`, `help`, `init`, `instructions`, `list`,
-  `serve`, `start`, `status`, `stop`, `task`, `tui`. Under `task`: `complete`, `create`,
+  `serve`, `start`, `status`, `stop`, `task`, `ui`. Under `task`: `complete`, `create`,
   `delete`, `list`, `move`, `read`, `update`.
 - **Skill usage, counted across `bit/skills/` and `bit/agents/`:** `task list` 16, `task read`
   11, `task update` 9, `instructions` 7, `task complete` 3, `task create` 2, `feedback add` 2,

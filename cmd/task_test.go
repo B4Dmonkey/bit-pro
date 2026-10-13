@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/B4Dmonkey/bit-pro/project"
 	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/spf13/cobra"
 )
@@ -99,78 +98,4 @@ func TestTaskCmd(t *testing.T) {
 			t.Errorf("os.Stat(%s/.bit/tasks) error = %v, want fs.ErrNotExist", dir, err)
 		}
 	})
-
-	t.Run("outside worktree uses the project", func(t *testing.T) {
-		initProject(t, testPrefix)
-		createTask(t, "Track", "...")
-
-		out := mustRun(t, "task", "list")
-
-		if !strings.Contains(out, "BIT-1") {
-			t.Errorf("output = %q, want output to contain BIT-1 from the project's store", out)
-		}
-	})
-
-	t.Run("inside claude worktree resolves to main checkout", func(t *testing.T) {
-		root := initProject(t, testPrefix)
-		createTask(t, "Track", "...")
-
-		worktree := filepath.Join(root, ".claude", "worktrees", "hazy-pondering-star")
-		if err := os.MkdirAll(worktree, 0o755); err != nil {
-			t.Fatalf("MkdirAll(%q) returned error: %v", worktree, err)
-		}
-
-		t.Chdir(worktree)
-
-		out := mustRun(t, "task", "list")
-
-		if !strings.Contains(out, "BIT-1") {
-			t.Errorf("output = %q, want output to contain BIT-1 from the main checkout's project", out)
-		}
-	})
-
-	t.Run("nested worktree resolves to outermost checkout", func(t *testing.T) {
-		root := initProject(t, testPrefix)
-		createTask(t, "Track", "...")
-
-		nested := filepath.Join(root, ".claude", "worktrees", "outer", ".claude", "worktrees", "inner")
-		if err := os.MkdirAll(nested, 0o755); err != nil {
-			t.Fatalf("MkdirAll(%q) returned error: %v", nested, err)
-		}
-
-		t.Chdir(nested)
-
-		out := mustRun(t, "task", "list")
-
-		if !strings.Contains(out, "BIT-1") {
-			t.Errorf("output = %q, want output to contain BIT-1 from the outermost checkout's project", out)
-		}
-	})
-
-	unregistered := []struct {
-		name   string
-		bitDir bool
-		want   error
-	}{
-		{name: "unregistered folder says run bp add", want: project.ErrNotRegistered},
-		{name: "unregistered folder with bit says run bp migrate", bitDir: true, want: project.ErrNeedsMigrate},
-	}
-
-	for _, tt := range unregistered {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("HOME", t.TempDir())
-			t.Setenv("XDG_DATA_HOME", "")
-			t.Chdir(t.TempDir())
-
-			if tt.bitDir {
-				if err := os.Mkdir(".bit", 0o755); err != nil {
-					t.Fatalf("os.Mkdir(.bit) returned error: %v", err)
-				}
-			}
-
-			if _, err := run(t, "task", "list"); !errors.Is(err, tt.want) {
-				t.Errorf("bp task list error = %v, want %v", err, tt.want)
-			}
-		})
-	}
 }

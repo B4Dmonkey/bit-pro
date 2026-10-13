@@ -196,7 +196,7 @@ func TestSuppressed(t *testing.T) {
 		args []string
 		want bool
 	}{
-		{name: tuiCmdUse, args: []string{tuiCmdUse}, want: true},
+		{name: "ui", args: []string{"ui"}, want: true},
 		{name: "serve mcp", args: []string{serveCmdUse, serveMCPCmdUse}, want: true},
 		{name: "task list", args: []string{"task", "list"}, want: false},
 		{name: "root", args: nil, want: false},

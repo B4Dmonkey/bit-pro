@@ -75,6 +75,30 @@ func TestTaskReadCmd(t *testing.T) {
 		}
 	})
 
+	t.Run("reads another project's task from anywhere", func(t *testing.T) {
+		t.Setenv("HOME", t.TempDir())
+		t.Setenv("XDG_DATA_HOME", "")
+		t.Chdir(t.TempDir())
+
+		if _, err := addProject(t, "BIT").Create(task.CreateParams{Title: "Bit track"}); err != nil {
+			t.Fatalf("Create(Bit track) returned error: %v", err)
+		}
+
+		if _, err := addProject(t, "ACME").Create(task.CreateParams{Title: "Acme track", Body: "Acme body."}); err != nil {
+			t.Fatalf("Create(Acme track) returned error: %v", err)
+		}
+
+		out := mustRun(t, "task", "read", "ACME-1")
+
+		if !strings.HasPrefix(out, "ACME-1\ttodo\tAcme track") {
+			t.Errorf("output = %q, want prefix %q", out, "ACME-1\ttodo\tAcme track")
+		}
+
+		if !strings.Contains(out, "Acme body.") {
+			t.Errorf("output = %q, want it to contain %q", out, "Acme body.")
+		}
+	})
+
 	t.Run("errors on unknown id", func(t *testing.T) {
 		initProject(t, "BIT")
 

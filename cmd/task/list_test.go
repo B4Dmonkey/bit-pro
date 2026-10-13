@@ -166,6 +166,63 @@ func TestTaskListCmd(t *testing.T) {
 		}
 	})
 
+	t.Run("lists every project grouped by code", func(t *testing.T) {
+		t.Setenv("HOME", t.TempDir())
+		t.Setenv("XDG_DATA_HOME", "")
+		t.Chdir(t.TempDir())
+
+		bit := addProject(t, "BIT")
+		for _, title := range []string{"Bit one", "Bit two"} {
+			if _, err := bit.Create(task.CreateParams{Title: title}); err != nil {
+				t.Fatalf("Create(%q) returned error: %v", title, err)
+			}
+		}
+
+		if _, err := addProject(t, "ACME").Create(task.CreateParams{Title: "Acme one"}); err != nil {
+			t.Fatalf("Create(Acme one) returned error: %v", err)
+		}
+
+		out := mustRun(t, "task", "list")
+
+		want := "ACME-1\ttodo\tAcme one\t\t\nBIT-2\ttodo\tBit two\t\t\nBIT-1\ttodo\tBit one\t\t\n"
+		if out != want {
+			t.Errorf("output = %q, want %q", out, want)
+		}
+	})
+
+	t.Run("parent in another project", func(t *testing.T) {
+		t.Setenv("HOME", t.TempDir())
+		t.Setenv("XDG_DATA_HOME", "")
+		t.Chdir(t.TempDir())
+
+		if _, err := addProject(t, "BIT").Create(task.CreateParams{Title: "Bit one"}); err != nil {
+			t.Fatalf("Create(Bit one) returned error: %v", err)
+		}
+
+		acme := addProject(t, "ACME")
+		if _, err := acme.Create(task.CreateParams{Title: "Acme one"}); err != nil {
+			t.Fatalf("Create(Acme one) returned error: %v", err)
+		}
+
+		for _, title := range []string{"Acme bar one", "Acme bar two"} {
+			if _, err := acme.Create(task.CreateParams{Title: title, Parent: "ACME-1"}); err != nil {
+				t.Fatalf("Create(%q) returned error: %v", title, err)
+			}
+		}
+
+		out := mustRun(t, "task", "list", "-p", "ACME-1")
+
+		var ids []string
+		for line := range strings.SplitSeq(strings.TrimRight(out, "\n"), "\n") {
+			ids = append(ids, strings.Split(line, "\t")[0])
+		}
+
+		want := []string{"ACME-1.1", "ACME-1.2"}
+		if !slices.Equal(ids, want) {
+			t.Errorf("IDs = %v, want %v", ids, want)
+		}
+	})
+
 	t.Run("unapproved shows empty field", func(t *testing.T) {
 		initProject(t, "BIT")
 		createTask(t, "Track", "...")
