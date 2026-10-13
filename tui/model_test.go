@@ -1267,13 +1267,14 @@ func TestView(t *testing.T) {
 		t.Parallel()
 
 		tests := []struct {
-			name    string
-			open    bool
-			want    string
-			notWant string
+			name       string
+			open       bool
+			want       string
+			notWant    string
+			wantExpand bool
 		}{
-			{"collapsed", false, ttFocus, "page"},
-			{"modal open", true, "page", ttFocus},
+			{"list", false, ttFocus, "page", true},
+			{"modal open", true, "page", ttFocus, false},
 		}
 
 		for _, tt := range tests {
@@ -1295,6 +1296,10 @@ func TestView(t *testing.T) {
 
 				if strings.Contains(view, tt.notWant) {
 					t.Errorf("View() contains help text %q, want it absent", tt.notWant)
+				}
+
+				if got := strings.Contains(view, "expand"); got != tt.wantExpand {
+					t.Errorf("View() contains %q = %v, want %v", "expand", got, tt.wantExpand)
 				}
 			})
 		}

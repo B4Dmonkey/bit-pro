@@ -36,27 +36,29 @@ func (i item) Title() string       { return i.t.Title }
 func (i item) Description() string { return i.t.ID + " · " + i.t.Status }
 
 type keyMap struct {
-	focus key.Binding
-	move  key.Binding
-	help  key.Binding
-	quit  key.Binding
+	focus  key.Binding
+	move   key.Binding
+	expand key.Binding
+	help   key.Binding
+	quit   key.Binding
 }
 
 func newKeyMap() keyMap {
 	return keyMap{
-		focus: key.NewBinding(key.WithKeys("left", "right"), key.WithHelp("←/→", "focus")),
-		move:  key.NewBinding(key.WithKeys("up", "down"), key.WithHelp("↑/↓", "move·scroll")),
-		help:  key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help")),
-		quit:  key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
+		focus:  key.NewBinding(key.WithKeys("left", "right"), key.WithHelp("←/→", "focus")),
+		move:   key.NewBinding(key.WithKeys("up", "down"), key.WithHelp("↑/↓", "move·scroll")),
+		expand: key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "expand")),
+		help:   key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help")),
+		quit:   key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
 	}
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.focus, k.move, k.help, k.quit}
+	return []key.Binding{k.focus, k.move, k.expand, k.help, k.quit}
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{k.focus, k.move}, {k.help, k.quit}}
+	return [][]key.Binding{{k.focus, k.move, k.expand}, {k.help, k.quit}}
 }
 
 type model struct {
@@ -405,6 +407,7 @@ func (m model) helpKeys() help.KeyMap {
 	if m.modalOpen {
 		k := m.keys
 		k.focus.SetHelp("←/→", "page")
+		k.expand.SetEnabled(false)
 
 		return k
 	}
