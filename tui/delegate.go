@@ -17,6 +17,11 @@ var (
 	selectedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Bold(true)
 )
 
+const (
+	chevronRight = "\uf054"
+	chevronDown  = "\uf078"
+)
+
 type delegate struct{}
 
 func (delegate) Height() int                         { return 1 }
@@ -73,7 +78,16 @@ func (d delegate) Render(w io.Writer, m list.Model, index int, listItem list.Ite
 		mark = "→ "
 	}
 
-	row := cursor + mark + main.Render(indent+t.ID+"  "+t.Title)
+	slot := "  "
+
+	switch {
+	case it.hasBars && it.expanded:
+		slot = chevronDown + " "
+	case it.hasBars:
+		slot = chevronRight + " "
+	}
+
+	row := cursor + mark + slot + main.Render(indent+t.ID+"  "+t.Title)
 	if v := verse(t); v != "" {
 		row += "  " + verseStyle.Render(v)
 	}

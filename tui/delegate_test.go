@@ -204,6 +204,57 @@ func TestDelegate(t *testing.T) {
 		}
 	})
 
+	t.Run("chevron slot", func(t *testing.T) {
+		t.Parallel()
+
+		track := &task.Task{ID: ttid1, Title: ttTrack}
+		bar := &task.Task{ID: ttid1_1, Title: ttBar}
+
+		tests := []struct {
+			name    string
+			it      item
+			id      string
+			want    string
+			notWant []string
+		}{
+			{"track closed", item{t: track, hasBars: true}, ttid1, ttChevronRight, []string{ttChevronDown}},
+			{"track open", item{t: track, hasBars: true, expanded: true}, ttid1, ttChevronDown, []string{ttChevronRight}},
+			{"no bars", item{t: track}, ttid1, "", []string{ttChevronRight, ttChevronDown}},
+			{"bar row", item{t: bar}, ttid1_1, "", []string{ttChevronRight, ttChevronDown}},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+
+				l := list.New([]list.Item{tt.it}, delegate{}, 40, 4)
+
+				var buf bytes.Buffer
+
+				delegate{}.Render(&buf, l, 0, l.Items()[0])
+
+				got := buf.String()
+				idAt := strings.Index(got, tt.id)
+
+				if idAt < 0 {
+					t.Fatalf("row = %q, want it to contain %q", got, tt.id)
+				}
+
+				if tt.want != "" {
+					if at := strings.Index(got, tt.want); at < 0 || at > idAt {
+						t.Errorf("row = %q, want %q before %q", got, tt.want, tt.id)
+					}
+				}
+
+				for _, nw := range tt.notWant {
+					if strings.Contains(got, nw) {
+						t.Errorf("row = %q, want no %q", got, nw)
+					}
+				}
+			})
+		}
+	})
+
 	t.Run("track vs bar distinguished by weight not color", func(t *testing.T) {
 		t.Parallel()
 

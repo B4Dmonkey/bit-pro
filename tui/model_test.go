@@ -2,6 +2,7 @@ package tui
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
@@ -13,27 +14,15 @@ import (
 func TestNew(t *testing.T) {
 	t.Parallel()
 
-	t.Run("preserves store order", func(t *testing.T) {
+	t.Run("shows only tracks on start", func(t *testing.T) {
 		t.Parallel()
 
-		tasks := []*task.Task{
-			{ID: ttid2},
-			{ID: ttid2_1},
-			{ID: ttid1},
-		}
+		m := New([]*task.Task{{ID: ttid1}, {ID: ttid1_1}, {ID: ttid1_2}, {ID: ttid2}})
 
-		m := New(tasks)
+		want := []string{ttid1, ttid2}
 
-		items := m.Items()
-		if len(items) != len(tasks) {
-			t.Fatalf("New produced %d items, want %d", len(items), len(tasks))
-		}
-
-		for i, it := range items {
-			got := it.(item).t.ID
-			if got != tasks[i].ID {
-				t.Errorf("item[%d].ID = %q, want %q", i, got, tasks[i].ID)
-			}
+		if got := itemIDs(m); !slices.Equal(got, want) {
+			t.Errorf("New items = %v, want %v", got, want)
 		}
 	})
 
@@ -79,6 +68,20 @@ func TestUpdate(t *testing.T) {
 
 		if got := items[1].(item).t.ID; got != ttid2 {
 			t.Errorf("items[1].ID = %q, want %q", got, ttid2)
+		}
+	})
+
+	t.Run("reload shows only tracks", func(t *testing.T) {
+		t.Parallel()
+
+		m := New([]*task.Task{{ID: ttid1}})
+
+		updated, _ := m.Update(reloadedMsg{tasks: []*task.Task{{ID: ttid1}, {ID: ttid1_1}, {ID: ttid2}}})
+
+		want := []string{ttid1, ttid2}
+
+		if got := itemIDs(updated.(model)); !slices.Equal(got, want) {
+			t.Errorf("after reload, items = %v, want %v", got, want)
 		}
 	})
 
@@ -142,13 +145,16 @@ func TestUpdate(t *testing.T) {
 		t.Parallel()
 
 		m := New([]*task.Task{{ID: ttid2}, {ID: ttid2_1}, {ID: ttid1}})
-		m.Select(2)
+		sized, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+		m = sized.(model)
+		m.Select(1)
 
 		updated, _ := m.Update(reloadedMsg{tasks: []*task.Task{
 			{ID: ttid3},
 			{ID: ttid2},
 			{ID: ttid2_1},
 			{ID: ttid1},
+			{ID: ttid4},
 		}})
 
 		if got := updated.(model).selected().ID; got != ttid1 {
@@ -711,8 +717,8 @@ func TestUpdate(t *testing.T) {
 			key    tea.KeyPressMsg
 			wantID string
 		}{
-			{"right", tea.KeyPressMsg{Code: tea.KeyRight}, ttid1_1},
-			{"l", tea.KeyPressMsg{Code: 'l', Text: "l"}, ttid1_1},
+			{"right", tea.KeyPressMsg{Code: tea.KeyRight}, ttid3},
+			{"l", tea.KeyPressMsg{Code: 'l', Text: "l"}, ttid3},
 			{"left", tea.KeyPressMsg{Code: tea.KeyLeft}, ttid2},
 			{"h", tea.KeyPressMsg{Code: 'h', Text: "h"}, ttid2},
 		}
@@ -724,7 +730,7 @@ func TestUpdate(t *testing.T) {
 				var mdl tea.Model = New([]*task.Task{
 					{ID: ttid2, Status: task.StatusTodo},
 					{ID: ttid1, Status: task.StatusDoing},
-					{ID: ttid1_1, Status: task.StatusDoing},
+					{ID: ttid3, Status: task.StatusDoing},
 				})
 
 				mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -745,13 +751,32 @@ func TestUpdate(t *testing.T) {
 		}
 	})
 
+	t.Run("modal paging skips hidden bars", func(t *testing.T) {
+		t.Parallel()
+
+		var mdl tea.Model = New([]*task.Task{{ID: ttid1}, {ID: ttid1_1}, {ID: ttid2}})
+
+		mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+
+		opened := mdl.(model)
+		if got := opened.selected().ID; got != ttid2 {
+			t.Errorf("selected().ID = %q, want %q", got, ttid2)
+		}
+
+		if !opened.modalOpen {
+			t.Errorf("modalOpen = false, want true")
+		}
+	})
+
 	t.Run("modal paging clamps at ends", func(t *testing.T) {
 		t.Parallel()
 
 		var mdl tea.Model = New([]*task.Task{
 			{ID: ttid2, Status: task.StatusTodo},
 			{ID: ttid1, Status: task.StatusDoing},
-			{ID: ttid1_1, Status: task.StatusDoing},
+			{ID: ttid3, Status: task.StatusDoing},
 		})
 
 		mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -766,8 +791,8 @@ func TestUpdate(t *testing.T) {
 			mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyRight})
 		}
 
-		if got := mdl.(model).selected().ID; got != ttid1_1 {
-			t.Fatalf("selected().ID = %q, want %q (clamp at end)", got, ttid1_1)
+		if got := mdl.(model).selected().ID; got != ttid3 {
+			t.Fatalf("selected().ID = %q, want %q (clamp at end)", got, ttid3)
 		}
 	})
 
@@ -790,6 +815,102 @@ func TestUpdate(t *testing.T) {
 			if !got.modalOpen {
 				t.Errorf("modalOpen = false, want true")
 			}
+		}
+	})
+
+	t.Run("tab expands track", func(t *testing.T) {
+		t.Parallel()
+
+		var mdl tea.Model = New([]*task.Task{{ID: ttid1}, {ID: ttid1_1}, {ID: ttid1_2}, {ID: ttid2}, {ID: ttid2_1}})
+
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+
+		got := mdl.(model)
+		want := []string{ttid1, ttid1_1, ttid1_2, ttid2}
+
+		if ids := itemIDs(got); !slices.Equal(ids, want) {
+			t.Errorf("after tab, items = %v, want %v", ids, want)
+		}
+
+		if id := got.selected().ID; id != ttid1 {
+			t.Errorf("selected().ID = %q, want %q", id, ttid1)
+		}
+	})
+
+	t.Run("reload keeps expanded tracks", func(t *testing.T) {
+		t.Parallel()
+
+		var mdl tea.Model = New([]*task.Task{{ID: ttid1}, {ID: ttid1_1}, {ID: ttid1_2}, {ID: ttid2}, {ID: ttid2_1}})
+
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+		mdl, _ = mdl.Update(reloadedMsg{tasks: []*task.Task{
+			{ID: ttid1},
+			{ID: ttid1_1, Title: ttBar},
+			{ID: ttid1_2},
+			{ID: ttid2},
+			{ID: ttid2_1},
+		}})
+
+		want := []string{ttid1, ttid1_1, ttid1_2, ttid2}
+
+		if ids := itemIDs(mdl.(model)); !slices.Equal(ids, want) {
+			t.Errorf("after reload, items = %v, want %v", ids, want)
+		}
+	})
+
+	t.Run("tab again collapses track", func(t *testing.T) {
+		t.Parallel()
+
+		var mdl tea.Model = New([]*task.Task{{ID: ttid1}, {ID: ttid1_1}, {ID: ttid1_2}, {ID: ttid2}})
+
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+
+		got := mdl.(model)
+		want := []string{ttid1, ttid2}
+
+		if ids := itemIDs(got); !slices.Equal(ids, want) {
+			t.Errorf("after two tabs, items = %v, want %v", ids, want)
+		}
+
+		if id := got.selected().ID; id != ttid1 {
+			t.Errorf("selected().ID = %q, want %q", id, ttid1)
+		}
+	})
+
+	t.Run("tab on bar row noop", func(t *testing.T) {
+		t.Parallel()
+
+		var mdl tea.Model = New([]*task.Task{{ID: ttid1}, {ID: ttid1_1}, {ID: ttid1_2}, {ID: ttid2}})
+
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+
+		got := mdl.(model)
+		want := []string{ttid1, ttid1_1, ttid1_2, ttid2}
+
+		if ids := itemIDs(got); !slices.Equal(ids, want) {
+			t.Errorf("after tab on bar, items = %v, want %v", ids, want)
+		}
+
+		if id := got.selected().ID; id != ttid1_1 {
+			t.Errorf("selected().ID = %q, want %q", id, ttid1_1)
+		}
+	})
+
+	t.Run("tab ignored with detail focused", func(t *testing.T) {
+		t.Parallel()
+
+		var mdl tea.Model = New([]*task.Task{{ID: ttid1}, {ID: ttid1_1}, {ID: ttid1_2}, {ID: ttid2}})
+
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+
+		want := []string{ttid1, ttid2}
+
+		if ids := itemIDs(mdl.(model)); !slices.Equal(ids, want) {
+			t.Errorf("after tab with detail focused, items = %v, want %v", ids, want)
 		}
 	})
 
@@ -892,7 +1013,7 @@ func TestSelected(t *testing.T) {
 
 		tasks := []*task.Task{
 			{ID: ttid2},
-			{ID: ttid2_1},
+			{ID: ttid3},
 			{ID: ttid1},
 		}
 
@@ -1026,6 +1147,60 @@ func TestView(t *testing.T) {
 		}
 	})
 
+	t.Run("title counts hidden tasks", func(t *testing.T) {
+		t.Parallel()
+
+		var mdl tea.Model = New([]*task.Task{
+			{ID: ttid1},
+			{ID: ttid1_1, Status: task.StatusDone},
+			{ID: ttid1_2, Status: task.StatusDone},
+			{ID: ttid2},
+		})
+
+		mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+
+		if view := mdl.(model).View().Content; !strings.Contains(view, "Tasks (2/4)") {
+			t.Errorf("View() missing %q", "Tasks (2/4)")
+		}
+	})
+
+	t.Run("track chevron follows expansion", func(t *testing.T) {
+		t.Parallel()
+
+		tests := []struct {
+			name    string
+			tab     bool
+			want    string
+			notWant string
+		}{
+			{"collapsed", false, ttChevronRight, ttChevronDown},
+			{"expanded", true, ttChevronDown, ttChevronRight},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+
+				var mdl tea.Model = New([]*task.Task{{ID: ttid1}, {ID: ttid1_1}, {ID: ttid2}})
+
+				mdl, _ = mdl.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+
+				if tt.tab {
+					mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+				}
+
+				view := mdl.(model).View().Content
+				if got := strings.Count(view, tt.want); got != 1 {
+					t.Errorf("View() has %d %q, want exactly 1", got, tt.want)
+				}
+
+				if strings.Contains(view, tt.notWant) {
+					t.Errorf("View() contains %q, want it absent", tt.notWant)
+				}
+			})
+		}
+	})
+
 	t.Run("list hides title heading", func(t *testing.T) {
 		t.Parallel()
 
@@ -1092,13 +1267,14 @@ func TestView(t *testing.T) {
 		t.Parallel()
 
 		tests := []struct {
-			name    string
-			open    bool
-			want    string
-			notWant string
+			name       string
+			open       bool
+			want       string
+			notWant    string
+			wantExpand bool
 		}{
-			{"collapsed", false, ttFocus, "page"},
-			{"modal open", true, "page", ttFocus},
+			{"list", false, ttFocus, "page", true},
+			{"modal open", true, "page", ttFocus, false},
 		}
 
 		for _, tt := range tests {
@@ -1120,6 +1296,10 @@ func TestView(t *testing.T) {
 
 				if strings.Contains(view, tt.notWant) {
 					t.Errorf("View() contains help text %q, want it absent", tt.notWant)
+				}
+
+				if got := strings.Contains(view, "expand"); got != tt.wantExpand {
+					t.Errorf("View() contains %q = %v, want %v", "expand", got, tt.wantExpand)
 				}
 			})
 		}
@@ -1301,4 +1481,14 @@ func TestTitledBorder(t *testing.T) {
 			t.Errorf("titledBorder active = %q, should not frame title with pipes", got)
 		}
 	})
+}
+
+func itemIDs(m model) []string {
+	ids := make([]string, 0, len(m.Items()))
+
+	for _, it := range m.Items() {
+		ids = append(ids, it.(item).t.ID)
+	}
+
+	return ids
 }

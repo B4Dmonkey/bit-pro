@@ -19,7 +19,9 @@ import (
 )
 
 type item struct {
-	t *task.Task
+	t        *task.Task
+	hasBars  bool
+	expanded bool
 }
 
 type reloadedMsg struct {
@@ -34,27 +36,29 @@ func (i item) Title() string       { return i.t.Title }
 func (i item) Description() string { return i.t.ID + " · " + i.t.Status }
 
 type keyMap struct {
-	focus key.Binding
-	move  key.Binding
-	help  key.Binding
-	quit  key.Binding
+	focus  key.Binding
+	move   key.Binding
+	expand key.Binding
+	help   key.Binding
+	quit   key.Binding
 }
 
 func newKeyMap() keyMap {
 	return keyMap{
-		focus: key.NewBinding(key.WithKeys("left", "right"), key.WithHelp("←/→", "focus")),
-		move:  key.NewBinding(key.WithKeys("up", "down"), key.WithHelp("↑/↓", "move·scroll")),
-		help:  key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help")),
-		quit:  key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
+		focus:  key.NewBinding(key.WithKeys("left", "right"), key.WithHelp("←/→", "focus")),
+		move:   key.NewBinding(key.WithKeys("up", "down"), key.WithHelp("↑/↓", "move·scroll")),
+		expand: key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "expand")),
+		help:   key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help")),
+		quit:   key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
 	}
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.focus, k.move, k.help, k.quit}
+	return []key.Binding{k.focus, k.move, k.expand, k.help, k.quit}
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{k.focus, k.move}, {k.help, k.quit}}
+	return [][]key.Binding{{k.focus, k.move, k.expand}, {k.help, k.quit}}
 }
 
 type model struct {
@@ -75,15 +79,33 @@ type model struct {
 	loaded        []*task.Task
 	detailFocused bool
 	modalOpen     bool
+	expanded      map[string]bool
+}
+
+func visibleItems(tasks []*task.Task, expanded map[string]bool) []list.Item {
+	items := make([]list.Item, 0, len(tasks))
+	open := false
+
+	for i, t := range tasks {
+		if !isBar(t.ID) {
+			open = expanded[t.ID]
+			hasBars := i+1 < len(tasks) && isBar(tasks[i+1].ID)
+			items = append(items, item{t: t, hasBars: hasBars, expanded: open})
+
+			continue
+		}
+
+		if open {
+			items = append(items, item{t: t})
+		}
+	}
+
+	return items
 }
 
 func New(tasks []*task.Task) model {
-	items := make([]list.Item, len(tasks))
-	for i, t := range tasks {
-		items[i] = item{t: t}
-	}
-
-	l := list.New(items, delegate{}, 0, 0)
+	expanded := map[string]bool{}
+	l := list.New(visibleItems(tasks, expanded), delegate{}, 0, 0)
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
 	l.SetShowTitle(false)
@@ -105,6 +127,7 @@ func New(tasks []*task.Task) model {
 		keys:          newKeyMap(),
 		style:         style,
 		loaded:        tasks,
+		expanded:      expanded,
 	}
 }
 
@@ -166,18 +189,15 @@ func (m *model) setTasks(tasks []*task.Task) {
 		prevID = t.ID
 	}
 
-	items := make([]list.Item, len(tasks))
-	for i, t := range tasks {
-		items[i] = item{t: t}
-	}
+	items := visibleItems(tasks, m.expanded)
 
 	m.SetItems(items)
 
-	if prevID != "" && len(tasks) > 0 {
-		target := min(prevIndex, len(tasks)-1)
+	if prevID != "" && len(items) > 0 {
+		target := min(prevIndex, len(items)-1)
 
-		for i, t := range tasks {
-			if t.ID == prevID {
+		for i, it := range items {
+			if it.(item).t.ID == prevID {
 				target = i
 				break
 			}
@@ -273,6 +293,16 @@ func (m model) handleListKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	if m.detailFocused {
 		return m.handleDetailFocusedKey(msg)
+	}
+
+	if msg.Code == tea.KeyTab {
+		if t := m.selected(); t != nil {
+			m.expanded[t.ID] = !m.expanded[t.ID]
+			m.SetItems(visibleItems(m.loaded, m.expanded))
+			m.refreshDetail()
+		}
+
+		return m, nil
 	}
 
 	prev := m.Index()
@@ -377,6 +407,7 @@ func (m model) helpKeys() help.KeyMap {
 	if m.modalOpen {
 		k := m.keys
 		k.focus.SetHelp("←/→", "page")
+		k.expand.SetEnabled(false)
 
 		return k
 	}
@@ -410,7 +441,7 @@ func (m model) View() tea.View {
 }
 
 func (m model) content() string {
-	listTitle := fmt.Sprintf("Tasks (%d/%d)", doneCount(m.Items()), len(m.Items()))
+	listTitle := fmt.Sprintf("Tasks (%d/%d)", doneCount(m.loaded), len(m.loaded))
 	listPane := titledBorder(m.Model.View(), listTitle, max(m.listWidth-2, 0), max(m.height-2, 0), !m.detailFocused)
 	detailPane := titledBorder(m.viewport.View(), "Details", max(m.detailWidth-2, 0), max(m.height-2, 0), m.detailFocused)
 	canvas := lipgloss.JoinHorizontal(lipgloss.Top, listPane, detailPane)
@@ -422,16 +453,11 @@ func (m model) content() string {
 	return lipgloss.JoinVertical(lipgloss.Left, canvas, m.help.View(m.helpKeys()))
 }
 
-func doneCount(items []list.Item) int {
+func doneCount(tasks []*task.Task) int {
 	n := 0
 
-	for _, listItem := range items {
-		it, ok := listItem.(item)
-		if !ok {
-			continue
-		}
-
-		if it.t.Status == task.StatusDone {
+	for _, t := range tasks {
+		if t.Status == task.StatusDone {
 			n++
 		}
 	}
