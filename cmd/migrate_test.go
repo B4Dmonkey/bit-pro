@@ -428,7 +428,6 @@ func TestMigrateCmd(t *testing.T) {
 		files[filepath.Join("archive", "BIT-3.md")] = []byte("flat archive\n")
 		files["notes.txt"] = []byte("notes\n")
 		files[filepath.Join(testResearchDir, testOwnTrack, "diagram.png")] = []byte("png\n")
-		files[".DS_Store"] = []byte("finder\n")
 		writeV1Store(t, dir, files)
 		t.Chdir(dir)
 
@@ -437,7 +436,7 @@ func TestMigrateCmd(t *testing.T) {
 			t.Fatalf("bp migrate error = %v, want migrate.ErrUnknownFiles", err)
 		}
 
-		want := ".DS_Store\n  archive/BIT-3.md\n  notes.txt\n  research/BIT-1/diagram.png"
+		want := "archive/BIT-3.md\n  notes.txt\n  research/BIT-1/diagram.png"
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("bp migrate error = %q, want it to list %q", err, want)
 		}

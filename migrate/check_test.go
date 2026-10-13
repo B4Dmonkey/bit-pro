@@ -59,9 +59,13 @@ func TestUnknownFiles(t *testing.T) {
 			want:  []string{"tasks/BIT-1.txt"},
 		},
 		{
-			name:  "dotfiles",
-			files: []string{".DS_Store", "tasks/.DS_Store"},
-			want:  []string{".DS_Store", "tasks/.DS_Store"},
+			name:  "ds_store skipped at any depth",
+			files: []string{".DS_Store", "tasks/.DS_Store", "research/.DS_Store", "research/BIT-1/.DS_Store"},
+		},
+		{
+			name:  "other dotfiles",
+			files: []string{".gitkeep", "tasks/.BIT-1.md"},
+			want:  []string{".gitkeep", "tasks/.BIT-1.md"},
 		},
 		{
 			name: "empty completed dir",
