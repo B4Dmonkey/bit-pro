@@ -77,13 +77,20 @@ type model struct {
 	modalOpen     bool
 }
 
-func New(tasks []*task.Task) model {
-	items := make([]list.Item, len(tasks))
-	for i, t := range tasks {
-		items[i] = item{t: t}
+func visibleItems(tasks []*task.Task) []list.Item {
+	items := make([]list.Item, 0, len(tasks))
+
+	for _, t := range tasks {
+		if !isBar(t.ID) {
+			items = append(items, item{t: t})
+		}
 	}
 
-	l := list.New(items, delegate{}, 0, 0)
+	return items
+}
+
+func New(tasks []*task.Task) model {
+	l := list.New(visibleItems(tasks), delegate{}, 0, 0)
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
 	l.SetShowTitle(false)
