@@ -43,7 +43,7 @@ func (m model) updateModal(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 func modalInner(winWidth, winHeight int) (innerW, innerH int) {
-	modalW := 2 * winWidth / 3
+	modalW := 4 * winWidth / 5
 	modalH := winHeight - 6
 
 	return max(modalW-4, 1), max(modalH-3, 1)
