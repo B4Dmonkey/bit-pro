@@ -3,7 +3,6 @@ package cmd
 import (
 	"bytes"
 	"context"
-	"os"
 	"strings"
 	"testing"
 
@@ -116,29 +115,6 @@ func createWith(t *testing.T, p task.CreateParams) string {
 	}
 
 	return created.ID
-}
-
-func TestMain(m *testing.M) {
-	refreshMarketplace = func() {}
-
-	os.Exit(m.Run())
-}
-
-func runSplit(t *testing.T, args ...string) (string, string, error) {
-	t.Helper()
-
-	root := newRootCmd(func(context.Context, string, ...string) error { return nil })
-	stdout := &bytes.Buffer{}
-	stderr := &bytes.Buffer{}
-
-	root.SetOut(stdout)
-	root.SetErr(stderr)
-	root.SetIn(strings.NewReader(""))
-	root.SetArgs(args)
-
-	err := execute(context.Background(), root)
-
-	return stdout.String(), stderr.String(), err
 }
 
 func dataDir(t *testing.T) string {

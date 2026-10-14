@@ -19,13 +19,16 @@ if [ "$branch" != "main" ]; then
     exit 1
 fi
 
+git update-index -q --refresh
 if ! git diff-index --quiet HEAD --; then
     echo "release: working tree is dirty — commit or discard tracked changes first" >&2
     git status --porcelain -uno >&2
     exit 1
 fi
 
-current="$(jq -r '.version // empty' bit/.claude-plugin/plugin.json)"
+tags="$(git tag --list 'v*' --sort=-v:refname)"
+current="${tags%%$'\n'*}"
+current="${current#v}"
 
 if [ -z "$current" ]; then
     next="0.1.0"
@@ -37,27 +40,6 @@ else
         patch) next="$major.$minor.$((patch + 1))" ;;
     esac
 fi
-
-tags="$(git tag --list 'v*' --sort=-v:refname)"
-highest="${tags%%$'\n'*}"
-highest="${highest#v}"
-if [ -n "$highest" ]; then
-    top="$(printf '%s\n%s\n' "$highest" "$next" | sort -V | tail -1)"
-    if [ "$top" != "$next" ] || [ "$next" = "$highest" ]; then
-        echo "release: computed $next is not above the highest existing tag $highest" >&2
-        exit 1
-    fi
-fi
-
-manifest="bit/.claude-plugin/plugin.json"
-tmp="$(mktemp)"
-trap 'rm -f "$tmp"' EXIT
-jq --arg v "$next" '.version = $v' "$manifest" >"$tmp"
-mv "$tmp" "$manifest"
-
-claude plugin validate bit --strict
-
-git commit -q -m "release: v$next" "$manifest"
 
 git tag -a "v$next" -m "bit $next"
 

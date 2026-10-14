@@ -10,10 +10,9 @@ const uiCmdUse = "ui"
 
 func newUICmd() *cobra.Command {
 	return &cobra.Command{
-		Use:         uiCmdUse,
-		Short:       "Browse tasks in a terminal UI",
-		Args:        cobra.NoArgs,
-		Annotations: map[string]string{quietAnnotation: quietEnabled},
+		Use:   uiCmdUse,
+		Short: "Browse tasks in a terminal UI",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			stores, err := project.OpenAll(cmd.Context())
 			if err != nil {

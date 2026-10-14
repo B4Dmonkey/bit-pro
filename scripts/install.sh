@@ -3,7 +3,7 @@ set -eu
 
 cd "$(dirname "$0")/.."
 
-version="$(jq -r '.version // "dev"' bit/.claude-plugin/plugin.json)"
+version="$(git describe --tags --always --dirty)"
 
 dir="$(go env GOBIN)"
 [ -n "$dir" ] || dir="$(go env GOPATH)/bin"
@@ -16,6 +16,13 @@ go build -ldflags="-X 'github.com/B4Dmonkey/bit-pro/cmd.version=$version'" -o "$
 
 echo "Registering the bit-pro marketplace..."
 claude plugin marketplace add B4Dmonkey/bit-pro
+
+echo "Enabling auto-update for the bit-pro marketplace..."
+settings="$HOME/.claude/settings.json"
+tmp="$(mktemp)"
+trap 'rm -f "$tmp"' EXIT
+jq '.extraKnownMarketplaces["bit-pro"].autoUpdate = true' "$settings" >"$tmp"
+mv "$tmp" "$settings"
 
 echo
 echo "Installed $dir/bp"

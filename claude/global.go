@@ -9,8 +9,11 @@ import (
 )
 
 const (
-	claudeCLI    = "claude"
-	pluginCLICmd = "plugin"
+	claudeCLI       = "claude"
+	pluginCLICmd    = "plugin"
+	pluginKey       = "bit@bit-pro"
+	marketplaceName = "bit-pro"
+	userScope       = "user"
 )
 
 func GlobalWiring() [][]string {
