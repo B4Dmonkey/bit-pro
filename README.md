@@ -1,175 +1,130 @@
 # bit-pro
 
-A project-management CLI for LLM-driven development. Markdown-backed, and shaped around how an agent and its human actually move work forward: scope it, plan it,
-do it, check it.
+A markdown-backed task tracker built for Claude Code. You describe the work; Claude
+researches, scopes, plans and builds it one commit at a time, and every step is tracked.
 
-The binary is `bp`. Work lives in a central store under `$XDG_DATA_HOME/bit` (default
-`~/.local/share/bit`), keyed by project code.
-
-## Why
-
-Jira, Linear, and GitHub Projects are built for a human clicking through a web UI. When an
-LLM is doing the work, that's the wrong interface. The agent wants plain text, deterministic
-CLI commands, and task state on the local disk — not behind an API token.
-
-So: task bodies are plain markdown in a local store, the CLI and the `mcp__bit__*` tools are
-the primary interface, and `bp ui` is the human's window onto the same store. The TUI never becomes a second source of truth.
+The CLI is `bp`. Tasks live in `~/.local/share/bit` (or `$XDG_DATA_HOME/bit`), keyed by
+project code. Claude reads and writes them through the `bit` MCP tools; you watch them in
+`bp ui`.
 
 ## Install
 
+Needs: Go, git, [Claude Code](https://claude.com/claude-code), `jq` and
+[`sqlc`](https://sqlc.dev).
+
 ```
+git clone https://github.com/B4Dmonkey/bit-pro.git
+cd bit-pro
 ./scripts/install.sh
 ```
 
-Builds `bp` into your Go bin dir (`$(go env GOBIN)`, else `$(go env GOPATH)/bin`) and
-registers this repo as a Claude Code plugin marketplace. That bin dir must be on your
-`PATH` — check with `bp --help`.
+This builds `bp` into your Go bin dir (`go env GOBIN`, else `$(go env GOPATH)/bin`) and
+registers the `bit-pro` plugin marketplace with auto-update on. Make sure that dir is on your
+`PATH`, then check with `bp --version`.
 
-Needs Go. The agent skills need Claude Code; the CLI itself doesn't.
-
-## Claude Code setup
-
-`bp add` runs these commands once, the first time it registers a project, at user scope,
-so bit loads in every Claude session. If a step fails, or the wiring is removed later,
-run them by hand.
-
-```
-claude plugin marketplace add B4Dmonkey/bit-pro
-claude plugin marketplace update bit-pro
-claude plugin install bit@bit-pro --scope user
-claude mcp add -s user bit -- bp serve mcp
-```
-
-## Quickstart
+Then register each project you want to track:
 
 ```
 cd your-project
-bp add .                                   # prompts for a project code, registers the folder
-bp task list
-bp ui                                      # the human view: task list + details
+bp add .        # asks for a project code, e.g. ACME
 ```
 
-Tasks are created and updated by Claude through the bit MCP tools (`task_create`, `task_update`).
+The first `bp add` also installs the `bit` plugin and the `bit` MCP server in Claude Code
+(user scope). If that step fails, it prints the commands to run by hand.
 
-A project that already has a v1 `.bit/` directory runs `bp migrate` instead of `bp add`.
+Already have a v1 `.bit/` folder in a project? Run `bp migrate` there instead of `bp add`.
 
-## Tracks and bars
+## Workflow
 
-A **track** is a top-level task — one scope, one deliverable. Its ID has no dot: `BIT-7`.
-A **bar** is one step of that track's plan, created under its track (`task_create` with `parent`): `BIT-7.3`. The parent is
-readable straight out of the ID — no index, no lookup, and `ls` shows the tree.
-See [hierarchy.md](./hierarchy.md) for the full vocabulary.
+Two agents do the work: **theRuler** plans, **theCreator** builds.
 
-## Commands
+**1. Plan with theRuler**
 
-Every command is non-interactive by default, so an agent can drive the whole lifecycle
-without a prompt to answer.
+```
+claude --agent bit:theRuler
+> add CSV export to the reports page
+```
+
+theRuler creates a track (`ACME-7`), researches the code, and writes a scope: why, and the
+order to deliver it in. It **stops for you to approve the scope**. Ask questions and it
+researches again. Once you approve, it breaks the scope into bars (`ACME-7.1`, `ACME-7.2`, …):
+one TDD step and one commit each. It never writes code.
+
+**2. Build with theCreator**
+
+```
+claude --agent bit:theCreator
+> do ACME-7.1
+```
+
+theCreator implements one bar, runs its checks, **asks before committing**, records the
+commit on the bar and pushes if the repo has a remote. Then it stops. Run it again for the
+next bar.
+
+**3. Close the track**
+
+Once the work is pushed or merged, run `/bit:complete ACME-7` in Claude to record where it
+landed and move the track out of the active list.
+
+Use `bp ui` in another terminal to follow along. It refreshes as Claude edits tasks.
+
+## What's included
+
+**CLI**
 
 | Command | What it does |
 |---|---|
-| `bp add <path>` | Register a project under a code you type, setting bit up in Claude Code on first use |
-| `bp list` | List the registered projects |
-| `bp migrate` | Copy this folder's v1 `.bit/` into the store and register it. Checks the files first, verifies the copy, and prints the cleanup step without running it |
-| `bp task read <id>` | Full content, from any directory; the ID's code picks the project. `--body` prints just the markdown, for feeding back to a model |
-| `bp task list` | All tasks across every registered project. `-p <track>` lists one plan, in step order |
-| `bp ui` | Terminal UI, every registered project |
+| `bp add <path>` | Register a project under a code |
+| `bp list` | List registered projects |
+| `bp migrate` | Move a v1 `.bit/` folder into the store and register the project |
+| `bp task list` | Tasks across every project. `-p <track>` shows one plan in order |
+| `bp task read <id>` | One task. `--body` prints just the markdown |
+| `bp ui` | Terminal UI: arrow keys or `hjkl` to move, `enter` to open, `?` for help |
+| `bp serve mcp` | The MCP server Claude Code talks to (started for you) |
 
-Notes on behavior worth knowing:
+**Plugin agents**
 
-- **Status is a plain field, not a state machine.** `todo`/`doing`/`done`, set directly.
-  Rollup across a plan is workflow logic, left to the skills rather than enforced here.
-- **Nothing is destroyed.** `complete` and `delete` both just move records. A relocated ID is
-  reserved forever and drops out of its parent's order. A track only relocates once every bar
-  is `done` — absolute for `complete`, `--force`-able for `delete`.
-- **Order is separate from identity.** A reordered track carries an explicit list of its bar
-  IDs, so a plan can be resequenced mid-stream while every ID stays stable.
+- `bit:theRuler`: describe the work, get an approved scope and plan
+- `bit:theCreator`: implement, commit and push one bar
+- `bit:bot`: general helper that knows the task tools ("what's left on ACME-7?")
 
-## Agent skills
+**Plugin skills**: callable directly when you want one step on its own:
 
-`bp add` sets up the `bit` Claude Code plugin, which ships these skills:
-
-- `bit:analyze` — deep code research before a track is scoped, kept as research notes
-- `bit:scope` — frame the WHY and the delivery order as a track of verses
-- `bit:plan` — turn each verse into bars, one TDD step and one commit each
-- `bit:do` — execute one bar, run its checks, roll the track up
-- `bit:commit` — commit a bar's files after asking, and record the hash on the bar
-- `bit:check` — audit the finished work against the plan
-- `bit:complete` — once a track's work has landed, record its landing commit and file it as completed
-- `bit:feedback` — record a correction the moment it lands
-- `bit:retro` — read the feedback notes for patterns and write proposals
-- `bit:learn` — turn a proposal into a skill or CLI change
-
-It also ships three agents: `bot` (a general session agent that knows the task tools),
-`theCreator` (runs one bar through `bit:do` and lands it), and `theRuler` (takes new work through
-analyze, scope and plan to an approved plan).
-
-Skills release independently of the binary — edit one, `/reload-plugins`, done. No rebuild.
-
-## TUI
-
-| Key | Action |
+| Skill | Does |
 |---|---|
-| `←`/`→`, `h`/`l` | move focus between list and details (page tasks when the modal is open) |
-| `↑`/`↓`, `j`/`k` | move selection / scroll |
-| `enter` | open the selected task in a scrollable modal |
-| `space` | toggle approval |
-| `q` / `esc` | close the modal, or quit from the list |
-| `?` | help |
+| `bit:analyze` | Research the code before scoping |
+| `bit:scope` | Write the why and delivery order |
+| `bit:plan` | Break a scope into bars |
+| `bit:do` | Build one bar |
+| `bit:commit` | Commit a bar after asking |
+| `bit:check` | Audit finished work against the plan |
+| `bit:complete` | File a landed track as completed |
+| `bit:feedback` | Note a correction mid-run |
+| `bit:retro` | Find patterns across feedback notes |
+| `bit:learn` | Turn retro findings into skill changes (bit-pro repo only) |
 
-It re-reads the project's store on a timer and refreshes only when something changed, so an agent's
-edits in another terminal appear without a restart — selection and an open modal survive. Colors come from your terminal's ANSI palette, so it matches your theme.
+Plugin updates arrive automatically; no reinstall of `bp` needed.
 
-## Storage
+## Uninstall
+
+There's no script yet. Run:
 
 ```
-$XDG_DATA_HOME/bit/
-├── main.db                                         registered projects
-├── <CODE>/tasks|completed|archive/tasks/<ID>.json + <ID>.md
-├── <CODE>/research/<TRACK>/<topic>.json + .md
-├── feedback/<TRACK>-NNN.json + .md                 every project, project field
-└── retro/<CODE>-<name>.json + .md                  every project, project field
+claude plugin uninstall bit@bit-pro --scope user
+claude plugin marketplace remove bit-pro
+claude mcp remove -s user bit
+rm "$(go env GOBIN)/bp" 2>/dev/null || rm "$(go env GOPATH)/bin/bp"
 ```
 
-Each record is a pair: the `.json` holds its metadata and the `.md` holds its body unchanged.
-The `mcp__bit__*` tools and `bp` are the only way in. Bars additionally carry
-`phase`/`phase_label`; a reordered track carries an `order` list. IDs are never re-minted —
-the next number counts past the highest found across `tasks/`, `completed/`, and
-`archive/tasks/`.
+To delete every task in every project too (can't be undone):
 
-This project tracks its own work in the bit store — browse it with `bp task list` or `bp ui`.
+```
+rm -rf "${XDG_DATA_HOME:-$HOME/.local/share}/bit"
+```
 
-## Roadmap
+## More
 
-The bit store is the live tracker; this is the summary.
-
-**Up next:**
-
-- **Mark a task approved / refined** — a reviewed scope looks identical to a just-drafted one,
-  so "what's ready to work on?" isn't answerable from the list. Needs a model decision first:
-  new frontmatter field, another status, or a flag — and how it coexists with `todo`/`doing`/`done`.
-
-**Backlog — needs definition before scoping:**
-
-- **Homebrew packaging** — `scripts/install.sh` assumes a Go toolchain. Open: personal tap vs.
-  homebrew-core, and GoReleaser binaries vs. a from-source formula.
-- **Search** — quickly target a task by text.
-- **Broader filtering** — closer to kanban-md; which dimensions matter is still open.
-- **Viewing completed and archived work** — a read-side filter or command for tracks that have
-  left `tasks/`.
-- **UI polish** — general visual improvements. The `✓` on done rows stays; single-line rows are
-  denser than Bubbles' default and that's the point. Open only: whether the other statuses need
-  more than the detail pane gives them today.
-
-## Open design questions
-
-- **Whether an index is needed.** No index today, which keeps the files honest. But the TUI
-  re-reads the directory on a timer, so the cost is now continuous — at what task count does
-  that get felt, and is the answer an index, an mtime check, or a longer interval?
-- **Filtering dimensions.** No tags, assignee, or dates in a task record — "filter by tag" is a
-  data-model decision before it's a UI one.
-- **How much workflow belongs in the CLI.** Rollup, sign-off, and archiving triggers live in
-  the skills, which keeps the CLI to primitives. The cost: the rules aren't enforced and don't
-  travel to anyone using the CLI without the skills.
+- [hierarchy.md](./hierarchy.md): tracks, bars, verses, and the rest of the vocabulary
 
 ## Inspiration
 
