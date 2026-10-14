@@ -19,6 +19,7 @@ if [ "$branch" != "main" ]; then
     exit 1
 fi
 
+git update-index -q --refresh
 if ! git diff-index --quiet HEAD --; then
     echo "release: working tree is dirty — commit or discard tracked changes first" >&2
     git status --porcelain -uno >&2

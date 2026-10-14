@@ -4,6 +4,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
+git update-index -q --refresh
 if ! git diff-index --quiet HEAD --; then
     echo "release-push: working tree is dirty — commit or discard tracked changes first" >&2
     git status --porcelain -uno >&2
