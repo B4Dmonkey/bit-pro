@@ -17,6 +17,13 @@ go build -ldflags="-X 'github.com/B4Dmonkey/bit-pro/cmd.version=$version'" -o "$
 echo "Registering the bit-pro marketplace..."
 claude plugin marketplace add B4Dmonkey/bit-pro
 
+echo "Enabling auto-update for the bit-pro marketplace..."
+settings="$HOME/.claude/settings.json"
+tmp="$(mktemp)"
+trap 'rm -f "$tmp"' EXIT
+jq '.extraKnownMarketplaces["bit-pro"].autoUpdate = true' "$settings" >"$tmp"
+mv "$tmp" "$settings"
+
 echo
 echo "Installed $dir/bp"
 echo "Run 'bp add <path>' in a project to register it."
