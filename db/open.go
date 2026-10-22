@@ -34,5 +34,8 @@ func Open() (*sql.DB, error) {
 		return nil, fmt.Errorf("migrating %s: %w", path, err)
 	}
 
-	return sql.Open("sqlite", path)
+	query := url.Values{"_pragma": {"busy_timeout(5000)", "journal_mode(WAL)", "foreign_keys(1)"}}
+	dsn := (&url.URL{Scheme: "file", Opaque: filepath.ToSlash(path), RawQuery: query.Encode()}).String()
+
+	return sql.Open("sqlite", dsn)
 }

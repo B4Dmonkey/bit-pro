@@ -1383,7 +1383,7 @@ func snapshotData(t *testing.T, dir string) map[string]time.Time {
 			return err
 		}
 
-		if strings.HasPrefix(d.Name(), "main.db") {
+		if path == dir || strings.HasPrefix(d.Name(), "main.db") {
 			return nil
 		}
 
