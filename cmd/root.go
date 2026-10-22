@@ -39,6 +39,7 @@ func newRootCmd(run claude.Runner) *cobra.Command {
 	rootCmd.AddCommand(newAddCmd(run))
 	rootCmd.AddCommand(newListCmd())
 	rootCmd.AddCommand(newMigrateCmd(run))
+	rootCmd.AddCommand(newReceiptCmd())
 	rootCmd.AddCommand(newServeCmd())
 	rootCmd.AddCommand(taskcmd.NewCmd())
 	rootCmd.AddCommand(newUICmd())
