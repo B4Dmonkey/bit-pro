@@ -50,7 +50,7 @@ func TestOpen(t *testing.T) {
 			t.Fatalf("iterating tables: %v", err)
 		}
 
-		if want := []string{"projects", "schema_migrations"}; !slices.Equal(tables, want) {
+		if want := []string{"projects", "schema_migrations", "usage"}; !slices.Equal(tables, want) {
 			t.Errorf("tables = %v, want %v", tables, want)
 		}
 
@@ -59,8 +59,8 @@ func TestOpen(t *testing.T) {
 			t.Fatalf("counting applied migrations: %v", err)
 		}
 
-		if applied != 1 {
-			t.Errorf("applied migrations = %d, want 1", applied)
+		if applied != 2 {
+			t.Errorf("applied migrations = %d, want 2", applied)
 		}
 	})
 

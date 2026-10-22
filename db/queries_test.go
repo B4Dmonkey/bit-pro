@@ -111,6 +111,51 @@ func TestSetProjectRemoved(t *testing.T) {
 	})
 }
 
+func TestUsageQueries(t *testing.T) {
+	t.Run("deleting a project removes its rows", func(t *testing.T) {
+		t.Setenv("HOME", t.TempDir())
+		t.Setenv("XDG_DATA_HOME", "")
+
+		sqlDB, err := Open()
+		if err != nil {
+			t.Fatalf("Open() returned error: %v", err)
+		}
+		defer sqlDB.Close()
+
+		q := orm.New(sqlDB)
+
+		if err := q.CreateProject(t.Context(), orm.CreateProjectParams{Path: alphaPath, Code: alphaCode}); err != nil {
+			t.Fatalf("CreateProject() returned error: %v", err)
+		}
+
+		projects, err := q.ListProjects(t.Context())
+		if err != nil {
+			t.Fatalf("ListProjects() returned error: %v", err)
+		}
+
+		row := orm.UpsertUsageParams{
+			ProjectID: projects[0].ID, SessionID: "s1", Track: "BIT-1",
+			MessageID: "msg_01", RequestID: "req_01", Ts: "2026-10-20T14:00:00Z", Model: "claude-opus-5-5",
+		}
+		if err := q.UpsertUsage(t.Context(), row); err != nil {
+			t.Fatalf("UpsertUsage() returned error: %v", err)
+		}
+
+		if _, err := sqlDB.Exec("DELETE FROM projects WHERE id = ?", projects[0].ID); err != nil {
+			t.Fatalf("deleting project: %v", err)
+		}
+
+		var n int
+		if err := sqlDB.QueryRow("SELECT count(*) FROM usage").Scan(&n); err != nil {
+			t.Fatalf("counting usage: %v", err)
+		}
+
+		if n != 0 {
+			t.Errorf("usage rows = %d, want 0", n)
+		}
+	})
+}
+
 func openQueries(t *testing.T) *orm.Queries {
 	t.Helper()
 

@@ -1,10 +1,16 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"os"
 
+	"github.com/B4Dmonkey/bit-pro/db"
+	"github.com/B4Dmonkey/bit-pro/db/orm"
 	"github.com/B4Dmonkey/bit-pro/project"
+	"github.com/B4Dmonkey/bit-pro/usage"
 	"github.com/spf13/cobra"
 )
 
@@ -30,14 +36,82 @@ func newReceiptCmd() *cobra.Command {
 				return err
 			}
 
-			_, err := project.Find(cmd.Context(), payload.Cwd)
+			p, err := project.Find(cmd.Context(), payload.Cwd)
 			if errors.Is(err, project.ErrNotRegistered) ||
 				errors.Is(err, project.ErrRemoved) ||
 				errors.Is(err, project.ErrNeedsMigrate) {
 				return nil
 			}
 
-			return err
+			if err != nil {
+				return err
+			}
+
+			return storeUsage(cmd.Context(), p.ID, payload)
 		},
 	}
+}
+
+func storeUsage(ctx context.Context, projectID int64, payload hookPayload) error {
+	f, err := os.Open(payload.TranscriptPath)
+	if err != nil {
+		return fmt.Errorf("opening transcript: %w", err)
+	}
+	defer f.Close()
+
+	entries, err := usage.Parse(f)
+	if err != nil {
+		return err
+	}
+
+	sqlDB, err := db.Open()
+	if err != nil {
+		return err
+	}
+	defer sqlDB.Close()
+
+	tx, err := sqlDB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	q := orm.New(tx)
+
+	for _, e := range entries {
+		if e.Track == "" {
+			continue
+		}
+
+		err := q.UpsertUsage(ctx, orm.UpsertUsageParams{
+			ProjectID:          projectID,
+			SessionID:          payload.SessionID,
+			Track:              e.Track,
+			MessageID:          e.MessageID,
+			RequestID:          e.RequestID,
+			Ts:                 e.Timestamp,
+			Model:              e.Model,
+			Speed:              e.Speed,
+			IsSidechain:        boolInt(e.IsSidechain),
+			CcVersion:          e.Version,
+			InputTokens:        e.InputTokens,
+			CacheWrite5mTokens: e.CacheWrite5m,
+			CacheWrite1hTokens: e.CacheWrite1h,
+			CacheReadTokens:    e.CacheReadTokens,
+			OutputTokens:       e.OutputTokens,
+		})
+		if err != nil {
+			return fmt.Errorf("storing usage for %s: %w", e.MessageID, err)
+		}
+	}
+
+	return tx.Commit()
+}
+
+func boolInt(b bool) int64 {
+	if b {
+		return 1
+	}
+
+	return 0
 }

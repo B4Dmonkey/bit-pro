@@ -10,3 +10,30 @@ type Project struct {
 	Path    string
 	Removed int64
 }
+
+type Usage struct {
+	ID                 int64
+	ProjectID          int64
+	SessionID          string
+	AgentID            string
+	AgentType          string
+	ParentAgentID      string
+	InvokedAgent       string
+	Skill              string
+	SkillInvocation    string
+	Track              string
+	Bar                string
+	MessageID          string
+	RequestID          string
+	Entry              int64
+	Ts                 string
+	Model              string
+	Speed              string
+	IsSidechain        int64
+	CcVersion          string
+	InputTokens        int64
+	CacheWrite5mTokens int64
+	CacheWrite1hTokens int64
+	CacheReadTokens    int64
+	OutputTokens       int64
+}
