@@ -91,12 +91,13 @@ func Parse(r io.Reader) ([]Entry, error) {
 
 		e := l.entry(track)
 
-		if i, ok := index[e.MessageID]; ok {
+		key := e.MessageID + "\x00" + e.RequestID
+		if i, ok := index[key]; ok {
 			entries[i] = e
 			continue
 		}
 
-		index[e.MessageID] = len(entries)
+		index[key] = len(entries)
 		entries = append(entries, e)
 	}
 

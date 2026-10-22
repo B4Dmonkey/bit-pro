@@ -75,6 +75,32 @@ func TestParse(t *testing.T) {
 		}
 	})
 
+	t.Run("duplicate lines keep the last", func(t *testing.T) {
+		in := strings.Join([]string{
+			assistant("msg_01", "BIT-1", 12), assistant("msg_01", "BIT-1", 180), assistant("msg_01", "BIT-1", 180),
+		}, "\n")
+
+		entries, err := Parse(strings.NewReader(in))
+		if err != nil {
+			t.Fatalf("Parse() returned error: %v", err)
+		}
+
+		if len(entries) != 1 || entries[0].OutputTokens != 180 {
+			t.Errorf("Parse() = %+v, want one entry with 180 output tokens", entries)
+		}
+	})
+
+	t.Run("the same message id under another request id is a separate entry", func(t *testing.T) {
+		other := strings.Replace(assistant("m1", "", 9), "req_m1", "req_other", 1)
+		in := assistant("m1", "BIT-1", 1) + "\n" + other
+
+		entries, _ := Parse(strings.NewReader(in))
+
+		if len(entries) != 2 {
+			t.Errorf("Parse() = %+v, want 2 entries", entries)
+		}
+	})
+
 	t.Run("skips non-assistant lines", func(t *testing.T) {
 		entries, err := Parse(strings.NewReader(`{"type":"user"}` + "\n"))
 		if err != nil || len(entries) != 0 {
