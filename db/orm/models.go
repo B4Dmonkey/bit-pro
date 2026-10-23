@@ -4,6 +4,20 @@
 
 package orm
 
+import (
+	"database/sql"
+)
+
+type ModelPrice struct {
+	Model         string
+	EffectiveFrom string
+	Input         sql.NullFloat64
+	CacheWrite5m  sql.NullFloat64
+	CacheWrite1h  sql.NullFloat64
+	CacheRead     sql.NullFloat64
+	Output        sql.NullFloat64
+}
+
 type Project struct {
 	ID      int64
 	Code    string

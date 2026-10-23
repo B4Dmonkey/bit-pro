@@ -1,14 +1,17 @@
 package db
 
 import (
+	"database/sql"
+	"errors"
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/db/orm"
 )
 
 const (
-	alphaPath = "/tmp/alpha"
-	alphaCode = "ALPHA"
+	alphaPath    = "/tmp/alpha"
+	alphaCode    = "ALPHA"
+	beforeChange = "2026-10-20T14:00:00Z"
 )
 
 func TestCreateProject(t *testing.T) {
@@ -135,7 +138,7 @@ func TestUsageQueries(t *testing.T) {
 
 		row := orm.UpsertUsageParams{
 			ProjectID: projects[0].ID, SessionID: "s1", Track: "BIT-1",
-			MessageID: "msg_01", RequestID: "req_01", Ts: "2026-10-20T14:00:00Z", Model: "claude-opus-5-5",
+			MessageID: "msg_01", RequestID: "req_01", Ts: beforeChange, Model: "claude-opus-5-5",
 		}
 		if err := q.UpsertUsage(t.Context(), row); err != nil {
 			t.Fatalf("UpsertUsage() returned error: %v", err)
@@ -170,4 +173,55 @@ func openQueries(t *testing.T) *orm.Queries {
 	t.Cleanup(func() { sqlDB.Close() })
 
 	return orm.New(sqlDB)
+}
+
+func TestPriceAt(t *testing.T) {
+	const opus = "claude-opus-5-5"
+
+	t.Run("uses the price in effect at the time", func(t *testing.T) {
+		t.Setenv("HOME", t.TempDir())
+		t.Setenv("XDG_DATA_HOME", "")
+
+		sqlDB, err := Open()
+		if err != nil {
+			t.Fatalf("Open() returned error: %v", err)
+		}
+		defer sqlDB.Close()
+
+		if _, err := sqlDB.Exec(
+			"INSERT INTO model_prices (model, effective_from, input) VALUES (?, ?, ?)", opus, "2026-11-01", 3,
+		); err != nil {
+			t.Fatalf("inserting a price change: %v", err)
+		}
+
+		q := orm.New(sqlDB)
+
+		tests := []struct {
+			at   string
+			want float64
+		}{
+			{beforeChange, 4},
+			{"2026-11-02T00:00:00Z", 3},
+		}
+
+		for _, tt := range tests {
+			got, err := q.PriceAt(t.Context(), orm.PriceAtParams{Model: opus, EffectiveFrom: tt.at})
+			if err != nil {
+				t.Fatalf("PriceAt(%q) returned error: %v", tt.at, err)
+			}
+
+			if got.Input.Float64 != tt.want {
+				t.Errorf("PriceAt(%q).Input = %v, want %v", tt.at, got.Input.Float64, tt.want)
+			}
+		}
+	})
+
+	t.Run("unknown model", func(t *testing.T) {
+		q := openQueries(t)
+
+		_, err := q.PriceAt(t.Context(), orm.PriceAtParams{Model: "claude-nextgen-9", EffectiveFrom: beforeChange})
+		if !errors.Is(err, sql.ErrNoRows) {
+			t.Errorf("PriceAt() error = %v, want sql.ErrNoRows", err)
+		}
+	})
 }
