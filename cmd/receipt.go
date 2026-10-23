@@ -98,6 +98,8 @@ func storeUsage(ctx context.Context, projectID int64, payload hookPayload) error
 			AgentID:            agentID,
 			AgentType:          agentType,
 			InvokedAgent:       invoked,
+			Skill:              e.Skill,
+			SkillInvocation:    e.SkillInvocation,
 			Track:              e.Track,
 			Bar:                e.Bar,
 			MessageID:          e.MessageID,

@@ -6,6 +6,8 @@ import (
 	"testing"
 )
 
+const opusModel = "claude-opus-5-5"
+
 func assistant(msgID, toolID string, out int) string {
 	content := `[{"type":"text","text":"x"}]`
 	if toolID != "" {
@@ -14,12 +16,48 @@ func assistant(msgID, toolID string, out int) string {
 
 	return `{"type":"assistant","requestId":"req_` + msgID + `","timestamp":"2026-10-20T14:00:00Z",` +
 		`"version":"2.1.0","isSidechain":false,` +
-		`"message":{"id":"` + msgID + `","model":"claude-opus-5-5","content":` + content +
+		`"message":{"id":"` + msgID + `","model":"` + opusModel + `","content":` + content +
 		`,"usage":{"input_tokens":2,"cache_read_input_tokens":3,"output_tokens":` + strconv.Itoa(out) +
 		`,"cache_creation":{"ephemeral_5m_input_tokens":4,"ephemeral_1h_input_tokens":5},"speed":"standard"}}}`
 }
 
 func TestParse(t *testing.T) {
+	t.Run("skill spans end at the next skill or human prompt", func(t *testing.T) {
+		skillUse := `{"type":"assistant","requestId":"req_msg_03","timestamp":"2026-10-20T14:00:00Z",` +
+			`"message":{"id":"msg_03","model":"` + opusModel + `","content":[{"type":"tool_use","id":"toolu_07",` +
+			`"name":"Skill","input":{"skill":"bit:scope"}}],"usage":{"output_tokens":1}}}`
+
+		in := strings.Join([]string{
+			assistant("msg_01", "BIT-1", 1),
+			`{"type":"user","uuid":"u1","message":{"content":"<command-message>bit:analyze</command-message>` +
+				`<command-name>/bit:analyze</command-name>"}}`,
+			assistant("msg_02", "", 1),
+			skillUse,
+			assistant("msg_04", "", 1),
+			`{"type":"user","uuid":"u2","message":{"content":"looks good"}}`,
+			assistant("msg_05", "", 1),
+		}, "\n")
+
+		entries, err := Parse(strings.NewReader(in))
+		if err != nil {
+			t.Fatalf("Parse() returned error: %v", err)
+		}
+
+		var skills, invs []string
+		for _, e := range entries {
+			skills = append(skills, e.Skill)
+			invs = append(invs, e.SkillInvocation)
+		}
+
+		if want := ",bit:analyze,bit:analyze,bit:scope,"; strings.Join(skills, ",") != want {
+			t.Errorf("skills = %q, want %q", strings.Join(skills, ","), want)
+		}
+
+		if want := ",u1,u1,toolu_07,"; strings.Join(invs, ",") != want {
+			t.Errorf("invocations = %q, want %q", strings.Join(invs, ","), want)
+		}
+	})
+
 	t.Run("fills an entry from an assistant line", func(t *testing.T) {
 		entries, err := Parse(strings.NewReader(assistant("m1", "BIT-1", 7)))
 		if err != nil {
@@ -28,7 +66,7 @@ func TestParse(t *testing.T) {
 
 		want := Entry{
 			MessageID: "m1", RequestID: "req_m1", Timestamp: "2026-10-20T14:00:00Z",
-			Model: "claude-opus-5-5", Version: "2.1.0", Speed: "standard", Track: "BIT-1",
+			Model: opusModel, Version: "2.1.0", Speed: "standard", Track: "BIT-1",
 			InputTokens: 2, CacheWrite5m: 4, CacheWrite1h: 5, CacheReadTokens: 3, OutputTokens: 7,
 		}
 
@@ -103,9 +141,9 @@ func TestParse(t *testing.T) {
 
 	t.Run("advisor iteration becomes its own entry", func(t *testing.T) {
 		in := `{"type":"assistant","requestId":"req_01","timestamp":"2026-10-20T14:00:00Z","version":"2.1.0",` +
-			`"isSidechain":false,"message":{"id":"msg_01","model":"claude-opus-5-5","content":[],` +
+			`"isSidechain":false,"message":{"id":"msg_01","model":"` + opusModel + `","content":[],` +
 			`"usage":{"input_tokens":2,"output_tokens":180,"iterations":[` +
-			`{"type":"message","model":"claude-opus-5-5","input_tokens":2,"output_tokens":180},` +
+			`{"type":"message","model":"` + opusModel + `","input_tokens":2,"output_tokens":180},` +
 			`{"type":"advisor_message","model":"claude-fable-5","input_tokens":1000,"output_tokens":50}]}}}`
 
 		entries, err := Parse(strings.NewReader(in))
@@ -117,7 +155,7 @@ func TestParse(t *testing.T) {
 			t.Fatalf("Parse() = %+v, want 2 entries", entries)
 		}
 
-		if e := entries[0]; e.Entry != 0 || e.Model != "claude-opus-5-5" || e.InputTokens != 2 || e.OutputTokens != 180 {
+		if e := entries[0]; e.Entry != 0 || e.Model != opusModel || e.InputTokens != 2 || e.OutputTokens != 180 {
 			t.Errorf("entries[0] = %+v, want opus in 2 out 180", e)
 		}
 

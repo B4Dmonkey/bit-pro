@@ -21,6 +21,8 @@ type Entry struct {
 	IsSidechain     bool
 	Track           string
 	Bar             string
+	Skill           string
+	SkillInvocation string
 	InputTokens     int64
 	CacheWrite5m    int64
 	CacheWrite1h    int64
@@ -35,6 +37,8 @@ type line struct {
 	Timestamp    string `json:"timestamp"`
 	Version      string `json:"version"`
 	IsSidechain  bool   `json:"isSidechain"`
+	UUID         string `json:"uuid"`
+	IsMeta       bool   `json:"isMeta"`
 
 	ToolUseResult json.RawMessage `json:"toolUseResult"`
 	Message       struct {
@@ -60,8 +64,10 @@ type contentItem struct {
 	Name      string `json:"name"`
 	ID        string `json:"id"`
 	ToolUseID string `json:"tool_use_id"`
+	Text      string `json:"text"`
 	Input     struct {
-		ID string `json:"id"`
+		ID    string `json:"id"`
+		Skill string `json:"skill"`
 	} `json:"input"`
 }
 
@@ -70,9 +76,14 @@ type content []contentItem
 func (c *content) UnmarshalJSON(b []byte) error {
 	var items []contentItem
 	if err := json.Unmarshal(b, &items); err != nil {
-		*c = nil
+		var text string
+		if json.Unmarshal(b, &text) == nil {
+			*c = content{{Type: "text", Text: text}}
+		} else {
+			*c = nil
+		}
 
-		return nil //nolint:nilerr // string content carries no tool items
+		return nil
 	}
 
 	*c = items
@@ -97,6 +108,10 @@ const advisorIteration = "advisor_message"
 const (
 	taskToolPrefix = "mcp__bit__task_"
 	taskCreateTool = "mcp__bit__task_create"
+	skillTool      = "Skill"
+	toolUseType    = "tool_use"
+	commandOpen    = "<command-name>/"
+	commandClose   = "</command-name>"
 	mainAgent      = "main"
 )
 
@@ -133,6 +148,8 @@ type parser struct {
 	creates    map[string]bool
 	target     string
 	firstTrack string
+	skill      string
+	invocation string
 }
 
 func Parse(r io.Reader) ([]Entry, error) {
@@ -171,6 +188,8 @@ func Parse(r io.Reader) ([]Entry, error) {
 func (p *parser) add(l line) {
 	switch l.Type {
 	case "user":
+		p.addUser(l)
+
 		if id := l.createdID(p.creates); id != "" {
 			p.target = id
 		}
@@ -179,9 +198,50 @@ func (p *parser) add(l line) {
 	}
 }
 
+func (p *parser) addUser(l line) {
+	if name := l.commandName(); name != "" {
+		p.skill, p.invocation = name, l.UUID
+
+		return
+	}
+
+	if l.isHumanPrompt() {
+		p.skill, p.invocation = "", ""
+	}
+}
+
+func (l line) commandName() string {
+	for _, c := range l.Message.Content {
+		_, rest, ok := strings.Cut(c.Text, commandOpen)
+		if !ok {
+			continue
+		}
+
+		if name, _, ok := strings.Cut(rest, commandClose); ok && strings.HasPrefix(name, "bit:") {
+			return name
+		}
+	}
+
+	return ""
+}
+
+func (l line) isHumanPrompt() bool {
+	if l.IsMeta {
+		return false
+	}
+
+	for _, c := range l.Message.Content {
+		if c.Type == "tool_result" || strings.Contains(c.Text, "<command-name>") {
+			return false
+		}
+	}
+
+	return true
+}
+
 func (p *parser) addAssistant(l line) {
 	for _, c := range l.Message.Content {
-		if c.Type == "tool_use" && c.Name == taskCreateTool {
+		if c.Type == toolUseType && c.Name == taskCreateTool {
 			p.creates[c.ID] = true
 		}
 	}
@@ -194,6 +254,8 @@ func (p *parser) addAssistant(l line) {
 	}
 
 	for _, e := range l.entries(trackOf(p.target), barOf(p.target)) {
+		e.Skill, e.SkillInvocation = p.skill, p.invocation
+
 		key := e.MessageID + "\x00" + e.RequestID + "\x00" + strconv.Itoa(e.Entry)
 		if i, ok := p.index[key]; ok {
 			p.entries[i] = e
@@ -202,6 +264,12 @@ func (p *parser) addAssistant(l line) {
 
 		p.index[key] = len(p.entries)
 		p.entries = append(p.entries, e)
+	}
+
+	for _, c := range l.Message.Content {
+		if c.Type == toolUseType && c.Name == skillTool && c.Input.Skill != "" {
+			p.skill, p.invocation = c.Input.Skill, c.ID
+		}
 	}
 }
 
@@ -241,7 +309,7 @@ func (l line) createdID(creates map[string]bool) string {
 
 func taskRef(l line) string {
 	for _, c := range l.Message.Content {
-		if c.Type == "tool_use" && strings.HasPrefix(c.Name, taskToolPrefix) && c.Input.ID != "" {
+		if c.Type == toolUseType && strings.HasPrefix(c.Name, taskToolPrefix) && c.Input.ID != "" {
 			return c.Input.ID
 		}
 	}

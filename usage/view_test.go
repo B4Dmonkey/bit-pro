@@ -112,6 +112,35 @@ func TestRender(t *testing.T) {
 		}
 	})
 
+	t.Run("agent block with skills and own work", func(t *testing.T) {
+		row := func(skill, inv string, tokens int64) Priced {
+			return Priced{Row: orm.Usage{
+				InvokedAgent: "bit:ruler", Model: opusModel, Skill: skill, SkillInvocation: inv, InputTokens: tokens,
+			}, Price: opus}
+		}
+
+		got := Render(task.StatusDoing, []Priced{
+			row("bit:scope", "i1", 5_000_000),
+			row("bit:scope", "i2", 5_000_000),
+			row("", "", 2_500_000),
+		}, nil)
+
+		prev := -1
+
+		for _, want := range []string{
+			"**bit:ruler** — $50.00",
+			"bit:scope (opus) — 2 × $20.00 = $40.00",
+			"own work (opus) — $10.00",
+		} {
+			i := strings.Index(got, want)
+			if i < 0 || i < prev {
+				t.Fatalf("Render() = %q, want %q after the previous line", got, want)
+			}
+
+			prev = i
+		}
+	})
+
 	t.Run("token formats", func(t *testing.T) {
 		tests := []struct {
 			n    int64

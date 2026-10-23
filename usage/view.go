@@ -130,6 +130,7 @@ type agentCost struct {
 
 func renderAgents(rows []Priced) string {
 	byAgent := map[string]Amount{}
+	rowsByAgent := map[string][]Priced{}
 
 	for _, r := range rows {
 		name := r.Row.InvokedAgent
@@ -138,6 +139,7 @@ func renderAgents(rows []Priced) string {
 		}
 
 		byAgent[name] = byAgent[name].Add(r.Amount())
+		rowsByAgent[name] = append(rowsByAgent[name], r)
 	}
 
 	agents := make([]agentCost, 0, len(byAgent))
@@ -163,10 +165,68 @@ func renderAgents(rows []Priced) string {
 	sb.WriteString("### By agent\n\n")
 
 	for _, a := range agents {
-		fmt.Fprintf(&sb, "**%s** — %s\n\n", a.name, a.cost)
+		fmt.Fprintf(&sb, "**%s** — %s\n\n%s", a.name, a.cost, renderSkills(rowsByAgent[a.name]))
 	}
 
 	return sb.String()
+}
+
+type skillLine struct {
+	skill, model string
+	cost         Amount
+	calls        map[string]bool
+}
+
+func renderSkills(rows []Priced) string {
+	lines := map[[2]string]*skillLine{}
+
+	var order []*skillLine
+
+	for _, r := range rows {
+		key := [2]string{r.Row.Skill, modelFamily(r.Row.Model)}
+
+		l := lines[key]
+		if l == nil {
+			l = &skillLine{skill: key[0], model: key[1], calls: map[string]bool{}}
+			lines[key] = l
+			order = append(order, l)
+		}
+
+		l.cost = l.cost.Add(r.Amount())
+		l.calls[r.Row.SkillInvocation] = true
+	}
+
+	sort.SliceStable(order, func(i, j int) bool { return order[i].cost.USD > order[j].cost.USD })
+
+	var skills, own strings.Builder
+
+	for _, l := range order {
+		if l.skill == "" {
+			fmt.Fprintf(&own, "  own work (%s) — %s\n", l.model, l.cost)
+
+			continue
+		}
+
+		n := len(l.calls)
+		perCall := Amount{USD: l.cost.USD / float64(n), Unknown: l.cost.Unknown, Priced: l.cost.Priced}
+		fmt.Fprintf(&skills, "  %s (%s) — %d × %s = %s\n", l.skill, l.model, n, perCall, l.cost)
+	}
+
+	if skills.Len()+own.Len() == 0 {
+		return ""
+	}
+
+	return skills.String() + own.String() + "\n"
+}
+
+func modelFamily(model string) string {
+	for _, f := range []string{"opus", "sonnet", "haiku"} {
+		if strings.Contains(model, f) {
+			return f
+		}
+	}
+
+	return model
 }
 
 func agentRank(name string) int {
