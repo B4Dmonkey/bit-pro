@@ -160,6 +160,58 @@ func TestReceiptCmd(t *testing.T) {
 		}
 	})
 
+	t.Run("two tracks in one session", func(t *testing.T) {
+		dir := initProject(t, testPrefix)
+		createTask(t, "Track one", "## Why\nx\n")
+		createTask(t, "Track two", "## Why\nx\n")
+
+		canonical, err := project.CanonicalPath(dir)
+		if err != nil {
+			t.Fatalf("CanonicalPath(%q) returned error: %v", dir, err)
+		}
+
+		second := strings.NewReplacer(
+			"msg_01", "msg_03", "req_01", "req_03", `"id":"BIT-1"`, `"id":"BIT-2"`, "toolu_01", "toolu_03",
+		).Replace(toolUseLine)
+
+		writeTranscript(t, canonical, textOnlyLine, toolUseLine, second)
+
+		if _, err := runWithStdin(t, receiptPayload(canonical), "receipt"); err != nil {
+			t.Fatalf("bp receipt returned error: %v", err)
+		}
+
+		sqlDB, err := db.Open()
+		if err != nil {
+			t.Fatalf("db.Open() returned error: %v", err)
+		}
+		defer sqlDB.Close()
+
+		got := map[string]int{}
+
+		rows, err := sqlDB.Query("SELECT track, count(*) FROM usage GROUP BY track")
+		if err != nil {
+			t.Fatalf("reading usage: %v", err)
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var (
+				track string
+				n     int
+			)
+
+			if err := rows.Scan(&track, &n); err != nil {
+				t.Fatalf("scanning usage: %v", err)
+			}
+
+			got[track] = n
+		}
+
+		if got["BIT-1"] != 2 || got["BIT-2"] != 1 || len(got) != 2 {
+			t.Errorf("rows per track = %v, want BIT-1:2 BIT-2:1", got)
+		}
+	})
+
 	t.Run("session with no track reference stores nothing", func(t *testing.T) {
 		dir := initProject(t, testPrefix)
 
