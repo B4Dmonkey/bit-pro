@@ -24,6 +24,27 @@ func TestRender(t *testing.T) {
 		}
 	})
 
+	t.Run("unknown model marks the total", func(t *testing.T) {
+		got := Render([]Priced{
+			{Row: orm.Usage{InputTokens: 1_000_000}, Price: opus},
+			{Row: orm.Usage{Model: "claude-nextgen-9", InputTokens: 10, OutputTokens: 10}, Missing: true},
+		})
+
+		for _, want := range []string{"| Total cost | $4.00 + unknown |", "| Total tokens | 1.00M (in 1.00M · out 10) |"} {
+			if !strings.Contains(got, want) {
+				t.Errorf("Render() = %q, want it to contain %q", got, want)
+			}
+		}
+	})
+
+	t.Run("only unknown", func(t *testing.T) {
+		got := Render([]Priced{{Row: orm.Usage{InputTokens: 10}, Missing: true}})
+
+		if want := "| Total cost | unknown |"; !strings.Contains(got, want) {
+			t.Errorf("Render() = %q, want it to contain %q", got, want)
+		}
+	})
+
 	t.Run("token formats", func(t *testing.T) {
 		tests := []struct {
 			n    int64

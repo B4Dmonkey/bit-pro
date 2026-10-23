@@ -850,11 +850,13 @@ func costReadHandler(root string) mcp.ToolHandlerFor[costReadInput, costReadOutp
 
 		for _, r := range rows {
 			price, err := q.PriceAt(ctx, orm.PriceAtParams{Model: r.Model, EffectiveFrom: r.Ts})
-			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			missing := errors.Is(err, sql.ErrNoRows)
+
+			if err != nil && !missing {
 				return nil, costReadOutput{}, fmt.Errorf("pricing %s: %w", r.Model, err)
 			}
 
-			priced = append(priced, usage.Priced{Row: r, Price: price})
+			priced = append(priced, usage.Priced{Row: r, Price: price, Missing: missing})
 		}
 
 		return nil, costReadOutput{Markdown: usage.Render(priced)}, nil

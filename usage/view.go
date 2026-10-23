@@ -8,22 +8,23 @@ import (
 )
 
 type Priced struct {
-	Row   orm.Usage
-	Price orm.ModelPrice
+	Row     orm.Usage
+	Price   orm.ModelPrice
+	Missing bool
 }
 
 func Render(rows []Priced) string {
-	var cost float64
+	var cost Amount
 
 	var in, out int64
 
 	for _, r := range rows {
-		cost += Cost(r.Row, r.Price)
+		cost = cost.Add(r.Amount())
 		in += r.Row.InputTokens + r.Row.CacheWrite5mTokens + r.Row.CacheWrite1hTokens + r.Row.CacheReadTokens
 		out += r.Row.OutputTokens
 	}
 
-	return fmt.Sprintf("| Total cost | $%.2f |\n| Total tokens | %s (in %s · out %s) |\n",
+	return fmt.Sprintf("| Total cost | %s |\n| Total tokens | %s (in %s · out %s) |\n",
 		cost, formatTokens(in+out), formatTokens(in), formatTokens(out))
 }
 
