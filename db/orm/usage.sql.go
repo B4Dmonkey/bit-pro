@@ -37,6 +37,14 @@ ON CONFLICT (message_id, request_id, entry) DO UPDATE SET
     cache_write_1h_tokens = excluded.cache_write_1h_tokens,
     cache_read_tokens = excluded.cache_read_tokens,
     output_tokens = excluded.output_tokens
+WHERE (excluded.is_sidechain = 0 AND usage.is_sidechain = 1)
+    OR (
+        excluded.is_sidechain = usage.is_sidechain
+        AND excluded.input_tokens + excluded.cache_write_5m_tokens + excluded.cache_write_1h_tokens
+            + excluded.cache_read_tokens + excluded.output_tokens
+        >= usage.input_tokens + usage.cache_write_5m_tokens + usage.cache_write_1h_tokens
+            + usage.cache_read_tokens + usage.output_tokens
+    )
 `
 
 type UpsertUsageParams struct {

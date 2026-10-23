@@ -55,9 +55,13 @@ func countUsage(t *testing.T) int {
 }
 
 func receiptPayload(dir string) string {
+	return receiptPayloadFor(receiptSession, dir, "t.jsonl")
+}
+
+func receiptPayloadFor(session, dir, transcript string) string {
 	return fmt.Sprintf(
-		`{"session_id":"0d6f0c2b-1a26-4dbc-b324-a6401ead76a8","transcript_path":%q,"cwd":%q,"hook_event_name":"Stop"}`,
-		filepath.Join(dir, "t.jsonl"), dir,
+		`{"session_id":%q,"transcript_path":%q,"cwd":%q,"hook_event_name":"Stop"}`,
+		session, filepath.Join(dir, transcript), dir,
 	)
 }
 
@@ -177,6 +181,90 @@ func TestReceiptCmd(t *testing.T) {
 
 		if n := countUsage(t); n != 0 {
 			t.Errorf("usage rows = %d, want 0", n)
+		}
+	})
+
+	t.Run("sidechain copy does not replace the original", func(t *testing.T) {
+		dir := initProject(t, testPrefix)
+		createTask(t, "Track", "## Why\nx\n")
+
+		canonical, err := project.CanonicalPath(dir)
+		if err != nil {
+			t.Fatalf("CanonicalPath(%q) returned error: %v", dir, err)
+		}
+
+		copyLine := strings.Replace(
+			strings.Replace(toolUseLine, `"isSidechain":false`, `"isSidechain":true`, 1),
+			`"id":"BIT-1"`, `"id":"BIT-2"`, 1,
+		)
+
+		writeTranscript(t, canonical, toolUseLine)
+
+		if err := os.WriteFile(filepath.Join(canonical, "s2.jsonl"), []byte(copyLine+"\n"), 0o600); err != nil {
+			t.Fatalf("writing transcript: %v", err)
+		}
+
+		for _, payload := range []string{
+			receiptPayloadFor("s1", canonical, "t.jsonl"),
+			receiptPayloadFor("s2", canonical, "s2.jsonl"),
+		} {
+			if _, err := runWithStdin(t, payload, "receipt"); err != nil {
+				t.Fatalf("bp receipt returned error: %v", err)
+			}
+		}
+
+		sqlDB, err := db.Open()
+		if err != nil {
+			t.Fatalf("db.Open() returned error: %v", err)
+		}
+		defer sqlDB.Close()
+
+		var (
+			rows, sidechain int
+			session, track  string
+		)
+
+		if err := sqlDB.QueryRow("SELECT count(*) FROM usage WHERE message_id = 'msg_01'").Scan(&rows); err != nil {
+			t.Fatalf("counting usage: %v", err)
+		}
+
+		if rows != 1 {
+			t.Fatalf("usage rows = %d, want 1", rows)
+		}
+
+		if err := sqlDB.QueryRow("SELECT session_id, track, is_sidechain FROM usage WHERE message_id = 'msg_01'").
+			Scan(&session, &track, &sidechain); err != nil {
+			t.Fatalf("reading usage row: %v", err)
+		}
+
+		if session != "s1" || track != "BIT-1" || sidechain != 0 {
+			t.Errorf("row = %q %q %d, want s1 BIT-1 0", session, track, sidechain)
+		}
+	})
+
+	t.Run("repeated stop on a grown transcript adds only new responses", func(t *testing.T) {
+		dir := initProject(t, testPrefix)
+		createTask(t, "Track", "## Why\nx\n")
+
+		canonical, err := project.CanonicalPath(dir)
+		if err != nil {
+			t.Fatalf("CanonicalPath(%q) returned error: %v", dir, err)
+		}
+
+		writeTranscript(t, canonical, toolUseLine)
+
+		if _, err := runWithStdin(t, receiptPayload(canonical), "receipt"); err != nil {
+			t.Fatalf("bp receipt returned error: %v", err)
+		}
+
+		writeTranscript(t, canonical, toolUseLine, textOnlyLine)
+
+		if _, err := runWithStdin(t, receiptPayload(canonical), "receipt"); err != nil {
+			t.Fatalf("bp receipt returned error: %v", err)
+		}
+
+		if n := countUsage(t); n != 2 {
+			t.Errorf("usage rows = %d, want 2", n)
 		}
 	})
 }
