@@ -48,10 +48,10 @@ func TestFindSpawn(t *testing.T) {
 		dir := t.TempDir()
 		main := filepath.Join(dir, "s1.jsonl")
 
-		writeLines(t, main, assistant("msg_01", "BIT-1.1", 1), launch("toolu_a", "A"))
+		writeLines(t, main, assistant("msg_01", barOne, 1), launch("toolu_a", "A"))
 
 		got, ok := FindSpawn(main, "A")
-		if !ok || got.Track != trackOne || got.Bar != "BIT-1.1" || got.ParentAgentID != "" {
+		if !ok || got.Track != trackOne || got.Bar != barOne || got.ParentAgentID != "" {
 			t.Errorf("FindSpawn(A) = %+v, %v, want BIT-1 BIT-1.1 main", got, ok)
 		}
 	})

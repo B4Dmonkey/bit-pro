@@ -7,8 +7,10 @@ import (
 )
 
 const (
-	opusModel = "claude-opus-5-5"
-	trackOne  = "BIT-1"
+	opusModel  = "claude-opus-5-5"
+	trackOne   = "BIT-1"
+	rulerAgent = "bit:ruler"
+	barOne     = "BIT-1.1"
 )
 
 func assistant(msgID, toolID string, out int) string {
@@ -174,7 +176,7 @@ func TestParse(t *testing.T) {
 		result := `{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_05","content":"x"}]},` +
 			`"toolUseResult":{"id":"BIT-1.2"}}`
 		in := strings.Join([]string{
-			assistant("msg_01", "BIT-1", 5), assistant("msg_02", "BIT-1.1", 10), create, result, assistant("msg_04", "", 100),
+			assistant("msg_01", "BIT-1", 5), assistant("msg_02", barOne, 10), create, result, assistant("msg_04", "", 100),
 		}, "\n")
 
 		entries, err := Parse(strings.NewReader(in), "")
@@ -214,7 +216,7 @@ func TestParseSession(t *testing.T) {
 			t.Fatalf("ParseSession() returned error: %v", err)
 		}
 
-		if got != "bit:ruler" {
+		if got != rulerAgent {
 			t.Errorf("ParseSession() = %q, want bit:ruler", got)
 		}
 	})

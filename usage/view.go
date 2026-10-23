@@ -56,13 +56,7 @@ func Render(status string, rows []Priced, bars []*task.Task) string {
 const barsNote = "_bar-level work only — the agent totals above include it too_"
 
 func renderBars(rows []Priced, bars []*task.Task) string {
-	byBar := map[string]Amount{}
-
-	for _, r := range rows {
-		if r.Row.Bar != "" {
-			byBar[r.Row.Bar] = byBar[r.Row.Bar].Add(r.Amount())
-		}
-	}
+	byBar, labelsByBar := barSpend(rows)
 
 	type verse struct {
 		phase int
@@ -106,11 +100,53 @@ func renderBars(rows []Priced, bars []*task.Task) string {
 		fmt.Fprintf(&sb, "| **Verse %d — %s** | | **%s** |\n", v.phase, v.label, v.cost)
 
 		for _, b := range v.bars {
-			fmt.Fprintf(&sb, "| ↳ Bar %s | | %s |\n", barNumber(b.ID), byBar[b.ID])
+			fmt.Fprintf(&sb, "| ↳ Bar %s |%s| %s |\n", barNumber(b.ID), labelCell(labelsByBar[b.ID]), byBar[b.ID])
 		}
 	}
 
 	return sb.String() + "\n" + barsNote + "\n\n"
+}
+
+func barSpend(rows []Priced) (map[string]Amount, map[string]map[string]bool) {
+	byBar := map[string]Amount{}
+	labels := map[string]map[string]bool{}
+
+	for _, r := range rows {
+		if r.Row.Bar == "" {
+			continue
+		}
+
+		byBar[r.Row.Bar] = byBar[r.Row.Bar].Add(r.Amount())
+
+		if labels[r.Row.Bar] == nil {
+			labels[r.Row.Bar] = map[string]bool{}
+		}
+
+		if r.Row.Skill != "" {
+			labels[r.Row.Bar][r.Row.Skill] = true
+		}
+
+		if r.Row.AgentID != "" {
+			labels[r.Row.Bar][r.Row.AgentType+" (subagent)"] = true
+		}
+	}
+
+	return byBar, labels
+}
+
+func labelCell(set map[string]bool) string {
+	if len(set) == 0 {
+		return " "
+	}
+
+	labels := make([]string, 0, len(set))
+	for l := range set {
+		labels = append(labels, l)
+	}
+
+	sort.Strings(labels)
+
+	return " " + strings.Join(labels, ", ") + " "
 }
 
 func barNumber(id string) string {
@@ -177,10 +213,86 @@ type skillLine struct {
 	calls        map[string]bool
 }
 
+type subagentLine struct {
+	typ, model string
+	cost       Amount
+	ids        []string
+}
+
+type agentTree struct {
+	rowsByID map[string][]Priced
+	children map[string][]string
+}
+
+func newAgentTree(rows []Priced) agentTree {
+	t := agentTree{rowsByID: map[string][]Priced{}, children: map[string][]string{}}
+
+	for _, r := range rows {
+		t.rowsByID[r.Row.AgentID] = append(t.rowsByID[r.Row.AgentID], r)
+	}
+
+	var ids []string
+
+	for id := range t.rowsByID {
+		if id != "" {
+			ids = append(ids, id)
+		}
+	}
+
+	sort.Strings(ids)
+
+	for _, id := range ids {
+		parent := t.rowsByID[id][0].Row.ParentAgentID
+		if _, ok := t.rowsByID[parent]; !ok || parent == id {
+			parent = ""
+		}
+
+		t.children[parent] = append(t.children[parent], id)
+	}
+
+	return t
+}
+
+func (t agentTree) subtreeCost(id string) Amount {
+	var total Amount
+
+	for _, r := range t.rowsByID[id] {
+		total = total.Add(r.Amount())
+	}
+
+	for _, c := range t.children[id] {
+		total = total.Add(t.subtreeCost(c))
+	}
+
+	return total
+}
+
 func renderSkills(rows []Priced) string {
+	t := newAgentTree(rows)
+
+	out := t.render([]string{""}, 0)
+	if out == "" {
+		return ""
+	}
+
+	return out + "\n"
+}
+
+func (t agentTree) render(ids []string, depth int) string {
+	indent := strings.Repeat("  ", depth+1)
+
 	lines := map[[2]string]*skillLine{}
 
 	var order []*skillLine
+
+	var rows []Priced
+
+	var kids []string
+
+	for _, id := range ids {
+		rows = append(rows, t.rowsByID[id]...)
+		kids = append(kids, t.children[id]...)
+	}
 
 	for _, r := range rows {
 		key := [2]string{r.Row.Skill, modelFamily(r.Row.Model)}
@@ -198,25 +310,56 @@ func renderSkills(rows []Priced) string {
 
 	sort.SliceStable(order, func(i, j int) bool { return order[i].cost.USD > order[j].cost.USD })
 
-	var skills, own strings.Builder
+	var out, own strings.Builder
 
 	for _, l := range order {
 		if l.skill == "" {
-			fmt.Fprintf(&own, "  own work (%s) — %s\n", l.model, l.cost)
+			fmt.Fprintf(&own, "%sown work (%s) — %s\n", indent, l.model, l.cost)
 
 			continue
 		}
 
 		n := len(l.calls)
-		perCall := Amount{USD: l.cost.USD / float64(n), Unknown: l.cost.Unknown, Priced: l.cost.Priced}
-		fmt.Fprintf(&skills, "  %s (%s) — %d × %s = %s\n", l.skill, l.model, n, perCall, l.cost)
+		fmt.Fprintf(&out, "%s%s (%s) — %d × %s = %s\n", indent, l.skill, l.model, n, perCall(l.cost, n), l.cost)
 	}
 
-	if skills.Len()+own.Len() == 0 {
-		return ""
+	for _, sl := range t.subagentLines(kids) {
+		n := len(sl.ids)
+		fmt.Fprintf(&out, "%s%s (subagent, %s) — %d × %s = %s\n", indent, sl.typ, sl.model, n, perCall(sl.cost, n), sl.cost)
+
+		out.WriteString(t.render(sl.ids, depth+1))
 	}
 
-	return skills.String() + own.String() + "\n"
+	return out.String() + own.String()
+}
+
+func perCall(cost Amount, n int) Amount {
+	return Amount{USD: cost.USD / float64(n), Unknown: cost.Unknown, Priced: cost.Priced}
+}
+
+func (t agentTree) subagentLines(kids []string) []*subagentLine {
+	groups := map[[2]string]*subagentLine{}
+
+	var order []*subagentLine
+
+	for _, c := range kids {
+		first := t.rowsByID[c][0].Row
+		key := [2]string{first.AgentType, modelFamily(first.Model)}
+
+		g := groups[key]
+		if g == nil {
+			g = &subagentLine{typ: key[0], model: key[1]}
+			groups[key] = g
+			order = append(order, g)
+		}
+
+		g.cost = g.cost.Add(t.subtreeCost(c))
+		g.ids = append(g.ids, c)
+	}
+
+	sort.SliceStable(order, func(i, j int) bool { return order[i].cost.USD > order[j].cost.USD })
+
+	return order
 }
 
 func modelFamily(model string) string {

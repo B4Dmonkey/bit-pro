@@ -79,7 +79,7 @@ func TestRender(t *testing.T) {
 		got := Render(task.StatusDoing, []Priced{
 			row("bit:theCreator", 250_000),
 			row("main", 500_000),
-			row("bit:ruler", 750_000),
+			row(rulerAgent, 750_000),
 			row("bit:bot", 50_000),
 			row("other", 1_000_000),
 		}, nil)
@@ -115,7 +115,7 @@ func TestRender(t *testing.T) {
 	t.Run("agent block with skills and own work", func(t *testing.T) {
 		row := func(skill, inv string, tokens int64) Priced {
 			return Priced{Row: orm.Usage{
-				InvokedAgent: "bit:ruler", Model: opusModel, Skill: skill, SkillInvocation: inv, InputTokens: tokens,
+				InvokedAgent: rulerAgent, Model: opusModel, Skill: skill, SkillInvocation: inv, InputTokens: tokens,
 			}, Price: opus}
 		}
 
@@ -138,6 +138,63 @@ func TestRender(t *testing.T) {
 			}
 
 			prev = i
+		}
+	})
+
+	t.Run("subagents nest under their parent", func(t *testing.T) {
+		const haikuModel = "claude-haiku-4-5"
+
+		haiku := orm.ModelPrice{Input: rate(1)}
+
+		got := Render(task.StatusDoing, []Priced{
+			{Row: orm.Usage{InvokedAgent: rulerAgent, Model: opusModel, InputTokens: 250_000}, Price: opus},
+			{Row: orm.Usage{
+				InvokedAgent: rulerAgent, AgentID: "g1", AgentType: "general-purpose", Model: opusModel,
+				Skill: "bit:analyze", SkillInvocation: "i1", InputTokens: 500_000,
+			}, Price: opus},
+			{Row: orm.Usage{
+				InvokedAgent: rulerAgent, AgentID: "e1", AgentType: "Explore", ParentAgentID: "g1",
+				Model: haikuModel, InputTokens: 1_000_000,
+			}, Price: haiku},
+			{Row: orm.Usage{
+				InvokedAgent: rulerAgent, AgentID: "e2", AgentType: "Explore", ParentAgentID: "g1",
+				Model: haikuModel, InputTokens: 1_000_000,
+			}, Price: haiku},
+		}, nil)
+
+		prev := -1
+
+		for _, want := range []string{
+			"**bit:ruler** — $5.00",
+			"  general-purpose (subagent, opus) — 1 × $4.00 = $4.00",
+			"    bit:analyze (opus) — 1 × $2.00 = $2.00",
+			"    Explore (subagent, haiku) — 2 × $1.00 = $2.00",
+			"  own work (opus) — $1.00",
+		} {
+			i := strings.Index(got, want)
+			if i < 0 || i < prev {
+				t.Fatalf("Render() = %q, want %q after the previous line", got, want)
+			}
+
+			prev = i
+		}
+	})
+
+	t.Run("bar skills cell", func(t *testing.T) {
+		bar := func(skill, agentID, agentType string) Priced {
+			return Priced{Row: orm.Usage{
+				InvokedAgent: rulerAgent, Bar: barOne, Skill: skill, AgentID: agentID, AgentType: agentType, InputTokens: 250_000,
+			}, Price: opus}
+		}
+
+		bars := []*task.Task{{ID: barOne, Phase: 1, PhaseLabel: "first"}}
+
+		got := Render(task.StatusDoing, []Priced{
+			bar("bit:plan", "", ""), bar("bit:do", "", ""), bar("", "e1", "Explore"),
+		}, bars)
+
+		if want := "| ↳ Bar 1.1 | Explore (subagent), bit:do, bit:plan | $3.00 |"; !strings.Contains(got, want) {
+			t.Errorf("Render() = %q, want it to contain %q", got, want)
 		}
 	})
 
