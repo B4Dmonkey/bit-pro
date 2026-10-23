@@ -101,6 +101,32 @@ func TestParse(t *testing.T) {
 		}
 	})
 
+	t.Run("advisor iteration becomes its own entry", func(t *testing.T) {
+		in := `{"type":"assistant","requestId":"req_01","timestamp":"2026-10-20T14:00:00Z","version":"2.1.0",` +
+			`"isSidechain":false,"message":{"id":"msg_01","model":"claude-opus-5-5","content":[],` +
+			`"usage":{"input_tokens":2,"output_tokens":180,"iterations":[` +
+			`{"type":"message","model":"claude-opus-5-5","input_tokens":2,"output_tokens":180},` +
+			`{"type":"advisor_message","model":"claude-fable-5","input_tokens":1000,"output_tokens":50}]}}}`
+
+		entries, err := Parse(strings.NewReader(in))
+		if err != nil {
+			t.Fatalf("Parse() returned error: %v", err)
+		}
+
+		if len(entries) != 2 {
+			t.Fatalf("Parse() = %+v, want 2 entries", entries)
+		}
+
+		if e := entries[0]; e.Entry != 0 || e.Model != "claude-opus-5-5" || e.InputTokens != 2 || e.OutputTokens != 180 {
+			t.Errorf("entries[0] = %+v, want opus in 2 out 180", e)
+		}
+
+		if e := entries[1]; e.Entry != 2 || e.Model != "claude-fable-5" || e.InputTokens != 1000 ||
+			e.OutputTokens != 50 || e.MessageID != "msg_01" || e.RequestID != "req_01" {
+			t.Errorf("entries[1] = %+v, want advisor in 1000 out 50", e)
+		}
+	})
+
 	t.Run("skips non-assistant lines", func(t *testing.T) {
 		entries, err := Parse(strings.NewReader(`{"type":"user"}` + "\n"))
 		if err != nil || len(entries) != 0 {

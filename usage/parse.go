@@ -6,12 +6,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 )
 
 type Entry struct {
 	MessageID       string
 	RequestID       string
+	Entry           int
 	Timestamp       string
 	Model           string
 	Version         string
@@ -51,9 +53,24 @@ type line struct {
 				Ephemeral5m int64 `json:"ephemeral_5m_input_tokens"`
 				Ephemeral1h int64 `json:"ephemeral_1h_input_tokens"`
 			} `json:"cache_creation"`
+			Iterations []iteration `json:"iterations"`
 		} `json:"usage"`
 	} `json:"message"`
 }
+
+type iteration struct {
+	Type            string `json:"type"`
+	Model           string `json:"model"`
+	InputTokens     int64  `json:"input_tokens"`
+	CacheReadTokens int64  `json:"cache_read_input_tokens"`
+	OutputTokens    int64  `json:"output_tokens"`
+	CacheCreation   struct {
+		Ephemeral5m int64 `json:"ephemeral_5m_input_tokens"`
+		Ephemeral1h int64 `json:"ephemeral_1h_input_tokens"`
+	} `json:"cache_creation"`
+}
+
+const advisorIteration = "advisor_message"
 
 const (
 	taskToolPrefix = "mcp__bit__task_"
@@ -120,16 +137,16 @@ func Parse(r io.Reader) ([]Entry, error) {
 			}
 		}
 
-		e := l.entry(track)
+		for _, e := range l.entries(track) {
+			key := e.MessageID + "\x00" + e.RequestID + "\x00" + strconv.Itoa(e.Entry)
+			if i, ok := index[key]; ok {
+				entries[i] = e
+				continue
+			}
 
-		key := e.MessageID + "\x00" + e.RequestID
-		if i, ok := index[key]; ok {
-			entries[i] = e
-			continue
+			index[key] = len(entries)
+			entries = append(entries, e)
 		}
-
-		index[key] = len(entries)
-		entries = append(entries, e)
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -161,6 +178,28 @@ func trackRef(l line) string {
 	}
 
 	return ""
+}
+
+func (l line) entries(track string) []Entry {
+	entries := []Entry{l.entry(track)}
+
+	for i, it := range l.Message.Usage.Iterations {
+		if it.Type != advisorIteration {
+			continue
+		}
+
+		e := l.entry(track)
+		e.Entry = i + 1
+		e.Model = it.Model
+		e.InputTokens = it.InputTokens
+		e.CacheWrite5m = it.CacheCreation.Ephemeral5m
+		e.CacheWrite1h = it.CacheCreation.Ephemeral1h
+		e.CacheReadTokens = it.CacheReadTokens
+		e.OutputTokens = it.OutputTokens
+		entries = append(entries, e)
+	}
+
+	return entries
 }
 
 func (l line) entry(track string) Entry {
