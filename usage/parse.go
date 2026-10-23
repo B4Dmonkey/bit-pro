@@ -152,8 +152,8 @@ type parser struct {
 	invocation string
 }
 
-func Parse(r io.Reader) ([]Entry, error) {
-	p := &parser{index: map[string]int{}, creates: map[string]bool{}}
+func Parse(r io.Reader, initial string) ([]Entry, error) {
+	p := newParser(initial)
 
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, 0, 64*1024), 64*1024*1024)
@@ -183,6 +183,15 @@ func Parse(r io.Reader) ([]Entry, error) {
 	}
 
 	return p.entries, nil
+}
+
+func newParser(initial string) *parser {
+	return &parser{
+		index:      map[string]int{},
+		creates:    map[string]bool{},
+		target:     initial,
+		firstTrack: trackOf(initial),
+	}
 }
 
 func (p *parser) add(l line) {

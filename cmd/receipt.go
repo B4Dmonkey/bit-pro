@@ -68,7 +68,12 @@ func storeUsage(ctx context.Context, projectID int64, payload hookPayload) error
 
 	agentID, agentType := payload.subagent()
 
-	entries, err := readEntries(payload)
+	var spawn usage.Spawn
+	if agentID != "" {
+		spawn, _ = usage.FindSpawn(payload.TranscriptPath, agentID)
+	}
+
+	entries, err := readEntries(payload, spawn.Target())
 	if err != nil {
 		return err
 	}
@@ -92,29 +97,9 @@ func storeUsage(ctx context.Context, projectID int64, payload hookPayload) error
 			continue
 		}
 
-		err := q.UpsertUsage(ctx, orm.UpsertUsageParams{
-			ProjectID:          projectID,
-			SessionID:          payload.SessionID,
-			AgentID:            agentID,
-			AgentType:          agentType,
-			InvokedAgent:       invoked,
-			Skill:              e.Skill,
-			SkillInvocation:    e.SkillInvocation,
-			Track:              e.Track,
-			Bar:                e.Bar,
-			MessageID:          e.MessageID,
-			RequestID:          e.RequestID,
-			Ts:                 e.Timestamp,
-			Model:              e.Model,
-			Speed:              e.Speed,
-			IsSidechain:        boolInt(e.IsSidechain),
-			CcVersion:          e.Version,
-			InputTokens:        e.InputTokens,
-			CacheWrite5mTokens: e.CacheWrite5m,
-			CacheWrite1hTokens: e.CacheWrite1h,
-			CacheReadTokens:    e.CacheReadTokens,
-			OutputTokens:       e.OutputTokens,
-		})
+		params := usageParams(projectID, payload.SessionID, agentID, agentType, invoked, spawn.ParentAgentID, e)
+
+		err := q.UpsertUsage(ctx, params)
 		if err != nil {
 			return fmt.Errorf("storing usage for %s: %w", e.MessageID, err)
 		}
@@ -123,7 +108,36 @@ func storeUsage(ctx context.Context, projectID int64, payload hookPayload) error
 	return tx.Commit()
 }
 
-func readEntries(payload hookPayload) ([]usage.Entry, error) {
+func usageParams(
+	projectID int64, sessionID, agentID, agentType, invoked, parentAgentID string, e usage.Entry,
+) orm.UpsertUsageParams {
+	return orm.UpsertUsageParams{
+		ProjectID:          projectID,
+		SessionID:          sessionID,
+		AgentID:            agentID,
+		AgentType:          agentType,
+		ParentAgentID:      parentAgentID,
+		InvokedAgent:       invoked,
+		Skill:              e.Skill,
+		SkillInvocation:    e.SkillInvocation,
+		Track:              e.Track,
+		Bar:                e.Bar,
+		MessageID:          e.MessageID,
+		RequestID:          e.RequestID,
+		Ts:                 e.Timestamp,
+		Model:              e.Model,
+		Speed:              e.Speed,
+		IsSidechain:        boolInt(e.IsSidechain),
+		CcVersion:          e.Version,
+		InputTokens:        e.InputTokens,
+		CacheWrite5mTokens: e.CacheWrite5m,
+		CacheWrite1hTokens: e.CacheWrite1h,
+		CacheReadTokens:    e.CacheReadTokens,
+		OutputTokens:       e.OutputTokens,
+	}
+}
+
+func readEntries(payload hookPayload, initial string) ([]usage.Entry, error) {
 	path := payload.TranscriptPath
 	if payload.HookEventName == "SubagentStop" {
 		path = payload.AgentTranscriptPath
@@ -135,7 +149,7 @@ func readEntries(payload hookPayload) ([]usage.Entry, error) {
 	}
 	defer f.Close()
 
-	return usage.Parse(f)
+	return usage.Parse(f, initial)
 }
 
 func invokedAgent(path string) (string, error) {

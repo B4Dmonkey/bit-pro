@@ -6,7 +6,10 @@ import (
 	"testing"
 )
 
-const opusModel = "claude-opus-5-5"
+const (
+	opusModel = "claude-opus-5-5"
+	trackOne  = "BIT-1"
+)
 
 func assistant(msgID, toolID string, out int) string {
 	content := `[{"type":"text","text":"x"}]`
@@ -38,7 +41,7 @@ func TestParse(t *testing.T) {
 			assistant("msg_05", "", 1),
 		}, "\n")
 
-		entries, err := Parse(strings.NewReader(in))
+		entries, err := Parse(strings.NewReader(in), "")
 		if err != nil {
 			t.Fatalf("Parse() returned error: %v", err)
 		}
@@ -59,14 +62,14 @@ func TestParse(t *testing.T) {
 	})
 
 	t.Run("fills an entry from an assistant line", func(t *testing.T) {
-		entries, err := Parse(strings.NewReader(assistant("m1", "BIT-1", 7)))
+		entries, err := Parse(strings.NewReader(assistant("m1", "BIT-1", 7)), "")
 		if err != nil {
 			t.Fatalf("Parse() returned error: %v", err)
 		}
 
 		want := Entry{
 			MessageID: "m1", RequestID: "req_m1", Timestamp: "2026-10-20T14:00:00Z",
-			Model: opusModel, Version: "2.1.0", Speed: "standard", Track: "BIT-1",
+			Model: opusModel, Version: "2.1.0", Speed: "standard", Track: trackOne,
 			InputTokens: 2, CacheWrite5m: 4, CacheWrite1h: 5, CacheReadTokens: 3, OutputTokens: 7,
 		}
 
@@ -76,7 +79,7 @@ func TestParse(t *testing.T) {
 	})
 
 	t.Run("a bar id attributes to its track", func(t *testing.T) {
-		entries, _ := Parse(strings.NewReader(assistant("m1", "BIT-58.20", 1)))
+		entries, _ := Parse(strings.NewReader(assistant("m1", "BIT-58.20", 1)), "")
 
 		if len(entries) != 1 || entries[0].Track != "BIT-58" {
 			t.Errorf("Parse() = %+v, want track BIT-58", entries)
@@ -88,7 +91,7 @@ func TestParse(t *testing.T) {
 			assistant("m1", "", 1), assistant("m2", "BIT-1", 2), assistant("m3", "BIT-2", 3), assistant("m4", "", 4),
 		}, "\n")
 
-		entries, err := Parse(strings.NewReader(in))
+		entries, err := Parse(strings.NewReader(in), "")
 		if err != nil {
 			t.Fatalf("Parse() returned error: %v", err)
 		}
@@ -106,7 +109,7 @@ func TestParse(t *testing.T) {
 	t.Run("the last line per message id wins", func(t *testing.T) {
 		in := assistant("m1", "BIT-1", 1) + "\n" + assistant("m1", "", 9)
 
-		entries, _ := Parse(strings.NewReader(in))
+		entries, _ := Parse(strings.NewReader(in), "")
 
 		if len(entries) != 1 || entries[0].OutputTokens != 9 {
 			t.Errorf("Parse() = %+v, want one entry with 9 output tokens", entries)
@@ -118,7 +121,7 @@ func TestParse(t *testing.T) {
 			assistant("msg_01", "BIT-1", 12), assistant("msg_01", "BIT-1", 180), assistant("msg_01", "BIT-1", 180),
 		}, "\n")
 
-		entries, err := Parse(strings.NewReader(in))
+		entries, err := Parse(strings.NewReader(in), "")
 		if err != nil {
 			t.Fatalf("Parse() returned error: %v", err)
 		}
@@ -132,7 +135,7 @@ func TestParse(t *testing.T) {
 		other := strings.Replace(assistant("m1", "", 9), "req_m1", "req_other", 1)
 		in := assistant("m1", "BIT-1", 1) + "\n" + other
 
-		entries, _ := Parse(strings.NewReader(in))
+		entries, _ := Parse(strings.NewReader(in), "")
 
 		if len(entries) != 2 {
 			t.Errorf("Parse() = %+v, want 2 entries", entries)
@@ -146,7 +149,7 @@ func TestParse(t *testing.T) {
 			`{"type":"message","model":"` + opusModel + `","input_tokens":2,"output_tokens":180},` +
 			`{"type":"advisor_message","model":"claude-fable-5","input_tokens":1000,"output_tokens":50}]}}}`
 
-		entries, err := Parse(strings.NewReader(in))
+		entries, err := Parse(strings.NewReader(in), "")
 		if err != nil {
 			t.Fatalf("Parse() returned error: %v", err)
 		}
@@ -174,7 +177,7 @@ func TestParse(t *testing.T) {
 			assistant("msg_01", "BIT-1", 5), assistant("msg_02", "BIT-1.1", 10), create, result, assistant("msg_04", "", 100),
 		}, "\n")
 
-		entries, err := Parse(strings.NewReader(in))
+		entries, err := Parse(strings.NewReader(in), "")
 		if err != nil {
 			t.Fatalf("Parse() returned error: %v", err)
 		}
@@ -195,7 +198,7 @@ func TestParse(t *testing.T) {
 	})
 
 	t.Run("skips non-assistant lines", func(t *testing.T) {
-		entries, err := Parse(strings.NewReader(`{"type":"user"}` + "\n"))
+		entries, err := Parse(strings.NewReader(`{"type":"user"}`+"\n"), "")
 		if err != nil || len(entries) != 0 {
 			t.Errorf("Parse() = %+v, %v, want none", entries, err)
 		}

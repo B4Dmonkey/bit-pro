@@ -150,7 +150,7 @@ func TestReceiptCmd(t *testing.T) {
 			t.Fatalf("reading usage row: %v", err)
 		}
 
-		if track != "BIT-1" || bar != "" || session != receiptSession || messageID != "msg_01" ||
+		if track != testOwnTrack || bar != "" || session != receiptSession || messageID != "msg_01" ||
 			requestID != "req_01" || model != "claude-opus-5-5" {
 			t.Errorf("row = %q %q %q %q %q %q", track, bar, session, messageID, requestID, model)
 		}
@@ -370,6 +370,71 @@ func TestReceiptCmd(t *testing.T) {
 
 		if n := countUsage(t); n != 1 {
 			t.Errorf("usage rows = %d, want 1", n)
+		}
+	})
+
+	t.Run("explore subagent inherits the bar", func(t *testing.T) {
+		dir := initProject(t, testPrefix)
+		createTask(t, "Track", "## Why\nx\n")
+
+		canonical, err := project.CanonicalPath(dir)
+		if err != nil {
+			t.Fatalf("CanonicalPath(%q) returned error: %v", dir, err)
+		}
+
+		barLine := strings.Replace(toolUseLine, `"id":"BIT-1"`, `"id":"BIT-1.1"`, 1)
+		spawnLine := `{"type":"assistant","sessionId":"s1","requestId":"req_09","version":"2.1.0","isSidechain":false,` +
+			`"timestamp":"2026-10-20T14:02:00Z","message":{"id":"msg_02","model":"claude-opus-5-5","role":"assistant",` +
+			`"content":[{"type":"tool_use","id":"toolu_09","name":"Agent","input":{"subagent_type":"Explore"}}],` +
+			usageBlock + `}}`
+		launchLine := `{"type":"user","sessionId":"s1","isSidechain":false,"timestamp":"2026-10-20T14:02:01Z",` +
+			`"message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_09","content":"launched"}]},` +
+			`"toolUseResult":{"agentId":"a0f840e144ada4aea","isAsync":true,"status":"async_launched"}}`
+		subLine := strings.NewReplacer(
+			"msg_02", "msg_30", "req_02", "req_30", "claude-opus-5-5", "claude-haiku-5-5",
+		).Replace(textOnlyLine)
+
+		body := strings.Join([]string{barLine, spawnLine, launchLine}, "\n") + "\n"
+		if err := os.WriteFile(filepath.Join(canonical, "s1.jsonl"), []byte(body), 0o600); err != nil {
+			t.Fatalf("writing transcript: %v", err)
+		}
+
+		subDir := filepath.Join(canonical, "s1", "subagents")
+		if err := os.MkdirAll(subDir, 0o700); err != nil {
+			t.Fatalf("creating subagents dir: %v", err)
+		}
+
+		subPath := filepath.Join(subDir, "agent-a0f840e144ada4aea.jsonl")
+		if err := os.WriteFile(subPath, []byte(subLine+"\n"), 0o600); err != nil {
+			t.Fatalf("writing transcript: %v", err)
+		}
+
+		payload := fmt.Sprintf(
+			`{"session_id":"s1","transcript_path":%q,"cwd":%q,"hook_event_name":"SubagentStop",`+
+				`"agent_id":"a0f840e144ada4aea","agent_type":"Explore","agent_transcript_path":%q}`,
+			filepath.Join(canonical, "s1.jsonl"), canonical, subPath,
+		)
+
+		if _, err := runWithStdin(t, payload, "receipt"); err != nil {
+			t.Fatalf("bp receipt returned error: %v", err)
+		}
+
+		sqlDB, err := db.Open()
+		if err != nil {
+			t.Fatalf("db.Open() returned error: %v", err)
+		}
+		defer sqlDB.Close()
+
+		var track, bar, parent, agentType string
+
+		err = sqlDB.QueryRow("SELECT track, bar, parent_agent_id, agent_type FROM usage WHERE message_id = 'msg_30'").
+			Scan(&track, &bar, &parent, &agentType)
+		if err != nil {
+			t.Fatalf("reading usage row: %v", err)
+		}
+
+		if track != "BIT-1" || bar != "BIT-1.1" || parent != "" || agentType != "Explore" {
+			t.Errorf("row = %q %q %q %q, want BIT-1 BIT-1.1 '' Explore", track, bar, parent, agentType)
 		}
 	})
 }
