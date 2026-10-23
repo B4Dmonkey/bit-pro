@@ -108,3 +108,29 @@ func TestParse(t *testing.T) {
 		}
 	})
 }
+
+func TestParseSession(t *testing.T) {
+	t.Run("agent setting names the invoked agent", func(t *testing.T) {
+		in := `{"type":"agent-setting","agentSetting":"bit:ruler","sessionId":"s1"}` + "\n" + assistant("m1", "", 1)
+
+		got, err := ParseSession(strings.NewReader(in))
+		if err != nil {
+			t.Fatalf("ParseSession() returned error: %v", err)
+		}
+
+		if got != "bit:ruler" {
+			t.Errorf("ParseSession() = %q, want bit:ruler", got)
+		}
+	})
+
+	t.Run("no agent setting is main", func(t *testing.T) {
+		got, err := ParseSession(strings.NewReader(assistant("m1", "", 1)))
+		if err != nil {
+			t.Fatalf("ParseSession() returned error: %v", err)
+		}
+
+		if got != "main" {
+			t.Errorf("ParseSession() = %q, want main", got)
+		}
+	})
+}

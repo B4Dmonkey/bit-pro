@@ -26,12 +26,13 @@ type Entry struct {
 }
 
 type line struct {
-	Type        string `json:"type"`
-	RequestID   string `json:"requestId"`
-	Timestamp   string `json:"timestamp"`
-	Version     string `json:"version"`
-	IsSidechain bool   `json:"isSidechain"`
-	Message     struct {
+	Type         string `json:"type"`
+	AgentSetting string `json:"agentSetting"`
+	RequestID    string `json:"requestId"`
+	Timestamp    string `json:"timestamp"`
+	Version      string `json:"version"`
+	IsSidechain  bool   `json:"isSidechain"`
+	Message      struct {
 		ID      string `json:"id"`
 		Model   string `json:"model"`
 		Content []struct {
@@ -54,7 +55,37 @@ type line struct {
 	} `json:"message"`
 }
 
-const taskToolPrefix = "mcp__bit__task_"
+const (
+	taskToolPrefix = "mcp__bit__task_"
+	mainAgent      = "main"
+)
+
+func ParseSession(r io.Reader) (string, error) {
+	scanner := bufio.NewScanner(r)
+	scanner.Buffer(make([]byte, 0, 64*1024), 64*1024*1024)
+
+	for scanner.Scan() {
+		raw := bytes.TrimSpace(scanner.Bytes())
+		if len(raw) == 0 {
+			continue
+		}
+
+		var l line
+		if err := json.Unmarshal(raw, &l); err != nil {
+			return "", fmt.Errorf("parsing transcript line: %w", err)
+		}
+
+		if l.Type == "agent-setting" && l.AgentSetting != "" {
+			return l.AgentSetting, nil
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("reading transcript: %w", err)
+	}
+
+	return mainAgent, nil
+}
 
 func Parse(r io.Reader) ([]Entry, error) {
 	var (

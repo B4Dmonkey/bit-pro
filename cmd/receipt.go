@@ -53,13 +53,17 @@ func newReceiptCmd() *cobra.Command {
 }
 
 func storeUsage(ctx context.Context, projectID int64, payload hookPayload) error {
-	f, err := os.Open(payload.TranscriptPath)
+	invoked, err := invokedAgent(payload.TranscriptPath)
 	if err != nil {
-		return fmt.Errorf("opening transcript: %w", err)
+		return err
 	}
-	defer f.Close()
 
-	entries, err := usage.Parse(f)
+	agentID, agentType := "", ""
+	if payload.HookEventName == "SubagentStop" {
+		agentID, agentType = payload.AgentID, payload.AgentType
+	}
+
+	entries, err := readEntries(payload)
 	if err != nil {
 		return err
 	}
@@ -86,6 +90,9 @@ func storeUsage(ctx context.Context, projectID int64, payload hookPayload) error
 		err := q.UpsertUsage(ctx, orm.UpsertUsageParams{
 			ProjectID:          projectID,
 			SessionID:          payload.SessionID,
+			AgentID:            agentID,
+			AgentType:          agentType,
+			InvokedAgent:       invoked,
 			Track:              e.Track,
 			MessageID:          e.MessageID,
 			RequestID:          e.RequestID,
@@ -106,6 +113,31 @@ func storeUsage(ctx context.Context, projectID int64, payload hookPayload) error
 	}
 
 	return tx.Commit()
+}
+
+func readEntries(payload hookPayload) ([]usage.Entry, error) {
+	path := payload.TranscriptPath
+	if payload.HookEventName == "SubagentStop" {
+		path = payload.AgentTranscriptPath
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("opening transcript: %w", err)
+	}
+	defer f.Close()
+
+	return usage.Parse(f)
+}
+
+func invokedAgent(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", fmt.Errorf("opening transcript: %w", err)
+	}
+	defer f.Close()
+
+	return usage.ParseSession(f)
 }
 
 func boolInt(b bool) int64 {

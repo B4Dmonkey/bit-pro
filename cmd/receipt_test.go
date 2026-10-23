@@ -267,4 +267,57 @@ func TestReceiptCmd(t *testing.T) {
 			t.Errorf("usage rows = %d, want 2", n)
 		}
 	})
+
+	t.Run("subagent rows carry their own id and the invoked agent", func(t *testing.T) {
+		dir := initProject(t, testPrefix)
+		createTask(t, "Track", "## Why\nx\n")
+
+		canonical, err := project.CanonicalPath(dir)
+		if err != nil {
+			t.Fatalf("CanonicalPath(%q) returned error: %v", dir, err)
+		}
+
+		agentSetting := `{"type":"agent-setting","agentSetting":"bit:ruler","sessionId":"s1"}`
+		subLine := strings.Replace(
+			strings.Replace(toolUseLine, "msg_01", "msg_20", 1), "claude-opus-5-5", "claude-sonnet-5", 1,
+		)
+
+		writeTranscript(t, canonical, agentSetting, toolUseLine)
+
+		if err := os.WriteFile(filepath.Join(canonical, "sub.jsonl"), []byte(subLine+"\n"), 0o600); err != nil {
+			t.Fatalf("writing transcript: %v", err)
+		}
+
+		payload := fmt.Sprintf(
+			`{"session_id":"s1","transcript_path":%q,"cwd":%q,"hook_event_name":"SubagentStop",`+
+				`"agent_id":"a0f840e144ada4aea","agent_type":"general-purpose","agent_transcript_path":%q}`,
+			filepath.Join(canonical, "t.jsonl"), canonical, filepath.Join(canonical, "sub.jsonl"),
+		)
+
+		if _, err := runWithStdin(t, payload, "receipt"); err != nil {
+			t.Fatalf("bp receipt returned error: %v", err)
+		}
+
+		sqlDB, err := db.Open()
+		if err != nil {
+			t.Fatalf("db.Open() returned error: %v", err)
+		}
+		defer sqlDB.Close()
+
+		var agentID, agentType, invoked string
+
+		err = sqlDB.QueryRow("SELECT agent_id, agent_type, invoked_agent FROM usage WHERE message_id = 'msg_20'").
+			Scan(&agentID, &agentType, &invoked)
+		if err != nil {
+			t.Fatalf("reading usage row: %v", err)
+		}
+
+		if agentID != "a0f840e144ada4aea" || agentType != "general-purpose" || invoked != "bit:ruler" {
+			t.Errorf("row = %q %q %q, want a0f840e144ada4aea general-purpose bit:ruler", agentID, agentType, invoked)
+		}
+
+		if n := countUsage(t); n != 1 {
+			t.Errorf("usage rows = %d, want 1", n)
+		}
+	})
 }
