@@ -2,7 +2,9 @@ package usage
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/B4Dmonkey/bit-pro/db/orm"
@@ -46,8 +48,71 @@ func Render(status string, rows []Priced) string {
 		asOf = fmt.Sprintf("_as of %s%s_\n\n", latest.UTC().Format(time.DateOnly), suffix)
 	}
 
-	return fmt.Sprintf("%s| Total cost | %s |\n| Total tokens | %s (in %s · out %s) |\n\n%s\n",
-		asOf, cost, formatTokens(in+out), formatTokens(in), formatTokens(out), closingNote)
+	return fmt.Sprintf("%s| Total cost | %s |\n| Total tokens | %s (in %s · out %s) |\n\n%s\n%s\n",
+		asOf, cost, formatTokens(in+out), formatTokens(in), formatTokens(out), renderAgents(rows), closingNote)
+}
+
+const unknownAgent = "unknown"
+
+type agentCost struct {
+	name string
+	cost Amount
+}
+
+func renderAgents(rows []Priced) string {
+	byAgent := map[string]Amount{}
+
+	for _, r := range rows {
+		name := r.Row.InvokedAgent
+		if name == "" {
+			name = unknownAgent
+		}
+
+		byAgent[name] = byAgent[name].Add(r.Amount())
+	}
+
+	agents := make([]agentCost, 0, len(byAgent))
+	for name, cost := range byAgent {
+		agents = append(agents, agentCost{name, cost})
+	}
+
+	sort.Slice(agents, func(i, j int) bool {
+		a, b := agents[i], agents[j]
+		if ra, rb := agentRank(a.name), agentRank(b.name); ra != rb {
+			return ra < rb
+		}
+
+		if a.cost.USD != b.cost.USD {
+			return a.cost.USD > b.cost.USD
+		}
+
+		return a.name < b.name
+	})
+
+	var sb strings.Builder
+
+	sb.WriteString("### By agent\n\n")
+
+	for _, a := range agents {
+		fmt.Fprintf(&sb, "**%s** — %s\n\n", a.name, a.cost)
+	}
+
+	return sb.String()
+}
+
+func agentRank(name string) int {
+	switch strings.ToLower(strings.TrimPrefix(strings.ToLower(name), "bit:")) {
+	case "bot":
+		return 0
+	case "ruler", "theruler":
+		return 1
+	case "creator", "thecreator":
+		return 2
+	case unknownAgent:
+		return 4
+	default:
+		return 3
+	}
 }
 
 func formatTokens(n int64) string {

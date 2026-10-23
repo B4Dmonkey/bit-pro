@@ -70,6 +70,47 @@ func TestRender(t *testing.T) {
 		}
 	})
 
+	t.Run("agents grouped then by cost", func(t *testing.T) {
+		row := func(agent string, tokens int64) Priced {
+			return Priced{Row: orm.Usage{InvokedAgent: agent, InputTokens: tokens}, Price: opus}
+		}
+
+		got := Render(task.StatusDoing, []Priced{
+			row("bit:theCreator", 250_000),
+			row("main", 500_000),
+			row("bit:ruler", 750_000),
+			row("bit:bot", 50_000),
+			row("other", 1_000_000),
+		})
+
+		heads := []string{
+			"**bit:bot** — $0.20",
+			"**bit:ruler** — $3.00",
+			"**bit:theCreator** — $1.00",
+			"**other** — $4.00",
+			"**main** — $2.00",
+		}
+
+		if !strings.Contains(got, "### By agent") {
+			t.Fatalf("Render() = %q, want a By agent section", got)
+		}
+
+		prev := -1
+
+		for _, h := range heads {
+			i := strings.Index(got, h)
+			if i < 0 || i < prev {
+				t.Fatalf("Render() = %q, want %q after the previous head", got, h)
+			}
+
+			prev = i
+		}
+
+		if want := "| Total cost | $10.20 |"; !strings.Contains(got, want) {
+			t.Errorf("Render() = %q, want it to contain %q", got, want)
+		}
+	})
+
 	t.Run("token formats", func(t *testing.T) {
 		tests := []struct {
 			n    int64
