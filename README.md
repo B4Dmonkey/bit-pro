@@ -130,3 +130,4 @@ rm -rf "${XDG_DATA_HOME:-$HOME/.local/share}/bit"
 
 - [Backlog.md](https://github.com/MrLesk/Backlog.md) — git-native markdown tasks, board UI.
 - [kanban-md](https://github.com/antopolskiy/kanban-md) — markdown-backed kanban with filtering.
+- [ccusage](https://github.com/ryoppippi/ccusage) — Claude Code usage and cost analysis from local transcripts.
