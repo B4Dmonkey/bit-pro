@@ -2,14 +2,19 @@ package cmd
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 
+	"github.com/B4Dmonkey/bit-pro/db"
+	"github.com/B4Dmonkey/bit-pro/db/orm"
 	"github.com/B4Dmonkey/bit-pro/git"
 	"github.com/B4Dmonkey/bit-pro/mergecheck"
 	"github.com/B4Dmonkey/bit-pro/project"
 	"github.com/B4Dmonkey/bit-pro/task"
+	"github.com/B4Dmonkey/bit-pro/usage"
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
@@ -33,6 +38,7 @@ const (
 	retroWriteTool    = "retro_write"
 	retroListTool     = "retro_list"
 	retroReadTool     = "retro_read"
+	costReadTool      = "cost_read"
 
 	statusProperty = "status"
 )
@@ -165,6 +171,11 @@ lists none. With a topic, it returns that topic's body. By convention, read the 
 it summarizes the findings and links to the other topics, so only the ones that matter need to be
 opened.`
 
+const costReadDescription = `Read a track's cost: total dollars and tokens, built from stored usage when read.
+
+A track is a top-level task, whose ID has no dot, as in BIT-7. The markdown has the total cost and
+the total tokens (in is everything sent, including cache writes and reads; out is output).`
+
 type taskReadInput struct {
 	ID string `json:"id"`
 }
@@ -290,6 +301,14 @@ type researchWriteOutput struct {
 	Path string `json:"path"`
 }
 
+type costReadInput struct {
+	Track string `json:"track"`
+}
+
+type costReadOutput struct {
+	Markdown string `json:"markdown"`
+}
+
 type researchReadInput struct {
 	Track string `json:"track"`
 	Topic string `json:"topic,omitempty"`
@@ -373,6 +392,7 @@ func runMCPServer(ctx context.Context, root string, run git.Runner, transport mc
 		Name:        researchReadTool,
 		Description: researchReadDescription,
 	}, researchReadHandler(root))
+	mcp.AddTool(s, &mcp.Tool{Name: costReadTool, Description: costReadDescription}, costReadHandler(root))
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        taskCompleteTool,
 		Description: taskCompleteDescription,
@@ -794,6 +814,50 @@ func researchReadHandler(root string) mcp.ToolHandlerFor[researchReadInput, rese
 		}
 
 		return nil, researchReadOutput{Body: body}, nil
+	}
+}
+
+func costReadHandler(root string) mcp.ToolHandlerFor[costReadInput, costReadOutput] {
+	return func(
+		ctx context.Context,
+		_ *mcp.CallToolRequest,
+		in costReadInput,
+	) (*mcp.CallToolResult, costReadOutput, error) {
+		dir, err := sessionDir(root)
+		if err != nil {
+			return nil, costReadOutput{}, err
+		}
+
+		p, err := project.Find(ctx, dir)
+		if err != nil {
+			return nil, costReadOutput{}, err
+		}
+
+		sqlDB, err := db.Open()
+		if err != nil {
+			return nil, costReadOutput{}, err
+		}
+		defer sqlDB.Close()
+
+		q := orm.New(sqlDB)
+
+		rows, err := q.UsageForTrack(ctx, orm.UsageForTrackParams{ProjectID: p.ID, Track: in.Track})
+		if err != nil {
+			return nil, costReadOutput{}, fmt.Errorf("loading usage for %s: %w", in.Track, err)
+		}
+
+		priced := make([]usage.Priced, 0, len(rows))
+
+		for _, r := range rows {
+			price, err := q.PriceAt(ctx, orm.PriceAtParams{Model: r.Model, EffectiveFrom: r.Ts})
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				return nil, costReadOutput{}, fmt.Errorf("pricing %s: %w", r.Model, err)
+			}
+
+			priced = append(priced, usage.Priced{Row: r, Price: price})
+		}
+
+		return nil, costReadOutput{Markdown: usage.Render(priced)}, nil
 	}
 }
 

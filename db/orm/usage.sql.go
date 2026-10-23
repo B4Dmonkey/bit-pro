@@ -101,3 +101,60 @@ func (q *Queries) UpsertUsage(ctx context.Context, arg UpsertUsageParams) error 
 	)
 	return err
 }
+
+const usageForTrack = `-- name: UsageForTrack :many
+SELECT id, project_id, session_id, agent_id, agent_type, parent_agent_id, invoked_agent, skill, skill_invocation, track, bar, message_id, request_id, entry, ts, model, speed, is_sidechain, cc_version, input_tokens, cache_write_5m_tokens, cache_write_1h_tokens, cache_read_tokens, output_tokens FROM usage WHERE project_id = ? AND track = ? ORDER BY ts
+`
+
+type UsageForTrackParams struct {
+	ProjectID int64
+	Track     string
+}
+
+func (q *Queries) UsageForTrack(ctx context.Context, arg UsageForTrackParams) ([]Usage, error) {
+	rows, err := q.db.QueryContext(ctx, usageForTrack, arg.ProjectID, arg.Track)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Usage
+	for rows.Next() {
+		var i Usage
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProjectID,
+			&i.SessionID,
+			&i.AgentID,
+			&i.AgentType,
+			&i.ParentAgentID,
+			&i.InvokedAgent,
+			&i.Skill,
+			&i.SkillInvocation,
+			&i.Track,
+			&i.Bar,
+			&i.MessageID,
+			&i.RequestID,
+			&i.Entry,
+			&i.Ts,
+			&i.Model,
+			&i.Speed,
+			&i.IsSidechain,
+			&i.CcVersion,
+			&i.InputTokens,
+			&i.CacheWrite5mTokens,
+			&i.CacheWrite1hTokens,
+			&i.CacheReadTokens,
+			&i.OutputTokens,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

@@ -34,3 +34,6 @@ WHERE (excluded.is_sidechain = 0 AND usage.is_sidechain = 1)
         >= usage.input_tokens + usage.cache_write_5m_tokens + usage.cache_write_1h_tokens
             + usage.cache_read_tokens + usage.output_tokens
     );
+
+-- name: UsageForTrack :many
+SELECT * FROM usage WHERE project_id = ? AND track = ? ORDER BY ts;
