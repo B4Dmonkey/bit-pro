@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/B4Dmonkey/bit-pro/db/orm"
+	"github.com/B4Dmonkey/bit-pro/task"
 )
 
 func TestRender(t *testing.T) {
@@ -12,7 +13,7 @@ func TestRender(t *testing.T) {
 	sonnet := orm.ModelPrice{CacheRead: rate(0.20), Output: rate(10)}
 
 	t.Run("totals across models", func(t *testing.T) {
-		got := Render([]Priced{
+		got := Render(task.StatusDoing, []Priced{
 			{Row: orm.Usage{InputTokens: 1_000_000}, Price: opus},
 			{Row: orm.Usage{CacheReadTokens: 1_000_000, OutputTokens: 100_000}, Price: sonnet},
 		})
@@ -25,7 +26,7 @@ func TestRender(t *testing.T) {
 	})
 
 	t.Run("unknown model marks the total", func(t *testing.T) {
-		got := Render([]Priced{
+		got := Render(task.StatusDoing, []Priced{
 			{Row: orm.Usage{InputTokens: 1_000_000}, Price: opus},
 			{Row: orm.Usage{Model: "claude-nextgen-9", InputTokens: 10, OutputTokens: 10}, Missing: true},
 		})
@@ -38,9 +39,33 @@ func TestRender(t *testing.T) {
 	})
 
 	t.Run("only unknown", func(t *testing.T) {
-		got := Render([]Priced{{Row: orm.Usage{InputTokens: 10}, Missing: true}})
+		got := Render(task.StatusDoing, []Priced{{Row: orm.Usage{InputTokens: 10}, Missing: true}})
 
 		if want := "| Total cost | unknown |"; !strings.Contains(got, want) {
+			t.Errorf("Render() = %q, want it to contain %q", got, want)
+		}
+	})
+
+	t.Run("as of the latest row", func(t *testing.T) {
+		got := Render(task.StatusDoing, []Priced{
+			{Row: orm.Usage{Ts: "2026-10-14T23:30:00Z", InputTokens: 1}, Price: opus},
+			{Row: orm.Usage{Ts: "2026-10-20T09:00:00Z", InputTokens: 1}, Price: opus},
+		})
+
+		lines := strings.Split(strings.TrimSpace(got), "\n")
+		if want := "_as of 2026-10-20_"; lines[0] != want {
+			t.Errorf("first line = %q, want %q", lines[0], want)
+		}
+
+		if last := lines[len(lines)-1]; last != closingNote {
+			t.Errorf("last line = %q, want %q", last, closingNote)
+		}
+	})
+
+	t.Run("done track is marked complete", func(t *testing.T) {
+		got := Render(task.StatusDone, []Priced{{Row: orm.Usage{Ts: "2026-10-20T09:00:00Z", InputTokens: 1}, Price: opus}})
+
+		if want := "_as of 2026-10-20 (track complete)_"; !strings.Contains(got, want) {
 			t.Errorf("Render() = %q, want it to contain %q", got, want)
 		}
 	})

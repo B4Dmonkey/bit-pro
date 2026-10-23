@@ -833,6 +833,16 @@ func costReadHandler(root string) mcp.ToolHandlerFor[costReadInput, costReadOutp
 			return nil, costReadOutput{}, err
 		}
 
+		store, err := mcpStore(ctx, root)
+		if err != nil {
+			return nil, costReadOutput{}, err
+		}
+
+		status, err := trackStatus(store, in.Track)
+		if err != nil {
+			return nil, costReadOutput{}, err
+		}
+
 		sqlDB, err := db.Open()
 		if err != nil {
 			return nil, costReadOutput{}, err
@@ -859,8 +869,23 @@ func costReadHandler(root string) mcp.ToolHandlerFor[costReadInput, costReadOutp
 			priced = append(priced, usage.Priced{Row: r, Price: price, Missing: missing})
 		}
 
-		return nil, costReadOutput{Markdown: usage.Render(priced)}, nil
+		return nil, costReadOutput{Markdown: usage.Render(status, priced)}, nil
 	}
+}
+
+func trackStatus(store *task.Store, id string) (string, error) {
+	var lastErr error
+
+	for _, place := range []task.Place{task.Active, task.Completed, task.Archived} {
+		t, err := store.LoadFrom(place, id)
+		if err == nil {
+			return t.Status, nil
+		}
+
+		lastErr = err
+	}
+
+	return "", lastErr
 }
 
 func retroListHandler(root string) mcp.ToolHandlerFor[retroListInput, retroListOutput] {

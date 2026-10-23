@@ -48,10 +48,29 @@ func TestCostRead(t *testing.T) {
 		got := callTool(t, mcpSession(t, dir), costReadTool, map[string]any{testTrackKey: testTrackID})
 
 		md, _ := got[testMarkdownKey].(string)
-		for _, want := range []string{"| Total cost | $5.20 |", "| Total tokens | 2.10M (in 2.00M · out 100K) |"} {
+		for _, want := range []string{
+			"_as of 2026-10-22_", "| Total cost | $5.20 |", "| Total tokens | 2.10M (in 2.00M · out 100K) |",
+		} {
 			if !strings.Contains(md, want) {
 				t.Errorf("markdown = %q, want it to contain %q", md, want)
 			}
+		}
+	})
+
+	t.Run("completed track", func(t *testing.T) {
+		dir := t.TempDir()
+		seedTasks(t, dir, &task.Task{ID: testTrackID, Title: testTitle, Status: task.StatusDone})
+		seedUsage(t, dir, "m1", "claude-opus-5-5", 1_000_000, 0, 0)
+
+		if err := openProjectStore(t, dir).Complete(testTrackID); err != nil {
+			t.Fatal(err)
+		}
+
+		got := callTool(t, mcpSession(t, dir), costReadTool, map[string]any{testTrackKey: testTrackID})
+
+		md, _ := got[testMarkdownKey].(string)
+		if want := "_as of 2026-10-22 (track complete)_"; !strings.Contains(md, want) {
+			t.Errorf("markdown = %q, want it to contain %q", md, want)
 		}
 	})
 }
