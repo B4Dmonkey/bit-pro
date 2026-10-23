@@ -127,6 +127,35 @@ func TestParse(t *testing.T) {
 		}
 	})
 
+	t.Run("bar targets from read and create", func(t *testing.T) {
+		create := strings.Replace(assistant("msg_03", "", 20), `[{"type":"text","text":"x"}]`,
+			`[{"type":"tool_use","id":"toolu_05","name":"mcp__bit__task_create","input":{"parent":"BIT-1","title":"t"}}]`, 1)
+		result := `{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_05","content":"x"}]},` +
+			`"toolUseResult":{"id":"BIT-1.2"}}`
+		in := strings.Join([]string{
+			assistant("msg_01", "BIT-1", 5), assistant("msg_02", "BIT-1.1", 10), create, result, assistant("msg_04", "", 100),
+		}, "\n")
+
+		entries, err := Parse(strings.NewReader(in))
+		if err != nil {
+			t.Fatalf("Parse() returned error: %v", err)
+		}
+
+		var bars, tracks []string
+		for _, e := range entries {
+			bars = append(bars, e.Bar)
+			tracks = append(tracks, e.Track)
+		}
+
+		if want := ",BIT-1.1,BIT-1.1,BIT-1.2"; strings.Join(bars, ",") != want {
+			t.Errorf("bars = %q, want %q", strings.Join(bars, ","), want)
+		}
+
+		if want := "BIT-1,BIT-1,BIT-1,BIT-1"; strings.Join(tracks, ",") != want {
+			t.Errorf("tracks = %q, want %q", strings.Join(tracks, ","), want)
+		}
+	})
+
 	t.Run("skips non-assistant lines", func(t *testing.T) {
 		entries, err := Parse(strings.NewReader(`{"type":"user"}` + "\n"))
 		if err != nil || len(entries) != 0 {

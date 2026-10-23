@@ -20,7 +20,7 @@ type Priced struct {
 	Missing bool
 }
 
-func Render(status string, rows []Priced) string {
+func Render(status string, rows []Priced, bars []*task.Task) string {
 	var cost Amount
 
 	var in, out int64
@@ -48,8 +48,77 @@ func Render(status string, rows []Priced) string {
 		asOf = fmt.Sprintf("_as of %s%s_\n\n", latest.UTC().Format(time.DateOnly), suffix)
 	}
 
-	return fmt.Sprintf("%s| Total cost | %s |\n| Total tokens | %s (in %s · out %s) |\n\n%s\n%s\n",
-		asOf, cost, formatTokens(in+out), formatTokens(in), formatTokens(out), renderAgents(rows), closingNote)
+	return fmt.Sprintf("%s| Total cost | %s |\n| Total tokens | %s (in %s · out %s) |\n\n%s%s\n%s\n",
+		asOf, cost, formatTokens(in+out), formatTokens(in), formatTokens(out),
+		renderAgents(rows), renderBars(rows, bars), closingNote)
+}
+
+const barsNote = "_bar-level work only — the agent totals above include it too_"
+
+func renderBars(rows []Priced, bars []*task.Task) string {
+	byBar := map[string]Amount{}
+
+	for _, r := range rows {
+		if r.Row.Bar != "" {
+			byBar[r.Row.Bar] = byBar[r.Row.Bar].Add(r.Amount())
+		}
+	}
+
+	type verse struct {
+		phase int
+		label string
+		cost  Amount
+		bars  []*task.Task
+	}
+
+	var verses []*verse
+
+	byPhase := map[int]*verse{}
+
+	for _, b := range bars {
+		cost, ok := byBar[b.ID]
+		if !ok {
+			continue
+		}
+
+		v := byPhase[b.Phase]
+		if v == nil {
+			v = &verse{phase: b.Phase, label: b.PhaseLabel}
+			byPhase[b.Phase] = v
+			verses = append(verses, v)
+		}
+
+		v.cost = v.cost.Add(cost)
+		v.bars = append(v.bars, b)
+	}
+
+	if len(verses) == 0 {
+		return ""
+	}
+
+	sort.SliceStable(verses, func(i, j int) bool { return verses[i].phase < verses[j].phase })
+
+	var sb strings.Builder
+
+	sb.WriteString("### By verse / bar\n\n| Verse / bar | Skills | Cost |\n|---|---|---:|\n")
+
+	for _, v := range verses {
+		fmt.Fprintf(&sb, "| **Verse %d — %s** | | **%s** |\n", v.phase, v.label, v.cost)
+
+		for _, b := range v.bars {
+			fmt.Fprintf(&sb, "| ↳ Bar %s | | %s |\n", barNumber(b.ID), byBar[b.ID])
+		}
+	}
+
+	return sb.String() + "\n" + barsNote + "\n\n"
+}
+
+func barNumber(id string) string {
+	if _, n, ok := strings.Cut(id, "-"); ok {
+		return n
+	}
+
+	return id
 }
 
 const unknownAgent = "unknown"

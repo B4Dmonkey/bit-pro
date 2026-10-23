@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/B4Dmonkey/bit-pro/db"
@@ -843,6 +845,11 @@ func costReadHandler(root string) mcp.ToolHandlerFor[costReadInput, costReadOutp
 			return nil, costReadOutput{}, err
 		}
 
+		bars, err := trackBars(store, in.Track)
+		if err != nil {
+			return nil, costReadOutput{}, err
+		}
+
 		sqlDB, err := db.Open()
 		if err != nil {
 			return nil, costReadOutput{}, err
@@ -869,8 +876,45 @@ func costReadHandler(root string) mcp.ToolHandlerFor[costReadInput, costReadOutp
 			priced = append(priced, usage.Priced{Row: r, Price: price, Missing: missing})
 		}
 
-		return nil, costReadOutput{Markdown: usage.Render(status, priced)}, nil
+		return nil, costReadOutput{Markdown: usage.Render(status, priced, bars)}, nil
 	}
+}
+
+func trackBars(store *task.Store, track string) ([]*task.Task, error) {
+	track = task.NormalizeID(track)
+
+	var bars []*task.Task
+
+	for _, place := range []task.Place{task.Active, task.Completed, task.Archived} {
+		ids, err := store.IDs(place)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, id := range ids {
+			if !strings.HasPrefix(id, track+".") {
+				continue
+			}
+
+			b, err := store.LoadFrom(place, id)
+			if err != nil {
+				return nil, err
+			}
+
+			bars = append(bars, b)
+		}
+	}
+
+	sort.SliceStable(bars, func(i, j int) bool { return barSeq(bars[i].ID) < barSeq(bars[j].ID) })
+
+	return bars, nil
+}
+
+func barSeq(id string) int {
+	_, n, _ := strings.Cut(id, ".")
+	seq, _ := strconv.Atoi(n)
+
+	return seq
 }
 
 func trackStatus(store *task.Store, id string) (string, error) {

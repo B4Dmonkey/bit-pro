@@ -52,16 +52,21 @@ func newReceiptCmd() *cobra.Command {
 	}
 }
 
+func (p hookPayload) subagent() (string, string) {
+	if p.HookEventName == "SubagentStop" {
+		return p.AgentID, p.AgentType
+	}
+
+	return "", ""
+}
+
 func storeUsage(ctx context.Context, projectID int64, payload hookPayload) error {
 	invoked, err := invokedAgent(payload.TranscriptPath)
 	if err != nil {
 		return err
 	}
 
-	agentID, agentType := "", ""
-	if payload.HookEventName == "SubagentStop" {
-		agentID, agentType = payload.AgentID, payload.AgentType
-	}
+	agentID, agentType := payload.subagent()
 
 	entries, err := readEntries(payload)
 	if err != nil {
@@ -94,6 +99,7 @@ func storeUsage(ctx context.Context, projectID int64, payload hookPayload) error
 			AgentType:          agentType,
 			InvokedAgent:       invoked,
 			Track:              e.Track,
+			Bar:                e.Bar,
 			MessageID:          e.MessageID,
 			RequestID:          e.RequestID,
 			Ts:                 e.Timestamp,

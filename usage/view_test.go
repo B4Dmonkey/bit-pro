@@ -16,7 +16,7 @@ func TestRender(t *testing.T) {
 		got := Render(task.StatusDoing, []Priced{
 			{Row: orm.Usage{InputTokens: 1_000_000}, Price: opus},
 			{Row: orm.Usage{CacheReadTokens: 1_000_000, OutputTokens: 100_000}, Price: sonnet},
-		})
+		}, nil)
 
 		for _, want := range []string{"| Total cost | $5.20 |", "| Total tokens | 2.10M (in 2.00M · out 100K) |"} {
 			if !strings.Contains(got, want) {
@@ -29,7 +29,7 @@ func TestRender(t *testing.T) {
 		got := Render(task.StatusDoing, []Priced{
 			{Row: orm.Usage{InputTokens: 1_000_000}, Price: opus},
 			{Row: orm.Usage{Model: "claude-nextgen-9", InputTokens: 10, OutputTokens: 10}, Missing: true},
-		})
+		}, nil)
 
 		for _, want := range []string{"| Total cost | $4.00 + unknown |", "| Total tokens | 1.00M (in 1.00M · out 10) |"} {
 			if !strings.Contains(got, want) {
@@ -39,7 +39,7 @@ func TestRender(t *testing.T) {
 	})
 
 	t.Run("only unknown", func(t *testing.T) {
-		got := Render(task.StatusDoing, []Priced{{Row: orm.Usage{InputTokens: 10}, Missing: true}})
+		got := Render(task.StatusDoing, []Priced{{Row: orm.Usage{InputTokens: 10}, Missing: true}}, nil)
 
 		if want := "| Total cost | unknown |"; !strings.Contains(got, want) {
 			t.Errorf("Render() = %q, want it to contain %q", got, want)
@@ -50,7 +50,7 @@ func TestRender(t *testing.T) {
 		got := Render(task.StatusDoing, []Priced{
 			{Row: orm.Usage{Ts: "2026-10-14T23:30:00Z", InputTokens: 1}, Price: opus},
 			{Row: orm.Usage{Ts: "2026-10-20T09:00:00Z", InputTokens: 1}, Price: opus},
-		})
+		}, nil)
 
 		lines := strings.Split(strings.TrimSpace(got), "\n")
 		if want := "_as of 2026-10-20_"; lines[0] != want {
@@ -63,7 +63,8 @@ func TestRender(t *testing.T) {
 	})
 
 	t.Run("done track is marked complete", func(t *testing.T) {
-		got := Render(task.StatusDone, []Priced{{Row: orm.Usage{Ts: "2026-10-20T09:00:00Z", InputTokens: 1}, Price: opus}})
+		row := Priced{Row: orm.Usage{Ts: "2026-10-20T09:00:00Z", InputTokens: 1}, Price: opus}
+		got := Render(task.StatusDone, []Priced{row}, nil)
 
 		if want := "_as of 2026-10-20 (track complete)_"; !strings.Contains(got, want) {
 			t.Errorf("Render() = %q, want it to contain %q", got, want)
@@ -81,7 +82,7 @@ func TestRender(t *testing.T) {
 			row("bit:ruler", 750_000),
 			row("bit:bot", 50_000),
 			row("other", 1_000_000),
-		})
+		}, nil)
 
 		heads := []string{
 			"**bit:bot** — $0.20",
