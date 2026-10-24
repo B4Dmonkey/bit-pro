@@ -50,7 +50,7 @@ func TestOpen(t *testing.T) {
 			t.Fatalf("iterating tables: %v", err)
 		}
 
-		if want := []string{"projects", "schema_migrations"}; !slices.Equal(tables, want) {
+		if want := []string{"model_prices", "projects", "schema_migrations", "usage"}; !slices.Equal(tables, want) {
 			t.Errorf("tables = %v, want %v", tables, want)
 		}
 
@@ -59,8 +59,39 @@ func TestOpen(t *testing.T) {
 			t.Fatalf("counting applied migrations: %v", err)
 		}
 
-		if applied != 1 {
-			t.Errorf("applied migrations = %d, want 1", applied)
+		if applied != 3 {
+			t.Errorf("applied migrations = %d, want 3", applied)
+		}
+	})
+
+	t.Run("connection waits on locks and enforces foreign keys", func(t *testing.T) {
+		t.Setenv("HOME", t.TempDir())
+		t.Setenv("XDG_DATA_HOME", "")
+
+		sqlDB, err := Open()
+		if err != nil {
+			t.Fatalf("Open() returned error: %v", err)
+		}
+		defer sqlDB.Close()
+
+		tests := []struct {
+			pragma string
+			want   string
+		}{
+			{"busy_timeout", "5000"},
+			{"journal_mode", "wal"},
+			{"foreign_keys", "1"},
+		}
+
+		for _, tt := range tests {
+			var got string
+			if err := sqlDB.QueryRow("PRAGMA " + tt.pragma).Scan(&got); err != nil {
+				t.Fatalf("PRAGMA %s returned error: %v", tt.pragma, err)
+			}
+
+			if got != tt.want {
+				t.Errorf("PRAGMA %s = %q, want %q", tt.pragma, got, tt.want)
+			}
 		}
 	})
 }
