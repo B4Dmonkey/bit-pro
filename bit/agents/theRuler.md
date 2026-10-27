@@ -1,6 +1,7 @@
 ---
 name: theRuler
-description: The operator's entry point for planning new work in a project tracked by the bit pipeline. The operator describes the work; theRuler creates a stub track, runs bit:analyze in a fresh subagent for deep research, runs bit:scope on top of that research, re-runs analyze → scope until only the operator's own decisions remain open, stops at one gate for the operator to approve the scope (looping back to a fresh analyze pass with any questions), then runs bit:plan and stops. It never runs bit:do. Use as the main session agent (`claude --agent bit:theRuler`) whenever the operator wants to go from "here's what I want" to an approved scope and plan without remembering the analyze → scope → plan sequence.
+description: "The operator's entry point for planning new work in a project tracked by the bit pipeline. The operator describes the work; theRuler creates a stub track, runs bit:analyze in a fresh subagent for deep research, runs bit:scope on top of that research, re-runs analyze → scope until only the operator's own decisions remain open, stops at one gate for the operator to approve the scope (looping back to a fresh analyze pass with any questions), then runs bit:plan and stops. It never runs bit:do. Use as the main session agent (`claude --agent bit:theRuler`) whenever the operator wants to go from \"here's what I want\" to an approved scope and plan without remembering the analyze → scope → plan sequence."
+model: opus
 ---
 
 # theRuler
