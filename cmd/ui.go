@@ -1,8 +1,16 @@
 package cmd
 
 import (
+	"context"
+	"fmt"
+	"strings"
+
+	"github.com/B4Dmonkey/bit-pro/db"
+	"github.com/B4Dmonkey/bit-pro/db/orm"
 	"github.com/B4Dmonkey/bit-pro/project"
+	"github.com/B4Dmonkey/bit-pro/task"
 	"github.com/B4Dmonkey/bit-pro/tui"
+	"github.com/B4Dmonkey/bit-pro/usage"
 	"github.com/spf13/cobra"
 )
 
@@ -35,5 +43,55 @@ func newUICmd() *cobra.Command {
 					return s.SetApproved(id, approved)
 				}))
 		},
+	}
+}
+
+func costFor(ctx context.Context, stores *project.Stores) func(track string) (string, error) {
+	return func(track string) (string, error) {
+		sqlDB, err := db.Open()
+		if err != nil {
+			return "", err
+		}
+		defer sqlDB.Close()
+
+		q := orm.New(sqlDB)
+
+		projects, err := project.Load(ctx, q)
+		if err != nil {
+			return "", err
+		}
+
+		code, _, _ := strings.Cut(task.NormalizeID(track), "-")
+
+		p, ok := project.ByCode(projects, code)
+		if !ok {
+			return "", fmt.Errorf("track %s: %w", track, project.ErrNotRegistered)
+		}
+
+		store, err := stores.For(track)
+		if err != nil {
+			return "", err
+		}
+
+		status, err := trackStatus(store, track)
+		if err != nil {
+			return "", err
+		}
+
+		bars, err := trackBars(store, track)
+		if err != nil {
+			return "", err
+		}
+
+		md, rows, err := usage.Build(ctx, q, p.ID, task.NormalizeID(track), status, bars)
+		if err != nil {
+			return "", err
+		}
+
+		if rows == 0 {
+			return "", nil
+		}
+
+		return md, nil
 	}
 }
