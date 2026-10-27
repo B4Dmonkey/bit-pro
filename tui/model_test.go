@@ -926,6 +926,120 @@ func TestUpdate(t *testing.T) {
 			t.Errorf("modalOpen = %v, want false", got)
 		}
 	})
+
+	t.Run("cost shown under body", func(t *testing.T) {
+		t.Parallel()
+
+		var calls []string
+
+		m := New([]*task.Task{{ID: ttid1, Body: "## Why\nbecause"}}).WithCost(func(id string) (string, error) {
+			calls = append(calls, id)
+
+			return "_as of 2026-10-22_\n\n| Total cost | $5.20 |", nil
+		})
+
+		sized, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+		msg := sized.(model).costCmd()()
+		updated, _ := sized.Update(msg)
+		got := updated.(model)
+
+		view := got.viewport.View()
+		why, cost, total := strings.Index(view, "Why"), strings.Index(view, "Cost"), strings.Index(view, "$5.20")
+
+		if why < 0 || cost <= why || total <= cost {
+			t.Errorf("viewport order Why=%d Cost=%d $5.20=%d, want ascending", why, cost, total)
+		}
+
+		if !slices.Equal(calls, []string{ttid1}) {
+			t.Errorf("cost calls = %v, want [%s]", calls, ttid1)
+		}
+
+		if len(got.costs) != 1 {
+			t.Errorf("len(costs) = %d, want 1", len(got.costs))
+		}
+	})
+
+	t.Run("bar shows body only", func(t *testing.T) {
+		t.Parallel()
+
+		calls := 0
+
+		m := New([]*task.Task{{ID: ttid1}, {ID: ttid1_1, Body: ttBody}}).WithCost(func(string) (string, error) {
+			calls++
+
+			return "x", nil
+		})
+
+		mdl, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+
+		got := mdl.(model)
+
+		if sel := got.selected(); sel == nil || sel.ID != ttid1_1 {
+			t.Fatalf("selected = %v, want %s", sel, ttid1_1)
+		}
+
+		if got.costCmd() != nil {
+			t.Error("costCmd() for a bar = non-nil, want nil")
+		}
+
+		if calls != 0 {
+			t.Errorf("cost calls = %d, want 0", calls)
+		}
+
+		if strings.Contains(got.viewport.View(), "Cost") {
+			t.Error("bar viewport contains Cost, want body only")
+		}
+	})
+
+	t.Run("cost without usage says so", func(t *testing.T) {
+		t.Parallel()
+
+		m := New([]*task.Task{{ID: ttid1, Body: ttBody}}).WithCost(func(string) (string, error) { return "", nil })
+
+		sized, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+		updated, _ := sized.Update(sized.(model).costCmd()())
+
+		view := updated.(model).viewport.View()
+
+		if !strings.Contains(view, "Cost") || !strings.Contains(view, "no usage recorded") {
+			t.Errorf("viewport = %q, want Cost and no usage recorded", view)
+		}
+	})
+
+	t.Run("cost error keeps body", func(t *testing.T) {
+		t.Parallel()
+
+		m := New([]*task.Task{{ID: ttid1, Body: ttBody}}).WithCost(func(string) (string, error) {
+			return "", errors.New("boom")
+		})
+
+		sized, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+		updated, _ := sized.Update(sized.(model).costCmd()())
+
+		view := updated.(model).viewport.View()
+
+		if !strings.Contains(view, ttBody) || strings.Contains(view, "Cost") {
+			t.Errorf("viewport = %q, want body and no Cost", view)
+		}
+	})
+
+	t.Run("no cost func renders body only", func(t *testing.T) {
+		t.Parallel()
+
+		m := New([]*task.Task{{ID: ttid1, Body: ttBody}})
+
+		if m.costCmd() != nil {
+			t.Error("costCmd() with no WithCost = non-nil, want nil")
+		}
+
+		sized, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+		if strings.Contains(sized.(model).viewport.View(), "Cost") {
+			t.Error("viewport contains Cost without WithCost")
+		}
+	})
 }
 
 func TestInit(t *testing.T) {
