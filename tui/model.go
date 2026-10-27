@@ -84,6 +84,7 @@ type model struct {
 	approve       func(id string, approved bool) error
 	cost          func(track string) (string, error)
 	costs         map[string]string
+	costInFlight  map[string]bool
 	loaded        []*task.Task
 	detailFocused bool
 	modalOpen     bool
@@ -137,6 +138,7 @@ func New(tasks []*task.Task) model {
 		loaded:        tasks,
 		expanded:      expanded,
 		costs:         map[string]string{},
+		costInFlight:  map[string]bool{},
 	}
 }
 
@@ -186,11 +188,12 @@ func (m model) Init() tea.Cmd {
 
 func (m model) costCmd() tea.Cmd {
 	t := m.selected()
-	if m.cost == nil || t == nil || isBar(t.ID) {
+	if m.cost == nil || t == nil || isBar(t.ID) || m.costInFlight[t.ID] {
 		return nil
 	}
 
 	cost, id := m.cost, t.ID
+	m.costInFlight[id] = true
 
 	return func() tea.Msg {
 		md, err := cost(id)
@@ -200,7 +203,13 @@ func (m model) costCmd() tea.Cmd {
 }
 
 func (m model) handleCost(msg costMsg) (tea.Model, tea.Cmd) {
+	delete(m.costInFlight, msg.track)
+
 	if msg.err != nil {
+		return m, nil
+	}
+
+	if prev, ok := m.costs[msg.track]; ok && prev == msg.md {
 		return m, nil
 	}
 
@@ -267,12 +276,12 @@ func (m model) handleReloaded(msg reloadedMsg) (tea.Model, tea.Cmd) {
 	}
 
 	if sameTasks(m.loaded, msg.tasks) {
-		return m, tick()
+		return m, tea.Batch(tick(), m.costCmd())
 	}
 
 	m.setTasks(msg.tasks)
 
-	return m, tick()
+	return m, tea.Batch(tick(), m.costCmd())
 }
 
 func (m model) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {

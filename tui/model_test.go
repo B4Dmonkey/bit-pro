@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -1040,6 +1041,144 @@ func TestUpdate(t *testing.T) {
 			t.Error("viewport contains Cost without WithCost")
 		}
 	})
+
+	t.Run("poll refetches cost on unchanged tasks", func(t *testing.T) {
+		t.Parallel()
+
+		calls := 0
+		tasks := []*task.Task{{ID: ttid1, Body: "b"}}
+
+		m := New(tasks).WithCost(func(string) (string, error) {
+			calls++
+
+			return "| Total cost | $" + map[int]string{1: "5.20", 2: "6.40"}[calls] + " |", nil
+		})
+
+		sized, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+		first, _ := sized.Update(sized.(model).costCmd()())
+		polled, cmd := first.Update(reloadedMsg{tasks: tasks})
+
+		msgs, n := runCmds(cmd)
+		if n != 2 {
+			t.Fatalf("poll returned %d cmds, want 2 (tick and cost)", n)
+		}
+
+		last := tea.Model(polled)
+
+		for _, msg := range msgs {
+			last, _ = last.Update(msg)
+		}
+
+		view := last.(model).viewport.View()
+		if !strings.Contains(view, "$6.40") || strings.Contains(view, "$5.20") {
+			t.Errorf("viewport = %q, want $6.40 and not $5.20", view)
+		}
+
+		if calls != 2 {
+			t.Errorf("cost calls = %d, want 2", calls)
+		}
+	})
+
+	t.Run("poll on a bar does not fetch cost", func(t *testing.T) {
+		t.Parallel()
+
+		calls := 0
+		tasks := []*task.Task{{ID: ttid1}, {ID: ttid1_1, Body: ttBody}}
+
+		m := New(tasks).WithCost(func(string) (string, error) {
+			calls++
+
+			return "x", nil
+		})
+
+		mdl, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+		mdl, _ = mdl.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+		_, cmd := mdl.Update(reloadedMsg{tasks: tasks})
+
+		if _, n := runCmds(cmd); n != 1 {
+			t.Errorf("poll on a bar returned %d cmds, want 1 (tick)", n)
+		}
+
+		if calls != 0 {
+			t.Errorf("cost calls = %d, want 0", calls)
+		}
+	})
+
+	t.Run("poll skips cost while a fetch is in flight", func(t *testing.T) {
+		t.Parallel()
+
+		calls := 0
+		tasks := []*task.Task{{ID: ttid1, Body: "b"}}
+
+		m := New(tasks).WithCost(func(string) (string, error) {
+			calls++
+
+			return "x", nil
+		})
+
+		sized, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+		pending := sized.(model).costCmd()
+		msg := pending()
+
+		_, second := sized.Update(reloadedMsg{tasks: tasks})
+		if _, n := runCmds(second); n != 1 {
+			t.Errorf("poll while in flight returned %d cmds, want 1 (tick)", n)
+		}
+
+		if calls != 1 {
+			t.Errorf("cost calls = %d, want 1", calls)
+		}
+
+		delivered, _ := sized.Update(msg)
+		_, third := delivered.Update(reloadedMsg{tasks: tasks})
+
+		if _, n := runCmds(third); n != 2 {
+			t.Errorf("poll after delivery returned %d cmds, want 2", n)
+		}
+
+		if calls != 2 {
+			t.Errorf("cost calls = %d, want 2", calls)
+		}
+	})
+
+	t.Run("unchanged cost keeps scroll", func(t *testing.T) {
+		t.Parallel()
+
+		body := strings.Repeat("line\n\n", 200)
+		m := New([]*task.Task{{ID: ttid1, Body: body}}).WithCost(func(string) (string, error) { return "same", nil })
+
+		sized, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+		first, _ := sized.Update(sized.(model).costCmd()())
+		scrolled := first.(model)
+		scrolled.viewport.ScrollDown(3)
+
+		if scrolled.viewport.YOffset() != 3 {
+			t.Fatalf("setup: YOffset = %d, want 3", scrolled.viewport.YOffset())
+		}
+
+		updated, _ := scrolled.Update(costMsg{track: ttid1, md: "same"})
+
+		got := updated.(model)
+
+		if off := got.viewport.YOffset(); off != 3 {
+			t.Errorf("YOffset after identical cost = %d, want 3", off)
+		}
+	})
+
+	t.Run("poll without cost func returns the tick only", func(t *testing.T) {
+		t.Parallel()
+
+		tasks := []*task.Task{{ID: ttid1, Body: "b"}}
+		m := New(tasks).WithReload(func() ([]*task.Task, error) { return tasks, nil })
+
+		_, cmd := m.Update(reloadedMsg{tasks: tasks})
+
+		msgs, n := runCmds(cmd)
+		if n != 1 || len(msgs) != 0 {
+			t.Errorf("poll returned %d cmds and %d immediate msgs, want 1 and 0", n, len(msgs))
+		}
+	})
 }
 
 func TestInit(t *testing.T) {
@@ -1605,4 +1744,43 @@ func itemIDs(m model) []string {
 	}
 
 	return ids
+}
+
+func callCmd(c tea.Cmd) (tea.Msg, bool) {
+	out := make(chan tea.Msg, 1)
+
+	go func() { out <- c() }()
+
+	select {
+	case msg := <-out:
+		return msg, true
+	case <-time.After(200 * time.Millisecond):
+		return nil, false
+	}
+}
+
+func runCmds(cmd tea.Cmd) ([]tea.Msg, int) {
+	if cmd == nil {
+		return nil, 0
+	}
+
+	msg, ok := callCmd(cmd)
+	if !ok {
+		return nil, 1
+	}
+
+	batch, isBatch := msg.(tea.BatchMsg)
+	if !isBatch {
+		return []tea.Msg{msg}, 1
+	}
+
+	var msgs []tea.Msg
+
+	for _, c := range batch {
+		if got, ok := callCmd(c); ok {
+			msgs = append(msgs, got)
+		}
+	}
+
+	return msgs, len(batch)
 }
