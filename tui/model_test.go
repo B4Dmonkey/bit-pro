@@ -928,6 +928,25 @@ func TestUpdate(t *testing.T) {
 		}
 	})
 
+	t.Run("cost shown in the popup", func(t *testing.T) {
+		t.Parallel()
+
+		m := New([]*task.Task{{ID: ttid1, Body: "## Why\nbecause"}}).WithCost(func(string) (string, error) {
+			return "| Total cost | $5.20 |", nil
+		})
+
+		sized, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+		costed, _ := sized.Update(sized.(model).costCmd()())
+		opened := costed.(model)
+		opened.modalOpen = true
+		opened.refreshModal()
+
+		view := opened.modalViewport.View()
+		if !strings.Contains(view, "Cost") || !strings.Contains(view, "$5.20") {
+			t.Errorf("popup = %q, want the Cost section", view)
+		}
+	})
+
 	t.Run("cost shown under body", func(t *testing.T) {
 		t.Parallel()
 

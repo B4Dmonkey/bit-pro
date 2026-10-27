@@ -41,7 +41,8 @@ func newUICmd() *cobra.Command {
 					}
 
 					return s.SetApproved(id, approved)
-				}))
+				}).
+				WithCost(costFor(cmd.Context(), stores)))
 		},
 	}
 }

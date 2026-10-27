@@ -217,6 +217,10 @@ func (m model) handleCost(msg costMsg) (tea.Model, tea.Cmd) {
 
 	if t := m.selected(); t != nil && t.ID == msg.track {
 		m.refreshDetail()
+
+		if m.modalOpen {
+			m.refreshModal()
+		}
 	}
 
 	return m, nil
@@ -431,14 +435,7 @@ func (m *model) refreshDetail() {
 		return
 	}
 
-	md := t.Body
-	if cost, ok := m.costs[t.ID]; ok && !isBar(t.ID) {
-		if cost == "" {
-			cost = noUsage
-		}
-
-		md += "\n\n## Cost\n\n" + cost
-	}
+	md := m.bodyWithCost(t)
 
 	body := md
 	if m.renderer != nil {
@@ -449,6 +446,19 @@ func (m *model) refreshDetail() {
 
 	m.viewport.SetContent(body)
 	m.viewport.GotoTop()
+}
+
+func (m model) bodyWithCost(t *task.Task) string {
+	cost, ok := m.costs[t.ID]
+	if !ok || isBar(t.ID) {
+		return t.Body
+	}
+
+	if cost == "" {
+		cost = noUsage
+	}
+
+	return t.Body + "\n\n## Cost\n\n" + cost
 }
 
 func (m *model) refreshModal() {
@@ -462,9 +472,11 @@ func (m *model) refreshModal() {
 	m.modalViewport.SetWidth(innerW)
 	m.modalViewport.SetHeight(innerH)
 
-	body := t.Body
+	md := m.bodyWithCost(t)
+
+	body := md
 	if r := newRenderer(m.style, max(innerW, 1)); r != nil {
-		if out, err := r.Render(t.Body); err == nil {
+		if out, err := r.Render(md); err == nil {
 			body = out
 		}
 	}
