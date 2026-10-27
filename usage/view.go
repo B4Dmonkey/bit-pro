@@ -48,7 +48,7 @@ func Render(status string, rows []Priced, bars []*task.Task) string {
 		asOf = fmt.Sprintf("_as of %s%s_\n\n", latest.UTC().Format(time.DateOnly), suffix)
 	}
 
-	return fmt.Sprintf("%s| Total cost | %s |\n| Total tokens | %s (in %s · out %s) |\n\n%s%s\n%s\n",
+	return fmt.Sprintf("%s| | |\n|---|---|\n| Total cost | %s |\n| Total tokens | %s (in %s · out %s) |\n\n%s%s\n%s\n",
 		asOf, cost, formatTokens(in+out), formatTokens(in), formatTokens(out),
 		renderAgents(rows), renderBars(rows, bars), closingNote)
 }
@@ -198,13 +198,13 @@ func renderAgents(rows []Priced) string {
 
 	var sb strings.Builder
 
-	sb.WriteString("### By agent\n\n")
+	sb.WriteString("### By agent\n\n| Agent / skill | Model | Calls | Cost |\n|---|---|---:|---:|\n")
 
 	for _, a := range agents {
-		fmt.Fprintf(&sb, "**%s** — %s\n\n%s", a.name, a.cost, renderSkills(rowsByAgent[a.name]))
+		fmt.Fprintf(&sb, "| **%s** | | | %s |\n%s", a.name, a.cost, renderSkills(rowsByAgent[a.name]))
 	}
 
-	return sb.String()
+	return sb.String() + "\n"
 }
 
 type skillLine struct {
@@ -270,16 +270,11 @@ func (t agentTree) subtreeCost(id string) Amount {
 func renderSkills(rows []Priced) string {
 	t := newAgentTree(rows)
 
-	out := t.render([]string{""}, 0)
-	if out == "" {
-		return ""
-	}
-
-	return out + "\n"
+	return t.render([]string{""}, 0)
 }
 
 func (t agentTree) render(ids []string, depth int) string {
-	indent := strings.Repeat("  ", depth+1)
+	indent := strings.Repeat("\u00a0\u00a0", depth) + "↳ "
 
 	lines := map[[2]string]*skillLine{}
 
@@ -314,27 +309,21 @@ func (t agentTree) render(ids []string, depth int) string {
 
 	for _, l := range order {
 		if l.skill == "" {
-			fmt.Fprintf(&own, "%sown work (%s) — %s\n", indent, l.model, l.cost)
+			fmt.Fprintf(&own, "| %sown work | %s | | %s |\n", indent, l.model, l.cost)
 
 			continue
 		}
 
-		n := len(l.calls)
-		fmt.Fprintf(&out, "%s%s (%s) — %d × %s = %s\n", indent, l.skill, l.model, n, perCall(l.cost, n), l.cost)
+		fmt.Fprintf(&out, "| %s%s | %s | %d | %s |\n", indent, l.skill, l.model, len(l.calls), l.cost)
 	}
 
 	for _, sl := range t.subagentLines(kids) {
-		n := len(sl.ids)
-		fmt.Fprintf(&out, "%s%s (subagent, %s) — %d × %s = %s\n", indent, sl.typ, sl.model, n, perCall(sl.cost, n), sl.cost)
+		fmt.Fprintf(&out, "| %s%s (subagent) | %s | %d | %s |\n", indent, sl.typ, sl.model, len(sl.ids), sl.cost)
 
 		out.WriteString(t.render(sl.ids, depth+1))
 	}
 
 	return out.String() + own.String()
-}
-
-func perCall(cost Amount, n int) Amount {
-	return Amount{USD: cost.USD / float64(n), Unknown: cost.Unknown, Priced: cost.Priced}
 }
 
 func (t agentTree) subagentLines(kids []string) []*subagentLine {

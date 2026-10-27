@@ -85,11 +85,11 @@ func TestRender(t *testing.T) {
 		}, nil)
 
 		heads := []string{
-			"**bit:bot** — $0.20",
-			"**bit:ruler** — $3.00",
-			"**bit:theCreator** — $1.00",
-			"**other** — $4.00",
-			"**main** — $2.00",
+			"| **bit:bot** | | | $0.20 |",
+			"| **bit:ruler** | | | $3.00 |",
+			"| **bit:theCreator** | | | $1.00 |",
+			"| **other** | | | $4.00 |",
+			"| **main** | | | $2.00 |",
 		}
 
 		if !strings.Contains(got, "### By agent") {
@@ -128,9 +128,9 @@ func TestRender(t *testing.T) {
 		prev := -1
 
 		for _, want := range []string{
-			"**bit:ruler** — $50.00",
-			"bit:scope (opus) — 2 × $20.00 = $40.00",
-			"own work (opus) — $10.00",
+			"| **bit:ruler** | | | $50.00 |",
+			"| ↳ bit:scope | opus | 2 | $40.00 |",
+			"| ↳ own work | opus | | $10.00 |",
 		} {
 			i := strings.Index(got, want)
 			if i < 0 || i < prev {
@@ -138,6 +138,19 @@ func TestRender(t *testing.T) {
 			}
 
 			prev = i
+		}
+	})
+
+	t.Run("totals and agents are tables", func(t *testing.T) {
+		got := Render(task.StatusDoing, []Priced{{Row: orm.Usage{InputTokens: 1_000_000}, Price: opus}}, nil)
+
+		for _, want := range []string{
+			"| | |\n|---|---|\n| Total cost",
+			"| Agent / skill | Model | Calls | Cost |\n|---|---|---:|---:|\n",
+		} {
+			if !strings.Contains(got, want) {
+				t.Errorf("Render() = %q, want it to contain %q", got, want)
+			}
 		}
 	})
 
@@ -165,11 +178,11 @@ func TestRender(t *testing.T) {
 		prev := -1
 
 		for _, want := range []string{
-			"**bit:ruler** — $5.00",
-			"  general-purpose (subagent, opus) — 1 × $4.00 = $4.00",
-			"    bit:analyze (opus) — 1 × $2.00 = $2.00",
-			"    Explore (subagent, haiku) — 2 × $1.00 = $2.00",
-			"  own work (opus) — $1.00",
+			"| **bit:ruler** | | | $5.00 |",
+			"| ↳ general-purpose (subagent) | opus | 1 | $4.00 |",
+			"| \u00a0\u00a0↳ bit:analyze | opus | 1 | $2.00 |",
+			"| \u00a0\u00a0↳ Explore (subagent) | haiku | 2 | $2.00 |",
+			"| ↳ own work | opus | | $1.00 |",
 		} {
 			i := strings.Index(got, want)
 			if i < 0 || i < prev {

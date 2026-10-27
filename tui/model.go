@@ -31,6 +31,12 @@ type reloadedMsg struct {
 
 type tickMsg struct{}
 
+type costMsg struct {
+	track string
+	md    string
+	err   error
+}
+
 func (i item) FilterValue() string { return i.t.Title }
 func (i item) Title() string       { return i.t.Title }
 func (i item) Description() string { return i.t.ID + " · " + i.t.Status }
@@ -76,6 +82,9 @@ type model struct {
 	renderer      *glamour.TermRenderer
 	reload        func() ([]*task.Task, error)
 	approve       func(id string, approved bool) error
+	cost          func(track string) (string, error)
+	costs         map[string]string
+	costInFlight  map[string]bool
 	loaded        []*task.Task
 	detailFocused bool
 	modalOpen     bool
@@ -128,6 +137,8 @@ func New(tasks []*task.Task) model {
 		style:         style,
 		loaded:        tasks,
 		expanded:      expanded,
+		costs:         map[string]string{},
+		costInFlight:  map[string]bool{},
 	}
 }
 
@@ -142,6 +153,8 @@ func sameTasks(a, b []*task.Task) bool {
 			x.Approved == y.Approved
 	})
 }
+
+const noUsage = "_no usage recorded_"
 
 const pollInterval = time.Second
 
@@ -159,12 +172,58 @@ func (m model) WithApprove(f func(id string, approved bool) error) model {
 	return m
 }
 
+func (m model) WithCost(f func(track string) (string, error)) model {
+	m.cost = f
+	return m
+}
+
 func (m model) Init() tea.Cmd {
+	var poll tea.Cmd
 	if m.reload != nil {
-		return tick()
+		poll = tick()
 	}
 
-	return nil
+	return tea.Batch(poll, m.costCmd())
+}
+
+func (m model) costCmd() tea.Cmd {
+	t := m.selected()
+	if m.cost == nil || t == nil || isBar(t.ID) || m.costInFlight[t.ID] {
+		return nil
+	}
+
+	cost, id := m.cost, t.ID
+	m.costInFlight[id] = true
+
+	return func() tea.Msg {
+		md, err := cost(id)
+
+		return costMsg{track: id, md: md, err: err}
+	}
+}
+
+func (m model) handleCost(msg costMsg) (tea.Model, tea.Cmd) {
+	delete(m.costInFlight, msg.track)
+
+	if msg.err != nil {
+		return m, nil
+	}
+
+	if prev, ok := m.costs[msg.track]; ok && prev == msg.md {
+		return m, nil
+	}
+
+	m.costs[msg.track] = msg.md
+
+	if t := m.selected(); t != nil && t.ID == msg.track {
+		m.refreshDetail()
+
+		if m.modalOpen {
+			m.refreshModal()
+		}
+	}
+
+	return m, nil
 }
 
 func (m model) reloadCmd() tea.Cmd {
@@ -221,12 +280,12 @@ func (m model) handleReloaded(msg reloadedMsg) (tea.Model, tea.Cmd) {
 	}
 
 	if sameTasks(m.loaded, msg.tasks) {
-		return m, tick()
+		return m, tea.Batch(tick(), m.costCmd())
 	}
 
 	m.setTasks(msg.tasks)
 
-	return m, tick()
+	return m, tea.Batch(tick(), m.costCmd())
 }
 
 func (m model) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
@@ -313,6 +372,8 @@ func (m model) handleListKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	if m.Index() != prev {
 		m.refreshDetail()
+
+		return m, tea.Batch(cmd, m.costCmd())
 	}
 
 	return m, cmd
@@ -324,6 +385,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.reloadCmd()
 	case reloadedMsg:
 		return m.handleReloaded(msg)
+	case costMsg:
+		return m.handleCost(msg)
 	case tea.WindowSizeMsg:
 		m.winWidth, m.winHeight = msg.Width, msg.Height
 		m.relayout()
@@ -346,6 +409,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if m.Index() != prev {
 		m.refreshDetail()
+
+		return m, tea.Batch(cmd, m.costCmd())
 	}
 
 	return m, cmd
@@ -370,15 +435,30 @@ func (m *model) refreshDetail() {
 		return
 	}
 
-	body := t.Body
+	md := m.bodyWithCost(t)
+
+	body := md
 	if m.renderer != nil {
-		if out, err := m.renderer.Render(t.Body); err == nil {
+		if out, err := m.renderer.Render(md); err == nil {
 			body = out
 		}
 	}
 
 	m.viewport.SetContent(body)
 	m.viewport.GotoTop()
+}
+
+func (m model) bodyWithCost(t *task.Task) string {
+	cost, ok := m.costs[t.ID]
+	if !ok || isBar(t.ID) {
+		return t.Body
+	}
+
+	if cost == "" {
+		cost = noUsage
+	}
+
+	return t.Body + "\n\n## Cost\n\n" + cost
 }
 
 func (m *model) refreshModal() {
@@ -392,9 +472,11 @@ func (m *model) refreshModal() {
 	m.modalViewport.SetWidth(innerW)
 	m.modalViewport.SetHeight(innerH)
 
-	body := t.Body
+	md := m.bodyWithCost(t)
+
+	body := md
 	if r := newRenderer(m.style, max(innerW, 1)); r != nil {
-		if out, err := r.Render(t.Body); err == nil {
+		if out, err := r.Render(md); err == nil {
 			body = out
 		}
 	}
