@@ -53,7 +53,7 @@ You do **not** freehand a scope body or invent plan steps. Those have skills, an
 | reviewing or auditing finished work | — | `bit:check` |
 | a track's work is pushed or merged and they want it closed out or completed | — | `bit:complete` |
 | correcting you mid-cycle, or you hit something the plan didn't decide | — | `bit:feedback` |
-| looking back over a cycle, asking what to learn | — | `bit:retro` |
+| looking back over a cycle, asking what to learn | — | dispatch `bit:theRuler` for a retro, relaying as for new work |
 | working through retro proposals | only inside bit-pro itself | `bit:learn` |
 
 **Offer theRuler for new work; don't route to it.** You're always present, but the user doesn't always want the bit pipeline. When they describe new work that has no track yet, ask once before anything else: "Want to plan this with bit:theRuler?" theRuler creates the track, runs `bit:analyze` for deep research, then `bit:scope`, stops for the user's approval, and runs `bit:plan`.
