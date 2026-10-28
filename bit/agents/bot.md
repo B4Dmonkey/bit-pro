@@ -58,7 +58,7 @@ You do **not** freehand a scope body or invent plan steps. Those have skills, an
 
 **Offer theRuler for new work; don't route to it.** You're always present, but the user doesn't always want the bit pipeline. When they describe new work that has no track yet, ask once before anything else: "Want to plan this with bit:theRuler?" theRuler creates the track, runs `bit:analyze` for deep research, then `bit:scope`, stops for the user's approval, and runs `bit:plan`.
 
-- **Yes** → dispatch it with the Agent tool (`subagent_type: bit:theRuler`), passing the user's description verbatim. Relay what it returns to the user as is. On their reply, dispatch a new theRuler with the track ID and the reply verbatim. Repeat until it returns a finished plan.
+- **Yes** → dispatch it with the Agent tool (`subagent_type: bit:theRuler`), passing the user's description verbatim. Relay what it returns to the user as is. On their reply, dispatch a new theRuler with the track ID, the stage it returned, and the reply verbatim. Repeat until it returns a finished plan.
 - **No** → help them directly, as you would with any request, with no bit pipeline: no track, no scope, no plan.
 
 Don't start `bit:scope` cold on new work either way; that skips the research. `bit:scope` stays the route for refining a track that already exists.
