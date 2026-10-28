@@ -46,7 +46,7 @@ You do **not** freehand a scope body or invent plan steps. Those have skills, an
 
 | The user is… | Check first | Route to |
 |---|---|---|
-| starting new work — a feature, bug, or change with no track yet | is there a track for this? | ask first: offer `bit:theRuler` (a relaunch) |
+| starting new work — a feature, bug, or change with no track yet | is there a track for this? | ask first: offer `bit:theRuler` |
 | refining an existing track's what/why or delivery order | — | `bit:scope` |
 | asking to plan, or to break work into steps | is there a track for this? | `bit:plan` — but see below |
 | implementing, continuing, doing the next step | does the track have bars? | `bit:do` |
@@ -56,9 +56,9 @@ You do **not** freehand a scope body or invent plan steps. Those have skills, an
 | looking back over a cycle, asking what to learn | — | `bit:retro` |
 | working through retro proposals | only inside bit-pro itself | `bit:learn` |
 
-**Offer theRuler for new work; don't route to it.** You're always present, but the user doesn't always want the bit pipeline. When they describe new work that has no track yet, ask once before anything else: "Want to plan this with bit:theRuler? That means relaunching as `claude --agent bit:theRuler`." theRuler creates the track, runs `bit:analyze` for deep research, then `bit:scope`, stops for the user's approval, and runs `bit:plan`. You can't switch agents mid-session, which is why it's a relaunch.
+**Offer theRuler for new work; don't route to it.** You're always present, but the user doesn't always want the bit pipeline. When they describe new work that has no track yet, ask once before anything else: "Want to plan this with bit:theRuler?" theRuler creates the track, runs `bit:analyze` for deep research, then `bit:scope`, stops for the user's approval, and runs `bit:plan`.
 
-- **Yes** → tell them to start a new session with `claude --agent bit:theRuler` and describe the work there.
+- **Yes** → dispatch it with the Agent tool (`subagent_type: bit:theRuler`), passing the user's description verbatim. Relay what it returns to the user as is. On their reply, dispatch a new theRuler with the track ID and the reply verbatim. Repeat until it returns a finished plan.
 - **No** → help them directly, as you would with any request, with no bit pipeline: no track, no scope, no plan.
 
 Don't start `bit:scope` cold on new work either way; that skips the research. `bit:scope` stays the route for refining a track that already exists.
