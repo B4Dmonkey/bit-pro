@@ -73,7 +73,10 @@ Keep the distinction sharp:
   - **Unknown:** Does the county API return district codes, or only county codes?
     **Resolve by:** 30-min spike hitting the staging endpoint with 3 sample counties.
     **De-risk before planning?** Yes — the whole aggregation approach depends on this.
+    **Answered by:** research
   ```
+
+  Every entry names who can answer it in `**Answered by:**`. `research` means the code, the research notes or the operator's description settle it. `operator` means only the operator can make the preference or trade-off. A risk tied to the verse that proves it by building keeps `Resolve by: Verse N` and gets no marker.
 
 - A **decision** is a question that's been *answered* — the user made a call, or a spike came back. It's settled.
 
@@ -103,6 +106,8 @@ What you must never do is **dissolve an open question into a verse's prose** —
 
 **Design choices are decisions too.** A naming call (is the command `archive` or `stash`?), user-facing wording, the shape of stored data, an ID strategy — these are choices, and a choice left open here doesn't vanish; it resurfaces downstream as a bogus "User verifies: the command reads naturally" checkbox, because bit_plan had nowhere to defer to and launders the open question into a fake check. If bit_plan hands one back — "this reads like a choice, not a check" — that's the signal: settle it here as a Decision. Deciding it once, in the open, is what stops it from being relitigated as a fake verification later.
 
+**Only operator decisions reach the operator.** Settle internal design calls yourself and record each one as a Decision that says what was chosen. Internal calls are wording only agents read (markers, labels), hand-off protocols between agents, frontmatter fields, and where a new duty lives. A question that the code, the notes or the operator's description could answer becomes a `research` entry, not a question for the operator. Ask the operator only for a preference or trade-off no reading settles; when the operator can't predict the need, choose the flexible option and record it as a Decision. User-facing naming and wording stay operator calls, as the paragraph above says.
+
 ---
 
 ## Build on research first
@@ -118,7 +123,7 @@ So whenever the track already exists — a Refine, or a Create where bit:theRule
 
 ## Gathering context (new scopes)
 
-Before drafting, get the WHY right — it's the part the plan will lean on, so it has to stand on its own. Ask:
+Before drafting, get the WHY right — it's the part the plan will lean on, so it has to stand on its own. Ask what the operator's description and the research notes don't already answer:
 
 1. What's the problem or goal, in user/operator terms — what breaks, is missing, or is painful today? (Not a restatement of the change.)
 2. What triggered this now — a bug report, wrong data, a deadline, a new requirement?
@@ -165,6 +170,7 @@ omit it entirely once nothing is open.]
 - **Unknown:** …
   **Resolve by:** …
   **De-risk before planning?** Yes / No — why.
+  **Answered by:** research / operator — …
 
 [When only building can answer it, `Resolve by` names the spike verse and adds two lines —
 this is what bit_plan reads to decide how much of the scope it can plan:]
@@ -216,6 +222,7 @@ Keep it tight. This is an overview a reader skims to grasp the shape of the work
 3. Check the risks and decisions — this is where refinement does its real work:
    - Is anything in Risks & unknowns actually *answered*? If so, it's a decision — move it down into Decisions, don't leave it re-labelled "Resolved" in the risk list.
    - Does anything still in Risks & unknowns have a resolution path and a de-risk-before-planning call?
+   - Does every entry carry `**Answered by:**`, or a `Resolve by: Verse N` tie?
    - Are the Decisions phrased as acceptance criteria a reader could check against?
    - Push toward the goal: fewer open unknowns each pass, ideally an empty risk section at handoff.
 4. Check the verses at value altitude:
