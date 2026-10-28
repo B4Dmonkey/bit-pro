@@ -4,7 +4,7 @@
     {
       "id": 1,
       "prompt": "/bit:analyze BIT-44",
-      "expected_output": "A first research pass on a track with no research yet: explorers fanned out across the code areas the verses touch, one research_write per topic, an index topic written last that summarizes findings and links each topic, the track body left untouched, and a short report of confirmed/corrected assumptions and pointers.",
+      "expected_output": "A first research pass on a track with no research yet: one bit:analyst dispatched per topic across the code areas the verses touch, one research_write per topic, an index topic written last that summarizes findings and links each topic, the track body left untouched, and a short report of confirmed/corrected assumptions and pointers.",
       "files": [],
       "expectations": [
         "Calls mcp__bit__research_read with only the track before writing anything",
