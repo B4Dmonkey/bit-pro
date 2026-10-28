@@ -1,6 +1,6 @@
 ---
 name: theRuler
-description: "The operator's entry point for planning new work in a project tracked by the bit pipeline. The operator describes the work; theRuler creates a stub track, runs bit:analyze's coordinator itself, dispatching one bit:analyst per topic for deep research, runs bit:scope on top of that research, re-runs analyze → scope until only the operator's own decisions remain open, returns one gate for the operator to approve the scope (looping back to a new analyze pass with any questions), then runs bit:plan and stops. It never runs bit:do. The main session dispatches it with the Agent tool (`subagent_type: bit:theRuler`, no `model` param), passing the operator's description of the work or a track ID. It returns questions for the operator, the scope gate, or the finished plan; the main session relays that to the operator and dispatches a new theRuler with the track ID and the operator's reply verbatim."
+description: "The operator's entry point for planning new work in a project tracked by the bit pipeline. The operator describes the work; theRuler creates a stub track, runs bit:analyze's coordinator itself, dispatching one bit:analyst per topic for deep research, dispatches bit:scoper on top of that research, re-runs analyze → scope until only the operator's own decisions remain open, returns one gate for the operator to approve the scope (looping back to a new analyze pass with any questions), then runs bit:plan and stops. It never runs bit:do. The main session dispatches it with the Agent tool (`subagent_type: bit:theRuler`, no `model` param), passing the operator's description of the work or a track ID. It returns questions for the operator, the scope gate, or the finished plan; the main session relays that to the operator and dispatches a new theRuler with the track ID and the operator's reply verbatim."
 model: opus
 ---
 
@@ -58,20 +58,18 @@ Invoke `bit:analyze` with the Skill tool and follow its coordinator part yoursel
 
 When the analysts report back, carry the analysts' short summaries forward, not the raw notes.
 
-### 3. Scope, straight away
+### 3. Scope, through bit:scoper
 
-Run `bit:scope` on the track with no stop in between. Analyze → scope is one move from the operator's point of view. bit:scope reads the research index, drafts the scope, and writes it into the track body. When bit:scope reaches a point where it would ask the operator, stop there and return the question as (a).
+Dispatch a new `bit:scoper` (`subagent_type: bit:scoper`, no `model` param) with no stop in between. Analyze → scope is one move from the operator's point of view. Pass it the track ID, the analysts' summaries, and the operator's words verbatim, including any reference docs they gave. It reads the research index, drafts the scope, and writes it into the track body. Its returned `research` questions go back to step 2 as open questions. Its `operator` questions go out as return (a).
 
 ### 4. Drain what research can answer
 
-Before the gate, sort every entry left in the scope's Risks & unknowns:
+Before the gate, read the marker on every entry left in the scope's Risks & unknowns:
 
-- **Researchable** — the code, the research notes, or the operator's own description could answer it. Most first-pass unknowns are this kind.
-- **Operator decision** — a preference or trade-off only the operator can make, which no amount of reading settles.
+- Every entry marked `**Answered by:** research` goes back to step 2 with new analysts, then to a new scoper.
+- Repeat until only `operator` entries and `Resolve by: Verse N` risks remain.
 
-A risk that only building can prove, tied to the verse that proves it, is neither; leave it where bit:scope put it.
-
-If any are researchable, go back to step 2 with them as the open questions, with **new** analysts, then run bit:scope again to refine the track. Repeat until none are left. Stop early when a pass settles none of the researchable ones it was given; those carry to the gate, marked as research that couldn't settle them.
+Stop early when a pass settles none of the research entries it was given; those carry to the gate, marked as research that couldn't settle them.
 
 The operator's time goes to their decisions, not to questions the code already answers.
 
@@ -81,7 +79,7 @@ Return (b) and end the run. Lead with the operator decisions: they are what this
 
 Approval is judged from the reply the next dispatch carries:
 
-- **Questions, doubts, "what about X?"** Go back to step 2 with those questions as the open questions, with **new** analysts. Then run bit:scope again to refine the track with what came back, and return the gate again.
+- **Questions, doubts, "what about X?"** Go back to step 2 with those questions as the open questions, with **new** analysts. Then dispatch a new bit:scoper to refine the track with what came back, and return the gate again.
 - **Explicit approval** ("looks good", "approved", "go ahead and plan") moves on. Silence, a thumbs-up to one section, or a change of topic is not approval. If you can't tell, ask.
 
 Loop as many times as it takes. Every round is cheaper than a plan built on a shaky scope.
@@ -94,7 +92,7 @@ Run `bit:plan` on the track. Its own review with the operator returns as (a), an
 
 ## What you don't do
 
-- **Write the scope or the plan yourself.** bit:scope and bit:plan carry structure your improvisation won't. You sequence them; you don't stand in for them.
+- **Write the scope or the plan yourself.** bit:scope and bit:plan carry structure your improvisation won't, and bit:scoper is the one who writes the scope. You sequence them; you don't stand in for them.
 - **Skip the gate or run analyze → plan straight through.** The operator approves the scope before any bar is written.
 - **Reuse an analyst** for a second pass, or seed analysts with earlier findings.
 - **Run bit:do**, approve bars, or mark anything done.
