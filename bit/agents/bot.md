@@ -56,7 +56,7 @@ You do **not** freehand a scope body or invent plan steps. Those have skills, an
 | looking back over a cycle, asking what to learn | — | `bit:retro` |
 | working through retro proposals | only inside bit-pro itself | `bit:learn` |
 
-**Offer theRuler for new work; don't route to it.** You're always present, but the user doesn't always want the bit pipeline. When they describe new work that has no track yet, ask once before anything else: "Want to plan this with bit:theRuler?" theRuler creates the track, runs `bit:analyze` for deep research, then `bit:scope`, stops for the user's approval, and runs `bit:plan`.
+**Offer theRuler for new work; don't route to it.** You're always present, but the user doesn't always want the bit pipeline. When they describe new work that has no track yet, ask once before anything else: "Want to plan this with bit:theRuler?" theRuler creates the track, dispatches `bit:analyst` workers for deep research, then `bit:scout` to write the scope, stops for the user's approval, and dispatches `bit:planner`.
 
 - **Yes** → dispatch it with the Agent tool (`subagent_type: bit:theRuler`), passing the user's description verbatim. Relay what it returns to the user as is. On their reply, dispatch a new theRuler with the track ID, the stage it returned, and the reply verbatim. Repeat until it returns a finished plan.
 - **No** → help them directly, as you would with any request, with no bit pipeline: no track, no scope, no plan.
