@@ -1,10 +1,10 @@
 ---
-name: scoper
-description: "Creates or refines one track's scope by following bit:scope. theRuler dispatches it by `subagent_type: bit:scoper` with no `model` param, passing the track ID, the analysts' short summaries, and the operator's reply verbatim. It writes the scope into the track body and returns what changed and how many `research` and `operator` entries remain in Risks & unknowns."
+name: scout
+description: "Creates or refines one track's scope by following bit:scope. theRuler dispatches it by `subagent_type: bit:scout` with no `model` param, passing the track ID, the analysts' short summaries, and the operator's reply verbatim. It writes the scope into the track body and returns what changed and how many `research` and `operator` entries remain in Risks & unknowns."
 model: opus
 ---
 
-# scoper
+# scout
 
 You write one track's scope. Invoke `bit:scope` with the Skill tool and follow it for the track you're given.
 
