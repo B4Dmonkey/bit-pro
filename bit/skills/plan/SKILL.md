@@ -32,10 +32,16 @@ If the user gives you only a "what", push back once to get the "why". Ask: what 
 ## First: is anything still open?
 
 Before you research anything, before you draft a single bar — in either mode — read the scope's
-`## Risks & unknowns` section. If it has entries, **stop and ask the user whether to plan at
-all.** Name what's open and hand it back; don't pair it with your proposed answers, because an
-answer offered alongside a question invites agreement instead of a decision, and the user ends
-up ratifying your call rather than making their own.
+`## Risks & unknowns` section and sort its entries by marker:
+
+- **`**Answered by:** research` entries:** stop before drafting and hand back. They go to
+  bit:analyze, then bit:scope. Name the entries.
+- **`**Answered by:** operator` entries, and entries with no marker** (scopes written before
+  the marker existed): **stop and ask the user whether to plan at all.** Name what's open and
+  hand it back; don't pair it with your proposed answers, because an answer offered alongside a
+  question invites agreement instead of a decision, and the user ends up ratifying your call
+  rather than making their own.
+- **`Resolve by: Verse N` risks and spikes:** see "When the scope has spike verses" below.
 
 Do this *first*, not after a research pass. Reading the risks and then investigating the
 codebase and its docs before mentioning them isn't diligence — it spends effort an unresolved
@@ -45,7 +51,16 @@ answer.
 **An empty or absent Risks section is not proof that nothing is open.** It means bit_scope
 didn't find anything, which is a weaker claim. So the gate stays live through drafting: the
 moment writing a bar requires you to settle something the scope didn't, stop *there* — before
-that bar exists — and either hand back to bit_scope or ask. In practice it looks like:
+that bar exists — and sort it three ways:
+
+- **Internal design call** (wording only agents read, a hand-off protocol between agents,
+  frontmatter fields, where a new duty lives): settle it. Append a Decision that says what was
+  chosen to the track's `## Decisions` (`mcp__bit__task_read`, then `mcp__bit__task_update`
+  with the body), and name it in your report.
+- **Answerable by the code, the notes or the description:** stop and hand back for research.
+- **Preference or trade-off:** stop and ask.
+
+The operator calls look like:
 
 - **A user-facing string the scope never fixed** — a label, a command name, an error message.
   You need one to write the test's assertion, and choosing it makes the plan the author of a
@@ -60,11 +75,12 @@ easy to argue your way past — you were right, the plan is fine, no harm done. 
 never a wrong plan; it's that a settled decision and a lucky guess read identically once
 they're written into a bar, so nobody downstream can tell which they're building on. And
 surfacing it *after* the bars exist doesn't undo it — the work is done, the user is reviewing
-instead of deciding, and "an assumption you should check" is a decision you already made.
+instead of deciding, and "an assumption you should check" is a decision you already made. A
+call recorded as a Decision under the internal-design rule above is settled, not assumed.
 
 If a report you're about to write contains "I assumed", "I picked", "I went with", "deliberate
-exclusion", or "flag it if you'd rather" — that's the tell. Each one belonged in a question
-asked before the bar was written.
+exclusion", or "flag it if you'd rather" about anything else — that's the tell. Each one
+belonged in a question asked before the bar was written.
 
 ---
 
@@ -265,7 +281,8 @@ naming call; "the refusal message reads clearly" is copy; neither is a check.
 When this happens, **hand back to bit_scope** to record the choice as a Decision — its Decisions
 section is exactly for naming, wording, data-shape, and strategy calls, and they double as
 acceptance criteria. Once it's decided, the bar either needs no User-verify or gets a concrete
-one that *observes* the now-settled behavior. Don't ship the launder.
+one that *observes* the now-settled behavior. Don't ship the launder. A wording call that only
+agents read is yours to settle and record; a user-facing one still goes back to bit_scope.
 
 This trap is described from the User-verify seat because that's where a laundered choice is
 easiest to spot, but the choice itself lands wherever you first need the answer — a string in a

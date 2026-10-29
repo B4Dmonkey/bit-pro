@@ -41,11 +41,12 @@ Two agents do the work: **theRuler** plans, **theCreator** builds.
 **1. Plan with theRuler**
 
 ```
-claude --agent bit:theRuler
-> add CSV export to the reports page
+claude
+> plan this with bit:theRuler: add CSV export to the reports page
 ```
 
-theRuler creates a track (`ACME-7`), researches the code, and writes a scope: why, and the
+The session dispatches theRuler and relays its questions and its approval gate back to you;
+you answer in the same session. theRuler creates a track (`ACME-7`), researches the code, and writes a scope: why, and the
 order to deliver it in. It **stops for you to approve the scope**. Ask questions and it
 researches again. Once you approve, it breaks the scope into bars (`ACME-7.1`, `ACME-7.2`, …):
 one TDD step and one commit each. It never writes code.

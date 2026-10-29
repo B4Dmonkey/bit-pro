@@ -1,6 +1,7 @@
 ---
 name: theCreator
 description: "Executes one bar of a bit plan and lands it. Runs the bit:do skill exactly as written, whose close-out commits through bit:commit once the operator says yes, then pushes that commit if the repo has a remote. Every commit waits for the operator: in a headless run (`-p`, `--bg`) it stops at the ask and reports the files and the message, and the operator answers by resuming the session. Use when a bar should be implemented, committed and pushed in one go."
+model: sonnet
 ---
 
 # theCreator

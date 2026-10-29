@@ -1,6 +1,6 @@
 ---
 name: bit_analyze
-description: Do the deep codebase research a track needs before it is scoped or re-scoped, and leave the findings as research notes through the `mcp__bit__research_*` tools. Use whenever the user says "analyze", "/bit:analyze BIT-N", "research this track", "deep dive before scoping", "dig into the code for this", "validate the scope's assumptions", or when bit:theRuler dispatches a research pass with open questions. It fans out explorer subagents across the code areas the track's verses touch, checks the assumptions the scope rests on, confirms or corrects each "Touches" pointer, and surfaces unknowns that light research missed. It writes one note per topic plus an `index` topic that summarizes the findings and links to the others. It does not edit the track body, write the scope, or plan bars. Shaping the scope is bit_scope's job, and it reads these notes afterward. Reach for this, not bit_scope, when the work needs evidence from the code before anyone decides its shape.
+description: Do the deep codebase research a track needs before it is scoped or re-scoped, and leave the findings as research notes through the `mcp__bit__research_*` tools. Use whenever the user says "analyze", "/bit:analyze BIT-N", "research this track", "deep dive before scoping", "dig into the code for this", "validate the scope's assumptions", or when bit:theRuler dispatches a research pass with open questions. It dispatches one `bit:analyst` worker per topic, in parallel, across the code areas the track's verses touch, checks the assumptions the scope rests on, confirms or corrects each "Touches" pointer, and surfaces unknowns that light research missed. It writes one note per topic plus an `index` topic that summarizes the findings and links to the others. It does not edit the track body, write the scope, or plan bars. Shaping the scope is bit_scope's job, and it reads these notes afterward. Reach for this, not bit_scope, when the work needs evidence from the code before anyone decides its shape.
 ---
 
 # Track Analysis
@@ -16,6 +16,8 @@ Three tools cover everything this skill does:
 
 Research lives in the store, and the `mcp__bit__research_*` tools are the only way in, which keeps a stray write from landing in the wrong track or outside it.
 
+Sections 1, 2, 4 and 5 are the coordinator's (whoever runs analyze), and section 3 is the analyst's.
+
 ## Input
 
 A track ID (uppercase it: `bit-44` → `BIT-44`), plus any **open questions** the caller hands over. bit:theRuler passes the questions the operator raised at the scope gate. A user running `/bit:analyze` directly may pass none. In that case, the scope's own Risks, unknowns, and "Touches" pointers are the questions.
@@ -27,19 +29,20 @@ A track ID (uppercase it: `bit-44` → `BIT-44`), plus any **open questions** th
 
 Earlier notes tell you where someone looked. They are not settled truth. If a topic bears on an open question, **re-check it against the code and rewrite it**. Don't carry its conclusion forward unchecked, because the code may have moved and the earlier pass may have been wrong. That is usually why the question is open again. Topics no question touches can stay as they are.
 
-## 2. Fan out explorers
+## 2. Dispatch analysts
 
-Split the work by code area: one explorer subagent per area the verses touch, plus one per open question that doesn't map to a single area. Run them in parallel, since they're independent. Give each one:
+Pick the topics: one per code area the verses touch, plus one per open question that doesn't map to a single area. Dispatch one `bit:analyst` per topic with the Agent tool (`subagent_type: bit:analyst`, no `model` param), all in one message so they run in parallel, since they're independent. Give each one:
+- the topic name, and whether that topic already exists. The analyst re-checks an existing topic against the code itself, so don't hand it the earlier conclusions;
 - the area or question, and the verse it serves;
 - the specific assumptions to check ("the scope assumes `task/feedback.go` builds paths with pathologize. Confirm and show the function");
 - the "Touches" pointers to confirm or correct;
 - a request to report facts with file paths and line references, and to flag anything surprising: a missing piece, a second place that does the same thing, a constraint the scope didn't mention.
 
-Explorers report back to you. You write the notes yourself, because the tools and the index structure are yours to keep consistent.
+Wait for every analyst to return before moving on.
 
-## 3. Write one topic per area
+## 3. One topic (the analyst's part)
 
-Call `mcp__bit__research_write` once per topic. A topic name is a short plain word or phrase: `store`, `mcp-server`, `feedback-pattern`. It can't contain `/`, `\`, or `..`, because a topic is a single note, not a path. A useful note says:
+The analyst researches its topic itself, sends out no subagents, and writes its one note with `mcp__bit__research_write`. A topic name is a short plain word or phrase: `store`, `mcp-server`, `feedback-pattern`. It can't contain `/`, `\`, or `..`, because a topic is a single note, not a path. A useful note says:
 - **What was checked**: the assumption or question, in one line.
 - **What the code does**: paths, function names, short excerpts where the exact text matters.
 - **Verdict**: confirmed, corrected (and what's actually true), or still unknown (and what would settle it).
@@ -47,9 +50,11 @@ Call `mcp__bit__research_write` once per topic. A topic name is a short plain wo
 
 Keep it to what a later agent needs in order to act, not a transcript of the exploration.
 
+Then the analyst returns a few lines to the coordinator, naming its topic: a verdict per assumption, pointer corrections, and new unknowns.
+
 ## 4. Write `index` last
 
-Once every topic is written, write the `index` topic: a short summary of the findings, and a link to each topic (`[store](store.md)`), each with a one-line reason to open it. Put the findings that change the scope first: assumptions that turned out false, new unknowns, and corrected pointers. Readers open the index first and decide from it what to load, so it has to say what's in each topic, not just list the names.
+Once every analyst has returned, the coordinator writes the `index` topic, reading the topics as needed: a short summary of the findings, and a link to each topic (`[store](store.md)`), each with a one-line reason to open it. Put the findings that change the scope first: assumptions that turned out false, new unknowns, and corrected pointers. Readers open the index first and decide from it what to load, so it has to say what's in each topic, not just list the names.
 
 Write it last because it summarizes the topics. Writing it first means summarizing notes that don't exist yet.
 
